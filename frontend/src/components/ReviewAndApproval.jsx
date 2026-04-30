@@ -214,7 +214,18 @@ export default function ReviewAndApproval() {
 
   const handleDownload = async (doc) => {
     try {
-      const res = await api.get(`/documents/${doc.id}/download`, {
+      const downloadId = doc?.documentId ?? doc?.id
+      if (!downloadId) {
+        setAlertModal({
+          show: true,
+          title: t('failed_load_doc'),
+          message: t('failed_load_doc'),
+          type: 'error'
+        })
+        return
+      }
+
+      const res = await api.get(`/documents/${downloadId}/download`, {
         responseType: 'blob'
       })
 
@@ -235,7 +246,7 @@ export default function ReviewAndApproval() {
         return null
       }
 
-      const fallbackName = doc.fileName || doc.title || `document-${doc.id}`
+      const fallbackName = doc.fileName || doc.title || `document-${downloadId}`
       const downloadName = getFileNameFromContentDisposition(contentDisposition) || fallbackName
       const url = window.URL.createObjectURL(new Blob([res.data], { type: contentTypeHeader || undefined }))
       const link = window.document.createElement('a')
@@ -247,10 +258,11 @@ export default function ReviewAndApproval() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Failed to download document:', err)
+      const apiMessage = err?.response?.data?.message
       setAlertModal({
         show: true,
         title: t('failed_load_doc'),
-        message: t('failed_load_doc'),
+        message: apiMessage || t('failed_load_doc'),
         type: 'error'
       })
     }

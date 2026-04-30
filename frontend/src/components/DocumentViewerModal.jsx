@@ -15,6 +15,7 @@ export default function DocumentViewerModal({ document, onClose }) {
   const docxContainerRef = useRef(null)
   const docxViewportRef = useRef(null)
   const [docxZoomMode, setDocxZoomMode] = useState('fit')
+  const effectiveDocumentId = document?.documentId ?? document?.id
   const { scale: docxScale, refresh: refreshDocxScale } = useDocxFitToWidth({
     enabled: contentType === 'docx' && !!docxBuffer,
     mode: docxZoomMode,
@@ -25,6 +26,12 @@ export default function DocumentViewerModal({ document, onClose }) {
   useEffect(() => {
     const loadDocument = async () => {
       try {
+        if (!effectiveDocumentId) {
+          setError('Missing document id')
+          setLoading(false)
+          return
+        }
+
         setLoading(true)
         setError(null)
         setFileUrl(null)
@@ -33,7 +40,7 @@ export default function DocumentViewerModal({ document, onClose }) {
         setContentType(null)
         setDocxZoomMode('fit')
         
-        const res = await api.get(`/documents/${document.id}/preview`, {
+        const res = await api.get(`/documents/${effectiveDocumentId}/preview`, {
           responseType: 'blob'
         })
         
@@ -149,11 +156,16 @@ export default function DocumentViewerModal({ document, onClose }) {
   }, [contentType, docxBuffer, refreshDocxScale])
 
   const handleDownload = async () => {
+    if (!effectiveDocumentId) {
+      alert('Failed to download document')
+      return
+    }
+
     try {
-      const res = await api.get(`/documents/${document.id}/download`, {
+      const res = await api.get(`/documents/${effectiveDocumentId}/download`, {
         responseType: 'blob'
       })
-      
+
       const contentDisposition = res.headers?.['content-disposition'] || ''
       const contentTypeHeader = res.headers?.['content-type'] || ''
       const getFileNameFromContentDisposition = (value) => {
@@ -171,7 +183,7 @@ export default function DocumentViewerModal({ document, onClose }) {
         return null
       }
 
-      const fallbackName = document.fileName || document.title || `document-${document.id}`
+      const fallbackName = document.fileName || document.title || `document-${effectiveDocumentId}`
       const downloadName = getFileNameFromContentDisposition(contentDisposition) || fallbackName
       const url = window.URL.createObjectURL(new Blob([res.data], { type: contentTypeHeader || undefined }))
       const link = window.document.createElement('a')

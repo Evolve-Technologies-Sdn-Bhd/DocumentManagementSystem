@@ -418,7 +418,7 @@ function SecuritySettings() {
       hasUpperCase: /[A-Z]/.test(password),
       hasLowerCase: /[a-z]/.test(password),
       hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      hasSpecialChar: /[!@#$%^&*]/.test(password)
     }
 
     if (strength.hasMinLength) strength.score++
@@ -607,12 +607,15 @@ function SecuritySettings() {
       setAlertModal({ show: true, title: 'Validation Error', message: 'New passwords do not match!', type: 'error' })
       return
     }
-    if (passwordStrength.score < 3) {
-      setAlertModal({ show: true, title: 'Validation Error', message: 'Password is too weak. Please meet at least 3 requirements.', type: 'error' })
-      return
-    }
-    if (passwords.new.length < 8) {
-      setAlertModal({ show: true, title: 'Validation Error', message: 'Password must be at least 8 characters', type: 'error' })
+    const meetsAllPasswordRequirements =
+      passwordStrength.hasMinLength &&
+      passwordStrength.hasUpperCase &&
+      passwordStrength.hasLowerCase &&
+      passwordStrength.hasNumber &&
+      passwordStrength.hasSpecialChar
+
+    if (!meetsAllPasswordRequirements) {
+      setAlertModal({ show: true, title: 'Validation Error', message: 'new password set does not follow password requirements', type: 'error' })
       return
     }
     setChangingPassword(true)
@@ -625,7 +628,10 @@ function SecuritySettings() {
       setPasswords({ current: '', new: '', confirm: '' })
       setPasswordStrength(defaultPasswordStrength)
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to change password'
+      const backendMessage = error.response?.data?.message
+      const message = backendMessage && /validation failed/i.test(backendMessage)
+        ? 'new password set does not follow password requirements'
+        : (backendMessage || 'Failed to change password')
       setAlertModal({ show: true, title: 'Error', message, type: 'error' })
     } finally {
       setChangingPassword(false)
@@ -709,40 +715,40 @@ function SecuritySettings() {
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasMinLength ?
                       <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-gray-400" />}
-                    <span className={`text-xs ${passwordStrength.hasMinLength ? 'text-green-700' : 'text-gray-600'}`}>
+                      <XCircleIcon className="h-4 w-4 text-red-500" />}
+                    <span className={`text-xs ${passwordStrength.hasMinLength ? 'text-green-700' : 'text-red-700'}`}>
                       {t('pass_req_min_len')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasUpperCase ?
                       <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-gray-400" />}
-                    <span className={`text-xs ${passwordStrength.hasUpperCase ? 'text-green-700' : 'text-gray-600'}`}>
+                      <XCircleIcon className="h-4 w-4 text-red-500" />}
+                    <span className={`text-xs ${passwordStrength.hasUpperCase ? 'text-green-700' : 'text-red-700'}`}>
                       {t('pass_req_upper')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasLowerCase ?
                       <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-gray-400" />}
-                    <span className={`text-xs ${passwordStrength.hasLowerCase ? 'text-green-700' : 'text-gray-600'}`}>
+                      <XCircleIcon className="h-4 w-4 text-red-500" />}
+                    <span className={`text-xs ${passwordStrength.hasLowerCase ? 'text-green-700' : 'text-red-700'}`}>
                       {t('pass_req_lower')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasNumber ?
                       <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-gray-400" />}
-                    <span className={`text-xs ${passwordStrength.hasNumber ? 'text-green-700' : 'text-gray-600'}`}>
+                      <XCircleIcon className="h-4 w-4 text-red-500" />}
+                    <span className={`text-xs ${passwordStrength.hasNumber ? 'text-green-700' : 'text-red-700'}`}>
                       {t('pass_req_number')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasSpecialChar ?
                       <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-gray-400" />}
-                    <span className={`text-xs ${passwordStrength.hasSpecialChar ? 'text-green-700' : 'text-gray-600'}`}>
+                      <XCircleIcon className="h-4 w-4 text-red-500" />}
+                    <span className={`text-xs ${passwordStrength.hasSpecialChar ? 'text-green-700' : 'text-red-700'}`}>
                       {t('pass_req_special')}
                     </span>
                   </div>

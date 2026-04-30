@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path')
 
 const config = {
   // System
@@ -20,7 +21,7 @@ const config = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   
   // File Upload
-  uploadDir: process.env.UPLOAD_DIR || './uploads',
+  uploadDir: path.resolve(process.cwd(), process.env.UPLOAD_DIR || './uploads'),
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800'), // 50MB default
   allowedFileTypes: (process.env.ALLOWED_FILE_TYPES || 'pdf,doc,docx,xls,xlsx,ppt,pptx,txt').split(','),
   

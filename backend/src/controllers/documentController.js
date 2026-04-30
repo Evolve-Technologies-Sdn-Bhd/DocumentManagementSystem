@@ -9,6 +9,52 @@ const fs = require('fs');
 const config = require('../config/app');
 const prisma = require('../config/database');
 
+const resolveExistingFilePath = (storedPath) => {
+  const raw = String(storedPath || '').trim()
+  if (!raw) return null
+
+  const forward = raw.replace(/\\/g, '/')
+  const normalized = path.normalize(forward)
+
+  const candidates = []
+
+  if (path.isAbsolute(normalized)) {
+    candidates.push(normalized)
+  } else {
+    candidates.push(path.resolve(process.cwd(), normalized))
+
+    const srcDir = path.resolve(__dirname, '..')
+    const backendDir = path.resolve(__dirname, '..', '..')
+    candidates.push(path.resolve(srcDir, normalized))
+    candidates.push(path.resolve(backendDir, normalized))
+
+    if (String(config?.uploadDir || '').trim()) {
+      candidates.push(path.resolve(config.uploadDir, normalized))
+    }
+  }
+
+  const uploadMarker = '/uploads/'
+  const uploadIdx = forward.lastIndexOf(uploadMarker)
+  if (uploadIdx >= 0 && String(config?.uploadDir || '').trim()) {
+    const suffix = forward.slice(uploadIdx + uploadMarker.length).replace(/^\/+/, '')
+    candidates.push(path.join(config.uploadDir, suffix))
+  }
+
+  const leadingUploads = forward.replace(/^\.\//, '')
+  if ((leadingUploads.startsWith('uploads/') || leadingUploads.startsWith('uploads\\')) && String(config?.uploadDir || '').trim()) {
+    const suffix = leadingUploads.replace(/^uploads[\\/]/, '').replace(/^\/+/, '')
+    candidates.push(path.join(config.uploadDir, suffix))
+  }
+
+  for (const p of candidates) {
+    try {
+      if (p && fs.existsSync(p)) return p
+    } catch {}
+  }
+
+  return null
+}
+
 class DocumentController {
   /**
    * Create new document
@@ -1239,12 +1285,9 @@ class DocumentController {
       return ResponseFormatter.notFound(res, 'Document version');
     }
 
-    // Resolve to absolute path if relative
-    let absolutePath = path.isAbsolute(version.filePath)
-      ? version.filePath
-      : path.resolve(process.cwd(), version.filePath);
+    const absolutePath = resolveExistingFilePath(version.filePath)
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!absolutePath) {
       return ResponseFormatter.notFound(res, 'File');
     }
 
@@ -1299,11 +1342,9 @@ class DocumentController {
       return ResponseFormatter.notFound(res, 'Document version');
     }
 
-    let absolutePath = path.isAbsolute(version.filePath)
-      ? version.filePath
-      : path.resolve(process.cwd(), version.filePath);
+    const absolutePath = resolveExistingFilePath(version.filePath)
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!absolutePath) {
       return ResponseFormatter.notFound(res, 'File');
     }
 
