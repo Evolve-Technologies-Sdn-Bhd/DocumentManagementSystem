@@ -6,6 +6,7 @@ import { PermissionGate } from './PermissionGate'
 import { hasPermission, isAdmin } from '../utils/permissions'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { useNavigate } from 'react-router-dom'
 
 // Calendar icon
 const CalendarIcon = () => (
@@ -31,6 +32,7 @@ function DatePicker({ value, onChange, placeholder = "Select date" }) {
 
 export default function NewDocumentRequest() {
   const { t, formatDate } = usePreferences()
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     title: '',
     documentType: '',
@@ -124,6 +126,14 @@ export default function NewDocumentRequest() {
     } finally {
       setLoadingMasterData(false)
     }
+  }
+
+  const handleAddDocumentType = () => {
+    navigate('/config?tab=masterdata&mdTab=document-types&mdAction=add')
+  }
+
+  const handleAddProjectCategory = () => {
+    navigate('/config?tab=masterdata&mdTab=project-categories&mdAction=add')
   }
 
 
@@ -728,21 +738,34 @@ export default function NewDocumentRequest() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('document_type')} <span className="text-red-500">*</span>
               </label>
-              <select
-                required
-                data-tour-id="ndr-field-document-type"
-                value={formData.documentType}
-                onChange={(e) => setFormData({ ...formData, documentType: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                disabled={loadingMasterData}
-              >
-                <option value="">{loadingMasterData ? t('loading') : t('select_document_type')}</option>
-                {documentTypes.map((type) => (
-                  <option key={type.id} value={type.name}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  required
+                  data-tour-id="ndr-field-document-type"
+                  value={formData.documentType}
+                  onChange={(e) => setFormData({ ...formData, documentType: e.target.value })}
+                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  disabled={loadingMasterData}
+                >
+                  <option value="">{loadingMasterData ? t('loading') : t('select_document_type')}</option>
+                  {documentTypes.map((type) => (
+                    <option key={type.id} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddDocumentType}
+                  title={t('mdm_add_doc_type')}
+                  aria-label={t('mdm_add_doc_type')}
+                  className="shrink-0 w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -768,20 +791,33 @@ export default function NewDocumentRequest() {
                   </span>
                 </span>
               </label>
-              <select
-                required
-                value={formData.projectCategory}
-                onChange={(e) => setFormData({ ...formData, projectCategory: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                disabled={loadingMasterData}
-              >
-                <option value="">{loadingMasterData ? t('loading') : t('select_project_category')}</option>
-                {projectCategories.map((category) => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  required
+                  value={formData.projectCategory}
+                  onChange={(e) => setFormData({ ...formData, projectCategory: e.target.value })}
+                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  disabled={loadingMasterData}
+                >
+                  <option value="">{loadingMasterData ? t('loading') : t('select_project_category')}</option>
+                  {projectCategories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAddProjectCategory}
+                  title={t('mdm_add_project_cat')}
+                  aria-label={t('mdm_add_project_cat')}
+                  className="shrink-0 w-10 h-10 inline-flex items-center justify-center border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -889,7 +925,28 @@ export default function NewDocumentRequest() {
                   <tr className="border-b border-gray-200 bg-gray-50">
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('request_type')}</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('document_title_label')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('document_type')}</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">
+                      <span className="inline-flex items-center gap-2">
+                        <span>{t('document_type')}</span>
+                        <span className="relative inline-flex group">
+                          <svg
+                            className="w-4 h-4 text-gray-400 hover:text-gray-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                          </svg>
+                          <span
+                            className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-96 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs normal-case text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+                            role="tooltip"
+                          >
+                            If a template does not exist, please request a template in Configuration &gt; Template Management &gt; Template Request.
+                          </span>
+                        </span>
+                      </span>
+                    </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('project_category')}</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('date_of_document')}</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('request_date')}</th>

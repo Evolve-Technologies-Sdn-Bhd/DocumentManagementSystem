@@ -4,6 +4,9 @@ import api from '../api/axios'
 import ActionMenu from './ActionMenu'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import Pagination from './Pagination'
+import { useLocation, useNavigate } from 'react-router-dom'
+
+const VALID_MASTERDATA_TABS = ['departments', 'project-categories', 'document-types']
 
 // Tab Navigation for Master Data
 function MasterDataTabs({ activeTab, onTabChange }) {
@@ -277,6 +280,8 @@ function ProjectCategoryModal({ isOpen, onClose, onSubmit, initialData }) {
 // Document Types Management
 function DocumentTypesManagement() {
   const { t } = usePreferences()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [documentTypes, setDocumentTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -291,6 +296,20 @@ function DocumentTypesManagement() {
   useEffect(() => {
     loadDocumentTypes()
   }, [showInactive])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const action = params.get('mdAction') || params.get('action')
+    if (action !== 'add') return
+    if (!showModal) {
+      setEditingItem(null)
+      setShowModal(true)
+    }
+    params.delete('mdAction')
+    params.delete('action')
+    const next = params.toString()
+    navigate(next ? `${location.pathname}?${next}` : location.pathname, { replace: true })
+  }, [location.pathname, location.search, navigate, showModal])
 
   const loadDocumentTypes = async () => {
     setLoading(true)
@@ -545,6 +564,8 @@ function DocumentTypesManagement() {
 // Project Categories Management
 function ProjectCategoriesManagement() {
   const { t } = usePreferences()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [projectCategories, setProjectCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -559,6 +580,20 @@ function ProjectCategoriesManagement() {
   useEffect(() => {
     loadProjectCategories()
   }, [showInactive])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const action = params.get('mdAction') || params.get('action')
+    if (action !== 'add') return
+    if (!showModal) {
+      setEditingItem(null)
+      setShowModal(true)
+    }
+    params.delete('mdAction')
+    params.delete('action')
+    const next = params.toString()
+    navigate(next ? `${location.pathname}?${next}` : location.pathname, { replace: true })
+  }, [location.pathname, location.search, navigate, showModal])
 
   const loadProjectCategories = async () => {
     setLoading(true)
@@ -1144,7 +1179,18 @@ function DepartmentsManagement() {
 // Main Component
 export default function MasterDataManagement() {
   const { t } = usePreferences()
-  const [activeTab, setActiveTab] = useState('departments')
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(location.search).get('mdTab')
+    return tab && VALID_MASTERDATA_TABS.includes(tab) ? tab : 'departments'
+  })
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get('mdTab')
+    if (tab && VALID_MASTERDATA_TABS.includes(tab) && tab !== activeTab) {
+      setActiveTab(tab)
+    }
+  }, [location.search, activeTab])
 
   return (
     <div className="space-y-6">

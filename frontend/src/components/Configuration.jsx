@@ -14,6 +14,9 @@ import { hasPermission, hasAnyPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
+import { useLocation } from 'react-router-dom'
+
+const VALID_CONFIG_TABS = ['general', 'masterdata', 'roles', 'template', 'audit', 'backup', 'cleanup']
 
 // Tab Navigation Component
 function TabNavigation({ activeTab, onTabChange }) {
@@ -988,7 +991,18 @@ function TemplateManagement() {
 
 // Main Configuration Component
 export default function Configuration() {
-  const [activeTab, setActiveTab] = useState('general')
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(location.search).get('tab')
+    return tab && VALID_CONFIG_TABS.includes(tab) ? tab : 'general'
+  })
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get('tab')
+    if (tab && VALID_CONFIG_TABS.includes(tab) && tab !== activeTab) {
+      setActiveTab(tab)
+    }
+  }, [location.search, activeTab])
 
   return (
     <div className="p-6">
