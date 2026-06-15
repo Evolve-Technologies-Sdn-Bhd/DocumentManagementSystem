@@ -72,6 +72,7 @@ export default function NewDocumentRequest() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectingRequest, setRejectingRequest] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [deletingRequestId, setDeletingRequestId] = useState(null)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' })
   const [templatePicker, setTemplatePicker] = useState({ show: false, templates: [], selectedId: '', documentTypeName: '' })
@@ -104,6 +105,13 @@ export default function NewDocumentRequest() {
     const requesterId = req.requestedById || req.createdById || req.userId
     if (requesterId && currentUserId && requesterId === currentUserId) return false
     return true
+  }
+
+  const canDeleteRejectedRequest = (req) => {
+    if (req.requestType === 'NVR') return false
+    if (req.status !== 'Rejected') return false
+    const requesterId = req.requestedById || req.createdById || req.userId
+    return Boolean(requesterId && currentUserId && requesterId === currentUserId)
   }
 
   // Load existing requests and master data
@@ -589,6 +597,67 @@ export default function NewDocumentRequest() {
     }
   }
 
+  const executeDeleteRejectedRequest = async (request) => {
+    setDeletingRequestId(request.id)
+    try {
+      await api.delete(`/documents/requests/${request.id}`)
+      setConfirmModal({ show: false })
+      setAlertModal({
+        show: true,
+        title: 'Deleted',
+        message: 'Rejected document request deleted successfully.',
+        type: 'success'
+      })
+      await loadRequests()
+    } catch (error) {
+      console.error('Failed to delete rejected request:', error)
+      setConfirmModal({ show: false })
+      setAlertModal({
+        show: true,
+        title: 'Delete failed',
+        message: error.response?.data?.message || 'Failed to delete rejected request. Please try again.',
+        type: 'error'
+      })
+    } finally {
+      setDeletingRequestId(null)
+    }
+  }
+
+  const handleDeleteRejectedRequest = (request) => {
+    setConfirmModal({
+      show: true,
+      title: 'Delete rejected request?',
+      message: 'This rejected request will be permanently deleted. Only the requester can perform this action.',
+      type: 'danger',
+      onConfirm: () => executeDeleteRejectedRequest(request)
+    })
+  }
+
+  const renderRequestStatus = (req) => {
+    if (deletingRequestId === req.id) {
+      return (
+        <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border whitespace-nowrap bg-gray-100 text-gray-600 border-gray-300">
+          Deleting...
+        </span>
+      )
+    }
+
+    if (canDeleteRejectedRequest(req)) {
+      return (
+        <button
+          type="button"
+          onClick={() => handleDeleteRejectedRequest(req)}
+          className="rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          title="Click to delete this rejected request"
+        >
+          <StatusBadge status={req.status} />
+        </button>
+      )
+    }
+
+    return <StatusBadge status={req.status} />
+  }
+
   const handleAdminPurgeByFileCode = async (fileCode) => {
     const code = String(fileCode || '').trim()
     if (!code || code === '-') return
@@ -821,11 +890,30 @@ export default function NewDocumentRequest() {
             </div>
           </div>
 
-          {/* Date of Document & Remarks */}
+          {/* Date of Event & Remarks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('date_of_document')} <span className="text-red-500">*</span>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span>
+                  {t('date_of_document')} <span className="text-red-500">*</span>
+                </span>
+                <span className="relative inline-flex group">
+                  <svg
+                    className="w-4 h-4 text-gray-400 hover:text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                  </svg>
+                  <span
+                    className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-56 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+                    role="tooltip"
+                  >
+                    {t('date_of_event_info')}
+                  </span>
+                </span>
               </label>
               <DatePicker
                 value={formData.dateOfDocument}
@@ -1036,7 +1124,7 @@ export default function NewDocumentRequest() {
                         )}
                       </td>
                       <td className="py-4 px-4">
-                        <StatusBadge status={req.status} />
+                        {renderRequestStatus(req)}
                       </td>
                       {canAcknowledge && (
                         <td className="py-4 px-4">
@@ -1091,7 +1179,7 @@ export default function NewDocumentRequest() {
                       </span>
                       <span className="text-gray-900 font-medium">{req.title}</span>
                     </div>
-                    <StatusBadge status={req.status} />
+                    {renderRequestStatus(req)}
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -1121,7 +1209,7 @@ export default function NewDocumentRequest() {
                       </div>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-xs">Doc Date:</span>
+                      <span className="text-gray-500 text-xs">{t('date_of_document')}:</span>
                       <div className="text-gray-900">{req.dateOfDocument}</div>
                     </div>
                     <div>

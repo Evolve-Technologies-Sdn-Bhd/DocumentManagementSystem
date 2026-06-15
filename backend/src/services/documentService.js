@@ -1727,6 +1727,48 @@ class DocumentService {
     return updated;
   }
 
+  async deleteRejectedDocumentRequest(documentId, userId) {
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: {
+        id: true,
+        fileCode: true,
+        status: true,
+        createdById: true,
+        ownerId: true
+      }
+    });
+
+    if (!document) {
+      throw new NotFoundError('Document request');
+    }
+
+    if (document.status !== 'REJECTED') {
+      throw new BadRequestError('Only rejected document requests can be deleted');
+    }
+
+    if (document.createdById !== userId && document.ownerId !== userId) {
+      throw new ForbiddenError('Only the requester can delete this rejected request');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.documentAssignment.deleteMany({ where: { documentId } });
+      await tx.documentComment.deleteMany({ where: { documentId } });
+      await tx.documentMetadata.deleteMany({ where: { documentId } });
+      await tx.approvalHistory.deleteMany({ where: { documentId } });
+      await tx.documentVersion.deleteMany({ where: { documentId } });
+      await tx.auditLog.deleteMany({ where: { entityId: documentId } });
+      await tx.document.delete({ where: { id: documentId } });
+    });
+
+    let deletedDirectory = false;
+    if (document.fileCode) {
+      deletedDirectory = await fileStorageService.deleteDocumentDirectory(document.fileCode);
+    }
+
+    return { deleted: true, deletedDirectory };
+  }
+
   /**
    * Acknowledge document request and assign proper file code
    * This should only be called by Document Controller

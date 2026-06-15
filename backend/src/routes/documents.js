@@ -14,6 +14,7 @@ router.get('/requests', documentController.getDocumentRequests);
 router.post('/requests', documentController.createDocumentRequest);
 router.post('/requests/:id/acknowledge', documentController.acknowledgeDocumentRequest);
 router.post('/requests/:id/reject', documentController.rejectDocumentRequest);
+router.delete('/requests/:id', documentController.deleteDocumentRequest);
 
 // Draft document workflow
 router.post('/drafts/submit-for-review', uploadDocument.single('file'), documentController.createDraftAndSubmitForReview);

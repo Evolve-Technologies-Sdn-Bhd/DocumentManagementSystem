@@ -1708,6 +1708,26 @@ class DocumentController {
     );
   });
 
+  deleteDocumentRequest = asyncHandler(async (req, res) => {
+    const requestId = parseInt(req.params.id);
+    const document = await documentService.getDocumentById(requestId);
+
+    await auditLogService.logDocument(req.user.id, 'DELETE', document, req, {
+      fileCode: document?.fileCode,
+      title: document?.title,
+      requestStatus: document?.status,
+      requestDeleteType: 'REJECTED_REQUESTER_DELETE'
+    });
+
+    const result = await documentService.deleteRejectedDocumentRequest(requestId, req.user.id);
+
+    return ResponseFormatter.success(
+      res,
+      result,
+      'Document request deleted successfully'
+    );
+  });
+
   /**
    * Submit draft document for review
    * POST /api/documents/:id/submit-for-review
