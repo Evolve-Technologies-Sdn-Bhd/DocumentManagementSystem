@@ -508,7 +508,7 @@ model ProjectCategoryDocumentRequirement {
   stage           ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
   documentType    DocumentType           @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
 
-  @@unique([projectCategoryId, stageId, documentTypeId])
+  @@unique([projectCategoryId, stageId, documentTypeId], map: "PCDR_pcid_sid_dtid_key")
   @@index([projectCategoryId])
   @@index([stageId])
   @@index([documentTypeId])
@@ -539,7 +539,7 @@ model ProjectIterationDocumentItem {
   assignedTo  User?                  @relation("ProjectItemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   links       ProjectDocumentLink[]
 
-  @@unique([projectIterationId, stageId, documentTypeId])
+  @@unique([projectIterationId, stageId, documentTypeId], map: "PIDI_piid_sid_dtid_key")
   @@index([projectIterationId])
   @@index([stageId])
   @@index([documentTypeId])

@@ -88,7 +88,7 @@ CREATE TABLE `ProjectCategoryDocumentRequirement` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `ProjectCategoryDocumentRequirement_projectCategoryId_stageId_documentTypeId_key`(`projectCategoryId`, `stageId`, `documentTypeId`),
+    UNIQUE INDEX `PCDR_pcid_sid_dtid_key`(`projectCategoryId`, `stageId`, `documentTypeId`),
     INDEX `ProjectCategoryDocumentRequirement_projectCategoryId_idx`(`projectCategoryId`),
     INDEX `ProjectCategoryDocumentRequirement_stageId_idx`(`stageId`),
     INDEX `ProjectCategoryDocumentRequirement_documentTypeId_idx`(`documentTypeId`),
@@ -109,7 +109,7 @@ CREATE TABLE `ProjectIterationDocumentItem` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `ProjectIterationDocumentItem_projectIterationId_stageId_documentTypeId_key`(`projectIterationId`, `stageId`, `documentTypeId`),
+    UNIQUE INDEX `PIDI_piid_sid_dtid_key`(`projectIterationId`, `stageId`, `documentTypeId`),
     INDEX `ProjectIterationDocumentItem_projectIterationId_idx`(`projectIterationId`),
     INDEX `ProjectIterationDocumentItem_stageId_idx`(`stageId`),
     INDEX `ProjectIterationDocumentItem_documentTypeId_idx`(`documentTypeId`),
