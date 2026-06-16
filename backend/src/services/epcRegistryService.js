@@ -2,8 +2,51 @@ const prisma = require('../config/database')
 const configService = require('./configService')
 const auditLogService = require('./auditLogService')
 const { fileCodeToFixedEpcHex, FIXED_EPC_HEX_LENGTH } = require('../utils/epcEncoder')
+const { BadRequestError, NotFoundError } = require('../utils/errors')
 
 class EpcRegistryService {
+  formatDocumentStatus(status, stage) {
+    const statusMap = {
+      PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
+      ACKNOWLEDGED: stage === 'DRAFT' ? 'Drafting' : 'Acknowledged',
+      DRAFT: 'Draft',
+      PENDING_REVIEW: 'Waiting for Review',
+      IN_REVIEW: 'In Review',
+      RETURNED: 'Return for Amendments',
+      PENDING_APPROVAL: 'Waiting for Approval',
+      IN_APPROVAL: 'In Approval',
+      PENDING_FIRST_APPROVAL: 'Pending First Approval',
+      IN_FIRST_APPROVAL: 'In First Approval',
+      PENDING_SECOND_APPROVAL: 'Pending Second Approval',
+      IN_SECOND_APPROVAL: 'In Second Approval',
+      READY_TO_PUBLISH: 'Ready to Publish',
+      APPROVED: 'Approved',
+      REJECTED: 'Rejected',
+      PUBLISHED: 'Published',
+      SUPERSEDED: 'Superseded',
+      OBSOLETE: 'Obsolete',
+      ARCHIVED: 'Archived'
+    }
+
+    if (statusMap[status]) return statusMap[status]
+
+    const stageMap = {
+      DRAFT: 'Draft',
+      REVIEW: 'Waiting for Review',
+      APPROVAL: 'In Approval',
+      Approval: 'In Approval',
+      FIRST_APPROVAL: 'In First Approval',
+      SECOND_APPROVAL: 'In Second Approval',
+      READY_TO_PUBLISH: 'Ready to Publish',
+      ACKNOWLEDGMENT: 'Pending Acknowledgment',
+      PUBLISHED: 'Published',
+      SUPERSEDED: 'Superseded',
+      OBSOLETE: 'Obsolete'
+    }
+
+    return stageMap[stage] || 'In Process'
+  }
+
   getDefaultSettings() {
     return {
       enabled: false
@@ -30,6 +73,8 @@ class EpcRegistryService {
         'Generated At',
         'File Code',
         'File Name',
+        'Document Status',
+        'Tracking Status',
         'EPC Hex',
         'Scheme',
         'Document Title',
@@ -39,10 +84,15 @@ class EpcRegistryService {
     ]
 
     for (const record of records) {
+      const documentStatus = record.document
+        ? this.formatDocumentStatus(record.document.status, record.document.stage)
+        : ''
       rows.push([
         escape(record.generatedAt ? new Date(record.generatedAt).toISOString() : ''),
         escape(record.fileCode),
         escape(record.fileName),
+        escape(documentStatus),
+        escape(record.trackingStatus || ''),
         escape(record.epcHex),
         escape(record.epcScheme),
         escape(record.document?.title || ''),
@@ -136,6 +186,207 @@ class EpcRegistryService {
     return record
   }
 
+  async updateTrackingStatus({ epcHex, fileCode, trackingStatus, userId = null, req = null }) {
+    const normalizedEpcHex = epcHex ? String(epcHex).trim() : null
+    const normalizedFileCode = fileCode ? String(fileCode).trim() : null
+
+    if (!normalizedEpcHex && !normalizedFileCode) {
+      throw new BadRequestError('epcHex atau fileCode diperlukan')
+    }
+
+    const whereOr = []
+    if (normalizedEpcHex) whereOr.push({ epcHex: normalizedEpcHex })
+    if (normalizedFileCode) whereOr.push({ fileCode: normalizedFileCode })
+
+    const record = await prisma.documentEpcRegistryRecord.findFirst({
+      where: { OR: whereOr },
+      include: {
+        document: {
+          select: {
+            id: true,
+            fileCode: true,
+            title: true,
+            status: true,
+            stage: true
+          }
+        }
+      }
+    })
+
+    if (!record) {
+      throw new NotFoundError('EPC registry record')
+    }
+
+    const updated = await prisma.documentEpcRegistryRecord.update({
+      where: { id: record.id },
+      data: {
+        trackingStatus,
+        trackingUpdatedAt: new Date(),
+        trackingUpdatedById: userId || null
+      }
+    })
+
+    await auditLogService.logDocument(userId, 'EPC_TRACKING_UPDATE', record.document, req, {
+      epcHex: record.epcHex,
+      previousTrackingStatus: record.trackingStatus,
+      trackingStatus
+    })
+
+    return {
+      ...updated,
+      documentStatus: record.document
+        ? this.formatDocumentStatus(record.document.status, record.document.stage)
+        : null
+    }
+  }
+
+  formatRecord(record) {
+    const documentStatus = record.document
+      ? this.formatDocumentStatus(record.document.status, record.document.stage)
+      : null
+
+    return {
+      id: record.id,
+      fileCode: record.fileCode,
+      fileName: record.fileName,
+      epcHex: record.epcHex,
+      epcScheme: record.epcScheme,
+      trackingStatus: record.trackingStatus,
+      trackingUpdatedAt: record.trackingUpdatedAt,
+      generatedAt: record.generatedAt,
+      documentStatus,
+      document: record.document
+        ? {
+            id: record.document.id,
+            title: record.document.title,
+            version: record.document.version,
+            updatedAt: record.document.updatedAt,
+            projectCategory: record.document.projectCategory || null,
+            documentType: record.document.documentType || null
+          }
+        : null
+    }
+  }
+
+  async searchRecords({ query, projectCategoryId, limit = 20 } = {}) {
+    const enabled = await this.isEnabled()
+    if (!enabled) {
+      return { enabled, records: [] }
+    }
+
+    const q = String(query ?? '').trim()
+    if (!q) {
+      throw new BadRequestError('query diperlukan')
+    }
+
+    const categoryId = parseInt(projectCategoryId, 10)
+    if (!Number.isFinite(categoryId)) {
+      throw new BadRequestError('projectCategoryId diperlukan')
+    }
+
+    const take = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50)
+    const epcQuery = q.toUpperCase()
+
+    const records = await prisma.documentEpcRegistryRecord.findMany({
+      where: {
+        document: {
+          projectCategoryId: categoryId
+        },
+        OR: [
+          { fileCode: { contains: q } },
+          { epcHex: { contains: epcQuery } }
+        ]
+      },
+      include: {
+        document: {
+          select: {
+            id: true,
+            title: true,
+            version: true,
+            updatedAt: true,
+            status: true,
+            stage: true,
+            projectCategory: {
+              select: { id: true, name: true, code: true }
+            },
+            documentType: {
+              select: { name: true }
+            }
+          }
+        }
+      },
+      orderBy: { generatedAt: 'desc' },
+      take
+    })
+
+    return {
+      enabled,
+      records: records.map((record) => this.formatRecord(record))
+    }
+  }
+
+  async lookupByEpcHexes({ epcHexes, projectCategoryId, limit = 200 } = {}) {
+    const enabled = await this.isEnabled()
+    if (!enabled) {
+      return { enabled, records: [] }
+    }
+
+    const categoryId = parseInt(projectCategoryId, 10)
+    if (!Number.isFinite(categoryId)) {
+      throw new BadRequestError('projectCategoryId diperlukan')
+    }
+
+    if (!Array.isArray(epcHexes) || epcHexes.length === 0) {
+      throw new BadRequestError('epcHexes diperlukan')
+    }
+
+    const take = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 200)
+    const normalized = Array.from(
+      new Set(
+        epcHexes
+          .map((v) => String(v ?? '').trim().toUpperCase())
+          .filter(Boolean)
+      )
+    ).slice(0, take)
+
+    if (normalized.length === 0) {
+      return { enabled, records: [] }
+    }
+
+    const records = await prisma.documentEpcRegistryRecord.findMany({
+      where: {
+        epcHex: { in: normalized },
+        document: {
+          projectCategoryId: categoryId
+        }
+      },
+      include: {
+        document: {
+          select: {
+            id: true,
+            title: true,
+            version: true,
+            updatedAt: true,
+            status: true,
+            stage: true,
+            projectCategory: {
+              select: { id: true, name: true, code: true }
+            },
+            documentType: {
+              select: { name: true }
+            }
+          }
+        }
+      },
+      orderBy: { generatedAt: 'desc' }
+    })
+
+    return {
+      enabled,
+      records: records.map((record) => this.formatRecord(record))
+    }
+  }
+
   async listRecords(filters = {}) {
     const enabled = await this.isEnabled()
     const page = Math.max(parseInt(filters.page, 10) || 1, 1)
@@ -166,6 +417,8 @@ class EpcRegistryService {
               id: true,
               title: true,
               version: true,
+              status: true,
+              stage: true,
               documentType: {
                 select: { name: true }
               }
@@ -184,7 +437,12 @@ class EpcRegistryService {
       page,
       limit,
       total,
-      records
+      records: records.map((record) => ({
+        ...record,
+        documentStatus: record.document
+          ? this.formatDocumentStatus(record.document.status, record.document.stage)
+          : null
+      }))
     }
   }
 
@@ -207,6 +465,8 @@ class EpcRegistryService {
           select: {
             title: true,
             version: true,
+            status: true,
+            stage: true,
             documentType: {
               select: { name: true }
             }

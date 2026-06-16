@@ -28,7 +28,11 @@ class DocumentService {
 
   buildNormalizedFileCode(parts, settings) {
     const sepOut = String(settings?.separator || '/')
-    const segs = [String(parts.prefix || '')]
+    const segs = []
+    if (settings?.includeProjectCategoryCode && parts.projectCategoryCode) {
+      segs.push(String(parts.projectCategoryCode || ''))
+    }
+    segs.push(String(parts.prefix || ''))
     if (settings?.includeVersion) segs.push(String(parts.versionSegment || ''))
     if ((this.getDateDigitsFromSettings(settings?.dateFormat) || 0) > 0) segs.push(String(parts.dateSegment || ''))
     const counterDigits = Math.max(1, parseInt(settings?.counterDigits, 10) || 3)
@@ -50,6 +54,7 @@ class DocumentService {
     }
 
     const prefixLen = Math.max(1, String(settings.prefixPlaceholder || 'PFX').length)
+    const includeProjectCategoryCode = Boolean(settings.includeProjectCategoryCode)
     const includeVersion = Boolean(settings.includeVersion)
     const versionDigits = includeVersion ? Math.max(1, parseInt(settings.versionDigits, 10) || 2) : 0
     const dateDigits = this.getDateDigitsFromSettings(settings.dateFormat)
@@ -57,7 +62,7 @@ class DocumentService {
 
     const cleaned = input.replace(/\s+/g, '')
     const parts = cleaned.split(/[\/\-\._]+/).filter(Boolean)
-    const expectedCount = 1 + (includeVersion ? 1 : 0) + (dateDigits > 0 ? 1 : 0) + 1
+    const expectedBaseCount = 1 + (includeVersion ? 1 : 0) + (dateDigits > 0 ? 1 : 0) + 1
 
     const fail = (code, message) => {
       const err = new BadRequestError(message)
@@ -71,12 +76,20 @@ class DocumentService {
       return `${m[1]}${(m[2] || '').toUpperCase()}`
     }
 
-    const parseStructuredParts = (arr) => {
-      const prefix = String(arr[0] || '')
+    const parseStructuredParts = (arr, hasProjectCategoryCode = false) => {
+      let idx = 0
+      let projectCategoryCode = ''
+      if (hasProjectCategoryCode) {
+        projectCategoryCode = String(arr[idx++] || '')
+        if (!/^[A-Za-z0-9]+$/.test(projectCategoryCode)) {
+          fail('INVALID_PROJECT_CATEGORY_CODE', `Project category code is invalid for "${input}"`)
+        }
+      }
+
+      const prefix = String(arr[idx++] || '')
       if (!new RegExp(`^[A-Za-z0-9]{1,${prefixLen}}$`).test(prefix)) {
         fail('INVALID_PREFIX', `Prefix is invalid for "${input}"`)
       }
-      let idx = 1
       let versionSegment = ''
       if (includeVersion) {
         versionSegment = parseVersion(arr[idx++])
@@ -97,11 +110,13 @@ class DocumentService {
       }
       const runningNumber = parseInt(counterSeg, 10)
       return {
+        projectCategoryCode,
         prefix,
         versionSegment,
         dateSegment,
         runningNumber,
         normalizedFileCode: this.buildNormalizedFileCode({
+          projectCategoryCode,
           prefix,
           versionSegment,
           dateSegment,
@@ -110,8 +125,12 @@ class DocumentService {
       }
     }
 
-    if (parts.length === expectedCount) {
-      return parseStructuredParts(parts)
+    if (parts.length === expectedBaseCount) {
+      return parseStructuredParts(parts, false)
+    }
+
+    if (includeProjectCategoryCode && parts.length === expectedBaseCount + 1) {
+      return parseStructuredParts(parts, true)
     }
 
     const compactRegex = (() => {
@@ -129,7 +148,30 @@ class DocumentService {
       if (includeVersion) arr.push(compact[i++])
       if (dateDigits > 0) arr.push(compact[i++])
       arr.push(compact[i++])
-      return parseStructuredParts(arr)
+      return parseStructuredParts(arr, false)
+    }
+
+    if (includeProjectCategoryCode) {
+      const suffixRegex = (() => {
+        const version = includeVersion ? `(\\d{${versionDigits}}[A-Za-z]?)` : ''
+        const date = dateDigits > 0 ? `(\\d{${dateDigits}})` : ''
+        const counter = `(\\d{${counterDigits}})`
+        return new RegExp(`^([A-Za-z0-9]+)${version}${date}${counter}$`)
+      })()
+      const compactWithCategory = cleaned.match(suffixRegex)
+      if (compactWithCategory) {
+        const leading = String(compactWithCategory[1] || '')
+        const prefix = leading.slice(-prefixLen)
+        const projectCategoryCode = leading.slice(0, -prefix.length)
+        if (projectCategoryCode && prefix) {
+          const arr = [projectCategoryCode, prefix]
+          let i = 2
+          if (includeVersion) arr.push(compactWithCategory[i++])
+          if (dateDigits > 0) arr.push(compactWithCategory[i++])
+          arr.push(compactWithCategory[i++])
+          return parseStructuredParts(arr, true)
+        }
+      }
     }
 
     fail(
@@ -249,6 +291,7 @@ class DocumentService {
     if (!settings || typeof settings !== 'object') return input
 
     const prefixLen = Math.max(1, String(settings.prefixPlaceholder || 'PFX').length)
+    const includeProjectCategoryCode = Boolean(settings.includeProjectCategoryCode)
     const includeVersion = Boolean(settings.includeVersion)
     const versionDigits = includeVersion ? Math.max(1, parseInt(settings.versionDigits, 10) || 2) : 0
     const dateFormat = String(settings.dateFormat || 'YYMMDD').toUpperCase()
@@ -270,9 +313,13 @@ class DocumentService {
     const cleaned = input.replace(/\s+/g, '')
     const parts = cleaned.split(/[\/\-\._]+/).filter(Boolean)
 
-    const build = (prefix, version, date, counter) => {
+    const build = (projectCategoryCode, prefix, version, date, counter) => {
       const p = String(prefix || '').substring(0, prefixLen)
-      const segs = [p]
+      const segs = []
+      if (includeProjectCategoryCode && projectCategoryCode) {
+        segs.push(String(projectCategoryCode || ''))
+      }
+      segs.push(p)
       if (includeVersion) segs.push(String(version || '').padStart(versionDigits, '0'))
       if (dateDigits > 0) segs.push(String(date || '').padStart(dateDigits, '0'))
       segs.push(String(counter || '').padStart(counterDigits, '0'))
@@ -280,22 +327,30 @@ class DocumentService {
     }
 
     const isDigits = (s, len) => new RegExp(`^\\d{${len}}$`).test(String(s || ''))
+    const isProjectCategoryOk = (s) => /^[A-Za-z0-9]+$/.test(String(s || ''))
     const isPrefixOk = (s) => new RegExp(`^[A-Za-z0-9]{1,${prefixLen}}$`).test(String(s || ''))
 
-    if (parts.length >= 2) {
-      const prefix = parts[0]
-      let idx = 1
+    const basePartCount = 1 + (includeVersion ? 1 : 0) + (dateDigits > 0 ? 1 : 0) + 1
+
+    if (parts.length === basePartCount || (includeProjectCategoryCode && parts.length === basePartCount + 1)) {
+      let idx = 0
+      let projectCategoryCode = ''
+      if (includeProjectCategoryCode && parts.length === basePartCount + 1) {
+        projectCategoryCode = parts[idx++]
+      }
+      const prefix = parts[idx++]
       const version = includeVersion ? parts[idx++] : ''
       const date = dateDigits > 0 ? parts[idx++] : ''
       const counter = parts[idx++]
 
       if (
+        (!projectCategoryCode || isProjectCategoryOk(projectCategoryCode)) &&
         isPrefixOk(prefix) &&
         (!includeVersion || isDigits(version, versionDigits)) &&
         (dateDigits === 0 || isDigits(date, dateDigits)) &&
         isDigits(counter, counterDigits)
       ) {
-        return build(prefix, version, date, counter)
+        return build(projectCategoryCode, prefix, version, date, counter)
       }
     }
 
@@ -311,7 +366,29 @@ class DocumentService {
         const date = dateDigits > 0 ? digits.slice(offset, offset + dateDigits) : ''
         offset += dateDigits
         const counter = digits.slice(offset, offset + counterDigits)
-        return build(prefix, version, date, counter)
+        return build('', prefix, version, date, counter)
+      }
+    }
+
+    if (includeProjectCategoryCode) {
+      const suffixLength = versionDigits + dateDigits + counterDigits
+      const match = cleaned.match(new RegExp(`^([A-Za-z0-9]+?)(\\d{${suffixLength}})$`))
+      if (match) {
+        const leading = match[1]
+        const digits = match[2]
+        if (leading.length > prefixLen) {
+          const prefix = leading.slice(-prefixLen)
+          const projectCategoryCode = leading.slice(0, -prefix.length)
+          if (projectCategoryCode && isProjectCategoryOk(projectCategoryCode) && isPrefixOk(prefix)) {
+            let offset = 0
+            const version = includeVersion ? digits.slice(offset, offset + versionDigits) : ''
+            offset += versionDigits
+            const date = dateDigits > 0 ? digits.slice(offset, offset + dateDigits) : ''
+            offset += dateDigits
+            const counter = digits.slice(offset, offset + counterDigits)
+            return build(projectCategoryCode, prefix, version, date, counter)
+          }
+        }
       }
     }
 
@@ -431,7 +508,7 @@ class DocumentService {
    * Create new document
    */
   async createDocument(data, creatorId) {
-    const { title, description, documentTypeId, projectCategoryId, folderId } = data;
+    const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential } = data;
 
     // Generate file code
     const fileCode = await this.generateFileCode(documentTypeId, projectCategoryId || null);
@@ -440,6 +517,7 @@ class DocumentService {
     const document = await prisma.document.create({
       data: {
         fileCode,
+        isConfidential: Boolean(isConfidential),
         title,
         description,
         documentTypeId,
@@ -1033,6 +1111,10 @@ class DocumentService {
       }
     }
 
+    if (document.isConfidential && user && !user?.permissions?.projectTracking?.viewConfidential) {
+      throw new ForbiddenError('You do not have access to this confidential document');
+    }
+
     return document;
   }
 
@@ -1077,6 +1159,7 @@ class DocumentService {
   async listDocuments(filters = {}, pagination = {}, userOrUserId = null) {
     const user = typeof userOrUserId === 'object' && userOrUserId ? userOrUserId : null
     const userId = user ? user.id : userOrUserId
+    const canViewConfidential = !!user?.permissions?.projectTracking?.viewConfidential
 
     const {
       status,
@@ -1102,6 +1185,10 @@ class DocumentService {
 
     // Build where clause
     const where = {};
+
+    if (!canViewConfidential) {
+      where.isConfidential = false
+    }
 
     // Enforce assignment-based access control
     if (userId) {
@@ -1213,6 +1300,23 @@ class DocumentService {
             id: true,
             firstName: true,
             lastName: true
+          }
+        },
+        approvalHistory: {
+          where: {
+            action: 'RETURNED'
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
           }
         },
         versions: {

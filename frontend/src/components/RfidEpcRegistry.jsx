@@ -1,7 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import api from '../api/axios'
 import Pagination from './Pagination'
+import StatusBadge from './StatusBadge'
 import { hasPermission } from '../utils/permissions'
+
+function TrackingStatusBadge({ status }) {
+  const config = {
+    REGISTER: { label: 'Register', style: 'bg-slate-100 text-slate-700 border-slate-300' },
+    CHECK_IN: { label: 'Check-in', style: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+    CHECK_OUT: { label: 'Check-out', style: 'bg-amber-100 text-amber-800 border-amber-300' },
+    ARCHIVE: { label: 'Archive', style: 'bg-gray-100 text-gray-600 border-gray-300' }
+  }
+
+  const resolved = config[status] || { label: status || '-', style: 'bg-slate-100 text-slate-700 border-slate-300' }
+
+  return (
+    <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border whitespace-nowrap ${resolved.style}`}>
+      {resolved.label}
+    </span>
+  )
+}
 
 export default function RfidEpcRegistry() {
   const canExport = hasPermission('documents.rfidRegistry', 'export')
@@ -90,7 +108,7 @@ export default function RfidEpcRegistry() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">RFID EPC Registry</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">EPC Registry</h1>
             <p className="text-sm text-gray-600 mt-1">
               Automatically generated fixed-length 96-bit EPC records derived from document file codes.
             </p>
@@ -110,7 +128,7 @@ export default function RfidEpcRegistry() {
 
       {!enabled && (
         <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4">
-          RFID EPC Registry is currently disabled by system configuration.
+          EPC Registry is currently disabled by system configuration.
         </div>
       )}
 
@@ -171,6 +189,8 @@ export default function RfidEpcRegistry() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Generated At</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">File Code</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">File Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Document Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Tracking Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">EPC Hex</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Title</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Type</th>
@@ -180,11 +200,11 @@ export default function RfidEpcRegistry() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">Loading EPC registry...</td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">Loading EPC registry...</td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">No EPC records found.</td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">No EPC records found.</td>
                 </tr>
               ) : (
                 records.map((record) => (
@@ -194,6 +214,12 @@ export default function RfidEpcRegistry() {
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{record.fileCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{record.fileName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {record.documentStatus ? <StatusBadge status={record.documentStatus} /> : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <TrackingStatusBadge status={record.trackingStatus} />
+                    </td>
                     <td className="px-4 py-3 text-xs font-mono text-blue-700 break-all">{record.epcHex}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{record.document?.title || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{record.document?.documentType?.name || '-'}</td>

@@ -3,6 +3,7 @@ import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import EmptyState from './EmptyState'
 import Pagination from './Pagination'
+import DocumentRemarksModal from './DocumentRemarksModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 
 // Progress Tracker Component
@@ -137,6 +138,10 @@ export default function MyDocumentsStatus() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [showDetailsPanel, setShowDetailsPanel] = useState(false)
+  const [remarksModalOpen, setRemarksModalOpen] = useState(false)
+  const [remarksLoading, setRemarksLoading] = useState(false)
+  const [remarksDocument, setRemarksDocument] = useState(null)
+  const [remarks, setRemarks] = useState([])
 
   // Update page size when preference changes
   useEffect(() => {
@@ -302,6 +307,24 @@ export default function MyDocumentsStatus() {
     setShowDetailsPanel(true)
   }
 
+  const handleViewRemarks = async (doc) => {
+    if (!doc?.id) return
+    setRemarksDocument(doc)
+    setRemarks([])
+    setRemarksLoading(true)
+    setRemarksModalOpen(true)
+    try {
+      const res = await api.get(`/documents/${doc.id}/remarks?action=RETURNED`)
+      const items = res.data?.data?.remarks || res.data?.remarks || []
+      setRemarks(Array.isArray(items) ? items : [])
+    } catch (error) {
+      console.error('Failed to load remarks:', error)
+      setRemarks([])
+    } finally {
+      setRemarksLoading(false)
+    }
+  }
+
   // Document Details Panel Component
   const DocumentDetailsPanel = () => {
     if (!selectedDocDetails) return null
@@ -424,6 +447,14 @@ export default function MyDocumentsStatus() {
                 </div>
               </div>
             </div>
+            {selectedDocDetails.status === 'Return for Amendments' && (
+              <button
+                onClick={() => handleViewRemarks(selectedDocDetails)}
+                className="w-full mt-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                {t('view_remarks')}
+              </button>
+            )}
             {selectedDocDetails.documentType && (
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('document_type')}</label>
@@ -503,6 +534,19 @@ export default function MyDocumentsStatus() {
 
   return (
     <>
+      <DocumentRemarksModal
+        isOpen={remarksModalOpen}
+        document={remarksDocument}
+        remarks={remarks}
+        loading={remarksLoading}
+        onClose={() => {
+          setRemarksModalOpen(false)
+          setRemarksDocument(null)
+          setRemarks([])
+          setRemarksLoading(false)
+        }}
+      />
+
       {/* Overlay when details panel is open */}
       {showDetailsPanel && (
         <div 

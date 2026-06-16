@@ -20,6 +20,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import SessionProvider from './components/SessionProvider'
 import RfidEpcRegistry from './components/RfidEpcRegistry'
+import ProjectTracking from './components/ProjectTracking'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, persistBranding } from './utils/branding'
@@ -97,6 +98,26 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+        <Route
+          path="/project-tracking"
+          element={
+            <ProtectedRoute module="projectTracking" action="view">
+              <Layout>
+                <ProjectTracking />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/project-tracking/:projectId"
+          element={
+            <ProtectedRoute module="projectTracking" action="view">
+              <Layout>
+                <ProjectTracking />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/new-document-request"
           element={

@@ -52,6 +52,9 @@ async function main() {
 
     // RFID EPC Registry (3 permissions)
     'documents.rfidRegistry': { view: true, export: true, manage: true },
+
+    // Project Tracking (8 permissions)
+    projectTracking: { view: true, create: true, edit: true, delete: true, manageTemplates: true, linkDocument: true, advanceStage: true, viewConfidential: true },
     
     // Profile Settings (3 permissions)
     profileSettings: { view: true, edit: true, changePassword: true }
@@ -203,7 +206,32 @@ async function main() {
   console.log('✅ Document types seeded successfully');
 
   // ============================================
-  // 3. SEED DEFAULT ADMIN USER
+  // 3. SEED PROJECT STAGES
+  // ============================================
+  console.log('🗂️ Seeding project stage definitions...');
+
+  const projectStages = [
+    { key: 'PRE_SALES', name: 'Pre-Sales', sortOrder: 1 },
+    { key: 'SALES', name: 'Sales', sortOrder: 2 },
+    { key: 'PLANNING', name: 'Planning', sortOrder: 3 },
+    { key: 'DEVELOPMENT', name: 'Development', sortOrder: 4 },
+    { key: 'TESTING', name: 'Testing', sortOrder: 5 },
+    { key: 'DELIVERY', name: 'Delivery', sortOrder: 6 },
+    { key: 'CLOSED', name: 'Closed', sortOrder: 7 }
+  ];
+
+  for (const stage of projectStages) {
+    await prisma.projectStageDefinition.upsert({
+      where: { key: stage.key },
+      update: stage,
+      create: stage
+    });
+  }
+
+  console.log('✅ Project stage definitions seeded successfully');
+
+  // ============================================
+  // 4. SEED DEFAULT ADMIN USER
   // ============================================
   console.log('👤 Seeding default admin user...');
 

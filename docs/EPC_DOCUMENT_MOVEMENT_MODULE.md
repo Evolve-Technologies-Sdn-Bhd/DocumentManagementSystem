@@ -1,4 +1,4 @@
-# EPC RFID Registry Module (Optional)
+# EPC Registry Module (Optional)
 
 ## Purpose
 
@@ -30,7 +30,7 @@ Limitations:
 
 Replace the standalone encoder with:
 
-`RFID EPC Registry`
+`EPC Registry`
 
 Capabilities:
 
@@ -179,7 +179,7 @@ Suggested permissions:
 
 ### Menu
 
-- label: `RFID EPC Registry`
+- label: `EPC Registry`
 - visibility: only when feature flag enabled + user has view permission
 
 ### Registry Page (Single Page)

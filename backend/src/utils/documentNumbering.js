@@ -54,28 +54,23 @@ class DocumentNumbering {
       .replace(/[^A-Z0-9]/g, '')
   }
 
-  static buildPrefixSegment(prefix, settings = {}, projectCategoryCode = '') {
+  static buildBasePrefixSegment(prefix, settings = {}) {
     const maxLength = Math.max(1, String(settings?.prefixPlaceholder || 'PFX').length)
     const basePrefix = this.sanitizeCodeSegment(prefix)
+    return (basePrefix || 'X').slice(0, maxLength)
+  }
+
+  static buildLeadingSegments(prefix, settings = {}, projectCategoryCode = '') {
+    const segments = []
     const categoryCode = this.sanitizeCodeSegment(projectCategoryCode)
     const includeProjectCategoryCode = Boolean(settings?.includeProjectCategoryCode)
 
-    if (!includeProjectCategoryCode || !categoryCode) {
-      return (basePrefix || 'X').slice(0, maxLength)
+    if (includeProjectCategoryCode && categoryCode) {
+      segments.push(categoryCode)
     }
 
-    if (!basePrefix) {
-      return categoryCode.slice(0, maxLength)
-    }
-
-    if (maxLength === 1) {
-      return categoryCode.slice(0, 1)
-    }
-
-    const categoryLength = Math.min(categoryCode.length, Math.max(1, Math.ceil(maxLength / 2)))
-    const prefixLength = Math.max(1, maxLength - categoryLength)
-
-    return `${categoryCode.slice(0, categoryLength)}${basePrefix.slice(0, prefixLength)}`.slice(0, maxLength)
+    segments.push(this.buildBasePrefixSegment(prefix, settings))
+    return segments
   }
 
   /**
@@ -132,9 +127,8 @@ class DocumentNumbering {
     const parts = [];
     const separator = config.separator || '/';
 
-    // Add prefix - optionally compact with project category code while keeping the same length.
-    const prefixToUse = this.buildPrefixSegment(prefix, config, projectCategoryCode)
-    parts.push(prefixToUse);
+    // Add optional project category segment followed by the document type prefix segment.
+    parts.push(...this.buildLeadingSegments(prefix, config, projectCategoryCode));
 
     // Add version (if enabled)
     if (config.includeVersion) {
@@ -179,7 +173,18 @@ class DocumentNumbering {
       sequence: null
     };
 
-    let partIndex = 1;
+    let partIndex = 0;
+
+    if (config.includeProjectCategoryCode) {
+      const expectedWithoutCategory = 1 + (config.includeVersion ? 1 : 0) + (config.dateFormat && config.dateFormat !== 'none' ? 1 : 0) + 1;
+      if (parts.length > expectedWithoutCategory) {
+        result.projectCategoryPrefix = parts[partIndex] || null;
+        partIndex++;
+      }
+    }
+
+    result.prefix = parts[partIndex] || null;
+    partIndex++;
 
     // Parse version (if enabled)
     if (config.includeVersion && parts[partIndex]) {

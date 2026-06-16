@@ -4,11 +4,12 @@ const auditLogService = require('../services/auditLogService');
 const epcRegistryService = require('../services/epcRegistryService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
-const { ConflictError } = require('../utils/errors');
+const { ConflictError, ForbiddenError, BadRequestError } = require('../utils/errors');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config/app');
 const prisma = require('../config/database');
+const documentAssignmentService = require('../services/documentAssignmentService');
 
 const resolveExistingFilePath = (storedPath) => {
   const raw = String(storedPath || '').trim()
@@ -482,6 +483,79 @@ class DocumentController {
     );
   });
 
+  getDocumentRemarks = asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.id);
+    if (!Number.isFinite(documentId)) {
+      throw new BadRequestError('Invalid document id');
+    }
+
+    const actionRaw = String(req.query?.action || 'RETURNED')
+      .split(',')
+      .map((s) => String(s || '').trim().toUpperCase())
+      .filter(Boolean);
+
+    const allowedActions = new Set([
+      'SUBMITTED',
+      'REVIEWED',
+      'FIRST_APPROVED',
+      'SECOND_APPROVED',
+      'READY_FOR_PUBLISH',
+      'PUBLISHED',
+      'REJECTED',
+      'ACKNOWLEDGED',
+      'RETURNED',
+      'SUPERSEDED',
+      'OBSOLETED',
+      'ARCHIVED',
+      'APPROVED'
+    ]);
+
+    const actions = actionRaw.filter((a) => allowedActions.has(a));
+    if (actions.length === 0) {
+      throw new BadRequestError('Invalid action filter');
+    }
+
+    const canAccess = await documentAssignmentService.canAccessDocument(documentId, req.user);
+    if (!canAccess) {
+      throw new ForbiddenError('You do not have permission to view remarks for this document');
+    }
+
+    const remarks = await prisma.approvalHistory.findMany({
+      where: {
+        documentId,
+        action: { in: actions }
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    const data = (remarks || []).map((r) => ({
+      id: r.id,
+      action: r.action,
+      stage: r.stage,
+      comments: r.comments || '',
+      createdAt: r.createdAt,
+      user: r.user
+        ? {
+            id: r.user.id,
+            name: `${r.user.firstName || ''} ${r.user.lastName || ''}`.trim() || r.user.email || '',
+            email: r.user.email || ''
+          }
+        : null
+    }));
+
+    return ResponseFormatter.success(res, { remarks: data }, 'Remarks retrieved successfully');
+  });
+
   /**
    * Get document by file code
    * GET /api/documents/code/:fileCode
@@ -608,6 +682,8 @@ class DocumentController {
     // Format documents to show proper status display
     const documents = result.documents.map(doc => {
       const latestVersion = doc.versions && doc.versions.length > 0 ? doc.versions[0] : null;
+      const latestReturn = doc.approvalHistory && doc.approvalHistory.length > 0 ? doc.approvalHistory[0] : null;
+      const latestReturnUser = latestReturn?.user || null;
       
       return {
         id: doc.id,
@@ -624,6 +700,11 @@ class DocumentController {
         rawStatus: doc.status,
         stage: doc.stage,
         hasFile: !!latestVersion,
+        latestReturnRemark: latestReturn?.comments || null,
+        latestReturnRemarkAt: latestReturn?.createdAt || null,
+        latestReturnRemarkBy: latestReturnUser
+          ? `${latestReturnUser.firstName || ''} ${latestReturnUser.lastName || ''}`.trim() || latestReturnUser.email || ''
+          : null,
         createdBy: doc.createdBy ? `${doc.createdBy.firstName || ''} ${doc.createdBy.lastName || ''}`.trim() || doc.createdBy.email : '',
         owner: doc.owner ? `${doc.owner.firstName || ''} ${doc.owner.lastName || ''}`.trim() || doc.owner.email : '',
         createdAt: doc.createdAt,
@@ -1271,7 +1352,7 @@ class DocumentController {
     const documentId = parseInt(req.params.id);
     const { versionId } = req.query;
 
-    const document = await documentService.getDocumentById(documentId);
+    const document = await documentService.getDocumentById(documentId, req.user);
     if (document?.folderId) {
       await folderPermissionService.assertCan(document.folderId, req.user, 'download')
     }
@@ -1330,7 +1411,7 @@ class DocumentController {
     const documentId = parseInt(req.params.id);
     const { versionId } = req.query;
 
-    const document = await documentService.getDocumentById(documentId);
+    const document = await documentService.getDocumentById(documentId, req.user);
     if (document?.folderId) {
       await folderPermissionService.assertCan(document.folderId, req.user, 'view')
     }

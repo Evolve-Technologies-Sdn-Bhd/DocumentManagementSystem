@@ -27,11 +27,25 @@ const menuItems = [
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
   },
   { 
+    name: 'Project Tracking', 
+    translationKey: 'project_tracking',
+    path: '/project-tracking',
+    module: 'projectTracking',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-6 4h6m-6 4h6m-6 4h6M9 5a2 2 0 114 0h-4z" /></svg>
+  },
+  { 
     name: 'Draft Documents', 
     translationKey: 'draft_documents',
     path: '/drafts',
     module: 'documents.draft',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+  },
+  {
+    name: 'EPC Registry',
+    translationKey: 'rfid_epc_registry',
+    path: '/rfid-epc-registry',
+    module: 'documents.rfidRegistry',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2h-3M4 11v6a2 2 0 002 2h3m5-14h-4m0 14h4m-5-9h6m-6 4h6M7 7h.01M17 17h.01" /></svg>
   },
   { 
     name: 'Review and Approval', 
@@ -92,13 +106,6 @@ const menuItems = [
     path: '/profile',
     module: null, // Always show - no permission required
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-  },
-  {
-    name: 'RFID EPC Registry',
-    translationKey: 'rfid_epc_registry',
-    path: '/rfid-epc-registry',
-    module: 'documents.rfidRegistry',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2h-3M4 11v6a2 2 0 002 2h3m5-14h-4m0 14h4m-5-9h6m-6 4h6M7 7h.01M17 17h.01" /></svg>
   }
 ]
 

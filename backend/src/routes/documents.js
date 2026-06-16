@@ -46,6 +46,7 @@ router.get('/my-status', documentController.getMyDocuments);
 router.get('/my-status/:status', documentController.getMyDocumentsByStatus);
 router.get('/code/:fileCode', documentController.getDocumentByCode);
 router.delete('/code/:fileCode/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), documentController.purgeDocumentByCode);
+router.get('/:id/remarks', documentController.getDocumentRemarks);
 router.get('/:id', documentController.getDocument);
 router.put('/:id', documentController.updateDocument);
 router.put('/:id/rename', documentController.renameDocument);

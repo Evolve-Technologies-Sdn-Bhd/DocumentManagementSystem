@@ -70,6 +70,11 @@ model User {
   createdTemplateRequests   TemplateRequest[]          @relation("TemplateRequestCreator")
   resolvedTemplateRequests  TemplateRequest[]          @relation("TemplateRequestResolver")
   folderPermissions         FolderPermission[]
+  managedProjects           Project[]                  @relation("ProjectManager")
+  createdProjects           Project[]                  @relation("ProjectCreator")
+  assignedProjectItems      ProjectIterationDocumentItem[] @relation("ProjectItemAssignee")
+  linkedProjectDocuments    ProjectDocumentLink[]      @relation("ProjectDocumentLinkedBy")
+  epcTrackingUpdates        DocumentEpcRegistryRecord[] @relation("EpcTrackingUpdatedBy")
 
   @@index([email])
   @@index([employeeId])
@@ -90,6 +95,13 @@ enum TemplateRequestStatus {
   PENDING
   RESOLVED
   REJECTED
+}
+
+enum RfidTrackingStatus {
+  REGISTER
+  CHECK_IN
+  CHECK_OUT
+  ARCHIVE
 }
 
 model Role {
@@ -197,6 +209,8 @@ model DocumentType {
   templateRequests TemplateRequest[]
   workflows        Workflow[]
   codeRegistries   CodeRegistry[]
+  projectRequirements ProjectCategoryDocumentRequirement[]
+  projectItems        ProjectIterationDocumentItem[]
 }
 
 model ProjectCategory {
@@ -211,6 +225,9 @@ model ProjectCategory {
   // Relations
   documents      Document[]
   codeRegistries CodeRegistry[]
+  projects             Project[]
+  categoryStages       ProjectCategoryStage[]
+  documentRequirements ProjectCategoryDocumentRequirement[]
 }
 
 model Department {
@@ -272,6 +289,7 @@ model Document {
   id                Int           @id @default(autoincrement())
   fileCode          String        // e.g., DOC-2025-001
   isClientDocument  Boolean       @default(false)
+  isConfidential    Boolean       @default(false)
   title             String
   description       String?       @db.Text
   documentTypeId    Int
@@ -331,6 +349,7 @@ model Document {
   newVersionRequests     VersionRequest[]           @relation("VersionRequestNew")
   assignments            DocumentAssignment[]
   epcRegistryRecords     DocumentEpcRegistryRecord[]
+  projectLinks           ProjectDocumentLink[]
 
   @@unique([fileCode, projectCategoryId])
   @@index([fileCode])
@@ -383,6 +402,174 @@ enum WorkflowStage {
   APPROVAL
 }
 
+model Project {
+  id                Int           @id @default(autoincrement())
+  code              String        @unique
+  name              String
+  description       String?       @db.Text
+  projectCategoryId Int
+  managerId         Int
+  createdById       Int
+  status            ProjectStatus @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  projectCategory ProjectCategory  @relation(fields: [projectCategoryId], references: [id], onDelete: Restrict)
+  manager         User             @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  iterations      ProjectIteration[]
+
+  @@index([projectCategoryId])
+  @@index([managerId])
+  @@index([createdById])
+  @@index([status])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  CLOSED
+  ARCHIVED
+}
+
+model ProjectIteration {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  iterationNo    Int
+  name           String?
+  currentStageId Int?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project                 Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  currentStage            ProjectStageDefinition? @relation("IterationCurrentStage", fields: [currentStageId], references: [id], onDelete: SetNull)
+  items                   ProjectIterationDocumentItem[]
+  links                   ProjectDocumentLink[]
+
+  @@unique([projectId, iterationNo])
+  @@index([projectId])
+  @@index([currentStageId])
+  @@index([isActive])
+}
+
+model ProjectStageDefinition {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  name      String
+  sortOrder Int
+  isSystem  Boolean  @default(true)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categoryStages      ProjectCategoryStage[]
+  currentForIterations ProjectIteration[] @relation("IterationCurrentStage")
+  requirements        ProjectCategoryDocumentRequirement[]
+  items               ProjectIterationDocumentItem[]
+  links               ProjectDocumentLink[]
+
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model ProjectCategoryStage {
+  id                Int      @id @default(autoincrement())
+  projectCategoryId Int
+  stageId           Int
+  displayName       String?
+  sortOrder         Int?
+  isEnabled         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  projectCategory ProjectCategory        @relation(fields: [projectCategoryId], references: [id], onDelete: Cascade)
+  stage           ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([projectCategoryId, stageId])
+  @@index([projectCategoryId])
+  @@index([stageId])
+  @@index([isEnabled])
+}
+
+model ProjectCategoryDocumentRequirement {
+  id                    Int      @id @default(autoincrement())
+  projectCategoryId     Int
+  stageId               Int
+  documentTypeId        Int
+  isRequired            Boolean  @default(true)
+  isConfidentialDefault Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  projectCategory ProjectCategory        @relation(fields: [projectCategoryId], references: [id], onDelete: Cascade)
+  stage           ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  documentType    DocumentType           @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([projectCategoryId, stageId, documentTypeId])
+  @@index([projectCategoryId])
+  @@index([stageId])
+  @@index([documentTypeId])
+  @@index([isRequired])
+}
+
+enum ProjectItemStatus {
+  PENDING
+  COMPLETE
+  WAIVED
+}
+
+model ProjectIterationDocumentItem {
+  id                 Int              @id @default(autoincrement())
+  projectIterationId Int
+  stageId            Int
+  documentTypeId     Int
+  status             ProjectItemStatus @default(PENDING)
+  dueDate            DateTime?
+  assignedToId       Int?
+  completedAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  iteration   ProjectIteration      @relation(fields: [projectIterationId], references: [id], onDelete: Cascade)
+  stage       ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  documentType DocumentType          @relation(fields: [documentTypeId], references: [id], onDelete: Restrict)
+  assignedTo  User?                  @relation("ProjectItemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  links       ProjectDocumentLink[]
+
+  @@unique([projectIterationId, stageId, documentTypeId])
+  @@index([projectIterationId])
+  @@index([stageId])
+  @@index([documentTypeId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model ProjectDocumentLink {
+  id                 Int      @id @default(autoincrement())
+  projectIterationId Int
+  stageId            Int
+  itemId             Int?
+  documentId         Int
+  linkedById         Int
+  linkedAt           DateTime @default(now())
+
+  iteration ProjectIteration       @relation(fields: [projectIterationId], references: [id], onDelete: Cascade)
+  stage     ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  item      ProjectIterationDocumentItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  document  Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  linkedBy  User                   @relation("ProjectDocumentLinkedBy", fields: [linkedById], references: [id], onDelete: Restrict)
+
+  @@unique([projectIterationId, documentId])
+  @@index([projectIterationId])
+  @@index([stageId])
+  @@index([itemId])
+  @@index([documentId])
+  @@index([linkedById])
+}
+
 model DocumentVersion {
   id           Int      @id @default(autoincrement())
   documentId   Int
@@ -421,14 +608,19 @@ model DocumentEpcRegistryRecord {
   tagUri             String
   pureIdentityUri    String
   generatedAt        DateTime @default(now())
+  trackingStatus     RfidTrackingStatus @default(REGISTER)
+  trackingUpdatedAt  DateTime @default(now())
+  trackingUpdatedById Int?
   createdAt          DateTime @default(now())
 
   document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  trackingUpdatedBy User? @relation("EpcTrackingUpdatedBy", fields: [trackingUpdatedById], references: [id], onDelete: SetNull)
 
   @@index([generatedAt])
   @@index([fileCode])
   @@index([documentId])
+  @@index([trackingStatus])
 }
 
 model DocumentMetadata {

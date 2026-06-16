@@ -58,6 +58,12 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
       actions: ['view']
     },
     {
+      id: 'projectTracking',
+      name: 'Project Tracking',
+      description: 'Track projects with document requirements by stage',
+      actions: ['view', 'create', 'edit', 'delete', 'manageTemplates', 'linkDocument', 'advanceStage', 'viewConfidential']
+    },
+    {
       id: 'configuration',
       name: 'Configuration',
       description: 'System configuration and settings',
@@ -149,8 +155,8 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
     },
     {
       id: 'documents.rfidRegistry',
-      name: 'RFID EPC Registry',
-      description: 'RFID EPC generated record listing and export',
+      name: 'EPC Registry',
+      description: 'EPC generated record listing and export',
       actions: ['view', 'export', 'manage']
     },
     {

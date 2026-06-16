@@ -53,16 +53,31 @@ const authenticate = async (req, res, next) => {
     }
 
     // Attach user to request
+    const mergedPermissions = session.user.roles.reduce((acc, r) => {
+      const rolePermissions = typeof r.role.permissions === 'string' 
+        ? JSON.parse(r.role.permissions) 
+        : r.role.permissions;
+
+      if (!rolePermissions || typeof rolePermissions !== 'object') return acc
+
+      Object.keys(rolePermissions).forEach((moduleKey) => {
+        if (!acc[moduleKey]) acc[moduleKey] = {}
+        const actions = rolePermissions[moduleKey] || {}
+        if (!actions || typeof actions !== 'object') return
+
+        Object.keys(actions).forEach((action) => {
+          if (actions[action]) acc[moduleKey][action] = true
+        })
+      })
+
+      return acc
+    }, {})
+
     req.user = {
       id: session.user.id,
       email: session.user.email,
       roles: session.user.roles.map(r => r.role.name),
-      permissions: session.user.roles.reduce((acc, r) => {
-        const rolePermissions = typeof r.role.permissions === 'string' 
-          ? JSON.parse(r.role.permissions) 
-          : r.role.permissions;
-        return { ...acc, ...rolePermissions };
-      }, {})
+      permissions: mergedPermissions
     };
 
     next();

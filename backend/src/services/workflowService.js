@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
+const projectTrackingService = require('./projectTrackingService');
 
 class WorkflowService {
   /**
@@ -684,6 +685,12 @@ class WorkflowService {
       console.error('Failed to send notification for document publish:', error);
     }
 
+    try {
+      await projectTrackingService.handleDocumentPublished(documentId);
+    } catch (error) {
+      console.error('Failed to update project tracking items for published document:', error);
+    }
+
     return updated;
   }
 
@@ -717,6 +724,12 @@ class WorkflowService {
         publishedAt: new Date()
       }
     });
+
+    try {
+      await projectTrackingService.handleDocumentPublished(documentId);
+    } catch (error) {
+      console.error('Failed to update project tracking items for published document:', error);
+    }
 
     // Mark latest version as published
     const latestVersion = await prisma.documentVersion.findFirst({

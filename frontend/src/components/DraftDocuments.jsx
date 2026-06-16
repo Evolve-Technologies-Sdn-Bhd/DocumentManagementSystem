@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
 import NewDraftModal from './NewDraftModal'
 import ReuploadFileModal from './ReuploadFileModal'
+import DocumentRemarksModal from './DocumentRemarksModal'
 import StatusBadge from './StatusBadge'
 import ActionMenu from './ActionMenu'
 import EmptyState from './EmptyState'
@@ -12,7 +13,7 @@ import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 
 export default function DraftDocuments() {
-  const { itemsPerPage, formatDate, defaultView, t } = usePreferences()
+  const { itemsPerPage, formatDate, formatDateTime, defaultView, t } = usePreferences()
   const [documents, setDocuments] = useState([])
   const [filteredDocuments, setFilteredDocuments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,6 +25,10 @@ export default function DraftDocuments() {
   const [showModal, setShowModal] = useState(false)
   const [showReuploadModal, setShowReuploadModal] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
+  const [remarksModalOpen, setRemarksModalOpen] = useState(false)
+  const [remarksLoading, setRemarksLoading] = useState(false)
+  const [remarksDocument, setRemarksDocument] = useState(null)
+  const [remarks, setRemarks] = useState([])
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
 
@@ -81,6 +86,9 @@ export default function DraftDocuments() {
             ? formatDate(doc.updatedAt)
             : formatDate(new Date()),
           status: doc.status,
+          latestReturnRemark: doc.latestReturnRemark || null,
+          latestReturnRemarkAt: doc.latestReturnRemarkAt || null,
+          latestReturnRemarkBy: doc.latestReturnRemarkBy || null,
           hasFile: doc.hasFile || false,
           hasReviewers: false, // Will be populated from API
           reviewerIds: [] // Will be populated from API
@@ -140,6 +148,39 @@ export default function DraftDocuments() {
   const handleReupload = (doc) => {
     setSelectedDocument(doc)
     setShowReuploadModal(true)
+  }
+
+  const formatLatestRemarkMeta = (doc) => {
+    const parts = []
+    if (doc?.latestReturnRemarkBy) parts.push(doc.latestReturnRemarkBy)
+    if (doc?.latestReturnRemarkAt) parts.push(formatDateTime(doc.latestReturnRemarkAt))
+    return parts.length > 0 ? ` (${parts.join(', ')})` : ''
+  }
+
+  const normalizeRemarkSnippet = (v) => String(v || '').replace(/\s+/g, ' ').trim()
+
+  const handleViewRemarks = async (doc) => {
+    if (!doc?.id) return
+    setRemarksDocument(doc)
+    setRemarks([])
+    setRemarksLoading(true)
+    setRemarksModalOpen(true)
+    try {
+      const res = await api.get(`/documents/${doc.id}/remarks?action=RETURNED`)
+      const items = res.data?.data?.remarks || res.data?.remarks || []
+      setRemarks(Array.isArray(items) ? items : [])
+    } catch (error) {
+      console.error('Failed to load remarks:', error)
+      setRemarks([])
+      setAlertModal({
+        show: true,
+        title: t('failed_load_doc'),
+        message: error.response?.data?.message || t('failed_load_doc'),
+        type: 'error'
+      })
+    } finally {
+      setRemarksLoading(false)
+    }
   }
 
   const handleNewDraftSubmit = async (formData, type) => {
@@ -207,6 +248,19 @@ export default function DraftDocuments() {
         onClose={() => setShowReuploadModal(false)}
         document={selectedDocument}
         onSuccess={loadDocuments}
+      />
+
+      <DocumentRemarksModal
+        isOpen={remarksModalOpen}
+        document={remarksDocument}
+        remarks={remarks}
+        loading={remarksLoading}
+        onClose={() => {
+          setRemarksModalOpen(false)
+          setRemarksDocument(null)
+          setRemarks([])
+          setRemarksLoading(false)
+        }}
       />
       
       <div className="p-6 space-y-6" data-tour-id="drafts-page">
@@ -358,11 +412,27 @@ export default function DraftDocuments() {
                     <td className="py-4 px-4 text-gray-700">{doc.createdBy}</td>
                     <td className="py-4 px-4 text-gray-700">{doc.lastUpdated}</td>
                     <td className="py-4 px-4">
-                      <StatusBadge status={doc.status} />
+                      <div className="space-y-1">
+                        <StatusBadge status={doc.status} />
+                        {doc.latestReturnRemark && doc.status === 'Return for Amendments' ? (
+                          <button
+                            onClick={() => handleViewRemarks(doc)}
+                            className="block max-w-[240px] text-left text-xs text-blue-700 hover:text-blue-800 underline underline-offset-2 truncate"
+                            title={`${t('latest_remark')}${formatLatestRemarkMeta(doc)}: ${doc.latestReturnRemark}`}
+                          >
+                            {t('latest_remark')}
+                            {formatLatestRemarkMeta(doc)}: {normalizeRemarkSnippet(doc.latestReturnRemark)}
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <ActionMenu
                         actions={[
+                          ...(doc.status === 'Return for Amendments'
+                            ? [{ label: t('view_remarks'), onClick: () => handleViewRemarks(doc) }]
+                            : []
+                          ),
                           ...(doc.status === 'Return for Amendments' && hasPermission('documents.draft', 'update')
                             ? [
                           { label: t('reupload_file'), onClick: () => handleReupload(doc) }
@@ -416,6 +486,10 @@ export default function DraftDocuments() {
                   </div>
                   <ActionMenu
                     actions={[
+                      ...(doc.status === 'Return for Amendments'
+                        ? [{ label: t('view_remarks'), onClick: () => handleViewRemarks(doc) }]
+                        : []
+                      ),
                       ...(doc.status === 'Return for Amendments' && hasPermission('documents.draft', 'update')
                         ? [{ label: t('reupload_file'), onClick: () => handleReupload(doc) }]
                         : []
@@ -433,6 +507,16 @@ export default function DraftDocuments() {
                   <StatusBadge status={doc.status} />
                   <span className="text-xs text-gray-500">v{doc.version}</span>
                 </div>
+                {doc.latestReturnRemark && doc.status === 'Return for Amendments' ? (
+                  <button
+                    onClick={() => handleViewRemarks(doc)}
+                    className="w-full text-left text-xs text-blue-700 hover:text-blue-800 underline underline-offset-2 truncate"
+                    title={`${t('latest_remark')}${formatLatestRemarkMeta(doc)}: ${doc.latestReturnRemark}`}
+                  >
+                    {t('latest_remark')}
+                    {formatLatestRemarkMeta(doc)}: {normalizeRemarkSnippet(doc.latestReturnRemark)}
+                  </button>
+                ) : null}
                 <div className="text-xs text-gray-500">
                   <p>{t('by_author')} {doc.createdBy}</p>
                   <p>{doc.lastUpdated}</p>
@@ -471,6 +555,10 @@ export default function DraftDocuments() {
                   </div>
                   <ActionMenu
                     actions={[
+                      ...(doc.status === 'Return for Amendments'
+                        ? [{ label: t('view_remarks'), onClick: () => handleViewRemarks(doc) }]
+                        : []
+                      ),
                       ...(doc.status === 'Return for Amendments' && hasPermission('documents.draft', 'update')
                         ? [
                             { label: t('reupload_file'), onClick: () => handleReupload(doc) }
@@ -489,6 +577,16 @@ export default function DraftDocuments() {
                 <div className="flex items-center gap-2">
                   <StatusBadge status={doc.status} />
                 </div>
+                {doc.latestReturnRemark && doc.status === 'Return for Amendments' ? (
+                  <button
+                    onClick={() => handleViewRemarks(doc)}
+                    className="w-full text-left text-xs text-blue-700 hover:text-blue-800 underline underline-offset-2 truncate"
+                    title={`${t('latest_remark')}${formatLatestRemarkMeta(doc)}: ${doc.latestReturnRemark}`}
+                  >
+                    {t('latest_remark')}
+                    {formatLatestRemarkMeta(doc)}: {normalizeRemarkSnippet(doc.latestReturnRemark)}
+                  </button>
+                ) : null}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <span className="text-gray-500">{t('version')}:</span>

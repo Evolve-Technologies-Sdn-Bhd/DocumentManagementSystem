@@ -3975,7 +3975,7 @@ function DocumentSettings() {
                       <span className="text-xs font-medium text-gray-700">Include Project Category Code</span>
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      When enabled, the prefix segment compactly combines `project category code` + `document type prefix` while keeping the same total length.
+                      When enabled, the file code adds `project category code` as its own leading segment before the document type prefix.
                     </p>
                   </div>
 
@@ -4092,18 +4092,14 @@ function DocumentSettings() {
                     const day = String(now.getDate()).padStart(2, '0');
                     const parts = [];
                     
-                    // Add prefix placeholder / compact prefix preview
+                    // Add project category segment first when enabled, then the document prefix segment.
                     const prefixLength = Math.max(1, String(settings.prefixPlaceholder || 'PFX').length);
                     const docPrefix = 'DOC';
                     const projectCategoryCode = 'PC';
-                    const prefix = (() => {
-                      if (!settings.includeProjectCategoryCode) return docPrefix.slice(0, prefixLength);
-                      if (prefixLength === 1) return projectCategoryCode.slice(0, 1);
-                      const projectLength = Math.min(projectCategoryCode.length, Math.max(1, Math.ceil(prefixLength / 2)));
-                      const docLength = Math.max(1, prefixLength - projectLength);
-                      return `${projectCategoryCode.slice(0, projectLength)}${docPrefix.slice(0, docLength)}`.slice(0, prefixLength);
-                    })();
-                    parts.push(prefix);
+                    if (settings.includeProjectCategoryCode) {
+                      parts.push(projectCategoryCode);
+                    }
+                    parts.push(docPrefix.slice(0, prefixLength));
                     
                     // Add version
                     if (settings.includeVersion) {
@@ -4238,8 +4234,8 @@ function DocumentSettings() {
 
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <h4 className="font-semibold text-gray-900 text-base">RFID EPC Registry</h4>
-          <p className="text-sm text-gray-600 mt-1">Enable optional RFID EPC registry generation after draft upload</p>
+          <h4 className="font-semibold text-gray-900 text-base">EPC Registry</h4>
+          <p className="text-sm text-gray-600 mt-1">Enable optional EPC registry generation after draft upload</p>
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
@@ -4250,7 +4246,7 @@ function DocumentSettings() {
               className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
             />
             <div>
-              <span className="text-sm font-medium text-gray-900">Enable RFID EPC Registry</span>
+              <span className="text-sm font-medium text-gray-900">Enable EPC Registry</span>
               <p className="text-sm text-gray-600 mt-0.5">
                 When enabled, the system generates a fixed-length 96-bit EPC value from the document file code and stores it for later RFID encoding.
               </p>
@@ -4259,7 +4255,7 @@ function DocumentSettings() {
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
             <p className="text-sm font-medium text-blue-900">How it works</p>
             <p className="mt-1 text-sm text-blue-800">
-              The system takes the generated document file code, creates a deterministic fixed-length EPC hex value, and saves the result in the RFID registry.
+              The system takes the generated document file code, creates a deterministic fixed-length EPC hex value, and saves the result in the EPC registry.
             </p>
             <p className="mt-2 text-xs text-blue-700">
               No GS1, SGTIN-96, company prefix, or item reference setup is required for this simplified flow. The EPC output is capped at 24 hex characters for better tag compatibility.

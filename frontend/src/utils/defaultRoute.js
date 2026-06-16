@@ -11,6 +11,7 @@ import { hasAnyPermission, getUserPermissions } from './permissions'
  */
 const ROUTE_PRIORITY = [
   { path: '/dashboard', module: 'dashboard' },
+  { path: '/project-tracking', module: 'projectTracking' },
   { path: '/new-document-request', module: 'newDocumentRequest' },
   { path: '/my-documents', module: 'myDocumentsStatus' },
   { path: '/drafts', module: 'documents.draft' },
