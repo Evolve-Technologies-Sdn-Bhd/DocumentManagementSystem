@@ -4,6 +4,7 @@ import api from '../api/axios'
 import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
+import UploadFileModal from './UploadFileModal'
 import { hasPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 
@@ -26,6 +27,62 @@ function ModalShell({ title, children, onClose }) {
         <div className="p-6">{children}</div>
       </div>
     </div>
+  )
+}
+
+function AddStageModal({ onClose, onCreate }) {
+  const [name, setName] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await onCreate({
+        name: name.trim(),
+        displayName: displayName.trim() || null
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <ModalShell title="Add Custom Stage" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="text-sm text-gray-600">
+          Add a new stage for the selected project category. This stage will appear in the stage flow and can be reordered after creation.
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Stage Name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            placeholder="Example: UAT"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Display Label</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            placeholder="Optional label shown to users"
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+            Cancel
+          </button>
+          <button disabled={loading} type="submit" className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+            {loading ? 'Adding...' : 'Add Stage'}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   )
 }
 
@@ -636,6 +693,7 @@ function ProjectDetail({ projectId }) {
   const [showStageLink, setShowStageLink] = useState(null)
   const [showStageCreate, setShowStageCreate] = useState(null)
   const [showEditProject, setShowEditProject] = useState(false)
+  const [uploadDocument, setUploadDocument] = useState(null)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [advancing, setAdvancing] = useState(false)
@@ -1027,6 +1085,15 @@ function ProjectDetail({ projectId }) {
                             {l.document.fileCode}
                           </Link>
                           <span className="text-gray-600">{` • ${l.document.title}`}</span>
+                          {canCreate && (
+                            <button
+                              type="button"
+                              onClick={() => setUploadDocument(l.document)}
+                              className="ml-3 text-xs text-gray-700 hover:underline"
+                            >
+                              Upload File
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1059,6 +1126,15 @@ function ProjectDetail({ projectId }) {
                                     {l.document.fileCode}
                                   </Link>
                                   <span className="text-gray-500">{` • ${l.document.title}`}</span>
+                                  {canCreate && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setUploadDocument(l.document)}
+                                      className="ml-3 text-xs text-gray-700 hover:underline"
+                                    >
+                                      Upload File
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1109,8 +1185,9 @@ function ProjectDetail({ projectId }) {
           item={showCreateDoc}
           phase={selectedPhase}
           onClose={() => setShowCreateDoc(null)}
-          onCreated={() => {
+          onCreated={(result) => {
             setShowCreateDoc(null)
+            if (result?.document) setUploadDocument(result.document)
             if (selectedIterationId) loadItems(selectedIterationId)
           }}
         />
@@ -1136,12 +1213,23 @@ function ProjectDetail({ projectId }) {
           stage={showStageCreate}
           documentTypes={docTypes}
           onClose={() => setShowStageCreate(null)}
-          onCreated={() => {
+          onCreated={(result) => {
             setShowStageCreate(null)
+            if (result?.document) setUploadDocument(result.document)
             if (selectedIterationId) loadItems(selectedIterationId)
           }}
         />
       )}
+
+      <UploadFileModal
+        isOpen={!!uploadDocument}
+        document={uploadDocument}
+        onClose={() => setUploadDocument(null)}
+        onSuccess={() => {
+          if (selectedIterationId) loadItems(selectedIterationId)
+          setUploadDocument(null)
+        }}
+      />
 
       {showEditProject && (
         <ModalShell title="Edit Project" onClose={() => setShowEditProject(false)}>
@@ -1350,6 +1438,7 @@ function Setup() {
   const [loading, setLoading] = useState(false)
   const [savingStages, setSavingStages] = useState(false)
   const [addingReq, setAddingReq] = useState(false)
+  const [showAddStage, setShowAddStage] = useState(false)
   const [newReq, setNewReq] = useState({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
 
   const loadBase = async () => {
@@ -1403,6 +1492,13 @@ function Setup() {
     }
   }
 
+  const createStage = async (payload) => {
+    if (!selectedCategoryId) return
+    await api.post(`/project-tracking/categories/${selectedCategoryId}/stages`, payload)
+    await loadCategory(selectedCategoryId)
+    setShowAddStage(false)
+  }
+
   const addRequirement = async (e) => {
     e.preventDefault()
     if (!selectedCategoryId) return
@@ -1437,23 +1533,84 @@ function Setup() {
       }))
   }, [stages])
 
+  const sortedStages = useMemo(() => {
+    return stages.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }, [stages])
+
+  const activeStageCount = useMemo(() => sortedStages.filter((s) => s.isEnabled).length, [sortedStages])
+
+  const requirementsByStage = useMemo(() => {
+    const grouped = new Map()
+    sortedStages.forEach((s) => grouped.set(s.stageId, []))
+    requirements.forEach((r) => {
+      const key = r.stageId
+      if (!grouped.has(key)) grouped.set(key, [])
+      grouped.get(key).push(r)
+    })
+    return grouped
+  }, [requirements, sortedStages])
+
+  const updateStage = (stageId, patch) => {
+    setStages((prev) => prev.map((x) => (x.stageId === stageId ? { ...x, ...patch } : x)))
+  }
+
+  const moveStage = (stageId, direction) => {
+    const ordered = sortedStages.slice()
+    const index = ordered.findIndex((s) => s.stageId === stageId)
+    if (index < 0) return
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= ordered.length) return
+
+    const next = ordered.slice()
+    ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
+
+    setStages(
+      next.map((s, idx) => ({
+        ...s,
+        sortOrder: idx + 1
+      }))
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div>
-          <div className="text-sm font-medium text-gray-700">Project Category</div>
-          <div className="text-xs text-gray-500">Set up stage flow and required document types for each project category.</div>
+      <div className="bg-white rounded-lg shadow p-5">
+        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-700">Project Category</div>
+            <div className="text-xs text-gray-500 mt-1">Choose a category first, then set the stage flow and required documents for that category.</div>
+          </div>
+          <div className="w-full lg:w-80">
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Select category</option>
+              {projectCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <select
-          value={selectedCategoryId}
-          onChange={(e) => setSelectedCategoryId(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md"
-        >
-          <option value="">Select</option>
-          {projectCategories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+
+        {!!selectedCategoryId && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="text-xs font-medium text-gray-500">Total Stages</div>
+              <div className="text-lg font-semibold text-gray-900">{sortedStages.length}</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="text-xs font-medium text-gray-500">Active Stages</div>
+              <div className="text-lg font-semibold text-gray-900">{activeStageCount}</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="text-xs font-medium text-gray-500">Required Documents</div>
+              <div className="text-lg font-semibold text-gray-900">{requirements.length}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {!selectedCategoryId ? (
@@ -1462,108 +1619,131 @@ function Setup() {
         <div className="p-6 bg-white rounded-lg shadow">Loading...</div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
+          <div className="bg-white rounded-lg shadow p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-gray-900">Stage Flow</div>
-                <div className="text-xs text-gray-500">Turn stages on or off, rename them for display, and arrange the order.</div>
+                <div className="text-xs text-gray-500 mt-1">Rename stage labels, turn stages on or off, and reorder the flow using the move buttons.</div>
               </div>
-              <button
-                onClick={saveStages}
-                disabled={savingStages}
-                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {savingStages ? 'Saving...' : 'Save Stage Flow'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStage(true)}
+                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Add Stage
+                </button>
+                <button
+                  onClick={saveStages}
+                  disabled={savingStages}
+                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {savingStages ? 'Saving...' : 'Save Stage Flow'}
+                </button>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-white">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Display Label</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stages
-                    .slice()
-                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-                    .map((s, idx) => (
-                      <tr key={s.stageId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {s.stage?.name || '-'} <span className="text-gray-400">{s.stage?.key ? `(${s.stage.key})` : ''}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <input
-                            value={s.displayName || ''}
-                            onChange={(e) => {
-                              const v = e.target.value
-                              setStages((prev) => prev.map((x) => (x.stageId === s.stageId ? { ...x, displayName: v } : x)))
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <input
-                            type="number"
-                            value={s.sortOrder ?? idx + 1}
-                            onChange={(e) => {
-                              const v = e.target.value
-                              setStages((prev) => prev.map((x) => (x.stageId === s.stageId ? { ...x, sortOrder: v === '' ? null : Number(v) } : x)))
-                            }}
-                            className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <input
-                            type="checkbox"
-                            checked={!!s.isEnabled}
-                            onChange={(e) => {
-                              const v = e.target.checked
-                              setStages((prev) => prev.map((x) => (x.stageId === s.stageId ? { ...x, isEnabled: v } : x)))
-                            }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+
+            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              {sortedStages.map((s, idx) => {
+                const displayLabel = s.displayName || s.stage?.name || '-'
+                return (
+                  <div
+                    key={s.stageId}
+                    className={`min-w-[250px] rounded-xl border p-4 ${
+                      s.isEnabled ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{`Stage ${idx + 1}`}</div>
+                        <div className="text-sm font-semibold text-gray-900 mt-1">{s.stage?.name || '-'}</div>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.isEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                        {s.isEnabled ? 'Active' : 'Hidden'}
+                      </span>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Display Label</label>
+                      <input
+                        value={s.displayName || ''}
+                        onChange={(e) => updateStage(s.stageId, { displayName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        placeholder={s.stage?.name || 'Enter label'}
+                      />
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={!!s.isEnabled}
+                          onChange={(e) => updateStage(s.stageId, { isEnabled: e.target.checked })}
+                        />
+                        Active in flow
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => moveStage(s.stageId, 'up')}
+                          disabled={idx === 0}
+                          className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveStage(s.stageId, 'down')}
+                          disabled={idx === sortedStages.length - 1}
+                          className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Down
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b bg-gray-50">
               <div className="text-sm font-semibold text-gray-900">Required Documents By Stage</div>
-              <div className="text-xs text-gray-500 mt-1">These document types will appear in the checklist when a new project phase is created.</div>
+              <div className="text-xs text-gray-500 mt-1">Add document types that must appear in the checklist when a new project phase is created.</div>
             </div>
 
-            <div className="p-4 border-b">
-              <form onSubmit={addRequirement} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <select
-                  value={newReq.stageId}
-                  onChange={(e) => setNewReq((p) => ({ ...p, stageId: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Stage</option>
-                  {stageOptions.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-                <select
-                  value={newReq.documentTypeId}
-                  onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Document Type</option>
-                  {documentTypes.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                <label className="flex items-center gap-2 text-sm text-gray-700 px-2">
+            <div className="p-5 border-b bg-white">
+              <form onSubmit={addRequirement} className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_auto_auto] gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Stage</label>
+                  <select
+                    value={newReq.stageId}
+                    onChange={(e) => setNewReq((p) => ({ ...p, stageId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  >
+                    <option value="">Select stage</option>
+                    {stageOptions.map((s) => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Document Type</label>
+                  <select
+                    value={newReq.documentTypeId}
+                    onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  >
+                    <option value="">Select document type</option>
+                    {documentTypes.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 h-10 px-1">
                   <input
                     type="checkbox"
                     checked={!!newReq.isConfidentialDefault}
@@ -1581,36 +1761,66 @@ function Setup() {
               </form>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-white">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidential</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {requirements.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.stage?.name || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.documentType?.name || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{r.isRequired ? 'Yes' : 'No'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{r.isConfidentialDefault ? 'Yes' : 'No'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                        <button onClick={() => deleteRequirement(r.id)} className="text-red-600 hover:underline">
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-5">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {sortedStages.map((s) => {
+                  const stageRequirements = requirementsByStage.get(s.stageId) || []
+                  const stageLabel = s.displayName || s.stage?.name || '-'
+                  return (
+                    <div key={s.stageId} className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+                      <div className={`px-4 py-3 border-b ${s.isEnabled ? 'bg-white' : 'bg-gray-50'}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{stageLabel}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {s.isEnabled ? 'Active stage in project flow' : 'Hidden stage in project flow'}
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            {`${stageRequirements.length} required`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        {stageRequirements.length === 0 ? (
+                          <div className="text-sm text-gray-500">No required document type added for this stage yet.</div>
+                        ) : (
+                          <div className="space-y-2">
+                            {stageRequirements.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900">{r.documentType?.name || '-'}</div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {r.isConfidentialDefault ? 'Confidential by default' : 'Standard visibility'}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteRequirement(r.id)}
+                                  className="text-sm text-red-600 hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {showAddStage && (
+        <AddStageModal
+          onClose={() => setShowAddStage(false)}
+          onCreate={createStage}
+        />
       )}
     </div>
   )

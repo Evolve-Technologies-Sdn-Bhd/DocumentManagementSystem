@@ -201,6 +201,22 @@ exports.getCategoryStages = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { stages }, 'Category stages retrieved successfully');
 });
 
+exports.createCategoryStage = asyncHandler(async (req, res) => {
+  const projectCategoryId = Number(req.params.projectCategoryId);
+  if (!projectCategoryId) throw new ValidationError('Invalid projectCategoryId');
+
+  const { name, displayName } = req.body || {};
+  if (!name) throw new ValidationError('name is required');
+
+  const stage = await projectTrackingService.createCategoryStage(projectCategoryId, {
+    name: String(name).trim(),
+    displayName: displayName ? String(displayName).trim() : null,
+    createdById: req.user.id
+  });
+
+  return ResponseFormatter.success(res, { stage }, 'Category stage created successfully');
+});
+
 exports.updateCategoryStages = asyncHandler(async (req, res) => {
   const projectCategoryId = Number(req.params.projectCategoryId);
   if (!projectCategoryId) throw new ValidationError('Invalid projectCategoryId');

@@ -35,6 +35,7 @@ router.post('/iterations/:iterationId/stages/:stageId/create-document', requireP
 router.get('/documents/search', requirePermission('projectTracking', 'view'), projectTrackingController.searchDocuments);
 
 router.get('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getCategoryStages);
+router.post('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createCategoryStage);
 router.put('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateCategoryStages);
 
 router.get('/categories/:projectCategoryId/requirements', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.listCategoryRequirements);

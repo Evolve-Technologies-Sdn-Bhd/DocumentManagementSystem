@@ -37,6 +37,13 @@ const ensureCategoryStages = async (projectCategoryId) => {
   });
 };
 
+const slugifyStageKey = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
 const getEnabledStagesForCategory = async (projectCategoryId) => {
   const categoryStages = await ensureCategoryStages(projectCategoryId);
   return categoryStages
@@ -649,6 +656,55 @@ exports.getCategoryStages = async (projectCategoryId) => {
       ? { id: r.stage.id, key: r.stage.key, name: r.stage.name, sortOrder: r.stage.sortOrder, isActive: r.stage.isActive }
       : null
   }))
+}
+
+exports.createCategoryStage = async (projectCategoryId, { name, displayName, createdById }) => {
+  const category = await prisma.projectCategory.findUnique({ where: { id: projectCategoryId }, select: { id: true, name: true } })
+  if (!category) throw new NotFoundError('Project category')
+
+  const trimmedName = String(name || '').trim()
+  if (!trimmedName) throw new ValidationError('Stage name is required')
+
+  const existingStages = await ensureCategoryStages(projectCategoryId)
+  const maxSortOrder = existingStages.reduce((max, s) => Math.max(max, s.sortOrder ?? s.stage?.sortOrder ?? 0), 0)
+
+  const baseKey = slugifyStageKey(trimmedName) || 'custom_stage'
+  const uniqueKey = `${baseKey}_${projectCategoryId}_${Date.now()}`
+
+  await prisma.$transaction(async (tx) => {
+    const stage = await tx.projectStageDefinition.create({
+      data: {
+        key: uniqueKey,
+        name: trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isSystem: false,
+        isActive: true
+      }
+    })
+
+    await tx.projectCategoryStage.create({
+      data: {
+        projectCategoryId,
+        stageId: stage.id,
+        displayName: displayName || trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isEnabled: true
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: createdById,
+        action: 'CREATE',
+        entity: 'ProjectCategoryStage',
+        entityId: stage.id,
+        metadata: { projectCategoryId, stageId: stage.id, stageName: trimmedName }
+      }
+    })
+  })
+
+  const categoryStages = await exports.getCategoryStages(projectCategoryId)
+  return categoryStages[categoryStages.length - 1] || null
 }
 
 exports.updateCategoryStages = async (projectCategoryId, stages, { updatedById }) => {
