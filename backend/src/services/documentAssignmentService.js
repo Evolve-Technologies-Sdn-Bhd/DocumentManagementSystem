@@ -6,6 +6,11 @@ const folderPermissionService = require('./folderPermissionService')
  * Controls who can access documents based on workflow assignments
  */
 class DocumentAssignmentService {
+  hasPrivilegedWorkflowAccess(user) {
+    const roles = Array.isArray(user?.roles) ? user.roles : []
+    return roles.some((role) => ['admin', 'document_controller'].includes(String(role || '').toLowerCase()))
+  }
+
   /**
    * Assign a document to a user for a specific workflow stage
    * @param {number} documentId 
@@ -157,7 +162,11 @@ class DocumentAssignmentService {
         ownerId: true,
         createdById: true,
         folderId: true,
+        stage: true,
         status: true,
+        reviewerId: true,
+        firstApproverId: true,
+        secondApproverId: true,
         assignments: {
           where: {
             userId
@@ -184,9 +193,22 @@ class DocumentAssignmentService {
       return true;
     }
 
+    // Users directly assigned on the document workflow record can access it.
+    if (
+      document.reviewerId === userId ||
+      document.firstApproverId === userId ||
+      document.secondApproverId === userId
+    ) {
+      return true
+    }
+
     // Has assignment
     if (document.assignments.length > 0) {
       return true;
+    }
+
+    if (document.stage === 'READY_TO_PUBLISH' && this.hasPrivilegedWorkflowAccess(user)) {
+      return true
     }
 
     // Published, obsolete, and superseded documents are accessible to all
@@ -221,6 +243,10 @@ class DocumentAssignmentService {
             { ownerId: userId },
             // Documents created by user
             { createdById: userId },
+            // Documents directly assigned in workflow fields
+            { reviewerId: userId },
+            { firstApproverId: userId },
+            { secondApproverId: userId },
             // Documents assigned to user
             {
               assignments: {
