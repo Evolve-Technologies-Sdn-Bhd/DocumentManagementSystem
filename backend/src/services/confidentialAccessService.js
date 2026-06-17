@@ -209,11 +209,195 @@ class ConfidentialAccessService {
     return this.getRequirementAccess(reqRow.id)
   }
 
+  async getProjectSetupRequirementAccess({ projectId, requirementId, scope }) {
+    const normalizedScope = String(scope || '').toUpperCase()
+    if (normalizedScope !== 'DEFAULT' && normalizedScope !== 'OVERRIDE') {
+      throw new ValidationError('Invalid requirement scope')
+    }
+
+    if (normalizedScope === 'DEFAULT') {
+      const reqRow = await prisma.projectSetupDocumentRequirementDefault.findUnique({
+        where: { id: parseInt(requirementId, 10) },
+        select: { id: true, stageId: true, documentTypeId: true, isConfidentialDefault: true }
+      })
+      if (!reqRow) throw new NotFoundError('Requirement')
+
+      const entries = await prisma.projectSetupDocumentRequirementDefaultConfidentialAccess.findMany({
+        where: { requirementId: reqRow.id },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          role: { select: { id: true, name: true, displayName: true } }
+        },
+        orderBy: { id: 'asc' }
+      })
+
+      return { requirement: reqRow, entries }
+    }
+
+    const pid = parseInt(projectId, 10)
+    if (!pid) throw new ValidationError('Invalid projectId')
+
+    const reqRow = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+      where: { id: parseInt(requirementId, 10), projectId: pid },
+      select: { id: true, projectId: true, stageId: true, documentTypeId: true, isConfidentialDefault: true, isExcluded: true }
+    })
+    if (!reqRow) throw new NotFoundError('Requirement')
+
+    const entries = await prisma.projectSetupDocumentRequirementOverrideConfidentialAccess.findMany({
+      where: { requirementId: reqRow.id },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        role: { select: { id: true, name: true, displayName: true } }
+      },
+      orderBy: { id: 'asc' }
+    })
+
+    return { requirement: reqRow, entries }
+  }
+
+  async setProjectSetupRequirementAccess({ projectId, requirementId, scope }, actor, payload) {
+    const normalizedScope = String(scope || '').toUpperCase()
+    if (normalizedScope !== 'DEFAULT' && normalizedScope !== 'OVERRIDE') {
+      throw new ValidationError('Invalid requirement scope')
+    }
+
+    if (!actor?.permissions?.projectTracking?.manageTemplates) {
+      throw new ForbiddenError("You don't have permission to manage templates")
+    }
+
+    const entries = this.normalizeEntries(payload)
+
+    if (normalizedScope === 'DEFAULT') {
+      const reqRow = await prisma.projectSetupDocumentRequirementDefault.findUnique({
+        where: { id: parseInt(requirementId, 10) },
+        select: { id: true, isConfidentialDefault: true }
+      })
+      if (!reqRow) throw new NotFoundError('Requirement')
+      if (!reqRow.isConfidentialDefault) {
+        throw new BadRequestError('Confidential must be enabled for this requirement before setting access list')
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.projectSetupDocumentRequirementDefaultConfidentialAccess.deleteMany({ where: { requirementId: reqRow.id } })
+        for (const e of entries) {
+          await tx.projectSetupDocumentRequirementDefaultConfidentialAccess.create({
+            data: {
+              requirementId: reqRow.id,
+              subjectType: e.subjectType,
+              userId: e.subjectType === 'USER' ? e.subjectId : null,
+              roleId: e.subjectType === 'ROLE' ? e.subjectId : null,
+              canView: e.canView
+            }
+          })
+        }
+
+        await tx.auditLog.create({
+          data: {
+            userId: actor?.id || null,
+            action: 'UPDATE',
+            entity: 'ProjectSetupDocumentRequirementDefault',
+            entityId: reqRow.id,
+            description: `updated confidential viewers template for default requirementId=${reqRow.id}`,
+            metadata: {
+              requirementId: reqRow.id,
+              viewersCount: entries.length,
+              subjectTypes: Array.from(new Set(entries.map((x) => x.subjectType)))
+            }
+          }
+        })
+      })
+
+      return this.getProjectSetupRequirementAccess({ requirementId: reqRow.id, scope: 'DEFAULT' })
+    }
+
+    const pid = parseInt(projectId, 10)
+    if (!pid) throw new ValidationError('Invalid projectId')
+
+    const existingOverride = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+      where: { id: parseInt(requirementId, 10), projectId: pid },
+      select: { id: true, isConfidentialDefault: true, isExcluded: true }
+    })
+
+    if (!existingOverride) throw new NotFoundError('Requirement')
+    if (existingOverride.isExcluded) throw new BadRequestError('Requirement is excluded for this project')
+    if (!existingOverride.isConfidentialDefault) {
+      throw new BadRequestError('Confidential must be enabled for this requirement before setting access list')
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.projectSetupDocumentRequirementOverrideConfidentialAccess.deleteMany({ where: { requirementId: existingOverride.id } })
+      for (const e of entries) {
+        await tx.projectSetupDocumentRequirementOverrideConfidentialAccess.create({
+          data: {
+            requirementId: existingOverride.id,
+            subjectType: e.subjectType,
+            userId: e.subjectType === 'USER' ? e.subjectId : null,
+            roleId: e.subjectType === 'ROLE' ? e.subjectId : null,
+            canView: e.canView
+          }
+        })
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: actor?.id || null,
+          action: 'UPDATE',
+          entity: 'ProjectSetupDocumentRequirementOverride',
+          entityId: existingOverride.id,
+          description: `updated confidential viewers template for project requirementId=${existingOverride.id}`,
+          metadata: {
+            requirementId: existingOverride.id,
+            projectId: pid,
+            viewersCount: entries.length,
+            subjectTypes: Array.from(new Set(entries.map((x) => x.subjectType)))
+          }
+        }
+      })
+    })
+
+    return this.getProjectSetupRequirementAccess({ projectId: pid, requirementId: existingOverride.id, scope: 'OVERRIDE' })
+  }
+
   async applyRequirementAccessToDocument(requirementId, documentId, db = prisma) {
     const rows = await db.projectCategoryDocumentRequirementConfidentialAccess.findMany({
       where: { requirementId: parseInt(requirementId, 10), canView: true },
       select: { subjectType: true, userId: true, roleId: true }
     })
+    if (!rows.length) return 0
+
+    const data = rows.map((r) => ({
+      documentId: parseInt(documentId, 10),
+      subjectType: r.subjectType,
+      userId: r.userId,
+      roleId: r.roleId,
+      canView: true
+    }))
+
+    const created = await db.documentConfidentialAccess.createMany({
+      data,
+      skipDuplicates: true
+    })
+    return created.count || 0
+  }
+
+  async applyProjectSetupRequirementAccessToDocument({ requirementId, scope }, documentId, db = prisma) {
+    const normalizedScope = String(scope || '').toUpperCase()
+    if (normalizedScope !== 'DEFAULT' && normalizedScope !== 'OVERRIDE') return 0
+
+    const reqId = parseInt(requirementId, 10)
+    if (!reqId) return 0
+
+    const rows =
+      normalizedScope === 'DEFAULT'
+        ? await db.projectSetupDocumentRequirementDefaultConfidentialAccess.findMany({
+            where: { requirementId: reqId, canView: true },
+            select: { subjectType: true, userId: true, roleId: true }
+          })
+        : await db.projectSetupDocumentRequirementOverrideConfidentialAccess.findMany({
+            where: { requirementId: reqId, canView: true },
+            select: { subjectType: true, userId: true, roleId: true }
+          })
+
     if (!rows.length) return 0
 
     const data = rows.map((r) => ({

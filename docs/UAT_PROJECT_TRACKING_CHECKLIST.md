@@ -74,8 +74,8 @@
   - Remove link only removes the relationship, not deleting the document.
 
 ## 4) Confidential Access by User/Role
-### 4.1 Requirement template access (Category Setup)
-- Go to Project Tracking → `Category Setup`.
+### 4.1 Requirement template access (Project Setup)
+- Go to Project Tracking → `Project Setup`.
 - Add a requirement and tick `Confidential`.
 - Click `Access` and add:
   - One role (e.g. `Management`)
@@ -108,4 +108,3 @@
 - Expected:
   - Activity list shows entries for project stage/phase actions.
   - Confidential viewer updates appear as audit entries (system-wide log), and project entries appear under project activity.
-

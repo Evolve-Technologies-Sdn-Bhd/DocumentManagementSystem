@@ -1978,7 +1978,7 @@ function ProjectDetail({ projectId }) {
       {itemsLoading ? (
         <div className="p-6 bg-white rounded-lg shadow">Loading checklist...</div>
       ) : items.length === 0 && stageDocuments.length === 0 ? (
-        <EmptyState title="No required documents yet" message="No required document template has been set for this project category yet. Go to Category Setup to configure it." />
+        <EmptyState title="No required documents yet" message="No required document template has been set yet. Go to Project Setup to configure it." />
       ) : activeStageTab === consolidatedTabId ? (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-5">
@@ -2564,9 +2564,9 @@ function DocumentsSearch() {
 }
 
 function Setup() {
-  const [projectCategories, setProjectCategories] = useState([])
   const [documentTypes, setDocumentTypes] = useState([])
-  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
   const [stages, setStages] = useState([])
   const [requirements, setRequirements] = useState([])
   const [loading, setLoading] = useState(false)
@@ -2582,21 +2582,18 @@ function Setup() {
   const [savingAccess, setSavingAccess] = useState(false)
 
   const loadBase = async () => {
-    const [cats, docTypes] = await Promise.all([
-      api.get('/system/config/project-categories'),
-      api.get('/system/config/document-types')
-    ])
-    setProjectCategories(cats?.data?.data?.projectCategories || [])
+    const [proj, docTypes] = await Promise.all([api.get('/project-tracking/projects'), api.get('/system/config/document-types')])
+    setProjects(proj?.data?.data?.projects || [])
     setDocumentTypes(docTypes?.data?.data?.documentTypes || [])
   }
 
-  const loadCategory = async (categoryId) => {
-    if (!categoryId) return
+  const loadSetup = async (projectId) => {
     setLoading(true)
     try {
+      const isProjectScope = !!projectId
       const [st, req] = await Promise.all([
-        api.get(`/project-tracking/categories/${categoryId}/stages`),
-        api.get(`/project-tracking/categories/${categoryId}/requirements`)
+        api.get(isProjectScope ? `/project-tracking/projects/${projectId}/setup/stages` : '/project-tracking/setup/stages'),
+        api.get(isProjectScope ? `/project-tracking/projects/${projectId}/setup/requirements` : '/project-tracking/setup/requirements')
       ])
       setStages(st?.data?.data?.stages || [])
       setRequirements(req?.data?.data?.requirements || [])
@@ -2610,13 +2607,13 @@ function Setup() {
   }, [])
 
   useEffect(() => {
-    if (selectedCategoryId) loadCategory(selectedCategoryId)
-  }, [selectedCategoryId])
+    loadSetup(selectedProjectId)
+  }, [selectedProjectId])
 
   const saveStages = async () => {
-    if (!selectedCategoryId) return
     setSavingStages(true)
     try {
+      const isProjectScope = !!selectedProjectId
       const payload = {
         stages: stages.map((s) => ({
           stageId: s.stageId,
@@ -2625,7 +2622,10 @@ function Setup() {
           isEnabled: s.isEnabled
         }))
       }
-      const res = await api.put(`/project-tracking/categories/${selectedCategoryId}/stages`, payload)
+      const res = await api.put(
+        isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/stages` : '/project-tracking/setup/stages',
+        payload
+      )
       setStages(res?.data?.data?.stages || [])
     } finally {
       setSavingStages(false)
@@ -2633,38 +2633,45 @@ function Setup() {
   }
 
   const createStage = async (payload) => {
-    if (!selectedCategoryId) return
-    await api.post(`/project-tracking/categories/${selectedCategoryId}/stages`, payload)
-    await loadCategory(selectedCategoryId)
+    const isProjectScope = !!selectedProjectId
+    await api.post(isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/stages` : '/project-tracking/setup/stages', payload)
+    await loadSetup(selectedProjectId)
     setShowAddStage(false)
   }
 
   const addRequirement = async (e) => {
     e.preventDefault()
-    if (!selectedCategoryId) return
     setAddingReq(true)
     try {
-      await api.post(`/project-tracking/categories/${selectedCategoryId}/requirements`, {
+      const isProjectScope = !!selectedProjectId
+      await api.post(isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements` : '/project-tracking/setup/requirements', {
         stageId: Number(newReq.stageId),
         documentTypeId: Number(newReq.documentTypeId),
         isRequired: Boolean(newReq.isRequired),
         isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
       })
       setNewReq({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
-      await loadCategory(selectedCategoryId)
+      await loadSetup(selectedProjectId)
     } finally {
       setAddingReq(false)
     }
   }
 
   const deleteRequirement = async (id) => {
-    if (!selectedCategoryId) return
-    await api.delete(`/project-tracking/requirements/${id}`)
-    await loadCategory(selectedCategoryId)
+    const isProjectScope = !!selectedProjectId
+    await api.delete(
+      isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements/${id}` : `/project-tracking/setup/requirements/${id}`
+    )
+    await loadSetup(selectedProjectId)
   }
 
   const loadRequirementAccess = async (requirementId) => {
-    const res = await api.get(`/project-tracking/requirements/${requirementId}/confidential-access`)
+    const isProjectScope = !!selectedProjectId
+    const res = await api.get(
+      isProjectScope
+        ? `/project-tracking/projects/${selectedProjectId}/setup/requirements/${requirementId}/confidential-access`
+        : `/project-tracking/setup/requirements/${requirementId}/confidential-access`
+    )
     const entries = res?.data?.data?.entries || []
     setAccessEntries(
       entries
@@ -2716,14 +2723,21 @@ function Setup() {
     if (!accessRequirement) return
     setSavingAccess(true)
     try {
-      await api.put(`/project-tracking/requirements/${accessRequirement.id}/confidential-access`, {
+      const isProjectScope = !!selectedProjectId
+      await api.put(
+        isProjectScope
+          ? `/project-tracking/projects/${selectedProjectId}/setup/requirements/${accessRequirement.id}/confidential-access`
+          : `/project-tracking/setup/requirements/${accessRequirement.id}/confidential-access`,
+        {
         entries: accessEntries.map((e) => ({
           subjectType: e.subjectType,
           subjectId: e.subjectId,
           canView: true
         }))
-      })
+        }
+      )
       setAccessRequirement(null)
+      await loadSetup(selectedProjectId)
     } finally {
       setSavingAccess(false)
     }
@@ -2784,44 +2798,42 @@ function Setup() {
       <div className="bg-white rounded-lg shadow p-5">
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="flex-1">
-            <div className="text-sm font-medium text-gray-700">Project Category</div>
-            <div className="text-xs text-gray-500 mt-1">Choose a category first, then set the stage flow and required documents for that category.</div>
+            <div className="text-sm font-medium text-gray-700">Setup Scope</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Default setup applies to all projects. Select a project only when you need a customized setup that will not affect other projects.
+            </div>
           </div>
           <div className="w-full lg:w-80">
             <select
-              value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
             >
-              <option value="">Select category</option>
-              {projectCategories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              <option value="">Default (All Projects)</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
               ))}
             </select>
           </div>
         </div>
 
-        {!!selectedCategoryId && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="text-xs font-medium text-gray-500">Total Stages</div>
-              <div className="text-lg font-semibold text-gray-900">{sortedStages.length}</div>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="text-xs font-medium text-gray-500">Active Stages</div>
-              <div className="text-lg font-semibold text-gray-900">{activeStageCount}</div>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-              <div className="text-xs font-medium text-gray-500">Required Documents</div>
-              <div className="text-lg font-semibold text-gray-900">{requirements.length}</div>
-            </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <div className="text-xs font-medium text-gray-500">Total Stages</div>
+            <div className="text-lg font-semibold text-gray-900">{sortedStages.length}</div>
           </div>
-        )}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <div className="text-xs font-medium text-gray-500">Active Stages</div>
+            <div className="text-lg font-semibold text-gray-900">{activeStageCount}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <div className="text-xs font-medium text-gray-500">Required Documents</div>
+            <div className="text-lg font-semibold text-gray-900">{requirements.length}</div>
+          </div>
+        </div>
       </div>
 
-      {!selectedCategoryId ? (
-        <EmptyState title="Select a project category" message="Choose a category first. Then set the stage flow and required documents for that category." />
-      ) : loading ? (
+      {loading ? (
         <div className="p-6 bg-white rounded-lg shadow">Loading...</div>
       ) : (
         <div className="space-y-4">
@@ -3155,7 +3167,7 @@ export default function ProjectTracking() {
       { id: 'search', label: 'Search' }
     ]
     if (hasPermission('projectTracking', 'manageTemplates')) {
-      base.push({ id: 'setup', label: 'Category Setup' })
+      base.push({ id: 'setup', label: 'Project Setup' })
     }
     return base
   }, [])

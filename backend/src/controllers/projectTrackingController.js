@@ -322,6 +322,167 @@ exports.searchDocuments = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { documents }, 'Documents retrieved successfully');
 });
 
+exports.getSetupStages = asyncHandler(async (req, res) => {
+  const stages = await projectTrackingService.getSetupStages()
+  return ResponseFormatter.success(res, { stages }, 'Project setup stages retrieved successfully')
+})
+
+exports.createSetupStage = asyncHandler(async (req, res) => {
+  const { name, displayName } = req.body || {}
+  if (!name) throw new ValidationError('name is required')
+
+  const stage = await projectTrackingService.createSetupStage({
+    name: String(name).trim(),
+    displayName: displayName ? String(displayName).trim() : null,
+    createdById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { stage }, 'Project setup stage created successfully')
+})
+
+exports.updateSetupStages = asyncHandler(async (req, res) => {
+  const { stages } = req.body || {}
+  if (!Array.isArray(stages)) throw new ValidationError('stages must be an array')
+
+  const updated = await projectTrackingService.updateSetupStages(stages, { updatedById: req.user.id })
+  return ResponseFormatter.success(res, { stages: updated }, 'Project setup stages updated successfully')
+})
+
+exports.listSetupRequirements = asyncHandler(async (req, res) => {
+  const requirements = await projectTrackingService.listSetupRequirements()
+  return ResponseFormatter.success(res, { requirements }, 'Project setup requirements retrieved successfully')
+})
+
+exports.createSetupRequirement = asyncHandler(async (req, res) => {
+  const { stageId, documentTypeId, isRequired, isConfidentialDefault } = req.body || {}
+  if (!stageId || !documentTypeId) {
+    throw new ValidationError('stageId and documentTypeId are required')
+  }
+
+  const requirement = await projectTrackingService.createSetupRequirement({
+    stageId: Number(stageId),
+    documentTypeId: Number(documentTypeId),
+    isRequired: isRequired !== undefined ? Boolean(isRequired) : true,
+    isConfidentialDefault: Boolean(isConfidentialDefault),
+    createdById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { requirement }, 'Requirement created successfully')
+})
+
+exports.deleteSetupRequirement = asyncHandler(async (req, res) => {
+  const requirementId = Number(req.params.requirementId)
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+
+  await projectTrackingService.deleteSetupRequirement(requirementId, { deletedById: req.user.id })
+  return ResponseFormatter.success(res, {}, 'Requirement deleted successfully')
+})
+
+exports.getSetupRequirementConfidentialAccess = asyncHandler(async (req, res) => {
+  const requirementId = Number(req.params.requirementId)
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+  const data = await projectTrackingService.getSetupRequirementConfidentialAccess(requirementId)
+  return ResponseFormatter.success(res, data, 'Requirement confidential access retrieved successfully')
+})
+
+exports.updateSetupRequirementConfidentialAccess = asyncHandler(async (req, res) => {
+  const requirementId = Number(req.params.requirementId)
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+  const data = await projectTrackingService.updateSetupRequirementConfidentialAccess(requirementId, req.user, req.body || {})
+  return ResponseFormatter.success(res, data, 'Requirement confidential access updated successfully')
+})
+
+exports.getProjectSetupStages = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const stages = await projectTrackingService.getProjectSetupStages(projectId)
+  return ResponseFormatter.success(res, { stages }, 'Project setup stages retrieved successfully')
+})
+
+exports.createProjectSetupStage = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const { name, displayName } = req.body || {}
+  if (!name) throw new ValidationError('name is required')
+
+  const stage = await projectTrackingService.createProjectSetupStage(projectId, {
+    name: String(name).trim(),
+    displayName: displayName ? String(displayName).trim() : null,
+    createdById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { stage }, 'Project setup stage created successfully')
+})
+
+exports.updateProjectSetupStages = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const { stages } = req.body || {}
+  if (!Array.isArray(stages)) throw new ValidationError('stages must be an array')
+
+  const updated = await projectTrackingService.updateProjectSetupStages(projectId, stages, { updatedById: req.user.id })
+  return ResponseFormatter.success(res, { stages: updated }, 'Project setup stages updated successfully')
+})
+
+exports.listProjectSetupRequirements = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const requirements = await projectTrackingService.listProjectSetupRequirements(projectId)
+  return ResponseFormatter.success(res, { requirements }, 'Project setup requirements retrieved successfully')
+})
+
+exports.createProjectSetupRequirement = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const { stageId, documentTypeId, isRequired, isConfidentialDefault } = req.body || {}
+  if (!stageId || !documentTypeId) {
+    throw new ValidationError('stageId and documentTypeId are required')
+  }
+
+  const requirement = await projectTrackingService.createProjectSetupRequirement(projectId, {
+    stageId: Number(stageId),
+    documentTypeId: Number(documentTypeId),
+    isRequired: isRequired !== undefined ? Boolean(isRequired) : true,
+    isConfidentialDefault: Boolean(isConfidentialDefault),
+    createdById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { requirement }, 'Requirement created successfully')
+})
+
+exports.deleteProjectSetupRequirement = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  const requirementId = Number(req.params.requirementId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+
+  await projectTrackingService.deleteProjectSetupRequirement(projectId, requirementId, { deletedById: req.user.id })
+  return ResponseFormatter.success(res, {}, 'Requirement deleted successfully')
+})
+
+exports.getProjectSetupRequirementConfidentialAccess = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  const requirementId = Number(req.params.requirementId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+  const data = await projectTrackingService.getProjectSetupRequirementConfidentialAccess(projectId, requirementId)
+  return ResponseFormatter.success(res, data, 'Requirement confidential access retrieved successfully')
+})
+
+exports.updateProjectSetupRequirementConfidentialAccess = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  const requirementId = Number(req.params.requirementId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!requirementId) throw new ValidationError('Invalid requirementId')
+  const data = await projectTrackingService.updateProjectSetupRequirementConfidentialAccess(projectId, requirementId, req.user, req.body || {})
+  return ResponseFormatter.success(res, data, 'Requirement confidential access updated successfully')
+})
+
 exports.getCategoryStages = asyncHandler(async (req, res) => {
   const projectCategoryId = Number(req.params.projectCategoryId);
   if (!projectCategoryId) throw new ValidationError('Invalid projectCategoryId');

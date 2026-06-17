@@ -34,6 +34,13 @@ const getActiveStageDefinitions = async () => {
   });
 };
 
+const getActiveSystemStageDefinitions = async () => {
+  return prisma.projectStageDefinition.findMany({
+    where: { isActive: true, isSystem: true },
+    orderBy: { sortOrder: 'asc' }
+  })
+}
+
 const ensureCategoryStages = async (projectCategoryId) => {
   const existing = await prisma.projectCategoryStage.findMany({
     where: { projectCategoryId },
@@ -62,6 +69,30 @@ const ensureCategoryStages = async (projectCategoryId) => {
   });
 };
 
+const ensureDefaultSetupStages = async (db = prisma) => {
+  const existing = await db.projectSetupStageDefault.findMany({
+    include: { stage: true },
+    orderBy: [{ sortOrder: 'asc' }, { stage: { sortOrder: 'asc' } }]
+  })
+  if (existing.length > 0) return existing
+
+  const systemStages = await getActiveSystemStageDefinitions()
+  if (systemStages.length === 0) return []
+
+  await db.projectSetupStageDefault.createMany({
+    data: systemStages.map((s) => ({
+      stageId: s.id,
+      sortOrder: s.sortOrder,
+      isEnabled: true
+    }))
+  })
+
+  return db.projectSetupStageDefault.findMany({
+    include: { stage: true },
+    orderBy: [{ sortOrder: 'asc' }, { stage: { sortOrder: 'asc' } }]
+  })
+}
+
 const slugifyStageKey = (value) => {
   return String(value || '')
     .toLowerCase()
@@ -76,6 +107,57 @@ const getEnabledStagesForCategory = async (projectCategoryId) => {
     .sort((a, b) => (a.sortOrder ?? a.stage.sortOrder) - (b.sortOrder ?? b.stage.sortOrder));
 };
 
+const getEffectiveStagesForProject = async (projectId, db = prisma) => {
+  const pid = parseInt(projectId, 10)
+  if (!pid) throw new ValidationError('Invalid projectId')
+
+  const defaultRows = await ensureDefaultSetupStages(db)
+  const overrideRows = await db.projectSetupStageOverride.findMany({
+    where: { projectId: pid },
+    include: { stage: true }
+  })
+
+  const overridesByStage = new Map(overrideRows.map((r) => [r.stageId, r]))
+  const defaultStageIds = new Set(defaultRows.map((r) => r.stageId))
+
+  const merged = defaultRows.map((d) => {
+    const o = overridesByStage.get(d.stageId)
+    return {
+      id: o?.id || d.id,
+      stageId: d.stageId,
+      displayName: o?.displayName !== undefined ? o.displayName : d.displayName,
+      sortOrder: o?.sortOrder !== undefined && o?.sortOrder !== null ? o.sortOrder : d.sortOrder,
+      isEnabled: o?.isEnabled !== undefined ? o.isEnabled : d.isEnabled,
+      stage: d.stage
+    }
+  })
+
+  const projectOnly = overrideRows
+    .filter((o) => !defaultStageIds.has(o.stageId))
+    .map((o) => ({
+      id: o.id,
+      stageId: o.stageId,
+      displayName: o.displayName,
+      sortOrder: o.sortOrder,
+      isEnabled: o.isEnabled,
+      stage: o.stage
+    }))
+
+  return merged
+    .concat(projectOnly)
+    .filter((row) => row.stage?.isActive)
+    .sort((a, b) => {
+      const aSort = a.sortOrder ?? a.stage?.sortOrder ?? 0
+      const bSort = b.sortOrder ?? b.stage?.sortOrder ?? 0
+      return aSort - bSort
+    })
+}
+
+const getEnabledStagesForProject = async (projectId, db = prisma) => {
+  const rows = await getEffectiveStagesForProject(projectId, db)
+  return rows.filter((r) => r.isEnabled && r.stage?.isActive)
+}
+
 const mapEnabledStagesForView = (categoryStages) => {
   return categoryStages.map((cs) => ({
     id: cs.stageId,
@@ -87,29 +169,44 @@ const mapEnabledStagesForView = (categoryStages) => {
   }));
 };
 
-const createChecklistItemsFromRequirements = async (projectCategoryId, iterationId, db = prisma) => {
-  const enabledStages = await db.projectCategoryStage.findMany({
-    where: {
-      projectCategoryId,
-      isEnabled: true,
-      stage: { isActive: true }
-    },
-    include: { stage: true },
-    orderBy: [{ sortOrder: 'asc' }, { stage: { sortOrder: 'asc' } }]
-  });
-  if (enabledStages.length === 0) return [];
+const createChecklistItemsFromRequirements = async (projectId, iterationId, db = prisma) => {
+  const enabledStages = await getEnabledStagesForProject(projectId, db)
+  if (enabledStages.length === 0) return []
 
-  const stageIds = enabledStages.map((s) => s.stageId);
+  const stageIds = enabledStages.map((s) => s.stageId)
 
-  const requirements = await db.projectCategoryDocumentRequirement.findMany({
+  const defaultRequired = await db.projectSetupDocumentRequirementDefault.findMany({
     where: {
-      projectCategoryId,
       stageId: { in: stageIds },
       isRequired: true
-    }
-  });
+    },
+    select: { stageId: true, documentTypeId: true }
+  })
 
-  if (requirements.length === 0) return [];
+  const overrides = await db.projectSetupDocumentRequirementOverride.findMany({
+    where: {
+      projectId: parseInt(projectId, 10),
+      stageId: { in: stageIds }
+    },
+    select: { stageId: true, documentTypeId: true, isRequired: true, isExcluded: true }
+  })
+
+  const requiredKeys = new Map()
+  for (const r of defaultRequired) {
+    requiredKeys.set(`${r.stageId}:${r.documentTypeId}`, r)
+  }
+
+  for (const o of overrides) {
+    const key = `${o.stageId}:${o.documentTypeId}`
+    if (o.isExcluded || !o.isRequired) {
+      requiredKeys.delete(key)
+      continue
+    }
+    requiredKeys.set(key, { stageId: o.stageId, documentTypeId: o.documentTypeId })
+  }
+
+  const requirements = Array.from(requiredKeys.values())
+  if (requirements.length === 0) return []
 
   await db.projectIterationDocumentItem.createMany({
     data: requirements.map((r) => ({
@@ -118,7 +215,7 @@ const createChecklistItemsFromRequirements = async (projectCategoryId, iteration
       documentTypeId: r.documentTypeId
     })),
     skipDuplicates: true
-  });
+  })
 
   return db.projectIterationDocumentItem.findMany({
     where: { projectIterationId: iterationId },
@@ -127,8 +224,8 @@ const createChecklistItemsFromRequirements = async (projectCategoryId, iteration
       documentType: true
     },
     orderBy: [{ stageId: 'asc' }, { documentTypeId: 'asc' }]
-  });
-};
+  })
+}
 
 exports.listProjects = async ({ projectCategoryId, search }) => {
   const where = {};
@@ -339,9 +436,6 @@ exports.createProject = async ({
   const category = await prisma.projectCategory.findUnique({ where: { id: projectCategoryId }, select: { id: true } });
   if (!category) throw new NotFoundError('Project category');
 
-  const stages = await getEnabledStagesForCategory(projectCategoryId);
-  const firstStageId = stages[0]?.stageId || null;
-
   return prisma.$transaction(async (tx) => {
     const project = await tx.project.create({
       data: {
@@ -363,6 +457,9 @@ exports.createProject = async ({
       }
     });
 
+    const stages = await getEnabledStagesForProject(project.id, tx)
+    const firstStageId = stages[0]?.stageId || null
+
     const iteration = await tx.projectIteration.create({
       data: {
         projectId: project.id,
@@ -372,7 +469,7 @@ exports.createProject = async ({
       }
     });
 
-    await createChecklistItemsFromRequirements(projectCategoryId, iteration.id, tx);
+    await createChecklistItemsFromRequirements(project.id, iteration.id, tx);
 
     await tx.auditLog.create({
       data: {
@@ -410,7 +507,7 @@ exports.getProject = async (projectId, { canViewConfidential }) => {
 
   if (!project) throw new NotFoundError('Project');
 
-  const enabledStages = mapEnabledStagesForView(await getEnabledStagesForCategory(project.projectCategoryId));
+  const enabledStages = mapEnabledStagesForView(await getEnabledStagesForProject(project.id));
   const stageNameMap = new Map(enabledStages.map((stage) => [stage.stageId, stage.name]));
   const projectWithStageView = {
     ...project,
@@ -463,7 +560,7 @@ exports.createIteration = async (projectId, { name, createdById }) => {
   });
   const nextNo = (last?.iterationNo || 0) + 1;
 
-  const stages = await getEnabledStagesForCategory(project.projectCategoryId);
+  const stages = await getEnabledStagesForProject(project.id);
   const firstStageId = stages[0]?.stageId || null;
 
   return prisma.$transaction(async (tx) => {
@@ -478,7 +575,7 @@ exports.createIteration = async (projectId, { name, createdById }) => {
       include: { currentStage: true }
     });
 
-    await createChecklistItemsFromRequirements(project.projectCategoryId, iteration.id, tx);
+    await createChecklistItemsFromRequirements(project.id, iteration.id, tx);
 
     await tx.auditLog.create({
       data: {
@@ -535,11 +632,11 @@ exports.updateIteration = async (iterationId, { name, updatedById }) => {
 exports.listIterationItems = async (iterationId, { user }) => {
   const iteration = await prisma.projectIteration.findUnique({
     where: { id: iterationId },
-    include: { project: { select: { projectCategoryId: true } } }
+    include: { project: { select: { id: true, projectCategoryId: true } } }
   })
   if (!iteration) throw new NotFoundError('Project iteration')
 
-  const categoryStages = await ensureCategoryStages(iteration.project.projectCategoryId)
+  const categoryStages = await getEffectiveStagesForProject(iteration.project.id)
   const stageNameMap = new Map(
     categoryStages.map((cs) => [
       cs.stageId,
@@ -691,11 +788,11 @@ exports.unlinkDocumentFromItem = async (itemId, linkId) => {
 exports.listIterationStageDocuments = async (iterationId, { user }) => {
   const iteration = await prisma.projectIteration.findUnique({
     where: { id: iterationId },
-    include: { project: { select: { projectCategoryId: true } } }
+    include: { project: { select: { id: true, projectCategoryId: true } } }
   })
   if (!iteration) throw new NotFoundError('Project iteration')
 
-  const categoryStages = await ensureCategoryStages(iteration.project.projectCategoryId)
+  const categoryStages = await getEffectiveStagesForProject(iteration.project.id)
   const stageNameMap = new Map(
     categoryStages.map((cs) => [
       cs.stageId,
@@ -829,16 +926,30 @@ exports.createDocumentFromItem = async (itemId, { title, description, createdByI
   assertProjectCanProgress(item.iteration.project, 'create new documents for this project')
 
   const projectCategoryId = item.iteration.project.projectCategoryId
+  const projectId = item.iteration.project.id
 
-  const requirement = await prisma.projectCategoryDocumentRequirement.findFirst({
+  const overrideRequirement = await prisma.projectSetupDocumentRequirementOverride.findFirst({
     where: {
-      projectCategoryId,
+      projectId,
       stageId: item.stageId,
-      documentTypeId: item.documentTypeId
+      documentTypeId: item.documentTypeId,
+      isExcluded: false
     },
     select: { id: true, isConfidentialDefault: true }
   })
 
+  const defaultRequirement = overrideRequirement
+    ? null
+    : await prisma.projectSetupDocumentRequirementDefault.findFirst({
+        where: {
+          stageId: item.stageId,
+          documentTypeId: item.documentTypeId
+        },
+        select: { id: true, isConfidentialDefault: true }
+      })
+
+  const requirement = overrideRequirement || defaultRequirement
+  const requirementScope = overrideRequirement ? 'OVERRIDE' : defaultRequirement ? 'DEFAULT' : null
   const isConfidential = Boolean(requirement?.isConfidentialDefault)
 
   const document = await documentService.createDocument({
@@ -850,8 +961,11 @@ exports.createDocumentFromItem = async (itemId, { title, description, createdByI
     isConfidential
   }, createdById)
 
-  if (isConfidential && requirement?.id) {
-    await confidentialAccessService.applyRequirementAccessToDocument(requirement.id, document.id)
+  if (isConfidential && requirement?.id && requirementScope) {
+    await confidentialAccessService.applyProjectSetupRequirementAccessToDocument(
+      { scope: requirementScope, requirementId: requirement.id },
+      document.id
+    )
   }
 
   const link = await prisma.projectDocumentLink.create({
@@ -881,15 +995,25 @@ exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, 
   const docType = await prisma.documentType.findUnique({ where: { id: documentTypeId }, select: { id: true } })
   if (!docType) throw new NotFoundError('Document type')
 
-  const requirement = await prisma.projectCategoryDocumentRequirement.findFirst({
+  const overrideRequirement = await prisma.projectSetupDocumentRequirementOverride.findFirst({
     where: {
-      projectCategoryId: iteration.project.projectCategoryId,
+      projectId: iteration.project.id,
       stageId,
-      documentTypeId
+      documentTypeId,
+      isExcluded: false
     },
     select: { id: true, isConfidentialDefault: true }
   })
 
+  const defaultRequirement = overrideRequirement
+    ? null
+    : await prisma.projectSetupDocumentRequirementDefault.findFirst({
+        where: { stageId, documentTypeId },
+        select: { id: true, isConfidentialDefault: true }
+      })
+
+  const requirement = overrideRequirement || defaultRequirement
+  const requirementScope = overrideRequirement ? 'OVERRIDE' : defaultRequirement ? 'DEFAULT' : null
   const isConfidential = Boolean(requirement?.isConfidentialDefault)
 
   const document = await documentService.createDocument({
@@ -901,8 +1025,11 @@ exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, 
     isConfidential
   }, createdById)
 
-  if (isConfidential && requirement?.id) {
-    await confidentialAccessService.applyRequirementAccessToDocument(requirement.id, document.id)
+  if (isConfidential && requirement?.id && requirementScope) {
+    await confidentialAccessService.applyProjectSetupRequirementAccessToDocument(
+      { scope: requirementScope, requirementId: requirement.id },
+      document.id
+    )
   }
 
   const link = await prisma.projectDocumentLink.create({
@@ -933,8 +1060,8 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
   if (!iteration) throw new NotFoundError('Project iteration')
   assertProjectCanProgress(iteration.project, 'move this phase to the next stage')
 
-  const enabledStages = await getEnabledStagesForCategory(iteration.project.projectCategoryId)
-  if (enabledStages.length === 0) throw new ValidationError('No enabled stages configured for this project category')
+  const enabledStages = await getEnabledStagesForProject(iteration.project.id)
+  if (enabledStages.length === 0) throw new ValidationError('No enabled stages configured for this project')
 
   const currentStageId = iteration.currentStageId || enabledStages[0].stageId
   const currentIdx = enabledStages.findIndex((s) => s.stageId === currentStageId)
@@ -1396,4 +1523,501 @@ exports.deleteRequirement = async (requirementId, { deletedById }) => {
       metadata: { requirementId }
     }
   })
+}
+
+const mapStageConfigRowForView = (r) => ({
+  id: r.id,
+  stageId: r.stageId,
+  displayName: r.displayName ?? null,
+  sortOrder: r.sortOrder ?? r.stage?.sortOrder ?? null,
+  isEnabled: Boolean(r.isEnabled),
+  stage: r.stage
+    ? { id: r.stage.id, key: r.stage.key, name: r.stage.name, sortOrder: r.stage.sortOrder, isActive: r.stage.isActive }
+    : null
+})
+
+exports.getSetupStages = async () => {
+  const rows = await ensureDefaultSetupStages()
+  return rows.map(mapStageConfigRowForView)
+}
+
+exports.createSetupStage = async ({ name, displayName, createdById }) => {
+  const trimmedName = String(name || '').trim()
+  if (!trimmedName) throw new ValidationError('Stage name is required')
+
+  const existingStages = await ensureDefaultSetupStages()
+  const maxSortOrder = existingStages.reduce((max, s) => Math.max(max, s.sortOrder ?? s.stage?.sortOrder ?? 0), 0)
+
+  const baseKey = slugifyStageKey(trimmedName) || 'custom_stage'
+  const uniqueKey = `${baseKey}_${Date.now()}`
+
+  await prisma.$transaction(async (tx) => {
+    const stage = await tx.projectStageDefinition.create({
+      data: {
+        key: uniqueKey,
+        name: trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isSystem: false,
+        isActive: true
+      }
+    })
+
+    await tx.projectSetupStageDefault.create({
+      data: {
+        stageId: stage.id,
+        displayName: displayName || trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isEnabled: true
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: createdById,
+        action: 'CREATE',
+        entity: 'ProjectSetupStageDefault',
+        entityId: stage.id,
+        metadata: { stageId: stage.id, stageName: trimmedName }
+      }
+    })
+  })
+
+  const stages = await exports.getSetupStages()
+  return stages[stages.length - 1] || null
+}
+
+exports.updateSetupStages = async (stages, { updatedById }) => {
+  const normalized = stages.map((s) => ({
+    stageId: Number(s.stageId),
+    displayName: s.displayName !== undefined ? (s.displayName ? String(s.displayName) : null) : undefined,
+    sortOrder: s.sortOrder !== undefined && s.sortOrder !== null && s.sortOrder !== '' ? Number(s.sortOrder) : null,
+    isEnabled: Boolean(s.isEnabled)
+  }))
+
+  if (normalized.some((s) => !s.stageId)) throw new ValidationError('Invalid stageId in stages payload')
+
+  await prisma.$transaction(async (tx) => {
+    for (const s of normalized) {
+      await tx.projectSetupStageDefault.upsert({
+        where: { stageId: s.stageId },
+        update: {
+          displayName: s.displayName,
+          sortOrder: s.sortOrder,
+          isEnabled: s.isEnabled
+        },
+        create: {
+          stageId: s.stageId,
+          displayName: s.displayName,
+          sortOrder: s.sortOrder,
+          isEnabled: s.isEnabled
+        }
+      })
+    }
+
+    await tx.auditLog.create({
+      data: {
+        userId: updatedById,
+        action: 'UPDATE',
+        entity: 'ProjectSetupStageDefault',
+        entityId: null,
+        metadata: { count: normalized.length }
+      }
+    })
+  })
+
+  return exports.getSetupStages()
+}
+
+exports.getProjectSetupStages = async (projectId) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new NotFoundError('Project')
+
+  const rows = await getEffectiveStagesForProject(projectId)
+  return rows.map(mapStageConfigRowForView)
+}
+
+exports.createProjectSetupStage = async (projectId, { name, displayName, createdById }) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new NotFoundError('Project')
+
+  const trimmedName = String(name || '').trim()
+  if (!trimmedName) throw new ValidationError('Stage name is required')
+
+  const existingStages = await getEffectiveStagesForProject(projectId)
+  const maxSortOrder = existingStages.reduce((max, s) => Math.max(max, s.sortOrder ?? s.stage?.sortOrder ?? 0), 0)
+
+  const baseKey = slugifyStageKey(trimmedName) || 'custom_stage'
+  const uniqueKey = `${baseKey}_${projectId}_${Date.now()}`
+
+  await prisma.$transaction(async (tx) => {
+    const stage = await tx.projectStageDefinition.create({
+      data: {
+        key: uniqueKey,
+        name: trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isSystem: false,
+        isActive: true
+      }
+    })
+
+    await tx.projectSetupStageOverride.create({
+      data: {
+        projectId,
+        stageId: stage.id,
+        displayName: displayName || trimmedName,
+        sortOrder: maxSortOrder + 1,
+        isEnabled: true
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: createdById,
+        action: 'CREATE',
+        entity: 'ProjectSetupStageOverride',
+        entityId: stage.id,
+        metadata: { projectId, stageId: stage.id, stageName: trimmedName }
+      }
+    })
+  })
+
+  const stages = await exports.getProjectSetupStages(projectId)
+  return stages[stages.length - 1] || null
+}
+
+exports.updateProjectSetupStages = async (projectId, stages, { updatedById }) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new NotFoundError('Project')
+
+  const normalized = stages.map((s) => ({
+    stageId: Number(s.stageId),
+    displayName: s.displayName !== undefined ? (s.displayName ? String(s.displayName) : null) : undefined,
+    sortOrder: s.sortOrder !== undefined && s.sortOrder !== null && s.sortOrder !== '' ? Number(s.sortOrder) : null,
+    isEnabled: Boolean(s.isEnabled)
+  }))
+
+  if (normalized.some((s) => !s.stageId)) throw new ValidationError('Invalid stageId in stages payload')
+
+  const defaultRows = await ensureDefaultSetupStages()
+  const defaultByStage = new Map(
+    defaultRows.map((d) => [
+      d.stageId,
+      {
+        displayName: d.displayName ?? null,
+        sortOrder: d.sortOrder ?? null,
+        isEnabled: Boolean(d.isEnabled)
+      }
+    ])
+  )
+
+  const stageIdSet = new Set(normalized.map((s) => s.stageId))
+
+  await prisma.$transaction(async (tx) => {
+    for (const s of normalized) {
+      const base = defaultByStage.get(s.stageId)
+      if (base) {
+        const nextDisplayName = s.displayName !== undefined ? s.displayName : base.displayName
+        const nextSortOrder = s.sortOrder !== undefined ? s.sortOrder : base.sortOrder
+        const nextIsEnabled = s.isEnabled
+
+        const differs =
+          (nextDisplayName ?? null) !== (base.displayName ?? null) ||
+          (nextSortOrder ?? null) !== (base.sortOrder ?? null) ||
+          Boolean(nextIsEnabled) !== Boolean(base.isEnabled)
+
+        if (!differs) {
+          await tx.projectSetupStageOverride.deleteMany({ where: { projectId, stageId: s.stageId } })
+          continue
+        }
+      }
+
+      await tx.projectSetupStageOverride.upsert({
+        where: { projectId_stageId: { projectId, stageId: s.stageId } },
+        update: {
+          displayName: s.displayName,
+          sortOrder: s.sortOrder,
+          isEnabled: s.isEnabled
+        },
+        create: {
+          projectId,
+          stageId: s.stageId,
+          displayName: s.displayName,
+          sortOrder: s.sortOrder,
+          isEnabled: s.isEnabled
+        }
+      })
+    }
+
+    await tx.projectSetupStageOverride.deleteMany({
+      where: {
+        projectId,
+        stageId: { notIn: Array.from(stageIdSet) }
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: updatedById,
+        action: 'UPDATE',
+        entity: 'ProjectSetupStageOverride',
+        entityId: null,
+        metadata: { projectId, count: normalized.length }
+      }
+    })
+  })
+
+  return exports.getProjectSetupStages(projectId)
+}
+
+exports.listSetupRequirements = async () => {
+  return prisma.projectSetupDocumentRequirementDefault.findMany({
+    include: {
+      stage: true,
+      documentType: true
+    },
+    orderBy: [{ stageId: 'asc' }, { documentTypeId: 'asc' }]
+  })
+}
+
+exports.createSetupRequirement = async ({ stageId, documentTypeId, isRequired, isConfidentialDefault, createdById }) => {
+  const stage = await prisma.projectStageDefinition.findUnique({ where: { id: stageId }, select: { id: true } })
+  if (!stage) throw new NotFoundError('Project stage')
+
+  const docType = await prisma.documentType.findUnique({ where: { id: documentTypeId }, select: { id: true } })
+  if (!docType) throw new NotFoundError('Document type')
+
+  try {
+    const requirement = await prisma.projectSetupDocumentRequirementDefault.create({
+      data: {
+        stageId,
+        documentTypeId,
+        isRequired: Boolean(isRequired),
+        isConfidentialDefault: Boolean(isConfidentialDefault)
+      },
+      include: { stage: true, documentType: true }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: createdById,
+        action: 'CREATE',
+        entity: 'ProjectSetupDocumentRequirementDefault',
+        entityId: requirement.id,
+        metadata: { stageId, documentTypeId }
+      }
+    })
+
+    return requirement
+  } catch (e) {
+    throw new ConflictError('Requirement already exists for this stage + document type')
+  }
+}
+
+exports.deleteSetupRequirement = async (requirementId, { deletedById }) => {
+  const existing = await prisma.projectSetupDocumentRequirementDefault.findUnique({
+    where: { id: requirementId },
+    select: { id: true }
+  })
+  if (!existing) throw new NotFoundError('Requirement')
+
+  await prisma.projectSetupDocumentRequirementDefault.delete({ where: { id: requirementId } })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: deletedById,
+      action: 'DELETE',
+      entity: 'ProjectSetupDocumentRequirementDefault',
+      entityId: requirementId,
+      metadata: { requirementId }
+    }
+  })
+}
+
+exports.listProjectSetupRequirements = async (projectId) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new NotFoundError('Project')
+
+  const defaults = await prisma.projectSetupDocumentRequirementDefault.findMany({
+    include: { stage: true, documentType: true }
+  })
+
+  const overrides = await prisma.projectSetupDocumentRequirementOverride.findMany({
+    where: { projectId },
+    include: { stage: true, documentType: true }
+  })
+
+  const byKey = new Map(defaults.map((r) => [`${r.stageId}:${r.documentTypeId}`, r]))
+
+  for (const o of overrides) {
+    const key = `${o.stageId}:${o.documentTypeId}`
+    if (o.isExcluded) {
+      byKey.delete(key)
+      continue
+    }
+    byKey.set(key, o)
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    if (a.stageId !== b.stageId) return a.stageId - b.stageId
+    return a.documentTypeId - b.documentTypeId
+  })
+}
+
+exports.createProjectSetupRequirement = async (projectId, { stageId, documentTypeId, isRequired, isConfidentialDefault, createdById }) => {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!project) throw new NotFoundError('Project')
+
+  const stage = await prisma.projectStageDefinition.findUnique({ where: { id: stageId }, select: { id: true } })
+  if (!stage) throw new NotFoundError('Project stage')
+
+  const docType = await prisma.documentType.findUnique({ where: { id: documentTypeId }, select: { id: true } })
+  if (!docType) throw new NotFoundError('Document type')
+
+  const existingOverride = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+    where: { projectId, stageId, documentTypeId },
+    select: { id: true, isExcluded: true }
+  })
+  if (existingOverride && !existingOverride.isExcluded) {
+    throw new ConflictError('Requirement already exists for this project + stage + document type')
+  }
+
+  const defaultExists = await prisma.projectSetupDocumentRequirementDefault.findFirst({
+    where: { stageId, documentTypeId },
+    select: { id: true }
+  })
+  if (defaultExists && !existingOverride) {
+    throw new ConflictError('Requirement already exists in default setup for this stage + document type')
+  }
+
+  const requirement = await prisma.projectSetupDocumentRequirementOverride.upsert({
+    where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
+    update: {
+      isExcluded: false,
+      isRequired: Boolean(isRequired),
+      isConfidentialDefault: Boolean(isConfidentialDefault)
+    },
+    create: {
+      projectId,
+      stageId,
+      documentTypeId,
+      isRequired: Boolean(isRequired),
+      isConfidentialDefault: Boolean(isConfidentialDefault),
+      isExcluded: false
+    },
+    include: { stage: true, documentType: true }
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: createdById,
+      action: 'CREATE',
+      entity: 'ProjectSetupDocumentRequirementOverride',
+      entityId: requirement.id,
+      metadata: { projectId, stageId, documentTypeId }
+    }
+  })
+
+  return requirement
+}
+
+exports.deleteProjectSetupRequirement = async (projectId, requirementId, { deletedById }) => {
+  const overrideRow = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+    where: { id: requirementId, projectId },
+    select: { id: true, stageId: true, documentTypeId: true }
+  })
+
+  if (overrideRow) {
+    await prisma.projectSetupDocumentRequirementOverride.delete({ where: { id: overrideRow.id } })
+    await prisma.auditLog.create({
+      data: {
+        userId: deletedById,
+        action: 'DELETE',
+        entity: 'ProjectSetupDocumentRequirementOverride',
+        entityId: overrideRow.id,
+        metadata: { projectId, requirementId: overrideRow.id }
+      }
+    })
+    return
+  }
+
+  const defaultRow = await prisma.projectSetupDocumentRequirementDefault.findUnique({
+    where: { id: requirementId },
+    select: { id: true, stageId: true, documentTypeId: true, isRequired: true, isConfidentialDefault: true }
+  })
+  if (!defaultRow) throw new NotFoundError('Requirement')
+
+  await prisma.projectSetupDocumentRequirementOverride.upsert({
+    where: { projectId_stageId_documentTypeId: { projectId, stageId: defaultRow.stageId, documentTypeId: defaultRow.documentTypeId } },
+    update: { isExcluded: true },
+    create: {
+      projectId,
+      stageId: defaultRow.stageId,
+      documentTypeId: defaultRow.documentTypeId,
+      isRequired: defaultRow.isRequired,
+      isConfidentialDefault: defaultRow.isConfidentialDefault,
+      isExcluded: true
+    }
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: deletedById,
+      action: 'DELETE',
+      entity: 'ProjectSetupDocumentRequirementOverride',
+      entityId: null,
+      metadata: { projectId, defaultRequirementId: defaultRow.id, stageId: defaultRow.stageId, documentTypeId: defaultRow.documentTypeId }
+    }
+  })
+}
+
+exports.getSetupRequirementConfidentialAccess = async (requirementId) => {
+  return confidentialAccessService.getProjectSetupRequirementAccess({ requirementId, scope: 'DEFAULT' })
+}
+
+exports.updateSetupRequirementConfidentialAccess = async (requirementId, actor, payload) => {
+  return confidentialAccessService.setProjectSetupRequirementAccess({ requirementId, scope: 'DEFAULT' }, actor, payload)
+}
+
+exports.getProjectSetupRequirementConfidentialAccess = async (projectId, requirementId) => {
+  const overrideRow = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+    where: { id: requirementId, projectId },
+    select: { id: true }
+  })
+  if (overrideRow) {
+    return confidentialAccessService.getProjectSetupRequirementAccess({ projectId, requirementId: overrideRow.id, scope: 'OVERRIDE' })
+  }
+
+  return confidentialAccessService.getProjectSetupRequirementAccess({ requirementId, scope: 'DEFAULT' })
+}
+
+exports.updateProjectSetupRequirementConfidentialAccess = async (projectId, requirementId, actor, payload) => {
+  const overrideRow = await prisma.projectSetupDocumentRequirementOverride.findFirst({
+    where: { id: requirementId, projectId },
+    select: { id: true }
+  })
+  if (overrideRow) {
+    return confidentialAccessService.setProjectSetupRequirementAccess({ projectId, requirementId: overrideRow.id, scope: 'OVERRIDE' }, actor, payload)
+  }
+
+  const defaultRow = await prisma.projectSetupDocumentRequirementDefault.findUnique({
+    where: { id: requirementId },
+    select: { id: true, stageId: true, documentTypeId: true, isRequired: true, isConfidentialDefault: true }
+  })
+  if (!defaultRow) throw new NotFoundError('Requirement')
+
+  const upserted = await prisma.projectSetupDocumentRequirementOverride.upsert({
+    where: { projectId_stageId_documentTypeId: { projectId, stageId: defaultRow.stageId, documentTypeId: defaultRow.documentTypeId } },
+    update: { isExcluded: false },
+    create: {
+      projectId,
+      stageId: defaultRow.stageId,
+      documentTypeId: defaultRow.documentTypeId,
+      isRequired: defaultRow.isRequired,
+      isConfidentialDefault: defaultRow.isConfidentialDefault,
+      isExcluded: false
+    },
+    select: { id: true }
+  })
+
+  return confidentialAccessService.setProjectSetupRequirementAccess({ projectId, requirementId: upserted.id, scope: 'OVERRIDE' }, actor, payload)
 }

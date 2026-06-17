@@ -38,6 +38,26 @@ router.post('/iterations/:iterationId/stages/:stageId/create-document', requireP
 
 router.get('/documents/search', requirePermission('projectTracking', 'view'), projectTrackingController.searchDocuments);
 
+router.get('/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getSetupStages);
+router.post('/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createSetupStage);
+router.put('/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateSetupStages);
+
+router.get('/setup/requirements', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.listSetupRequirements);
+router.post('/setup/requirements', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createSetupRequirement);
+router.delete('/setup/requirements/:requirementId', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.deleteSetupRequirement);
+router.get('/setup/requirements/:requirementId/confidential-access', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getSetupRequirementConfidentialAccess);
+router.put('/setup/requirements/:requirementId/confidential-access', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateSetupRequirementConfidentialAccess);
+
+router.get('/projects/:projectId/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getProjectSetupStages);
+router.post('/projects/:projectId/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createProjectSetupStage);
+router.put('/projects/:projectId/setup/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateProjectSetupStages);
+
+router.get('/projects/:projectId/setup/requirements', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.listProjectSetupRequirements);
+router.post('/projects/:projectId/setup/requirements', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createProjectSetupRequirement);
+router.delete('/projects/:projectId/setup/requirements/:requirementId', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.deleteProjectSetupRequirement);
+router.get('/projects/:projectId/setup/requirements/:requirementId/confidential-access', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getProjectSetupRequirementConfidentialAccess);
+router.put('/projects/:projectId/setup/requirements/:requirementId/confidential-access', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateProjectSetupRequirementConfidentialAccess);
+
 router.get('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.getCategoryStages);
 router.post('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.createCategoryStage);
 router.put('/categories/:projectCategoryId/stages', requirePermission('projectTracking', 'manageTemplates'), projectTrackingController.updateCategoryStages);
