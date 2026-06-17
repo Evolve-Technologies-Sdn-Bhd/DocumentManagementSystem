@@ -493,7 +493,15 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
     try {
       const params = { q: searchText.trim() }
       const res = await api.get('/project-tracking/documents/search', { params })
+      // #region debug-point A:stage-link-search-success
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:StageLinkDocumentModal:search',msg:'[DEBUG] stage attach search completed',data:{query:searchText.trim(),resultCount:res?.data?.data?.documents?.length||0,stageId:stage?.id||null},ts:Date.now()})}).catch(()=>{})
+      // #endregion
       setResults(res?.data?.data?.documents || [])
+    } catch (error) {
+      // #region debug-point A:stage-link-search-error
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:StageLinkDocumentModal:search',msg:'[DEBUG] stage attach search failed',data:{query:searchText.trim(),stageId:stage?.id||null,errorMessage:error?.response?.data?.message||error?.message||null,status:error?.response?.status||null},ts:Date.now()})}).catch(()=>{})
+      // #endregion
+      throw error
     } finally {
       setLoading(false)
     }
@@ -843,7 +851,15 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
     try {
       const params = { q: searchText.trim() }
       const res = await api.get('/project-tracking/documents/search', { params })
+      // #region debug-point A:item-link-search-success
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:LinkDocumentModal:search',msg:'[DEBUG] item attach search completed',data:{query:searchText.trim(),resultCount:res?.data?.data?.documents?.length||0,itemId:item?.id||null},ts:Date.now()})}).catch(()=>{})
+      // #endregion
       setResults(res?.data?.data?.documents || [])
+    } catch (error) {
+      // #region debug-point A:item-link-search-error
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:LinkDocumentModal:search',msg:'[DEBUG] item attach search failed',data:{query:searchText.trim(),itemId:item?.id||null,errorMessage:error?.response?.data?.message||error?.message||null,status:error?.response?.status||null},ts:Date.now()})}).catch(()=>{})
+      // #endregion
+      throw error
     } finally {
       setLoading(false)
     }
@@ -1864,6 +1880,9 @@ function ProjectDetail({ projectId }) {
           phase={selectedPhase}
           onClose={() => setShowCreateDoc(null)}
           onCreated={(result) => {
+            // #region debug-point B:item-create-oncreated
+            fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'B',location:'frontend/src/components/ProjectTracking.jsx:CreateDocumentModal:onCreated',msg:'[DEBUG] item create document callback received result',data:{hasDocument:Boolean(result?.document),documentId:result?.document?.id||null,fileCode:result?.document?.fileCode||null,itemId:showCreateDoc?.id||null},ts:Date.now()})}).catch(()=>{})
+            // #endregion
             setShowCreateDoc(null)
             if (result?.document) setUploadDocument(result.document)
             if (selectedIterationId) loadItems(selectedIterationId)
@@ -1895,6 +1914,9 @@ function ProjectDetail({ projectId }) {
           documentTypes={docTypes}
           onClose={() => setShowStageCreate(null)}
           onCreated={(result) => {
+            // #region debug-point B:stage-create-oncreated
+            fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'B',location:'frontend/src/components/ProjectTracking.jsx:StageCreateDocumentModal:onCreated',msg:'[DEBUG] stage create document callback received result',data:{hasDocument:Boolean(result?.document),documentId:result?.document?.id||null,fileCode:result?.document?.fileCode||null,stageId:showStageCreate?.id||null},ts:Date.now()})}).catch(()=>{})
+            // #endregion
             setShowStageCreate(null)
             if (result?.document) setUploadDocument(result.document)
             if (selectedIterationId) loadItems(selectedIterationId)

@@ -778,12 +778,18 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
 }
 
 exports.handleDocumentPublished = async (documentId) => {
+  // #region debug-point C:published-link-sync-entry
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'C',location:'backend/src/services/projectTrackingService.js:handleDocumentPublished:entry',msg:'[DEBUG] handleDocumentPublished called',data:{documentId},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
   const links = await prisma.projectDocumentLink.findMany({
     where: { documentId },
     select: { itemId: true }
   })
 
   const itemIds = Array.from(new Set(links.map((l) => l.itemId).filter((x) => !!x)))
+  // #region debug-point C:published-link-sync-links
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'C',location:'backend/src/services/projectTrackingService.js:handleDocumentPublished:links',msg:'[DEBUG] handleDocumentPublished resolved links',data:{documentId,linkCount:links.length,itemIds},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
   if (itemIds.length === 0) return { updatedCount: 0 }
 
   const updated = await prisma.projectIterationDocumentItem.updateMany({
@@ -793,6 +799,10 @@ exports.handleDocumentPublished = async (documentId) => {
     },
     data: { status: 'COMPLETE', completedAt: new Date() }
   })
+
+  // #region debug-point C:published-link-sync-updated
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'C',location:'backend/src/services/projectTrackingService.js:handleDocumentPublished:updated',msg:'[DEBUG] handleDocumentPublished updated items',data:{documentId,updatedCount:updated.count,itemIds},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
 
   return { updatedCount: updated.count }
 }
@@ -839,6 +849,9 @@ exports.getProjectActivityLogs = async (projectId, { page = 1, limit = 20 } = {}
 
 exports.searchDocuments = async ({ projectId, q }, { user }) => {
   const query = String(q || '').trim()
+  // #region debug-point A:search-entry
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'backend/src/services/projectTrackingService.js:searchDocuments:entry',msg:'[DEBUG] project tracking searchDocuments called',data:{projectId:projectId||null,query,userId:user?.id||null,canViewConfidential:Boolean(user?.permissions?.projectTracking?.viewConfidential)},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
   if (!query) return []
 
   const normalizeSearchValue = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -856,36 +869,48 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
     andWhere.push({ projectLinks: { some: { projectIteration: { projectId } } } })
   }
 
-  const docs = await prisma.document.findMany({
-    where: andWhere.length > 0 ? { AND: andWhere } : {},
-    select: {
-      id: true,
-      fileCode: true,
-      title: true,
-      description: true,
-      status: true,
-      isConfidential: true,
-      updatedAt: true,
-      documentTypeId: true,
-      documentType: { select: { id: true, name: true } },
-      projectLinks: {
-        where: projectId ? { projectIteration: { projectId } } : undefined,
-        orderBy: { linkedAt: 'desc' },
-        take: 3,
-        include: {
-          projectIteration: {
-            include: {
-              project: { include: { projectCategory: true } }
-            }
-          },
-          stage: true,
-          item: { include: { documentType: true } }
+  let docs
+  try {
+    docs = await prisma.document.findMany({
+      where: andWhere.length > 0 ? { AND: andWhere } : {},
+      select: {
+        id: true,
+        fileCode: true,
+        title: true,
+        description: true,
+        status: true,
+        isConfidential: true,
+        updatedAt: true,
+        documentTypeId: true,
+        documentType: { select: { id: true, name: true } },
+        projectLinks: {
+          where: projectId ? { projectIteration: { projectId } } : undefined,
+          orderBy: { linkedAt: 'desc' },
+          take: 3,
+          include: {
+            projectIteration: {
+              include: {
+                project: { include: { projectCategory: true } }
+              }
+            },
+            stage: true,
+            item: { include: { documentType: true } }
+          }
         }
-      }
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: 500
-  })
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 500
+    })
+  } catch (error) {
+    // #region debug-point A:search-findmany-error
+    ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'backend/src/services/projectTrackingService.js:searchDocuments:findMany',msg:'[DEBUG] project tracking searchDocuments prisma query failed',data:{projectId:projectId||null,query,errorName:error?.name||null,errorMessage:error?.message||null},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+    // #endregion
+    throw error
+  }
+
+  // #region debug-point A:search-findmany-success
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'backend/src/services/projectTrackingService.js:searchDocuments:findMany',msg:'[DEBUG] project tracking searchDocuments prisma query completed',data:{projectId:projectId||null,query,docCount:docs.length,sample:docs.slice(0,3).map(doc=>({id:doc.id,fileCode:doc.fileCode,status:doc.status,projectLinkCount:doc.projectLinks?.length||0,documentTypeId:doc.documentTypeId}))},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
 
   const scored = docs
     .map((doc) => {
@@ -947,6 +972,10 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
     })
     .slice(0, 200)
     .map((entry) => entry.result)
+
+  // #region debug-point A:search-result-summary
+  ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'backend/src/services/projectTrackingService.js:searchDocuments:result',msg:'[DEBUG] project tracking searchDocuments scored results',data:{projectId:projectId||null,query,resultCount:scored.length,topResults:scored.slice(0,5).map(doc=>({id:doc.id,fileCode:doc.fileCode,status:doc.status,stage:doc.stage?.name||null,itemId:doc.item?.id||null}))},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})()
+  // #endregion
 
   return scored
 };
