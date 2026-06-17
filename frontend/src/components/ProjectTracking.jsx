@@ -4,7 +4,6 @@ import api from '../api/axios'
 import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
-import UploadFileModal from './UploadFileModal'
 import { hasPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 
@@ -493,14 +492,8 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
     try {
       const params = { q: searchText.trim() }
       const res = await api.get('/project-tracking/documents/search', { params })
-      // #region debug-point A:stage-link-search-success
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:StageLinkDocumentModal:search',msg:'[DEBUG] stage attach search completed',data:{query:searchText.trim(),resultCount:res?.data?.data?.documents?.length||0,stageId:stage?.id||null},ts:Date.now()})}).catch(()=>{})
-      // #endregion
       setResults(res?.data?.data?.documents || [])
     } catch (error) {
-      // #region debug-point A:stage-link-search-error
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:StageLinkDocumentModal:search',msg:'[DEBUG] stage attach search failed',data:{query:searchText.trim(),stageId:stage?.id||null,errorMessage:error?.response?.data?.message||error?.message||null,status:error?.response?.status||null},ts:Date.now()})}).catch(()=>{})
-      // #endregion
       throw error
     } finally {
       setLoading(false)
@@ -851,14 +844,8 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
     try {
       const params = { q: searchText.trim() }
       const res = await api.get('/project-tracking/documents/search', { params })
-      // #region debug-point A:item-link-search-success
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:LinkDocumentModal:search',msg:'[DEBUG] item attach search completed',data:{query:searchText.trim(),resultCount:res?.data?.data?.documents?.length||0,itemId:item?.id||null},ts:Date.now()})}).catch(()=>{})
-      // #endregion
       setResults(res?.data?.data?.documents || [])
     } catch (error) {
-      // #region debug-point A:item-link-search-error
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'A',location:'frontend/src/components/ProjectTracking.jsx:LinkDocumentModal:search',msg:'[DEBUG] item attach search failed',data:{query:searchText.trim(),itemId:item?.id||null,errorMessage:error?.response?.data?.message||error?.message||null,status:error?.response?.status||null},ts:Date.now()})}).catch(()=>{})
-      // #endregion
       throw error
     } finally {
       setLoading(false)
@@ -1160,6 +1147,7 @@ function ProjectsList({ onOpenProject }) {
 function ProjectDetail({ projectId }) {
   const navigate = useNavigate()
   const uiVersionStamp = 'PT-20260617-R2'
+  const consolidatedTabId = '__consolidated__'
   const canCreate = hasPermission('projectTracking', 'create')
   const canLink = hasPermission('projectTracking', 'linkDocument')
   const canAdvance = hasPermission('projectTracking', 'advanceStage')
@@ -1170,7 +1158,7 @@ function ProjectDetail({ projectId }) {
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedIterationId, setSelectedIterationId] = useState(null)
-  const [expandedStageId, setExpandedStageId] = useState(null)
+  const [activeStageTab, setActiveStageTab] = useState(null)
   const [items, setItems] = useState([])
   const [itemsLoading, setItemsLoading] = useState(false)
   const [stageDocuments, setStageDocuments] = useState([])
@@ -1184,7 +1172,6 @@ function ProjectDetail({ projectId }) {
   const [showDocumentAccess, setShowDocumentAccess] = useState(null)
   const [showActivity, setShowActivity] = useState(false)
   const [showEditProject, setShowEditProject] = useState(false)
-  const [uploadDocument, setUploadDocument] = useState(null)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [advancing, setAdvancing] = useState(false)
@@ -1272,11 +1259,11 @@ function ProjectDetail({ projectId }) {
 
   useEffect(() => {
     if (!stages.length) {
-      setExpandedStageId(null)
+      setActiveStageTab(consolidatedTabId)
       return
     }
 
-    setExpandedStageId((prev) => {
+    setActiveStageTab((prev) => {
       if (prev && stages.some((s) => s.id === prev)) return prev
       if (selectedPhase?.currentStage?.id && stages.some((s) => s.id === selectedPhase.currentStage.id)) return selectedPhase.currentStage.id
       return stages[0].id
@@ -1342,11 +1329,59 @@ function ProjectDetail({ projectId }) {
   }, [stages, selectedPhase, itemsByStage])
 
   const openStage = (stageId) => {
-    setExpandedStageId(stageId)
-    window.setTimeout(() => {
-      const el = document.getElementById(`stage-panel-${stageId}`)
-      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 0)
+    setActiveStageTab(stageId)
+  }
+
+  const activeStage = useMemo(() => {
+    return stages.find((stage) => stage.id === activeStageTab) || null
+  }, [activeStageTab, stages])
+
+  const consolidatedDocuments = useMemo(() => {
+    const byDocumentId = new Map()
+
+    stageDocuments.forEach((link) => {
+      if (!link?.document?.id) return
+      byDocumentId.set(link.document.id, {
+        id: `stage-${link.id}`,
+        document: link.document,
+        stageId: link.stageId,
+        stageName: link.stage?.name || 'Unknown Stage',
+        documentTypeName: link.document?.documentType?.name || 'Extra Document',
+        source: 'Other Documents',
+        itemStatus: null,
+        linkedAt: link.linkedAt || link.document.updatedAt
+      })
+    })
+
+    items.forEach((item) => {
+      ;(item.links || []).forEach((link) => {
+        if (!link?.document?.id) return
+        byDocumentId.set(link.document.id, {
+          id: `item-${link.id}`,
+          document: link.document,
+          stageId: item.stageId,
+          stageName: item.stage?.name || 'Unknown Stage',
+          documentTypeName: item.documentType?.name || link.document?.documentType?.name || 'Required Document',
+          source: 'Required Checklist',
+          itemStatus: item.status,
+          linkedAt: link.linkedAt || link.document.updatedAt
+        })
+      })
+    })
+
+    return Array.from(byDocumentId.values()).sort((a, b) => new Date(b.linkedAt || 0).getTime() - new Date(a.linkedAt || 0).getTime())
+  }, [items, stageDocuments])
+
+  const openDocumentWorkspace = (document) => {
+    if (!document?.id) return
+    navigate(`/documents/${document.id}`)
+  }
+
+  const handoffCreatedDraft = async (result) => {
+    const docId = result?.document?.id
+    if (!docId) return
+    if (selectedIterationId) await loadItems(selectedIterationId)
+    navigate(`/drafts?docId=${docId}&origin=project-tracking`)
   }
 
   const createNamedIteration = async ({ name }) => {
@@ -1572,7 +1607,7 @@ function ProjectDetail({ projectId }) {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Stage Flow</div>
-            <div className="mt-1 text-sm text-slate-500">Click any stage card to jump directly into its document checklist and linked files.</div>
+            <div className="mt-1 text-sm text-slate-500">Use the stage tabs below to keep each stage isolated. Consolidated Documents shows every linked document in this project phase with its stage label.</div>
           </div>
           <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
             {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
@@ -1580,8 +1615,9 @@ function ProjectDetail({ projectId }) {
         </div>
         <div className="flex gap-4 overflow-x-auto pb-2">
           {stageFlow.map((stage) => {
+            const isActiveTab = activeStageTab === stage.id
             const tone =
-              stage.state === 'current'
+              isActiveTab
                 ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm ring-1 ring-blue-100'
                 : stage.state === 'done'
                   ? 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-50'
@@ -1610,7 +1646,7 @@ function ProjectDetail({ projectId }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-base font-semibold text-slate-900">{stage.name}</div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeTone}`}>{badgeLabel}</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActiveTab ? 'bg-blue-600 text-white' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
                 </div>
                 <div className="mt-4 text-sm text-slate-600">
                   {stage.metrics
@@ -1618,22 +1654,100 @@ function ProjectDetail({ projectId }) {
                     : 'No checklist configured for this stage yet.'}
                 </div>
                 <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-slate-500">
-                  <span>Open stage details</span>
+                  <span>{isActiveTab ? 'Viewing this stage' : 'Open stage tab'}</span>
                   <span aria-hidden="true">→</span>
                 </div>
               </button>
             )
           })}
+          <button
+            type="button"
+            onClick={() => setActiveStageTab(consolidatedTabId)}
+            className={`min-w-[240px] rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+              activeStageTab === consolidatedTabId
+                ? 'border-slate-900 bg-gradient-to-br from-slate-900 to-slate-700 text-white shadow-sm'
+                : 'border-slate-200 bg-white'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className={`text-base font-semibold ${activeStageTab === consolidatedTabId ? 'text-white' : 'text-slate-900'}`}>Consolidated Documents</div>
+              <span className={`rounded-full px-2 py-1 text-xs font-medium ${activeStageTab === consolidatedTabId ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {`${consolidatedDocuments.length} docs`}
+              </span>
+            </div>
+            <div className={`mt-4 text-sm ${activeStageTab === consolidatedTabId ? 'text-slate-200' : 'text-slate-600'}`}>
+              Cross-stage view of all required and extra documents linked in this project phase.
+            </div>
+            <div className={`mt-4 inline-flex items-center gap-1 text-xs font-medium ${activeStageTab === consolidatedTabId ? 'text-slate-100' : 'text-slate-500'}`}>
+              <span>{activeStageTab === consolidatedTabId ? 'Viewing consolidated tab' : 'Open consolidated tab'}</span>
+              <span aria-hidden="true">→</span>
+            </div>
+          </button>
         </div>
       </div>
 
       {itemsLoading ? (
         <div className="p-6 bg-white rounded-lg shadow">Loading checklist...</div>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && stageDocuments.length === 0 ? (
         <EmptyState title="No required documents yet" message="No required document template has been set for this project category yet. Go to Category Setup to configure it." />
+      ) : activeStageTab === consolidatedTabId ? (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-6 py-5">
+            <div className="text-lg font-semibold text-slate-900">Consolidated Documents</div>
+            <div className="mt-1 text-sm text-slate-500">All linked documents for this project phase, grouped in one list with stage and checklist context.</div>
+          </div>
+          {consolidatedDocuments.length === 0 ? (
+            <div className="px-6 py-8 text-sm text-slate-500">No linked documents found for this project phase yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Stage</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Context</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {consolidatedDocuments.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 text-sm">
+                        <Link to={`/documents/${entry.document.id}`} className="font-medium text-blue-600 hover:underline">
+                          {getDocumentCodeLabel(entry.document)}
+                        </Link>
+                        <div className="mt-1 text-slate-600">{getDocumentTitleLabel(entry.document)}</div>
+                        <div className="mt-2 inline-flex items-center gap-2">
+                          <ConfidentialBadge isConfidential={entry.document.isConfidential} />
+                          <DocumentStatusBadge status={entry.document.status} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-700">{entry.stageName}</td>
+                      <td className="px-6 py-4 text-sm text-slate-700">
+                        <div>{entry.source}</div>
+                        <div className="mt-1 text-xs text-slate-500">{entry.documentTypeName}</div>
+                        {entry.itemStatus ? <div className="mt-1 text-xs text-slate-500">{`Checklist status: ${entry.itemStatus}`}</div> : null}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <DocumentStatusBadge status={entry.document.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm">
+                        <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-blue-600 hover:underline">
+                          {String(entry.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-4">
-          {stages.map((st) => {
+          {activeStage ? (() => {
+            const st = activeStage
             const stageItems = itemsByStage.get(st.id) || []
             const links = stageDocumentsByStage.get(st.id) || []
             const total = stageItems.length
@@ -1641,22 +1755,17 @@ function ProjectDetail({ projectId }) {
             const pending = stageItems.filter((x) => String(x.status).toUpperCase() === 'PENDING').length
             const waived = stageItems.filter((x) => String(x.status).toUpperCase() === 'WAIVED').length
             const pct = total > 0 ? Math.round((complete / total) * 100) : 0
-            const isExpanded = st.id === expandedStageId
             const linkedRequiredCount = stageItems.reduce((acc, it) => acc + (it.links?.length || 0), 0)
             const summary = `Extra docs: ${links.length} • Required linked: ${linkedRequiredCount}`
 
             return (
               <div key={st.id} id={`stage-panel-${st.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => (isExpanded ? setExpandedStageId(null) : openStage(st.id))}
-                  className={`w-full border-b px-6 py-5 text-left transition ${isExpanded ? 'bg-slate-50' : 'bg-white hover:bg-slate-50'}`}
-                >
+                <div className="w-full border-b px-6 py-5 text-left bg-slate-50">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
                       <div className="text-base font-semibold text-slate-900">{st.name}</div>
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${isExpanded ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
-                        {isExpanded ? 'Expanded' : 'Collapsed'}
+                      <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium bg-blue-100 text-blue-700">
+                        Active Tab
                       </span>
                     </div>
                     <div className="text-sm text-slate-600">{`Complete ${complete}/${total} • Pending ${pending} • Waived ${waived}`}</div>
@@ -1666,17 +1775,14 @@ function ProjectDetail({ projectId }) {
                       </div>
                     </div>
                   </div>
-                    <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="mt-3 flex items-center justify-between gap-3">
                     <div className="text-sm text-slate-500">{summary}</div>
-                      <div className="inline-flex items-center gap-2 text-sm text-slate-400">
-                        <span>{isExpanded ? 'Hide details' : 'View details'}</span>
-                        <span aria-hidden="true" className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>⌄</span>
-                      </div>
+                    <div className="inline-flex items-center gap-2 text-sm text-slate-400">
+                      <span>Only documents under this stage are shown here</span>
+                    </div>
                   </div>
-                </button>
-
-                {!isExpanded ? null : (
-                  <>
+                </div>
+                <>
                     <div className="flex flex-col gap-3 border-b bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="text-sm font-semibold text-slate-900">Other Documents Under This Stage</div>
@@ -1720,15 +1826,13 @@ function ProjectDetail({ projectId }) {
                                   </span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-xs">
-                                  {canCreate && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setUploadDocument(l.document)}
-                                      className="font-medium text-slate-700 hover:underline"
-                                    >
-                                      Upload File
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => openDocumentWorkspace(l.document)}
+                                    className="font-medium text-slate-700 hover:underline"
+                                  >
+                                    {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
+                                  </button>
                                   {canLink && (
                                     <button
                                       type="button"
@@ -1791,15 +1895,13 @@ function ProjectDetail({ projectId }) {
                                           <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                           <DocumentStatusBadge status={l.document.status} />
                                         </span>
-                                        {canCreate && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setUploadDocument(l.document)}
-                                            className="ml-3 text-xs text-gray-700 hover:underline"
-                                          >
-                                            Upload File
-                                          </button>
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => openDocumentWorkspace(l.document)}
+                                          className="ml-3 text-xs text-gray-700 hover:underline"
+                                        >
+                                          {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
+                                        </button>
                                         {canLink && (
                                           <button
                                             type="button"
@@ -1853,11 +1955,10 @@ function ProjectDetail({ projectId }) {
                         </tbody>
                       </table>
                     </div>
-                  </>
-                )}
+                </>
               </div>
             )
-          })}
+          })() : null}
         </div>
       )}
 
@@ -1879,13 +1980,9 @@ function ProjectDetail({ projectId }) {
           item={showCreateDoc}
           phase={selectedPhase}
           onClose={() => setShowCreateDoc(null)}
-          onCreated={(result) => {
-            // #region debug-point B:item-create-oncreated
-            fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'B',location:'frontend/src/components/ProjectTracking.jsx:CreateDocumentModal:onCreated',msg:'[DEBUG] item create document callback received result',data:{hasDocument:Boolean(result?.document),documentId:result?.document?.id||null,fileCode:result?.document?.fileCode||null,itemId:showCreateDoc?.id||null},ts:Date.now()})}).catch(()=>{})
-            // #endregion
+          onCreated={async (result) => {
             setShowCreateDoc(null)
-            if (result?.document) setUploadDocument(result.document)
-            if (selectedIterationId) loadItems(selectedIterationId)
+            await handoffCreatedDraft(result)
           }}
         />
       )}
@@ -1913,13 +2010,9 @@ function ProjectDetail({ projectId }) {
           stageItems={itemsByStage.get(showStageCreate.id) || []}
           documentTypes={docTypes}
           onClose={() => setShowStageCreate(null)}
-          onCreated={(result) => {
-            // #region debug-point B:stage-create-oncreated
-            fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'B',location:'frontend/src/components/ProjectTracking.jsx:StageCreateDocumentModal:onCreated',msg:'[DEBUG] stage create document callback received result',data:{hasDocument:Boolean(result?.document),documentId:result?.document?.id||null,fileCode:result?.document?.fileCode||null,stageId:showStageCreate?.id||null},ts:Date.now()})}).catch(()=>{})
-            // #endregion
+          onCreated={async (result) => {
             setShowStageCreate(null)
-            if (result?.document) setUploadDocument(result.document)
-            if (selectedIterationId) loadItems(selectedIterationId)
+            await handoffCreatedDraft(result)
           }}
         />
       )}
@@ -1968,16 +2061,6 @@ function ProjectDetail({ projectId }) {
           onClose={() => setShowActivity(false)}
         />
       )}
-
-      <UploadFileModal
-        isOpen={!!uploadDocument}
-        document={uploadDocument}
-        canManageAccess={canManageLinkedDocumentAccess}
-        onClose={() => setUploadDocument(null)}
-        onSuccess={() => {
-          if (selectedIterationId) loadItems(selectedIterationId)
-        }}
-      />
 
       {showEditProject && (
         <ModalShell title="Edit Project" onClose={() => setShowEditProject(false)}>

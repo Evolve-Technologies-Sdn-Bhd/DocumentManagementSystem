@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
 import NewDraftModal from './NewDraftModal'
 import ReuploadFileModal from './ReuploadFileModal'
+import UploadFileModal from './UploadFileModal'
 import DocumentRemarksModal from './DocumentRemarksModal'
 import DocumentViewerModal from './DocumentViewerModal'
 import StatusBadge from './StatusBadge'
@@ -12,9 +13,11 @@ import { PermissionGate } from './PermissionGate'
 import { hasPermission } from '../utils/permissions'
 import { AlertModal } from './ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { useSearchParams } from 'react-router-dom'
 
 export default function DraftDocuments() {
   const { itemsPerPage, formatDate, formatDateTime, defaultView, t } = usePreferences()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [documents, setDocuments] = useState([])
   const [filteredDocuments, setFilteredDocuments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,6 +28,7 @@ export default function DraftDocuments() {
   const [viewMode, setViewMode] = useState(defaultView) // 'list' or 'grid'
   const [showModal, setShowModal] = useState(false)
   const [showReuploadModal, setShowReuploadModal] = useState(false)
+  const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [remarksModalOpen, setRemarksModalOpen] = useState(false)
   const [remarksLoading, setRemarksLoading] = useState(false)
@@ -33,6 +37,8 @@ export default function DraftDocuments() {
   const [returnFileViewerOpen, setReturnFileViewerOpen] = useState(false)
   const [returnFileDocument, setReturnFileDocument] = useState(null)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+
+  const isDraftStatus = (doc) => String(doc?.status || '').toUpperCase() === 'DRAFT'
 
   useEffect(() => {
     loadDocuments()
@@ -50,14 +56,53 @@ export default function DraftDocuments() {
     // Apply search
     if (searchQuery) {
       filtered = filtered.filter(doc =>
-        doc.fileCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase())
+        String(doc.fileCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(doc.title || '').toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
     setFilteredDocuments(filtered)
     setCurrentPage(1)
   }, [documents, statusFilter, searchQuery])
+
+  useEffect(() => {
+    const docId = searchParams.get('docId')
+    if (!docId || loading) return
+
+    const matchedDocument = documents.find((doc) => String(doc.id) === String(docId))
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('docId')
+    nextParams.delete('origin')
+
+    if (matchedDocument) {
+      setSelectedDocument(matchedDocument)
+      if (isDraftStatus(matchedDocument)) {
+        setShowUploadModal(true)
+      } else {
+        setShowReuploadModal(true)
+      }
+      if (searchParams.get('origin') === 'project-tracking') {
+        setAlertModal({
+          show: true,
+          title: 'Linked Draft Ready',
+          message: 'The draft is already linked to Project Tracking. Upload the file here and continue the normal review and publish workflow on the same document record.',
+          type: 'info'
+        })
+      }
+      setSearchParams(nextParams, { replace: true })
+      return
+    }
+
+    if (documents.length > 0) {
+      setAlertModal({
+        show: true,
+        title: 'Draft Not Found',
+        message: 'The linked draft could not be found in your current draft list.',
+        type: 'warning'
+      })
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [documents, loading, searchParams, setSearchParams])
 
   const loadDocuments = async () => {
     try {
@@ -135,6 +180,11 @@ export default function DraftDocuments() {
   const handleReupload = (doc) => {
     setSelectedDocument(doc)
     setShowReuploadModal(true)
+  }
+
+  const handleUploadDraftFile = (doc) => {
+    setSelectedDocument(doc)
+    setShowUploadModal(true)
   }
 
   const hasReturnFile = (doc) => Boolean(doc?.latestReturnFileVersionId)
@@ -308,6 +358,14 @@ export default function DraftDocuments() {
         isOpen={showReuploadModal}
         onClose={() => setShowReuploadModal(false)}
         document={selectedDocument}
+        onSuccess={loadDocuments}
+      />
+
+      <UploadFileModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        document={selectedDocument}
+        canManageAccess={hasPermission('projectTracking', 'manageConfidentialAccess')}
         onSuccess={loadDocuments}
       />
 
@@ -522,6 +580,10 @@ export default function DraftDocuments() {
                     <td className="py-4 px-4">
                       <ActionMenu
                         actions={[
+                          ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update')
+                            ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
+                            : []
+                          ),
                           ...(doc.status === 'Return for Amendments'
                             ? [
                                 ...(hasReturnFile(doc) && isPreviewableReturnFile(doc)
@@ -586,6 +648,10 @@ export default function DraftDocuments() {
                   </div>
                   <ActionMenu
                     actions={[
+                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update')
+                        ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
+                        : []
+                      ),
                       ...(doc.status === 'Return for Amendments'
                         ? [
                             ...(hasReturnFile(doc) && isPreviewableReturnFile(doc)
@@ -684,6 +750,10 @@ export default function DraftDocuments() {
                   </div>
                   <ActionMenu
                     actions={[
+                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update')
+                        ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
+                        : []
+                      ),
                       ...(doc.status === 'Return for Amendments'
                         ? [
                             ...(hasReturnFile(doc) && isPreviewableReturnFile(doc)

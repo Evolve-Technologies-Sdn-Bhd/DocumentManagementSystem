@@ -548,9 +548,6 @@ class WorkflowService {
    * Transition: READY_TO_PUBLISH → PUBLISHED
    */
   async publishDocument(documentId, userId, folderId, notes = null, newFileName = null) {
-    // #region debug-point E:publish-entry
-    ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'E',location:'backend/src/services/workflowService.js:publishDocument:entry',msg:'[DEBUG] workflow publishDocument called',data:{documentId,userId,folderId:folderId||null},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})();
-    // #endregion
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       include: { documentType: true, owner: true }
@@ -674,14 +671,8 @@ class WorkflowService {
     }
 
     try {
-      const trackingResult = await projectTrackingService.handleDocumentPublished(documentId);
-      // #region debug-point E:publish-project-tracking-result
-      ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'E',location:'backend/src/services/workflowService.js:publishDocument:projectTracking',msg:'[DEBUG] workflow publishDocument project tracking sync completed',data:{documentId,trackingResult},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})();
-      // #endregion
+      await projectTrackingService.handleDocumentPublished(documentId);
     } catch (error) {
-      // #region debug-point E:publish-project-tracking-error
-      ;(()=>{try{const http=require('http');const data=JSON.stringify({sessionId:'project-tracking-linking',runId:'pre-fix',hypothesisId:'E',location:'backend/src/services/workflowService.js:publishDocument:projectTracking',msg:'[DEBUG] workflow publishDocument project tracking sync failed',data:{documentId,errorName:error?.name||null,errorMessage:error?.message||null},ts:Date.now()});const req=http.request('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}},res=>res.resume());req.on('error',()=>{});req.write(data);req.end()}catch(_){}})();
-      // #endregion
       console.error('Failed to update project tracking items for published document:', error);
     }
 
