@@ -158,7 +158,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
     const handleStorageChange = (e) => {
       // When user data changes in localStorage, re-compute visible items
       if (e.key === 'user' || e.storageArea === localStorage) {
-        console.log('User data changed, refreshing menu permissions')
         setPermissionTrigger(prev => prev + 1)
       }
       if (e.key === 'dms_document_settings' || e.storageArea === localStorage) {
@@ -177,7 +176,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
     
     // Custom event for same-tab localStorage changes
     const handleCustomUserChange = () => {
-      console.log('User permissions updated, refreshing menu')
       setPermissionTrigger(prev => prev + 1)
     }
     const handleDocumentSettingsChange = () => {
@@ -212,7 +210,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
       const hasAccess = Array.isArray(item.module)
         ? item.module.some((m) => hasAnyPermission(m))
         : hasAnyPermission(item.module)
-      console.log(`Menu item "${item.name}" (${item.module}): ${hasAccess ? 'visible' : 'hidden'}`)
       return hasAccess
     })
   }, [permissionTrigger, rfidRegistryEnabled]) // Re-check when permissions or config are updated

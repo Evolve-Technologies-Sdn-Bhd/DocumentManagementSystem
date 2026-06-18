@@ -45,11 +45,11 @@ CREATE TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` (
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `ProjectCategoryDocumentRequirementConfidentialAccess_requirementId_fkey`
+ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `PCDRCA_reqid_fk`
   FOREIGN KEY (`requirementId`) REFERENCES `ProjectCategoryDocumentRequirement`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `ProjectCategoryDocumentRequirementConfidentialAccess_userId_fkey`
+ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `PCDRCA_userid_fk`
   FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `ProjectCategoryDocumentRequirementConfidentialAccess_roleId_fkey`
+ALTER TABLE `ProjectCategoryDocumentRequirementConfidentialAccess` ADD CONSTRAINT `PCDRCA_roleid_fk`
   FOREIGN KEY (`roleId`) REFERENCES `Role`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

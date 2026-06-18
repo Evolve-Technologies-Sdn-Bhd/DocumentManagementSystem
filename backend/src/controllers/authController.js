@@ -43,29 +43,33 @@ class AuthController {
       result = await authService.login(email, password, ipAddress, userAgent, { skipSession: is2FASystemEnabled });
     } catch (error) {
       // Log failed login attempt
-      const user = await prisma.user.findUnique({ where: { email } });
-      if (user) {
-        await auditLogService.logAuth(user.id, 'LOGIN_FAILED', req, {
-          email,
-          reason: error.message,
-          failedAttempts: user.failedAttempts + 1
-        });
-        
-        // Check for security alert (multiple failed logins)
-        await auditSettingsService.checkFailedLoginAlert(
-          user.id, 
-          email, 
-          ipAddress
-        );
-        
-        // Check if account was locked
-        const securitySettings = await securityService.getSecuritySettings();
-        if (user.failedAttempts + 1 >= (securitySettings.maxLoginAttempts || 5)) {
-          await auditLogService.logAuth(user.id, 'ACCOUNT_LOCKED', req, {
+      try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+          await auditLogService.logAuth(user.id, 'LOGIN_FAILED', req, {
             email,
-            lockoutDuration: securitySettings.lockoutDuration || 30
+            reason: error.message,
+            failedAttempts: user.failedAttempts + 1
           });
+
+          // Check for security alert (multiple failed logins)
+          await auditSettingsService.checkFailedLoginAlert(
+            user.id,
+            email,
+            ipAddress
+          );
+
+          // Check if account was locked
+          const securitySettings = await securityService.getSecuritySettings();
+          if (user.failedAttempts + 1 >= (securitySettings.maxLoginAttempts || 5)) {
+            await auditLogService.logAuth(user.id, 'ACCOUNT_LOCKED', req, {
+              email,
+              lockoutDuration: securitySettings.lockoutDuration || 30
+            });
+          }
         }
+      } catch (auditError) {
+        console.error('Failed to record login audit event:', auditError);
       }
       throw error; // Re-throw to let error handler respond
     }

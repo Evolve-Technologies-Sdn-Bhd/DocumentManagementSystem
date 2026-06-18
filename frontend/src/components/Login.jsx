@@ -123,7 +123,11 @@ export default function Login() {
         setLoading(false)
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed')
+      const status = err.response?.status
+      const nextMessage = status >= 500
+        ? 'Login is temporarily unavailable. Please try again shortly.'
+        : (err.response?.data?.message || 'Login failed')
+      setError(nextMessage)
       setLoading(false)
       console.error(err)
     }
