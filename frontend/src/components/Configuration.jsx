@@ -118,9 +118,7 @@ function TemplateManagement() {
     setLoading(true)
     try {
       const res = await api.get('/templates')
-      console.log('Templates API response:', res.data)
       const data = res.data.data?.templates || []
-      console.log('Loaded templates:', data)
       setTemplates(data)
     } catch (error) {
       console.error('Failed to load templates:', error)

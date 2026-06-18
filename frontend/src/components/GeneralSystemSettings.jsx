@@ -4,6 +4,10 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
 import MarkdownEditor from './MarkdownEditor'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import SelectField from './ui/SelectField'
 
 // Sub-tab Navigation
 function SubTabNavigation({ activeTab, onTabChange }) {
@@ -18,17 +22,17 @@ function SubTabNavigation({ activeTab, onTabChange }) {
   ]
 
   return (
-    <div className="border-b border-gray-200 mb-6" data-tour-id="gss-tabbar">
-      <nav className="flex space-x-4 overflow-x-auto">
+    <div className="mb-6 border-b border-border" data-tour-id="gss-tabbar">
+      <nav className="dms-scrollbar flex gap-4 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             data-tour-id={`gss-tab-${tab.id}`}
-            className={`py-3 px-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+            className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-brand text-ink'
+                : 'border-transparent text-ink-soft hover:border-border hover:text-ink-secondary'
             }`}
           >
             {tab.label}
@@ -42,6 +46,7 @@ function SubTabNavigation({ activeTab, onTabChange }) {
 // Tab 1: Company Information
 function CompanyInfo() {
   const { t } = usePreferences()
+  const inputClass = 'w-full'
   const [formData, setFormData] = useState({
     companyName: 'Acme Corporation',
     address: '123 Business Street',
@@ -104,94 +109,92 @@ function CompanyInfo() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('gss_company_profile')}</h3>
-        <p className="text-sm text-gray-600 mt-1">{t('gss_company_profile_desc')}</p>
+        <h3 className="text-lg font-semibold text-ink">{t('gss_company_profile')}</h3>
+        <p className="mt-1 text-sm text-ink-muted">{t('gss_company_profile_desc')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_company_name')} *</label>
-          <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_company_name')} *</label>
+          <TextInput type="text" name="companyName" value={formData.companyName} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('email_address')} *</label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('email_address')} *</label>
+          <TextInput type="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_company_address')}</label>
-          <input type="text" name="address" value={formData.address} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_company_address')}</label>
+          <TextInput type="text" name="address" value={formData.address} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_city')}</label>
-          <input type="text" name="city" value={formData.city} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_city')}</label>
+          <TextInput type="text" name="city" value={formData.city} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_state')}</label>
-          <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_state')}</label>
+          <TextInput type="text" name="state" value={formData.state} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_zip')}</label>
-          <input type="text" name="zip" value={formData.zip} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_zip')}</label>
+          <TextInput type="text" name="zip" value={formData.zip} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_country')}</label>
-          <select name="country" value={formData.country} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_country')}</label>
+          <SelectField name="country" value={formData.country} onChange={handleChange} className={inputClass}>
             <option>Malaysia</option>
             <option>Singapore</option>
             <option>Indonesia</option>
             <option>Thailand</option>
             <option>Philippines</option>
-          </select>
+          </SelectField>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_phone')}</label>
-          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_phone')}</label>
+          <TextInput type="tel" name="phone" value={formData.phone} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_website')}</label>
-          <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_website')}</label>
+          <TextInput type="text" name="website" value={formData.website} onChange={handleChange} className={inputClass} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_tax_id')}</label>
-          <input type="text" name="taxId" value={formData.taxId} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+          <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_tax_id')}</label>
+          <TextInput type="text" name="taxId" value={formData.taxId} onChange={handleChange} className={inputClass} />
         </div>
       </div>
 
-      <div className="border-t border-gray-200 pt-6">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_business_hours')}</h4>
+      <AppSurface padding="lg" variant="panel" className="space-y-4">
+        <h4 className="text-sm font-semibold text-ink">{t('gss_business_hours')}</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_start_time')}</label>
-            <input type="time" name="businessHoursStart" value={formData.businessHoursStart} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+            <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_start_time')}</label>
+            <TextInput type="time" name="businessHoursStart" value={formData.businessHoursStart} onChange={handleChange} className={inputClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_end_time')}</label>
-            <input type="time" name="businessHoursEnd" value={formData.businessHoursEnd} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+            <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_end_time')}</label>
+            <TextInput type="time" name="businessHoursEnd" value={formData.businessHoursEnd} onChange={handleChange} className={inputClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">{t('gss_time_zone')}</label>
-            <select name="timezone" value={formData.timezone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+            <label className="mb-2 block text-sm font-semibold text-ink">{t('gss_time_zone')}</label>
+            <SelectField name="timezone" value={formData.timezone} onChange={handleChange} className={inputClass}>
               <option>UTC+8 (Malaysia)</option>
               <option>UTC+7 (Thailand)</option>
               <option>UTC+9 (Japan)</option>
-            </select>
+            </SelectField>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
       <div className="flex justify-end">
-        <button onClick={handleSave} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-          {t('gss_save_changes')}
-        </button>
+        <Button onClick={handleSave}>{t('gss_save_changes')}</Button>
       </div>
     </div>
   )
@@ -981,12 +984,15 @@ function LandingPageSettings() {
                 />
                 <p className="text-xs text-gray-500 mt-1">{maxLpImageHint}</p>
                 {content.contactImage && (
-                  <button 
-                    onClick={() => setContent(prev => ({ ...prev, contactImage: null }))} 
-                    className="mt-2 w-full px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setContent(prev => ({ ...prev, contactImage: null }))}
+                    className="mt-2 w-full"
                   >
                     Remove Image
-                  </button>
+                  </Button>
                 )}
               </div>
               <div>
@@ -1053,12 +1059,15 @@ function LandingPageSettings() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none file:mr-2 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                     {link.pdf && (
-                      <button 
-                        onClick={() => handleFooterLinkChange(idx, 'pdf', null)} 
-                        className="mt-2 w-full px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleFooterLinkChange(idx, 'pdf', null)}
+                        className="mt-2 w-full"
                       >
                         Remove PDF
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1069,12 +1078,12 @@ function LandingPageSettings() {
       </div>
 
       <div className="flex justify-between pt-4">
-        <button onClick={handlePreview} className="px-6 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+        <Button onClick={handlePreview} variant="secondary">
           {t('gss_lp_preview')}
-        </button>
-        <button onClick={handleSave} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+        </Button>
+        <Button onClick={handleSave}>
           {t('gss_save_changes')}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -1295,9 +1304,7 @@ const ThemeBranding = () => {
   const handleLogoUpload = (e, type) => {
     const file = e.target.files[0]
     if (!file) return
-    
-    console.log(`Uploading ${type}:`, file.name, file.size, 'bytes')
-    
+
     // Validate file size (max 5MB for background, 2MB for others)
     const maxSize = type === 'bgImage' ? 5 * 1024 * 1024 : 2 * 1024 * 1024
     if (file.size > maxSize) {
@@ -1308,8 +1315,7 @@ const ThemeBranding = () => {
     const reader = new FileReader()
     reader.onloadend = () => {
       const base64String = reader.result
-      console.log(`${type} converted to base64, length:`, base64String.length)
-      
+
       if (type === 'logo') {
         setLogoPreview(base64String)
         handleThemeChange('mainLogo', base64String)
@@ -1320,7 +1326,6 @@ const ThemeBranding = () => {
       } else if (type === 'bgImage') {
         setBgImagePreview(base64String)
         handleThemeChange('bgImage', base64String)
-        console.log('Background image set, CSS variable should be:', `url('${base64String.substring(0, 50)}...')`)
       }
     }
     reader.onerror = (error) => {
