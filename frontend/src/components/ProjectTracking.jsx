@@ -3506,19 +3506,19 @@ function Setup() {
       {accessRequirement && (
         <ModalShell title="Confidential Access" onClose={() => setAccessRequirement(null)}>
           <div className="space-y-4">
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-ink-secondary">
               {`Requirement: ${accessRequirement.documentType?.name || '-'} • ${stageOptions.find((x) => String(x.id) === String(accessRequirement.stageId))?.label || '-'}`}
             </div>
 
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Allowed viewers</div>
+              <div className="mb-1 text-xs font-medium text-ink-muted">Allowed viewers</div>
               {accessEntries.length === 0 ? (
-                <div className="text-sm text-gray-500">No viewers added yet. Only creator/owner will be able to view confidential documents created from this requirement.</div>
+                <div className="text-sm text-ink-muted">No viewers added yet. Only creator/owner will be able to view confidential documents created from this requirement.</div>
               ) : (
                 <div className="space-y-2">
                   {accessEntries.map((e) => (
-                    <div key={`${e.subjectType}:${e.subjectId}`} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
-                      <div className="text-sm text-gray-800">{e.label}</div>
+                    <div key={`${e.subjectType}:${e.subjectId}`} className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-muted px-3 py-2">
+                      <div className="text-sm text-ink">{e.label}</div>
                       <button type="button" onClick={() => removeAccessEntry(e)} className="text-sm text-red-600 hover:underline">
                         Remove
                       </button>
@@ -3528,31 +3528,31 @@ function Setup() {
               )}
             </div>
 
-            <div className="rounded-lg border border-gray-200 p-3 space-y-3">
-              <div className="text-xs font-medium text-gray-500">Add user or role</div>
+            <div className="space-y-3 rounded-lg border border-border bg-surface p-3">
+              <div className="text-xs font-medium text-ink-muted">Add user or role</div>
               <div className="flex gap-2">
-                <input
+                <TextInput
                   value={accessQuery}
                   onChange={(e) => setAccessQuery(e.target.value)}
                   placeholder="Search user email/name or role..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                  className="flex-1"
                 />
-                <button type="button" onClick={searchSubjects} className="px-4 py-2 rounded-md bg-gray-800 text-white hover:bg-gray-900">
+                <Button type="button" variant="secondary" onClick={searchSubjects}>
                   {loadingSubjects ? 'Searching...' : 'Search'}
-                </button>
+                </Button>
               </div>
 
               {(subjectResults.users.length > 0 || subjectResults.roles.length > 0) && (
-                <div className="max-h-56 overflow-auto border border-gray-200 rounded-md">
+                <div className="max-h-56 overflow-auto rounded-md border border-border bg-surface-muted">
                   {subjectResults.roles.map((r) => (
                     <button
                       key={`role:${r.id}`}
                       type="button"
                       onClick={() => addAccessEntry({ subjectType: 'ROLE', subjectId: r.id, label: `${r.displayName || r.name} (Role)` })}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-b-0"
+                      className="w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-surface last:border-b-0"
                     >
-                      <div className="font-medium text-gray-900">{r.displayName || r.name}</div>
-                      <div className="text-xs text-gray-500">Role</div>
+                      <div className="font-medium text-ink">{r.displayName || r.name}</div>
+                      <div className="text-xs text-ink-muted">Role</div>
                     </button>
                   ))}
                   {subjectResults.users.map((u) => (
@@ -3560,10 +3560,10 @@ function Setup() {
                       key={`user:${u.id}`}
                       type="button"
                       onClick={() => addAccessEntry({ subjectType: 'USER', subjectId: u.id, label: `${`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email} (User)` })}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b last:border-b-0"
+                      className="w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-surface last:border-b-0"
                     >
-                      <div className="font-medium text-gray-900">{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</div>
-                      <div className="text-xs text-gray-500">{u.email}</div>
+                      <div className="font-medium text-ink">{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</div>
+                      <div className="text-xs text-ink-muted">{u.email}</div>
                     </button>
                   ))}
                 </div>
@@ -3571,17 +3571,16 @@ function Setup() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setAccessRequirement(null)} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+              <Button type="button" variant="secondary" onClick={() => setAccessRequirement(null)}>
                 Close
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={savingAccess}
                 onClick={saveRequirementAccess}
-                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 {savingAccess ? 'Saving...' : 'Save Access'}
-              </button>
+              </Button>
             </div>
           </div>
         </ModalShell>
