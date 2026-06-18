@@ -21,10 +21,14 @@ router.get('/projects', requirePermission('projectTracking', 'view'), projectTra
 router.post('/projects', requirePermission('projectTracking', 'create'), projectTrackingController.createProject);
 router.get('/projects/:projectId', requirePermission('projectTracking', 'view'), projectTrackingController.getProject);
 router.get('/projects/:projectId/activity-logs', requirePermission('projectTracking', 'view'), projectTrackingController.getProjectActivityLogs);
+router.get('/projects/:projectId/change-requests', requirePermission('projectTracking', 'view'), projectTrackingController.listProjectChangeRequests);
+router.post('/projects/:projectId/change-requests', requirePermission('projectTracking', 'create'), projectTrackingController.createProjectChangeRequest);
 router.post('/projects/:projectId/iterations', requirePermission('projectTracking', 'create'), projectTrackingController.createIteration);
 router.put('/iterations/:iterationId', requirePermission('projectTracking', 'edit'), projectTrackingController.updateIteration);
 router.put('/projects/:projectId', requirePermission('projectTracking', 'edit'), projectTrackingController.updateProject);
 router.delete('/projects/:projectId', requirePermission('projectTracking', 'delete'), projectTrackingController.deleteProject);
+router.put('/change-requests/:changeRequestId', requirePermission('projectTracking', 'edit'), projectTrackingController.updateProjectChangeRequest);
+router.delete('/change-requests/:changeRequestId', requirePermission('projectTracking', 'delete'), projectTrackingController.deleteProjectChangeRequest);
 
 router.get('/iterations/:iterationId/items', requirePermission('projectTracking', 'view'), projectTrackingController.listIterationItems);
 router.get('/iterations/:iterationId/stage-documents', requirePermission('projectTracking', 'view'), projectTrackingController.listIterationStageDocuments);

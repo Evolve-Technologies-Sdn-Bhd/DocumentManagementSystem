@@ -168,6 +168,104 @@ exports.getProjectActivityLogs = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, result, 'Project activity logs retrieved successfully')
 })
 
+exports.listProjectChangeRequests = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const iterationId = req.query?.iterationId ? Number(req.query.iterationId) : undefined
+  if (req.query?.iterationId && !iterationId) throw new ValidationError('Invalid iterationId')
+
+  const changeRequests = await projectTrackingService.listProjectChangeRequests(projectId, { iterationId })
+  return ResponseFormatter.success(res, { changeRequests }, 'Project change requests retrieved successfully')
+})
+
+exports.createProjectChangeRequest = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const {
+    projectIterationId,
+    changeId,
+    phaseRef,
+    description,
+    impact,
+    authorizedBy,
+    complianceSignOff,
+    dateApproved
+  } = req.body || {}
+
+  if (!changeId || !String(changeId).trim()) throw new ValidationError('changeId is required')
+  if (!description || !String(description).trim()) throw new ValidationError('description is required')
+
+  const changeRequest = await projectTrackingService.createProjectChangeRequest(projectId, {
+    projectIterationId: projectIterationId ? Number(projectIterationId) : null,
+    changeId: String(changeId).trim(),
+    phaseRef: normalizeOptionalText(phaseRef),
+    description: String(description).trim(),
+    impact: normalizeOptionalText(impact),
+    authorizedBy: normalizeOptionalText(authorizedBy),
+    complianceSignOff: normalizeOptionalText(complianceSignOff),
+    dateApproved: normalizeOptionalDate(dateApproved, 'dateApproved'),
+    createdById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { changeRequest }, 'Project change request created successfully')
+})
+
+exports.updateProjectChangeRequest = asyncHandler(async (req, res) => {
+  const changeRequestId = Number(req.params.changeRequestId)
+  if (!changeRequestId) throw new ValidationError('Invalid changeRequestId')
+
+  const {
+    projectIterationId,
+    changeId,
+    phaseRef,
+    description,
+    impact,
+    authorizedBy,
+    complianceSignOff,
+    dateApproved
+  } = req.body || {}
+
+  if (
+    projectIterationId === undefined &&
+    changeId === undefined &&
+    phaseRef === undefined &&
+    description === undefined &&
+    impact === undefined &&
+    authorizedBy === undefined &&
+    complianceSignOff === undefined &&
+    dateApproved === undefined
+  ) {
+    throw new ValidationError('At least one field must be provided')
+  }
+
+  if (changeId !== undefined && !String(changeId).trim()) throw new ValidationError('changeId is required')
+  if (description !== undefined && !String(description).trim()) throw new ValidationError('description is required')
+
+  const changeRequest = await projectTrackingService.updateProjectChangeRequest(changeRequestId, {
+    projectIterationId: projectIterationId !== undefined ? (projectIterationId ? Number(projectIterationId) : null) : undefined,
+    changeId: changeId !== undefined ? String(changeId).trim() : undefined,
+    phaseRef: phaseRef !== undefined ? normalizeOptionalText(phaseRef) : undefined,
+    description: description !== undefined ? String(description).trim() : undefined,
+    impact: impact !== undefined ? normalizeOptionalText(impact) : undefined,
+    authorizedBy: authorizedBy !== undefined ? normalizeOptionalText(authorizedBy) : undefined,
+    complianceSignOff: complianceSignOff !== undefined ? normalizeOptionalText(complianceSignOff) : undefined,
+    dateApproved: dateApproved !== undefined ? normalizeOptionalDate(dateApproved, 'dateApproved') : undefined,
+    updatedById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { changeRequest }, 'Project change request updated successfully')
+})
+
+exports.deleteProjectChangeRequest = asyncHandler(async (req, res) => {
+  const changeRequestId = Number(req.params.changeRequestId)
+  if (!changeRequestId) throw new ValidationError('Invalid changeRequestId')
+
+  await projectTrackingService.deleteProjectChangeRequest(changeRequestId, { deletedById: req.user.id })
+  return ResponseFormatter.success(res, {}, 'Project change request deleted successfully')
+})
+
 exports.createIteration = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!projectId) throw new ValidationError('Invalid projectId');

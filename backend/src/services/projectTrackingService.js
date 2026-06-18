@@ -1198,6 +1198,200 @@ exports.getProjectActivityLogs = async (projectId, { page = 1, limit = 20 } = {}
   return { logs: items, total, page: parseInt(page, 10), limit: take }
 }
 
+exports.listProjectChangeRequests = async (projectId, { iterationId } = {}) => {
+  const pid = parseInt(projectId, 10)
+  if (!Number.isFinite(pid)) throw new ValidationError('Invalid projectId')
+
+  const where = { projectId: pid }
+  if (iterationId !== undefined) {
+    const iid = parseInt(iterationId, 10)
+    if (!Number.isFinite(iid)) throw new ValidationError('Invalid iterationId')
+    where.projectIterationId = iid
+  }
+
+  return prisma.projectChangeRequest.findMany({
+    where,
+    include: {
+      iteration: { select: { id: true, iterationNo: true, name: true } },
+      createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+    },
+    orderBy: [{ dateApproved: 'asc' }, { createdAt: 'asc' }]
+  })
+}
+
+exports.createProjectChangeRequest = async (projectId, payload) => {
+  const pid = parseInt(projectId, 10)
+  if (!Number.isFinite(pid)) throw new ValidationError('Invalid projectId')
+
+  const project = await prisma.project.findUnique({ where: { id: pid } })
+  if (!project) throw new NotFoundError('Project not found')
+
+  const changeId = String(payload?.changeId || '').trim()
+  if (!changeId) throw new ValidationError('changeId is required')
+
+  const description = String(payload?.description || '').trim()
+  if (!description) throw new ValidationError('description is required')
+
+  const createdById = parseInt(payload?.createdById, 10)
+  if (!Number.isFinite(createdById)) throw new ValidationError('createdById is required')
+
+  const projectIterationId =
+    payload?.projectIterationId === null || payload?.projectIterationId === undefined
+      ? null
+      : parseInt(payload.projectIterationId, 10)
+
+  if (projectIterationId) {
+    const iteration = await prisma.projectIteration.findUnique({
+      where: { id: projectIterationId },
+      select: { id: true, projectId: true }
+    })
+    if (!iteration || iteration.projectId !== pid) throw new ValidationError('Invalid projectIterationId')
+  }
+
+  try {
+    const created = await prisma.projectChangeRequest.create({
+      data: {
+        projectId: pid,
+        projectIterationId,
+        changeId,
+        phaseRef: payload?.phaseRef ?? null,
+        description,
+        impact: payload?.impact ?? null,
+        authorizedBy: payload?.authorizedBy ?? null,
+        complianceSignOff: payload?.complianceSignOff ?? null,
+        dateApproved: payload?.dateApproved ?? null,
+        createdById
+      },
+      include: {
+        iteration: { select: { id: true, iterationNo: true, name: true } },
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: createdById,
+        action: 'CREATE',
+        entity: 'ProjectChangeRequest',
+        entityId: created.id,
+        description: `projectId=${pid} created change request ${created.changeId}`,
+        metadata: {
+          projectId: pid,
+          projectIterationId: created.projectIterationId,
+          changeId: created.changeId
+        }
+      }
+    })
+
+    return created
+  } catch (e) {
+    if (e?.code === 'P2002') {
+      throw new ConflictError('changeId already exists for this project')
+    }
+    throw e
+  }
+}
+
+exports.updateProjectChangeRequest = async (changeRequestId, payload) => {
+  const id = parseInt(changeRequestId, 10)
+  if (!Number.isFinite(id)) throw new ValidationError('Invalid changeRequestId')
+
+  const existing = await prisma.projectChangeRequest.findUnique({
+    where: { id },
+    select: { id: true, projectId: true }
+  })
+  if (!existing) throw new NotFoundError('Change request not found')
+
+  const updatedById = parseInt(payload?.updatedById, 10)
+  if (!Number.isFinite(updatedById)) throw new ValidationError('updatedById is required')
+
+  let projectIterationId = undefined
+  if (payload?.projectIterationId !== undefined) {
+    projectIterationId =
+      payload.projectIterationId === null || payload.projectIterationId === ''
+        ? null
+        : parseInt(payload.projectIterationId, 10)
+
+    if (projectIterationId) {
+      const iteration = await prisma.projectIteration.findUnique({
+        where: { id: projectIterationId },
+        select: { id: true, projectId: true }
+      })
+      if (!iteration || iteration.projectId !== existing.projectId) throw new ValidationError('Invalid projectIterationId')
+    }
+  }
+
+  const data = {}
+  if (projectIterationId !== undefined) data.projectIterationId = projectIterationId
+  if (payload?.changeId !== undefined) data.changeId = String(payload.changeId).trim()
+  if (payload?.phaseRef !== undefined) data.phaseRef = payload.phaseRef
+  if (payload?.description !== undefined) data.description = String(payload.description).trim()
+  if (payload?.impact !== undefined) data.impact = payload.impact
+  if (payload?.authorizedBy !== undefined) data.authorizedBy = payload.authorizedBy
+  if (payload?.complianceSignOff !== undefined) data.complianceSignOff = payload.complianceSignOff
+  if (payload?.dateApproved !== undefined) data.dateApproved = payload.dateApproved
+
+  if (data.changeId !== undefined && !data.changeId) throw new ValidationError('changeId is required')
+  if (data.description !== undefined && !data.description) throw new ValidationError('description is required')
+
+  try {
+    const updated = await prisma.projectChangeRequest.update({
+      where: { id },
+      data,
+      include: {
+        iteration: { select: { id: true, iterationNo: true, name: true } },
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: updatedById,
+        action: 'UPDATE',
+        entity: 'ProjectChangeRequest',
+        entityId: id,
+        description: `projectId=${existing.projectId} updated change request ${updated.changeId}`,
+        metadata: { projectId: existing.projectId, changeRequestId: id }
+      }
+    })
+
+    return updated
+  } catch (e) {
+    if (e?.code === 'P2002') {
+      throw new ConflictError('changeId already exists for this project')
+    }
+    throw e
+  }
+}
+
+exports.deleteProjectChangeRequest = async (changeRequestId, { deletedById } = {}) => {
+  const id = parseInt(changeRequestId, 10)
+  if (!Number.isFinite(id)) throw new ValidationError('Invalid changeRequestId')
+
+  const existing = await prisma.projectChangeRequest.findUnique({
+    where: { id },
+    select: { id: true, projectId: true, changeId: true }
+  })
+  if (!existing) throw new NotFoundError('Change request not found')
+
+  const uid = parseInt(deletedById, 10)
+  if (!Number.isFinite(uid)) throw new ValidationError('deletedById is required')
+
+  await prisma.projectChangeRequest.delete({ where: { id } })
+  await prisma.auditLog.create({
+    data: {
+      userId: uid,
+      action: 'DELETE',
+      entity: 'ProjectChangeRequest',
+      entityId: id,
+      description: `projectId=${existing.projectId} deleted change request ${existing.changeId}`,
+      metadata: { projectId: existing.projectId, changeRequestId: id, changeId: existing.changeId }
+    }
+  })
+
+  return { id }
+}
+
 exports.searchDocuments = async ({ projectId, q }, { user }) => {
   const query = String(q || '').trim()
   if (!query) return []
