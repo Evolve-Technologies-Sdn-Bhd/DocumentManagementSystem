@@ -1943,7 +1943,7 @@ function ProjectDetail({ projectId }) {
           title={project.name}
           subtitle="Track required documents, stage evidence, and confidential access for each phase."
           actions={(
-            <div className="flex w-full flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="flex w-full flex-col items-start gap-3 sm:items-end">
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setShowActivity(true)}>Activity Logs</Button>
                 {canEdit ? (
@@ -1962,11 +1962,6 @@ function ProjectDetail({ projectId }) {
                 {canEdit ? (
                   <Button size="sm" variant="secondary" onClick={() => setShowEditProject(true)}>Edit</Button>
                 ) : null}
-              </div>
-
-              <div className="hidden h-8 w-px bg-border md:block" />
-
-              <div className="flex flex-wrap items-center gap-2">
                 {canCreate ? (
                   <Button size="sm" variant="primary" onClick={() => setShowCreatePhase(true)} disabled={!isProjectActive}>
                     Add Next Phase
@@ -1991,93 +1986,101 @@ function ProjectDetail({ projectId }) {
                 ) : null}
               </div>
 
-              <div className="hidden h-8 w-px bg-border md:block" />
-
-              <div className="flex flex-wrap items-center gap-2">
-                {canEdit && isProjectActive ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] hover:opacity-90"
-                    onClick={() =>
-                      setConfirmModal({
-                        show: true,
-                        title: 'Put Project On Hold',
-                        message: 'Pause project progress for now? Existing documents stay available and you can resume later.',
-                        onConfirm: () => updateProjectStatus('ON_HOLD')
-                      })
-                    }
-                  >
-                    Put On Hold
-                  </Button>
-                ) : null}
-                {canEdit && isProjectOnHold ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] hover:opacity-90"
-                    onClick={() =>
-                      setConfirmModal({
-                        show: true,
-                        title: 'Resume Project',
-                        message: 'Resume this project and allow progress actions again?',
-                        onConfirm: () => updateProjectStatus('ACTIVE')
-                      })
-                    }
-                  >
-                    Resume Project
-                  </Button>
-                ) : null}
-                {canEdit && isProjectClosed ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] hover:opacity-90"
-                    onClick={() =>
-                      setConfirmModal({
-                        show: true,
-                        title: 'Reopen Project',
-                        message: 'Reopen this closed project and allow progress actions again?',
-                        onConfirm: () => updateProjectStatus('ACTIVE')
-                      })
-                    }
-                  >
-                    Reopen Project
-                  </Button>
-                ) : null}
-                {canEdit && !isProjectClosed ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() =>
-                      setConfirmModal({
-                        show: true,
-                        title: 'Close Project',
-                        message: 'Close this project? Linked documents will remain available, but no further progress actions will be required.',
-                        onConfirm: () => updateProjectStatus('CLOSED')
-                      })
-                    }
-                  >
-                    Close Project
-                  </Button>
-                ) : null}
-                {canDelete ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() =>
-                      setConfirmModal({
-                        show: true,
-                        title: 'Delete Project',
-                        message: 'Delete this project? All iterations and tracking links under it will be removed.',
-                        onConfirm: deleteProject
-                      })
-                    }
-                  >
-                    Delete
-                  </Button>
-                ) : null}
-              </div>
+              {canEdit || canDelete ? (
+                <div className="flex w-full flex-col gap-2 rounded-2xl border border-border bg-surface-muted px-3 py-3 sm:w-auto sm:min-w-[360px]">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Controls</div>
+                    <div className="text-xs text-ink-muted">Status and danger actions</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canEdit && isProjectActive ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] hover:opacity-90"
+                        onClick={() =>
+                          setConfirmModal({
+                            show: true,
+                            title: 'Put Project On Hold',
+                            message: 'Pause project progress for now? Existing documents stay available and you can resume later.',
+                            onConfirm: () => updateProjectStatus('ON_HOLD')
+                          })
+                        }
+                      >
+                        Put On Hold
+                      </Button>
+                    ) : null}
+                    {canEdit && isProjectOnHold ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] hover:opacity-90"
+                        onClick={() =>
+                          setConfirmModal({
+                            show: true,
+                            title: 'Resume Project',
+                            message: 'Resume this project and allow progress actions again?',
+                            onConfirm: () => updateProjectStatus('ACTIVE')
+                          })
+                        }
+                      >
+                        Resume Project
+                      </Button>
+                    ) : null}
+                    {canEdit && isProjectClosed ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] hover:opacity-90"
+                        onClick={() =>
+                          setConfirmModal({
+                            show: true,
+                            title: 'Reopen Project',
+                            message: 'Reopen this closed project and allow progress actions again?',
+                            onConfirm: () => updateProjectStatus('ACTIVE')
+                          })
+                        }
+                      >
+                        Reopen Project
+                      </Button>
+                    ) : null}
+                    <div className="hidden h-7 w-px bg-border sm:block" />
+                    {canEdit && !isProjectClosed ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() =>
+                          setConfirmModal({
+                            show: true,
+                            title: 'Close Project',
+                            message: 'Close this project? Linked documents will remain available, but no further progress actions will be required.',
+                            onConfirm: () => updateProjectStatus('CLOSED')
+                          })
+                        }
+                      >
+                        Close Project
+                      </Button>
+                    ) : null}
+                    {canDelete ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        className="bg-transparent text-[var(--dms-color-danger-ink)] border-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)]"
+                        onClick={() =>
+                          setConfirmModal({
+                            show: true,
+                            title: 'Delete Project',
+                            message: 'Delete this project? All iterations and tracking links under it will be removed.',
+                            onConfirm: deleteProject
+                          })
+                        }
+                      >
+                        Delete Project
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         />
