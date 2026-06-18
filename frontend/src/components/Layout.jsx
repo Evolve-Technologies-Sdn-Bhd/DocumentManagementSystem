@@ -37,8 +37,8 @@ export default function Layout({ children }) {
   const [tourOpen, setTourOpen] = useState(false)
   const [tourId, setTourId] = useState('user')
   const [showGettingStartedHint, setShowGettingStartedHint] = useState(false)
-  // Right panel is collapsed by default on all pages except dashboard
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(location.pathname !== '/dashboard')
+  // Right panel stays collapsed by default so small laptops keep more room for content.
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true)
 
   useLayoutEffect(() => {
     const loadThemeSettings = () => {
@@ -111,7 +111,7 @@ export default function Layout({ children }) {
   }, [])
 
   useEffect(() => {
-    setIsRightPanelCollapsed(location.pathname !== '/dashboard')
+    setIsRightPanelCollapsed(true)
   }, [location.pathname])
 
   useEffect(() => {

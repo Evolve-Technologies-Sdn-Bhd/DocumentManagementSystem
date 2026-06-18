@@ -2132,67 +2132,67 @@ function ProjectDetail({ projectId }) {
       </AppSurface>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Selected Phase</div>
-          <div className="mt-2 text-lg font-semibold text-slate-900">{selectedPhase ? getPhaseTitle(selectedPhase, '-') : '-'}</div>
-          <div className="mt-2 text-sm text-slate-600">{selectedPhase?.currentStage?.name || 'No current stage set'}</div>
+        <AppSurface padding="lg" className="h-full">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Selected Phase</div>
+          <div className="mt-2 text-lg font-semibold text-ink">{selectedPhase ? getPhaseTitle(selectedPhase, '-') : '-'}</div>
+          <div className="mt-2 text-sm text-ink-secondary">{selectedPhase?.currentStage?.name || 'No current stage set'}</div>
           {canEdit && selectedPhase && (
             <button
               type="button"
               onClick={() => setShowEditPhase(selectedPhase)}
-              className="mt-3 text-sm font-medium text-blue-600 hover:underline"
+              className="mt-3 text-sm font-medium text-brand hover:underline"
             >
               Rename Phase
             </button>
           )}
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Required Completion</div>
+        </AppSurface>
+        <AppSurface padding="lg" className="h-full">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Required Completion</div>
           <div className="mt-2 flex items-end gap-2">
-            <div className="text-3xl font-semibold text-slate-900">{overallStats.pct}%</div>
-            <div className="pb-1 text-sm text-slate-500">{`${overallStats.complete}/${overallStats.total} complete`}</div>
+            <div className="text-3xl font-semibold text-ink">{overallStats.pct}%</div>
+            <div className="pb-1 text-sm text-ink-muted">{`${overallStats.complete}/${overallStats.total} complete`}</div>
           </div>
-          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-600" style={{ width: `${overallStats.pct}%` }} />
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-surface-muted">
+            <div className="h-full rounded-full bg-[var(--dms-color-success-ink)]" style={{ width: `${overallStats.pct}%` }} />
           </div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pending Items</div>
-          <div className="mt-2 text-3xl font-semibold text-amber-600">{overallStats.pending}</div>
-          <div className="mt-2 text-sm text-slate-500">Checklist items still waiting for published evidence.</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Waived Items</div>
-          <div className="mt-2 text-3xl font-semibold text-slate-900">{overallStats.waived}</div>
-          <div className="mt-2 text-sm text-slate-500">Items excluded from phase completion requirements.</div>
-        </div>
+        </AppSurface>
+        <AppSurface padding="lg" className="h-full">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Pending Items</div>
+          <div className="mt-2 text-3xl font-semibold text-[var(--dms-color-warning-ink)]">{overallStats.pending}</div>
+          <div className="mt-2 text-sm text-ink-muted">Checklist items still waiting for published evidence.</div>
+        </AppSurface>
+        <AppSurface padding="lg" className="h-full">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Waived Items</div>
+          <div className="mt-2 text-3xl font-semibold text-ink">{overallStats.waived}</div>
+          <div className="mt-2 text-sm text-ink-muted">Items excluded from phase completion requirements.</div>
+        </AppSurface>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
           isProjectClosed
-            ? 'bg-rose-50 text-rose-700'
+            ? 'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)]'
             : isProjectOnHold
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-blue-50 text-blue-700'
+              ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
+              : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
         }`}>
           {progressLockMessage}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <AppSurface padding="lg">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Change Control & Amendment Log</div>
-            <div className="mt-1 text-sm text-slate-500">Approved changes recorded for the selected phase.</div>
+            <div className="text-sm font-semibold text-ink">Change Control & Amendment Log</div>
+            <div className="mt-1 text-sm text-ink-muted">Approved changes recorded for the selected phase.</div>
           </div>
-          <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+          <div className="rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary">
             {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
           </div>
         </div>
         <div className="mt-4">
           {changeRequestsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
+            <div className="flex items-center gap-2 text-sm text-ink-secondary">
               <InlineSpinner className="h-4 w-4" />
               Loading change requests...
             </div>
@@ -2266,15 +2266,15 @@ function ProjectDetail({ projectId }) {
             </TableContainer>
           )}
         </div>
-      </div>
+      </AppSurface>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <AppSurface padding="lg">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Project Phases</div>
-            <div className="mt-1 text-sm text-slate-500">Switch between iterations under the same project and review each stage flow separately.</div>
+            <div className="text-sm font-semibold text-ink">Project Phases</div>
+            <div className="mt-1 text-sm text-ink-muted">Switch between iterations under the same project and review each stage flow separately.</div>
           </div>
-          <div className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 sm:inline-flex">{`${phases.length} phase${phases.length === 1 ? '' : 's'}`}</div>
+          <div className="hidden rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary sm:inline-flex">{`${phases.length} phase${phases.length === 1 ? '' : 's'}`}</div>
         </div>
         <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
             {phases.map((phase) => {
@@ -2286,56 +2286,57 @@ function ProjectDetail({ projectId }) {
                   onClick={() => setSelectedIterationId(phase.id)}
                   className={`min-w-[250px] rounded-2xl border p-5 text-left transition ${
                     isSelected
-                      ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm ring-1 ring-blue-100'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
+                      : 'border-border bg-surface hover:border-border-strong hover:bg-surface-muted'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{`Phase ${phase.iterationNo}`}</div>
-                      <div className="mt-2 text-base font-semibold text-slate-900">{phase.name || 'Project Phase'}</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{`Phase ${phase.iterationNo}`}</div>
+                      <div className="mt-2 text-base font-semibold text-ink">{phase.name || 'Project Phase'}</div>
                     </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${isSelected ? 'bg-brand text-ink-inverse' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
                       {isSelected ? 'Active' : 'Open'}
                     </span>
                   </div>
-                  <div className="mt-4 text-sm text-slate-600">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                  <div className="mt-4 text-sm text-ink-secondary">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
                 </button>
               )
             })}
         </div>
-      </div>
+      </AppSurface>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <AppSurface padding="lg">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-semibold text-slate-900">Stage Flow</div>
-            <div className="mt-1 text-sm text-slate-500">Use the stage tabs below to keep each stage isolated. Overall Project Documents shows every linked document in this project phase with its stage label.</div>
+            <div className="text-sm font-semibold text-ink">Stage Flow</div>
+            <div className="mt-1 text-sm text-ink-muted">Use the stage tabs below to keep each stage isolated. Overall Project Documents shows every linked document in this project phase with its stage label.</div>
           </div>
-          <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+          <div className="rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary">
             {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
           </div>
         </div>
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto pb-3 dms-scrollbar">
           <button
             type="button"
             onClick={() => setActiveStageTab(consolidatedTabId)}
-            className={`min-w-[240px] rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+            className={`flex min-h-[152px] min-w-[210px] max-w-[210px] flex-col rounded-2xl border px-4 py-4 text-left transition hover:border-border-strong hover:shadow-dms-soft ${
               activeStageTab === consolidatedTabId
-                ? 'border-slate-900 bg-gradient-to-br from-slate-900 to-slate-700 text-white shadow-sm'
-                : 'border-slate-200 bg-white'
+                ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
+                : 'border-border bg-surface'
             }`}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className={`text-base font-semibold ${activeStageTab === consolidatedTabId ? 'text-white' : 'text-slate-900'}`}>Overall Project Documents</div>
-              <span className={`rounded-full px-2 py-1 text-xs font-medium ${activeStageTab === consolidatedTabId ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <div className="text-base font-semibold text-ink">Documents</div>
+              <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${activeStageTab === consolidatedTabId ? 'bg-brand text-ink-inverse' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
                 {`${consolidatedDocuments.length} docs`}
               </span>
             </div>
-            <div className={`mt-4 text-sm ${activeStageTab === consolidatedTabId ? 'text-slate-200' : 'text-slate-600'}`}>
+            <div className="mt-2 text-sm font-medium text-ink">Cross-stage view</div>
+            <div className="mt-2 text-sm text-ink-secondary">
               Cross-stage view of all required and extra documents linked in this project phase.
             </div>
-            <div className={`mt-4 inline-flex items-center gap-1 text-xs font-medium ${activeStageTab === consolidatedTabId ? 'text-slate-100' : 'text-slate-500'}`}>
+            <div className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-medium text-ink-muted">
               <span>{activeStageTab === consolidatedTabId ? 'Viewing overall project documents' : 'Open overall project documents'}</span>
               <span aria-hidden="true">→</span>
             </div>
@@ -2344,17 +2345,17 @@ function ProjectDetail({ projectId }) {
             const isActiveTab = activeStageTab === stage.id
             const tone =
               isActiveTab
-                ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm ring-1 ring-blue-100'
+                ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
                 : stage.state === 'done'
-                  ? 'border-green-300 bg-gradient-to-br from-green-50 to-emerald-50'
-                  : 'border-slate-200 bg-slate-50'
+                  ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]'
+                  : 'border-border bg-surface-muted'
 
             const badgeTone =
               stage.state === 'current'
-                ? 'bg-blue-100 text-blue-700'
+                ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
                 : stage.state === 'done'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]'
+                  : 'border border-border bg-surface text-ink-secondary'
 
             const badgeLabel =
               stage.state === 'current'
@@ -2368,18 +2369,27 @@ function ProjectDetail({ projectId }) {
                 key={stage.id}
                 type="button"
                 onClick={() => openStage(stage.id)}
-                className={`min-w-[240px] rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md ${tone}`}
+                className={`flex min-h-[152px] min-w-[210px] max-w-[210px] flex-col rounded-2xl border px-4 py-4 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="text-base font-semibold text-slate-900">{stage.name}</div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActiveTab ? 'bg-blue-600 text-white' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
+                  <div className="text-base font-semibold text-ink">{stage.name}</div>
+                  <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${isActiveTab ? 'bg-brand text-ink-inverse' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
                 </div>
-                <div className="mt-4 text-sm text-slate-600">
+                <div className="mt-2 text-sm font-medium text-ink">
                   {stage.metrics
                     ? `Required documents completed: ${stage.metrics.complete}/${stage.metrics.total}`
+                    : 'Checklist not configured yet'}
+                </div>
+                <div className="mt-2 text-sm text-ink-secondary">
+                  {stage.metrics
+                    ? stage.state === 'done'
+                      ? 'This stage is completed and ready for review.'
+                      : stage.state === 'current'
+                        ? 'Only documents under this stage are shown when this tab is active.'
+                        : 'Prepare documents linked to this stage before it becomes active.'
                     : 'No checklist configured for this stage yet.'}
                 </div>
-                <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+                <div className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-medium text-ink-muted">
                   <span>{isActiveTab ? 'Viewing this stage' : 'Open stage tab'}</span>
                   <span aria-hidden="true">→</span>
                 </div>
@@ -2387,64 +2397,67 @@ function ProjectDetail({ projectId }) {
             )
           })}
         </div>
-      </div>
+      </AppSurface>
 
       {itemsLoading ? (
-        <div className="p-6 bg-white rounded-lg shadow">Loading checklist...</div>
+        <AppSurface padding="lg" className="flex items-center gap-3">
+          <InlineSpinner className="h-4 w-4" />
+          <span className="text-sm text-ink-muted">Loading checklist...</span>
+        </AppSurface>
       ) : activeStageTab === consolidatedTabId ? (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-5">
-            <div className="text-lg font-semibold text-slate-900">Overall Project Documents</div>
-            <div className="mt-1 text-sm text-slate-500">All linked documents for this project phase, grouped in one list with stage and checklist context.</div>
+        <AppSurface padding="none">
+          <div className="border-b border-border px-6 py-5">
+            <div className="text-lg font-semibold text-ink">Overall Project Documents</div>
+            <div className="mt-1 text-sm text-ink-muted">All linked documents for this project phase, grouped in one list with stage and checklist context.</div>
           </div>
           {consolidatedDocuments.length === 0 ? (
-            <div className="px-6 py-8 text-sm text-slate-500">No linked documents found for this project phase yet.</div>
+            <div className="px-6 py-8 text-sm text-ink-muted">No linked documents found for this project phase yet.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Stage</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Context</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Action</th>
-                  </tr>
+            <TableContainer>
+              <Table>
+                <thead>
+                  <Tr>
+                    <Th>Document</Th>
+                    <Th>Stage</Th>
+                    <Th>Context</Th>
+                    <Th>Status</Th>
+                    <Th align="right">Action</Th>
+                  </Tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
+                <tbody>
                   {consolidatedDocuments.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm">
-                        <Link to={`/documents/${entry.document.id}`} className="font-medium text-blue-600 hover:underline">
+                    <Tr key={entry.id} className="hover:bg-surface-muted">
+                      <Td>
+                        <Link to={`/documents/${entry.document.id}`} className="font-medium text-brand hover:underline">
                           {getDocumentCodeLabel(entry.document)}
                         </Link>
-                        <div className="mt-1 text-slate-600">{getDocumentTitleLabel(entry.document)}</div>
+                        <div className="mt-1 text-ink-secondary">{getDocumentTitleLabel(entry.document)}</div>
                         <div className="mt-2 inline-flex items-center gap-2">
                           <ConfidentialBadge isConfidential={entry.document.isConfidential} />
                           <DocumentStatusBadge status={entry.document.status} />
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-700">{entry.stageName}</td>
-                      <td className="px-6 py-4 text-sm text-slate-700">
+                      </Td>
+                      <Td className="text-ink-secondary">{entry.stageName}</Td>
+                      <Td className="text-ink-secondary">
                         <div>{entry.source}</div>
-                        <div className="mt-1 text-xs text-slate-500">{entry.documentTypeName}</div>
-                        {entry.itemStatus ? <div className="mt-1 text-xs text-slate-500">{`Checklist status: ${entry.itemStatus}`}</div> : null}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
+                        <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
+                        {entry.itemStatus ? <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div> : null}
+                      </Td>
+                      <Td>
                         <DocumentStatusBadge status={entry.document.status} />
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm">
-                        <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-blue-600 hover:underline">
+                      </Td>
+                      <Td align="right">
+                        <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
                           {String(entry.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
                         </button>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </Table>
+            </TableContainer>
           )}
-        </div>
+        </AppSurface>
       ) : (
         <div className="space-y-4">
           {activeStage ? (() => {
@@ -2460,67 +2473,66 @@ function ProjectDetail({ projectId }) {
             const summary = `Extra docs: ${links.length} • Required linked: ${linkedRequiredCount}`
 
             return (
-              <div key={st.id} id={`stage-panel-${st.id}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="w-full border-b px-6 py-5 text-left bg-slate-50">
+              <AppSurface key={st.id} padding="none" id={`stage-panel-${st.id}`} className="overflow-hidden">
+                <div className="w-full border-b border-border bg-surface-muted px-6 py-5 text-left">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center gap-3">
-                      <div className="text-base font-semibold text-slate-900">{st.name}</div>
-                      <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium bg-blue-100 text-blue-700">
+                      <div className="text-base font-semibold text-ink">{st.name}</div>
+                      <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]">
                         Active Tab
                       </span>
                     </div>
-                    <div className="text-sm text-slate-600">{`Complete ${complete}/${total} • Pending ${pending} • Waived ${waived}`}</div>
+                    <div className="text-sm text-ink-secondary">{`Complete ${complete}/${total} • Pending ${pending} • Waived ${waived}`}</div>
                     <div className="w-full sm:w-56">
-                      <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-2.5 bg-gradient-to-r from-emerald-500 to-green-600" style={{ width: `${pct}%` }} />
+                      <div className="h-2.5 overflow-hidden rounded-full bg-surface">
+                        <div className="h-2.5 bg-[var(--dms-color-success-ink)]" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="text-sm text-slate-500">{summary}</div>
-                    <div className="inline-flex items-center gap-2 text-sm text-slate-400">
+                    <div className="text-sm text-ink-muted">{summary}</div>
+                    <div className="inline-flex items-center gap-2 text-sm text-ink-soft">
                       <span>Only documents under this stage are shown here</span>
                     </div>
                   </div>
                 </div>
                 <>
-                    <div className="flex flex-col gap-3 border-b bg-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 border-b border-border bg-surface px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <div className="text-sm font-semibold text-slate-900">Other Documents Under This Stage</div>
-                        <div className="mt-1 text-sm text-slate-500">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
+                        <div className="text-sm font-semibold text-ink">Other Documents Under This Stage</div>
+                        <div className="mt-1 text-sm text-ink-muted">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
                       </div>
                       <div className="flex gap-2">
                         {canLink && isProjectActive && (
-                          <button
+                          <Button
                             onClick={() => setShowStageLink(st)}
-                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                            variant="secondary"
                           >
                             Attach Existing
-                          </button>
+                          </Button>
                         )}
                         {canCreate && isProjectActive && (
-                          <button
+                          <Button
                             onClick={() => setShowStageCreate(st)}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                           >
                             Create New
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
-                    <div className="border-b bg-white px-6 py-5">
+                    <div className="border-b border-border bg-surface px-6 py-5">
                       {links.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">No extra documents added for this stage yet.</div>
+                        <div className="rounded-xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-ink-muted">No extra documents added for this stage yet.</div>
                       ) : (
                         <div className="space-y-2">
                           {links.map((l) => (
-                            <div key={l.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm">
+                            <div key={l.id} className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
                               <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                                  <Link to={`/documents/${l.document.id}`} className="font-medium text-blue-600 hover:underline">
+                                  <Link to={`/documents/${l.document.id}`} className="font-medium text-brand hover:underline">
                                     {getDocumentCodeLabel(l.document)}
                                   </Link>
-                                  <span className="text-slate-600">{` • ${getDocumentTitleLabel(l.document)}`}</span>
+                                  <span className="text-ink-secondary">{` • ${getDocumentTitleLabel(l.document)}`}</span>
                                   <span className="ml-2 inline-flex items-center gap-2 align-middle">
                                     <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                     <DocumentStatusBadge status={l.document.status} />
@@ -2530,7 +2542,7 @@ function ProjectDetail({ projectId }) {
                                   <button
                                     type="button"
                                     onClick={() => openDocumentWorkspace(l.document)}
-                                    className="font-medium text-slate-700 hover:underline"
+                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
                                   >
                                     {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
                                   </button>
@@ -2554,7 +2566,7 @@ function ProjectDetail({ projectId }) {
                                     <button
                                       type="button"
                                       onClick={() => setShowDocumentAccess(l.document)}
-                                      className="font-medium text-blue-600 hover:underline"
+                                      className="font-medium text-brand hover:underline"
                                     >
                                       Access
                                     </button>
@@ -2566,39 +2578,39 @@ function ProjectDetail({ projectId }) {
                         </div>
                       )}
                     </div>
-                    <div className="overflow-x-auto bg-white">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Document Type</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Completed Documents</th>
-                            <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Action</th>
-                          </tr>
+                    <TableContainer className="rounded-none border-0">
+                      <Table>
+                        <thead>
+                          <Tr>
+                            <Th>Document Type</Th>
+                            <Th>Status</Th>
+                            <Th>Completed Documents</Th>
+                            <Th align="right">Action</Th>
+                          </Tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody>
                           {stageItems.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="px-6 py-8 text-sm text-slate-500">
+                            <Tr>
+                              <Td colSpan={4} className="px-6 py-8 text-sm text-ink-muted">
                                 No required checklist items for this stage yet. Add requirements in Project Setup, or attach extra documents using the buttons above.
-                              </td>
-                            </tr>
+                              </Td>
+                            </Tr>
                           ) : null}
                           {stageItems.map((it) => (
-                            <tr key={it.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{it.documentType?.name || '-'}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <Tr key={it.id} className="hover:bg-surface-muted">
+                              <Td className="whitespace-nowrap text-sm text-ink">{it.documentType?.name || '-'}</Td>
+                              <Td className="whitespace-nowrap text-sm">
                                 <ItemStatusBadge status={it.status} />
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-700">
+                              </Td>
+                              <Td className="text-sm text-ink-secondary">
                                 {it.links?.length ? (
                                   <div className="space-y-1">
                                     {it.links.map((l) => (
                                       <div key={l.id}>
-                                        <Link to={`/documents/${l.document.id}`} className="text-blue-600 hover:underline">
+                                        <Link to={`/documents/${l.document.id}`} className="text-brand hover:underline">
                                           {getDocumentCodeLabel(l.document)}
                                         </Link>
-                                        <span className="text-gray-500">{` • ${getDocumentTitleLabel(l.document)}`}</span>
+                                        <span className="text-ink-muted">{` • ${getDocumentTitleLabel(l.document)}`}</span>
                                         <span className="ml-2 inline-flex items-center gap-2 align-middle">
                                           <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                           <DocumentStatusBadge status={l.document.status} />
@@ -2606,7 +2618,7 @@ function ProjectDetail({ projectId }) {
                                         <button
                                           type="button"
                                           onClick={() => openDocumentWorkspace(l.document)}
-                                          className="ml-3 text-xs text-gray-700 hover:underline"
+                                          className="ml-3 text-xs text-ink-secondary hover:text-ink hover:underline"
                                         >
                                           {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
                                         </button>
@@ -2630,7 +2642,7 @@ function ProjectDetail({ projectId }) {
                                           <button
                                             type="button"
                                             onClick={() => setShowDocumentAccess(l.document)}
-                                            className="ml-3 text-xs text-blue-600 hover:underline"
+                                            className="ml-3 text-xs text-brand hover:underline"
                                           >
                                             Access
                                           </button>
@@ -2639,32 +2651,32 @@ function ProjectDetail({ projectId }) {
                                     ))}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400">-</span>
+                                  <span className="text-ink-soft">-</span>
                                 )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                              </Td>
+                              <Td align="right" className="whitespace-nowrap text-sm">
                                 {canLink && isProjectActive ? (
                                   <div className="flex items-center justify-end gap-3">
-                                    <button onClick={() => setShowLink(it)} className="text-blue-600 hover:underline">
+                                    <button onClick={() => setShowLink(it)} className="text-brand hover:underline">
                                       Attach Existing
                                     </button>
                                     {canCreate && (
-                                      <button onClick={() => setShowCreateDoc(it)} className="text-gray-800 hover:underline">
+                                      <button onClick={() => setShowCreateDoc(it)} className="text-ink-secondary hover:text-ink hover:underline">
                                         Create New
                                       </button>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400">-</span>
+                                  <span className="text-ink-soft">-</span>
                                 )}
-                              </td>
-                            </tr>
+                              </Td>
+                            </Tr>
                           ))}
                         </tbody>
-                      </table>
-                    </div>
+                      </Table>
+                    </TableContainer>
                 </>
-              </div>
+              </AppSurface>
             )
           })() : null}
         </div>
