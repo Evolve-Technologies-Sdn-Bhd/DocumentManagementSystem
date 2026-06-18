@@ -50,11 +50,8 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
   const loadPublishedDocuments = async () => {
     try {
       setLoadingPublishedDocs(true)
-      console.log('Loading published documents...')
       const res = await api.get('/documents/my-status?status=PUBLISHED&limit=1000')
       const docs = res.data.data?.documents || []
-      console.log('Published documents loaded:', docs.length)
-      console.log('Sample doc:', docs[0])
       setPublishedDocs(docs)
       setAllPublishedDocs(docs)
       

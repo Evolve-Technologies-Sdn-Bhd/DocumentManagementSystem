@@ -152,16 +152,12 @@ export default function PublishedDocuments() {
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
-        console.log('User data from localStorage:', user) // Debug log
         const role = user.role || user.roles?.[0]?.role?.name || 'Viewer'
-        console.log('Detected role:', role) // Debug log
         setUserRole(role)
       } catch (e) {
         console.error('Failed to parse user data', e)
         setUserRole('Viewer')
       }
-    } else {
-      console.log('No user data in localStorage') // Debug log
     }
   }
 

@@ -54,28 +54,22 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
         const approvers = users.filter(user => {
           // Exclude document owner from approvers list
           if (documentOwnerId && user.id === documentOwnerId) {
-            console.log('[ReviewModal] Excluding document owner:', user.firstName, user.lastName)
             return false
           }
           
           // Exclude current reviewer from approvers list (same person cannot review AND approve)
           if (currentUserId && user.id === currentUserId) {
-            console.log('[ReviewModal] Excluding current reviewer:', user.firstName, user.lastName)
             return false
           }
           
           const userRoles = user.roles || []
-          
-          console.log('[ReviewModal] Checking user:', user.firstName, user.lastName, 'roles:', userRoles)
-          
+
           return userRoles.some(userRole => {
             // Handle nested structure: roles: [{ role: { name: 'Approver', permissions: {...} } }]
             const role = userRole.role || {}
             const roleName = role.name || role.displayName || role.roleName || userRole.name || ''
             const permissions = role.permissions || {}
-            
-            console.log('[ReviewModal]  - Role name:', roleName, 'Permissions:', permissions)
-            
+
             // Check if role name matches - ONLY Approver or Administrator roles can approve
             const roleNameLower = roleName.toLowerCase()
             const isApproverRole = [
@@ -88,14 +82,11 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
               permissions?.['documents.reviewApproval']?.approve
             
             const matched = isApproverRole || hasApprovePermission
-            console.log('[ReviewModal]  - Matched:', matched, 'isApproverRole:', isApproverRole, 'hasApprovePermission:', hasApprovePermission)
-            
+
             return matched
           })
         })
-        
-        console.log('[ReviewModal] Filtered approvers:', approvers)
-        
+
         // Format for dropdown
         const formattedApprovers = approvers.map(user => ({
           id: user.id,

@@ -1638,7 +1638,7 @@ function ProjectDetail({ projectId }) {
       ? 'This project is on hold. Progress actions are paused until the project is resumed.'
       : 'Use "Add Next Phase" for enhancement, extension, or the next rollout under the same project.'
 
-  const managerLabel = `${`${project.manager?.firstName || ''} ${project.manager?.lastName || ''}`.trim() || project.manager?.email || '-'}`.trim()
+  const managerLabel = `${`${project?.manager?.firstName || ''} ${project?.manager?.lastName || ''}`.trim() || project?.manager?.email || '-'}`.trim()
 
   if (loading) return <div className="p-6 bg-white rounded-lg shadow">Loading...</div>
   if (!project) return <EmptyState title="Project not found" message="The project may have been deleted." />

@@ -44,11 +44,9 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
   // Load acknowledged documents when document type changes
   useEffect(() => {
-    console.log('Document Type Changed:', formData.documentType)
     if (formData.documentType) {
       loadAcknowledgedDocuments(formData.documentType)
     } else {
-      console.log('No document type selected, clearing acknowledged docs')
       setAcknowledgedDocs([])
     }
   }, [formData.documentType])
@@ -68,21 +66,15 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const loadAcknowledgedDocuments = async (documentType) => {
     setLoadingAcknowledgedDocs(true)
     try {
-      console.log('=== LOADING DOCUMENTS ===')
-      console.log('Selected document type:', documentType)
-      
       // Fetch ACKNOWLEDGED documents (displayed as "Drafting")
       const res = await api.get('/documents/drafts', {
         params: {
           limit: 100
         }
       })
-      
-      console.log('API Response:', res.data)
+
       const docs = res.data.data || res.data.documents || []
-      console.log('Total documents from API:', docs.length)
-      console.log('All documents:', docs)
-      
+
       // Filter by document type and valid file code
       const filtered = docs.filter(doc => {
         const hasValidFileCode = doc.fileCode && 
@@ -91,15 +83,10 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         
         // Match by document type name (backend returns documentType as string)
         const matchesType = doc.documentType === documentType
-        
-        console.log(`Checking doc: ${doc.fileCode}, docType: "${doc.documentType}", selected: "${documentType}", validCode: ${hasValidFileCode}, matchesType: ${matchesType}`)
-        
+
         return hasValidFileCode && matchesType
       })
-      
-      console.log('Filtered documents:', filtered.length)
-      console.log('Filtered result:', filtered)
-      
+
       setAcknowledgedDocs(filtered)
     } catch (error) {
       console.error('Failed to load documents:', error)

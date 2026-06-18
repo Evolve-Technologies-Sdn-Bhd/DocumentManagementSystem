@@ -44,15 +44,10 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
   }
 
   const handleRoleToggle = (roleId) => {
-    console.log('Toggling role:', roleId)
-    console.log('Current selected roles:', selectedRoles)
-    
     setSelectedRoles(prev => {
       const newRoles = prev.includes(roleId)
         ? prev.filter(id => id !== roleId)
         : [...prev, roleId]
-      
-      console.log('New selected roles:', newRoles)
       return newRoles
     })
   }

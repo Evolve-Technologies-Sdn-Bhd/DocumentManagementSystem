@@ -70,7 +70,6 @@ export default function WorkflowConfiguration() {
   }
 
   const handleView = (workflow) => {
-    console.log('View workflow:', workflow)
     setAlertModal({ show: true, title: `Workflow: ${workflow.workflowName}`, message: `Steps: ${workflow.stepsDetail.join(' → ')}`, type: 'info' })
   }
 

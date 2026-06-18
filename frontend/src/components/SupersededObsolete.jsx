@@ -73,13 +73,9 @@ export default function SupersededObsolete() {
       // Only fetch supersede/obsolete requests
       // The requests contain all necessary information including completed ones
       const requestsRes = await api.get('/supersede-requests')
-      
-      console.log('Requests API Response:', requestsRes.data)
-      
+
       const requests = requestsRes.data.data?.requests || requestsRes.data.requests || []
-      
-      console.log('Loaded supersede/obsolete requests:', requests.length)
-      
+
       // Format requests to match expected structure
       const formattedRequests = requests.map(req => {
         // Map status display
@@ -180,9 +176,7 @@ export default function SupersededObsolete() {
       // Fetch the full document details
       const response = await api.get(`/supersede-requests/${doc.id}`)
       const requestData = response.data.data?.request || response.data.request
-      
-      console.log('Request data for view:', requestData)
-      
+
       // Set document details for the viewer modal
       setSelectedDocument({
         id: requestData.document.id,
@@ -225,8 +219,6 @@ export default function SupersededObsolete() {
   }
 
   const handleReviewSubmit = async (reviewData) => {
-    console.log('Review submitted:', reviewData)
-    
     setShowReviewModal(false)
     setSelectedDocument(null)
     
@@ -261,8 +253,6 @@ export default function SupersededObsolete() {
   }
 
   const handleApproveSubmit = async (approvalData) => {
-    console.log('Approval submitted:', approvalData)
-    
     setShowApproveModal(false)
     setSelectedDocument(null)
     
@@ -275,8 +265,6 @@ export default function SupersededObsolete() {
   }
 
   const handleRequestSubmit = async (requestData) => {
-    console.log('Request submitted:', requestData)
-    
     setShowRequestModal(false)
     // Reload documents to show new request
     loadDocuments()
@@ -287,9 +275,7 @@ export default function SupersededObsolete() {
       // Fetch the full document details including documentId
       const response = await api.get(`/supersede-requests/${doc.id}`)
       const requestData = response.data.data?.request || response.data.request
-      
-      console.log('Request data:', requestData)
-      
+
       // Set document with documentId for the archive modal
       // Use the actual document status (OBSOLETE/SUPERSEDED), not the request status (APPROVED)
       setSelectedDocument({
@@ -306,7 +292,6 @@ export default function SupersededObsolete() {
   }
 
   const handleArchiveComplete = (updatedDocument) => {
-    console.log('Document archived:', updatedDocument)
     alert('Document archived successfully!')
     loadDocuments()
   }

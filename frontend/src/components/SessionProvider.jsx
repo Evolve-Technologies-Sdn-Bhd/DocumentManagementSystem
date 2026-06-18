@@ -126,7 +126,6 @@ export default function SessionProvider({ children }) {
 
         // Show message (optional: you can use a toast notification here)
         if (message) {
-          console.log('Session logout:', message)
         }
 
         // Redirect to login

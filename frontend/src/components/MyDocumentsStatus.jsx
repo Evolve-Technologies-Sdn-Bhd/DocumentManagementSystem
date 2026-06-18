@@ -8,6 +8,7 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
+import IconButton from './ui/IconButton'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
@@ -385,18 +386,19 @@ export default function MyDocumentsStatus() {
     }
 
     return (
-      <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out overflow-y-auto z-50">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4">
+      <div className="fixed inset-y-0 right-0 z-50 w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-96">
+        <div className="sticky top-0 border-b border-border bg-surface p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">{t('doc_details')}</h3>
-            <button
+            <h3 className="text-lg font-semibold text-ink">{t('doc_details')}</h3>
+            <IconButton
               onClick={() => setShowDetailsPanel(false)}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              size="sm"
+              aria-label="Close details"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </IconButton>
           </div>
         </div>
 
@@ -404,105 +406,110 @@ export default function MyDocumentsStatus() {
           {/* Document Info */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('file_code')}</label>
-              <p className="mt-1 text-sm font-medium text-gray-900">{selectedDocDetails.fileCode}</p>
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('file_code')}</label>
+              <p className="mt-1 text-sm font-semibold text-ink">{getDisplayFileCode(selectedDocDetails)}</p>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('title')}</label>
-              <p className="mt-1 text-sm font-medium text-gray-900">{selectedDocDetails.title}</p>
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('title')}</label>
+              <p className="mt-1 text-sm font-semibold text-ink">{selectedDocDetails.title}</p>
             </div>
             {selectedDocDetails.description && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('description')}</label>
-                <p className="mt-1 text-sm text-gray-600">{selectedDocDetails.description}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('description')}</label>
+                <p className="mt-1 text-sm text-ink-secondary">{selectedDocDetails.description}</p>
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('version')}</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedDocDetails.version}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('version')}</label>
+                <p className="mt-1 text-sm text-ink">{selectedDocDetails.version}</p>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('status')}</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('status')}</label>
                 <div className="mt-1">
                   <StatusBadge status={selectedDocDetails.status} />
                 </div>
               </div>
             </div>
             {selectedDocDetails.status === 'Return for Amendments' && (
-              <button
+              <Button
                 onClick={() => handleViewRemarks(selectedDocDetails)}
-                className="w-full mt-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                variant="secondary"
+                className="w-full mt-2"
               >
                 {t('view_remarks')}
-              </button>
+              </Button>
             )}
             {selectedDocDetails.documentType && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('document_type')}</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedDocDetails.documentType}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('document_type')}</label>
+                <p className="mt-1 text-sm text-ink">{selectedDocDetails.documentType}</p>
               </div>
             )}
             {selectedDocDetails.projectCategory && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('project_category')}</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedDocDetails.projectCategory}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('project_category')}</label>
+                <p className="mt-1 text-sm text-ink">{selectedDocDetails.projectCategory}</p>
               </div>
             )}
             {selectedDocDetails.owner && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('owner')}</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedDocDetails.owner}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('owner')}</label>
+                <p className="mt-1 text-sm text-ink">{selectedDocDetails.owner}</p>
               </div>
             )}
             {selectedDocDetails.fileName && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('file_name')}</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedDocDetails.fileName}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('file_name')}</label>
+                <p className="mt-1 text-sm text-ink">{selectedDocDetails.fileName}</p>
               </div>
             )}
             {selectedDocDetails.obsoleteReason && (
               <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('obsolete_reason')}</label>
-                <p className="mt-1 text-sm text-gray-600">{selectedDocDetails.obsoleteReason}</p>
+                <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('obsolete_reason')}</label>
+                <p className="mt-1 text-sm text-ink-secondary">{selectedDocDetails.obsoleteReason}</p>
               </div>
             )}
           </div>
 
-          <div className="border-t border-gray-200 pt-6">
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">{t('workflow_history')}</h4>
+          <div className="border-t border-border pt-6">
+            <h4 className="mb-4 text-sm font-semibold text-ink">{t('workflow_history')}</h4>
             <div className="space-y-4">
               {workflowHistory.map((item, index) => (
                 <div key={index} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                      item.status === 'completed'
+                        ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]'
+                        : 'bg-surface-muted text-ink-soft'
                     }`}>
                       {item.status === 'completed' ? (
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       ) : (
-                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <div className="h-2 w-2 rounded-full bg-ink-soft"></div>
                       )}
                     </div>
                     {index < workflowHistory.length - 1 && (
                       <div className={`w-0.5 h-12 ${
-                        item.status === 'completed' ? 'bg-green-200' : 'bg-gray-200'
+                        item.status === 'completed'
+                          ? 'bg-[var(--dms-color-success-soft)]'
+                          : 'bg-border'
                       }`}></div>
                     )}
                   </div>
                   <div className="flex-1 pb-4">
                     <p className={`text-sm font-medium ${
-                      item.status === 'completed' ? 'text-gray-900' : 'text-gray-500'
+                      item.status === 'completed' ? 'text-ink' : 'text-ink-muted'
                     }`}>
                       {item.stage}
                     </p>
                     {item.date && (
-                      <p className="text-xs text-gray-500 mt-1">{item.date}</p>
+                      <p className="mt-1 text-xs text-ink-soft">{formatDate(item.date)}</p>
                     )}
                     {item.user && item.status === 'completed' && (
-                      <p className="text-xs text-gray-600 mt-1">by {item.user}</p>
+                      <p className="mt-1 text-xs text-ink-muted">by {item.user}</p>
                     )}
                   </div>
                 </div>
@@ -532,7 +539,7 @@ export default function MyDocumentsStatus() {
       {/* Overlay when details panel is open */}
       {showDetailsPanel && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 transition-opacity"
           onClick={() => setShowDetailsPanel(false)}
         />
       )}
@@ -636,7 +643,7 @@ export default function MyDocumentsStatus() {
             <SelectField
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="min-w-[220px]"
+              className="md:w-64"
             >
               {allStatuses.map((status) => (
                 <option key={status} value={status}>{status}</option>
@@ -704,16 +711,17 @@ export default function MyDocumentsStatus() {
                         <Td>{formatDate(doc.updatedAt || doc.lastUpdated)}</Td>
                         <Td><StatusBadge status={doc.status} /></Td>
                         <Td align="center">
-                          <button
+                          <Button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDocumentClick(doc)
                             }}
-                            className="rounded-xl px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand/10 hover:text-brand-hover"
+                            variant="ghost"
+                            size="sm"
                           >
                             {t('view_details')}
-                          </button>
+                          </Button>
                         </Td>
                       </Tr>
                     ))

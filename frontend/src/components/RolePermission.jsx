@@ -153,15 +153,9 @@ function RolesManagement() {
     if (!editingPermissionsRole) return
 
     try {
-      console.log('Updating permissions for role:', editingPermissionsRole)
-      console.log('Role ID:', editingPermissionsRole.id)
-      console.log('Permissions:', permissions)
-      
       const response = await api.patch(`/roles/${editingPermissionsRole.id}/permissions`, {
         permissions: permissions
       })
-
-      console.log('Update response:', response.data)
 
       // Reload roles to get updated permissions
       await loadRoles()
@@ -405,9 +399,7 @@ function UsersManagement() {
     try {
       const res = await api.get('/roles')
       const rolesData = res.data.data?.roles || []
-      
-      console.log('[loadRoles] Raw backend roles:', rolesData)
-      
+
       // Transform to match modal format - USE NUMERIC ID FROM DATABASE
       const transformedRoles = rolesData.map(role => {
         const transformedRole = {
@@ -417,7 +409,6 @@ function UsersManagement() {
           roleName: role.roleName,  // Keep for mapping
           description: role.description || `${role.displayName || role.roleName} role`
         }
-        console.log('[loadRoles] Transformed role:', transformedRole)
         return transformedRole
       })
       
@@ -509,18 +500,11 @@ function UsersManagement() {
   }
 
   const handleEdit = (user) => {
-    console.log('[Edit User] Original user:', user)
-    console.log('[Edit User] User roleIds:', user.roleIds)
-    console.log('[Edit User] Available roles:', roles)
-    
     // Use the numeric roleIds directly - no mapping needed!
     const normalizedUser = {
       ...user,
       roles: user.roleIds || []  // Use numeric IDs directly
     }
-    
-    console.log('[Edit User] Normalized user:', normalizedUser)
-    console.log('[Edit User] Normalized roles:', normalizedUser.roles)
     setEditingUser(normalizedUser)
     setShowAddUserModal(true)
   }

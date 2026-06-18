@@ -3831,7 +3831,6 @@ function DocumentSettings() {
       // Always save to localStorage for backward compatibility and NDR preview
       localStorage.setItem('dms_document_settings', JSON.stringify(settings))
       window.dispatchEvent(new Event('documentSettingsChanged'))
-      console.log('Saving document settings:', settings)
       
       if (saveErrors.length > 0) {
         alert(`Warning: Failed to save ${saveErrors.join(', ')} settings to server. Other settings were saved successfully.`)
@@ -3849,36 +3848,40 @@ function DocumentSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Document Management Preferences</h3>
-        <p className="text-sm text-gray-600 mt-1">Configure document handling and storage settings</p>
+        <h3 className="text-lg font-semibold text-ink">Document Management Preferences</h3>
+        <p className="mt-1 text-sm text-ink-muted">Configure document handling and storage settings</p>
       </div>
 
       {/* File Upload Settings */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_ds_file_upload')}</h4>
+      <AppSurface padding="lg" variant="panel">
+        <h4 className="mb-4 text-sm font-semibold text-ink">{t('gss_ds_file_upload')}</h4>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Max File Size (MB)</label>
-            <input 
+            <label className="mb-2 block text-sm font-semibold text-ink">Max File Size (MB)</label>
+            <TextInput
               type="number" 
               min="1" 
               max="500" 
               value={settings.maxFileSize} 
               onChange={(e) => setSettings(prev => ({ ...prev, maxFileSize: parseInt(e.target.value) || 1 }))} 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
             />
-            <p className="text-xs text-gray-500 mt-1">Maximum file size for document uploads (1-500 MB)</p>
+            <p className="mt-1 text-xs text-ink-soft">Maximum file size for document uploads (1-500 MB)</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Allowed File Types</label>
+            <label className="mb-2 block text-sm font-semibold text-ink">Allowed File Types</label>
             <div className="overflow-x-auto">
               <div className="flex flex-nowrap gap-x-10 gap-y-3 min-w-max">
                 {allowedTypeColumns.map((col, colIdx) => (
                   <div key={colIdx} className="flex flex-col gap-3 min-w-[120px]">
                     {col.map((type) => (
                       <label key={type} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={settings.allowedTypes[type]} onChange={(e) => setSettings(prev => ({ ...prev, allowedTypes: { ...prev.allowedTypes, [type]: e.target.checked } }))} className="w-4 h-4 text-blue-600 rounded" />
-                        <span className="text-sm text-gray-700 uppercase">{type}</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.allowedTypes[type]}
+                          onChange={(e) => setSettings(prev => ({ ...prev, allowedTypes: { ...prev.allowedTypes, [type]: e.target.checked } }))}
+                          className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                        />
+                        <span className="text-sm font-semibold text-ink-secondary uppercase">{type}</span>
                       </label>
                     ))}
                   </div>
@@ -3887,19 +3890,18 @@ function DocumentSettings() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Bulk Upload Limit (files)</label>
-            <input 
+            <label className="mb-2 block text-sm font-semibold text-ink">Bulk Upload Limit (files)</label>
+            <TextInput
               type="number" 
               min="1" 
               max="100" 
               value={settings.bulkUploadLimit} 
               onChange={(e) => setSettings(prev => ({ ...prev, bulkUploadLimit: parseInt(e.target.value) || 1 }))} 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
             />
-            <p className="text-xs text-gray-500 mt-1">Maximum number of files that can be uploaded at once (1-100)</p>
+            <p className="mt-1 text-xs text-ink-soft">Maximum number of files that can be uploaded at once (1-100)</p>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
       {/* Document Numbering */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">

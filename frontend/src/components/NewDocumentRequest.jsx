@@ -170,9 +170,6 @@ export default function NewDocumentRequest() {
         })
       ])
       
-      console.log('NDR Response:', ndrRes.data)
-      console.log('NVR Response:', nvrRes.data)
-      
       // Format NDR with requestType
       const ndrs = (ndrRes.data.data?.requests || []).map(req => ({
         ...req,
@@ -207,12 +204,6 @@ export default function NewDocumentRequest() {
         const dateB = new Date(b.createdAt || b.requestDate || 0)
         return dateB - dateA
       })
-      
-      console.log('NDR count (before filter):', ndrs.length)
-      console.log('NDR count (after filter):', filteredNdrs.length)
-      console.log('NVR count:', nvrs.length)
-      console.log('NVR file codes:', [...nvrFileCodes])
-      console.log('All requests:', allRequests)
       
       setRequests(allRequests)
     } catch (error) {
@@ -525,25 +516,14 @@ export default function NewDocumentRequest() {
       // Try to get filename from content-disposition header
       const contentDisposition = response.headers['content-disposition']
       let fileName = `${request.documentType}_Template.docx`
-      
-      console.log('Download Template Debug:');
-      console.log('  Response headers:', response.headers);
-      console.log('  Content-Disposition:', contentDisposition);
-      console.log('  Default filename:', fileName);
-      
+
       if (contentDisposition) {
         // Match filename with or without quotes: filename="file.ext" or filename=file.ext
         const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=(['"]?)([^'"\n]*?)\1(?:;|$)/i)
-        console.log('  Regex match result:', fileNameMatch);
         if (fileNameMatch && fileNameMatch[2]) {
           fileName = fileNameMatch[2].trim()
-          console.log('  Extracted filename:', fileName);
         }
-      } else {
-        console.log('  No Content-Disposition header found!');
       }
-      
-      console.log('  Final filename:', fileName);
       a.download = fileName
       document.body.appendChild(a)
       a.click()

@@ -38,10 +38,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
       // Extract data from response (handle both data.documentTypes and data.data.documentTypes)
       const docTypes = docTypesRes.data.documentTypes || docTypesRes.data.data?.documentTypes || []
       const rolesData = rolesRes.data.roles || rolesRes.data.data?.roles || []
-      
-      console.log('Fetched document types:', docTypes)
-      console.log('Fetched roles:', rolesData)
-      
+
       setDocumentTypes(docTypes)
       setRoles(rolesData)
       

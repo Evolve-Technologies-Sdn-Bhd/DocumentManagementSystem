@@ -181,13 +181,10 @@ export default function ReviewAndApproval() {
 
   const loadDocuments = async () => {
     try {
-      console.log('Fetching review-approval documents...')
       // Add timestamp to prevent caching
       const res = await api.get(`/documents/review-approval?_t=${Date.now()}`)
-      console.log('API Response:', res.data)
       // Access nested data structure: res.data.data.documents
       const docs = res.data.data?.documents || res.data.documents || []
-      console.log('Documents loaded:', docs.length, docs)
       setDocuments(docs)
       setFilteredDocuments(docs)
     } catch (error) {
@@ -301,8 +298,6 @@ export default function ReviewAndApproval() {
 
   const handleReviewSubmit = async (formData) => {
     try {
-      console.log('Review submitted:', formData)
-      
       // Prepare form data for API
       const apiFormData = new FormData()
       
@@ -358,8 +353,6 @@ export default function ReviewAndApproval() {
 
   const handleApproveSubmit = async (formData) => {
     try {
-      console.log('Approval submitted:', formData)
-      
       // Determine if this is first or second approval
       // Support legacy statuses: 'Pending Approval' and stage 'Approval' are treated as first approval
       const isFirstApproval = 
@@ -419,7 +412,6 @@ export default function ReviewAndApproval() {
   }
 
   const handleAcknowledgeSubmit = async (formData) => {
-    console.log('Acknowledgement submitted:', formData)
     // TODO: Call API to submit acknowledgement
     // await api.post(`/documents/${selectedDocument.id}/acknowledge`, formData)
     
@@ -446,7 +438,6 @@ export default function ReviewAndApproval() {
 
   const handleReviewSupersedeSubmit = async (formData) => {
     try {
-      console.log('Supersede review submitted:', formData)
       // API call handled by ReviewSupersedeModal
       setReviewSupersedeModalOpen(false)
       setSelectedDocument(null)
@@ -459,7 +450,6 @@ export default function ReviewAndApproval() {
 
   const handleApproveSupersedeSubmit = async (formData) => {
     try {
-      console.log('Supersede approval submitted:', formData)
       // API call handled by ApproveSupersedeModal
       setApproveSupersedeModalOpen(false)
       setSelectedDocument(null)
