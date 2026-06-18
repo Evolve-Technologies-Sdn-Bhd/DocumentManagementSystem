@@ -2903,12 +2903,12 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
         showLifecycleStatus
       />
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+        <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button disabled={loading} type="submit" className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+        </Button>
+        <Button disabled={loading} type="submit">
           {loading ? 'Saving...' : 'Save'}
-        </button>
+        </Button>
       </div>
     </form>
   )
@@ -2947,64 +2947,67 @@ function DocumentsSearch() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-        <select
+      <AppSurface padding="md" className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SelectField
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md sm:w-64"
+          className="sm:w-64"
         >
           <option value="">All Projects</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
           ))}
-        </select>
-        <input
+        </SelectField>
+        <TextInput
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search documents across all projects or by selected project..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+          className="flex-1"
         />
-        <button onClick={search} className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+        <Button onClick={search}>
           Search
-        </button>
-      </div>
+        </Button>
+      </AppSurface>
 
       {loading ? (
-        <div className="p-6 bg-white rounded-lg shadow">Searching...</div>
+        <AppSurface padding="lg" className="flex items-center gap-3">
+          <InlineSpinner className="h-4 w-4" />
+          <span className="text-sm text-ink-muted">Searching...</span>
+        </AppSurface>
       ) : results.length === 0 ? (
         <EmptyState title="No results" message="Try another keyword or search criteria." />
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Iteration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                </tr>
+        <AppSurface padding="none" className="overflow-hidden">
+          <TableContainer className="rounded-none border-0">
+            <Table>
+              <thead>
+                <Tr>
+                  <Th>Document</Th>
+                  <Th>Project</Th>
+                  <Th>Iteration</Th>
+                  <Th>Stage</Th>
+                </Tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {results.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm">
-                      <Link to={`/documents/${r.document.id}`} className="text-blue-600 hover:underline">
+                  <Tr key={r.id} className="hover:bg-surface-muted">
+                    <Td>
+                      <Link to={`/documents/${r.document.id}`} className="text-brand hover:underline">
                         {r.document.fileCode}
                       </Link>
-                      <div className="text-gray-500">{r.document.title}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                      <div className="text-ink-muted">{r.document.title}</div>
+                    </Td>
+                    <Td className="text-ink-secondary">
                       {r.iteration?.project?.code} • {r.iteration?.project?.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{`#${r.iteration?.iterationNo || '-'}`}</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">{r.stage?.name || '-'}</td>
-                  </tr>
+                    </Td>
+                    <Td className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</Td>
+                    <Td className="text-ink-secondary">{r.stage?.name || '-'}</Td>
+                  </Tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        </div>
+            </Table>
+          </TableContainer>
+        </AppSurface>
       )}
     </div>
   )
@@ -3242,69 +3245,70 @@ function Setup() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-5">
+      <AppSurface padding="lg">
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="flex-1">
-            <div className="text-sm font-medium text-gray-700">Setup Scope</div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-sm font-medium text-ink-secondary">Setup Scope</div>
+            <div className="mt-1 text-xs text-ink-muted">
               Default setup applies to all projects. Select a project only when you need a customized setup that will not affect other projects.
             </div>
           </div>
           <div className="w-full lg:w-80">
-            <select
+            <SelectField
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             >
               <option value="">Default (All Projects)</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="text-xs font-medium text-gray-500">Total Stages</div>
-            <div className="text-lg font-semibold text-gray-900">{sortedStages.length}</div>
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
+            <div className="text-xs font-medium text-ink-muted">Total Stages</div>
+            <div className="text-lg font-semibold text-ink">{sortedStages.length}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="text-xs font-medium text-gray-500">Active Stages</div>
-            <div className="text-lg font-semibold text-gray-900">{activeStageCount}</div>
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
+            <div className="text-xs font-medium text-ink-muted">Active Stages</div>
+            <div className="text-lg font-semibold text-ink">{activeStageCount}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="text-xs font-medium text-gray-500">Required Documents</div>
-            <div className="text-lg font-semibold text-gray-900">{requirements.length}</div>
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
+            <div className="text-xs font-medium text-ink-muted">Required Documents</div>
+            <div className="text-lg font-semibold text-ink">{requirements.length}</div>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
       {loading ? (
-        <div className="p-6 bg-white rounded-lg shadow">Loading...</div>
+        <AppSurface padding="lg" className="flex items-center gap-3">
+          <InlineSpinner className="h-4 w-4" />
+          <span className="text-sm text-ink-muted">Loading...</span>
+        </AppSurface>
       ) : (
         <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow p-5">
+          <AppSurface padding="lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-gray-900">Stage Flow</div>
-                <div className="text-xs text-gray-500 mt-1">Rename stage labels, turn stages on or off, and reorder the flow using the move buttons.</div>
+                <div className="text-sm font-semibold text-ink">Stage Flow</div>
+                <div className="mt-1 text-xs text-ink-muted">Rename stage labels, turn stages on or off, and reorder the flow using the move buttons.</div>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowAddStage(true)}
-                  className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  variant="secondary"
                 >
                   Add Stage
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={saveStages}
                   disabled={savingStages}
-                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {savingStages ? 'Saving...' : 'Save Stage Flow'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -3315,114 +3319,114 @@ function Setup() {
                   <div
                     key={s.stageId}
                     className={`min-w-[250px] rounded-xl border p-4 ${
-                      s.isEnabled ? 'border-blue-200 bg-blue-50/50' : 'border-gray-200 bg-gray-50'
+                      s.isEnabled ? 'border-brand bg-[var(--dms-color-info-soft)]/70' : 'border-border bg-surface-muted'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{`Stage ${idx + 1}`}</div>
-                        <div className="text-sm font-semibold text-gray-900 mt-1">{s.stage?.name || '-'}</div>
+                        <div className="text-xs font-medium uppercase tracking-wide text-ink-muted">{`Stage ${idx + 1}`}</div>
+                        <div className="mt-1 text-sm font-semibold text-ink">{s.stage?.name || '-'}</div>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.isEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.isEnabled ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'border border-border bg-surface text-ink-secondary'}`}>
                         {s.isEnabled ? 'Active' : 'Hidden'}
                       </span>
                     </div>
 
                     <div className="mt-4">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Display Label</label>
-                      <input
+                      <label className="mb-1 block text-xs font-medium text-ink-muted">Display Label</label>
+                      <TextInput
                         value={s.displayName || ''}
                         onChange={(e) => updateStage(s.stageId, { displayName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
                         placeholder={s.stage?.name || 'Enter label'}
                       />
                     </div>
 
                     <div className="mt-4 flex items-center justify-between gap-3">
-                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                         <input
                           type="checkbox"
                           checked={!!s.isEnabled}
                           onChange={(e) => updateStage(s.stageId, { isEnabled: e.target.checked })}
+                          className="rounded border-border text-brand focus-visible:ring-brand/30"
                         />
                         Active in flow
                       </label>
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
                           type="button"
                           onClick={() => moveStage(s.stageId, 'up')}
                           disabled={idx === 0}
-                          className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          variant="secondary"
+                          size="sm"
                         >
                           Up
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => moveStage(s.stageId, 'down')}
                           disabled={idx === sortedStages.length - 1}
-                          className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          variant="secondary"
+                          size="sm"
                         >
                           Down
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
+          </AppSurface>
 
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b bg-gray-50">
-              <div className="text-sm font-semibold text-gray-900">Required Documents By Stage</div>
-              <div className="text-xs text-gray-500 mt-1">Add document types that must appear in the checklist when a new project phase is created.</div>
+          <AppSurface padding="none" className="overflow-hidden">
+            <div className="border-b border-border bg-surface-muted px-6 py-4">
+              <div className="text-sm font-semibold text-ink">Required Documents By Stage</div>
+              <div className="mt-1 text-xs text-ink-muted">Add document types that must appear in the checklist when a new project phase is created.</div>
             </div>
 
-            <div className="p-5 border-b bg-white">
+            <div className="border-b border-border bg-surface p-5">
               <form onSubmit={addRequirement} className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_auto_auto] gap-3 items-end">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Stage</label>
-                  <select
+                  <label className="mb-1 block text-xs font-medium text-ink-muted">Stage</label>
+                  <SelectField
                     value={newReq.stageId}
                     onChange={(e) => setNewReq((p) => ({ ...p, stageId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     required
                   >
                     <option value="">Select stage</option>
                     {stageOptions.map((s) => (
                       <option key={s.id} value={s.id}>{s.label}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Document Type</label>
-                  <select
+                  <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
+                  <SelectField
                     value={newReq.documentTypeId}
                     onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     required
                   >
                     <option value="">Select document type</option>
                     {documentTypes.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700 h-10 px-1">
+                <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
                   <input
                     type="checkbox"
                     checked={!!newReq.isConfidentialDefault}
                     onChange={(e) => setNewReq((p) => ({ ...p, isConfidentialDefault: e.target.checked }))}
+                    className="rounded border-border text-brand focus-visible:ring-brand/30"
                   />
                   Confidential
                 </label>
-                <button
+                <Button
                   disabled={addingReq}
                   type="submit"
-                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {addingReq ? 'Adding...' : 'Add Requirement'}
-                </button>
+                </Button>
               </form>
             </div>
 
@@ -3432,16 +3436,16 @@ function Setup() {
                   const stageRequirements = requirementsByStage.get(s.stageId) || []
                   const stageLabel = s.displayName || s.stage?.name || '-'
                   return (
-                    <div key={s.stageId} className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-                      <div className={`px-4 py-3 border-b ${s.isEnabled ? 'bg-white' : 'bg-gray-50'}`}>
+                    <div key={s.stageId} className="overflow-hidden rounded-xl border border-border bg-surface">
+                      <div className={`border-b border-border px-4 py-3 ${s.isEnabled ? 'bg-surface' : 'bg-surface-muted'}`}>
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold text-gray-900">{stageLabel}</div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-sm font-semibold text-ink">{stageLabel}</div>
+                            <div className="mt-1 text-xs text-ink-muted">
                               {s.isEnabled ? 'Active stage in project flow' : 'Hidden stage in project flow'}
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-secondary">
                             {`${stageRequirements.length} required`}
                           </span>
                         </div>
@@ -3449,14 +3453,14 @@ function Setup() {
 
                       <div className="p-4">
                         {stageRequirements.length === 0 ? (
-                          <div className="text-sm text-gray-500">No required document type added for this stage yet.</div>
+                          <div className="text-sm text-ink-muted">No required document type added for this stage yet.</div>
                         ) : (
                           <div className="space-y-2">
                             {stageRequirements.map((r) => (
-                              <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                              <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-3 py-2">
                                 <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900">{r.documentType?.name || '-'}</div>
-                                  <div className="text-xs text-gray-500 mt-1">
+                                  <div className="text-sm font-medium text-ink">{r.documentType?.name || '-'}</div>
+                                  <div className="mt-1 text-xs text-ink-muted">
                                     {r.isConfidentialDefault ? 'Confidential by default' : 'Standard visibility'}
                                   </div>
                                 </div>
@@ -3465,7 +3469,7 @@ function Setup() {
                                     <button
                                       type="button"
                                       onClick={() => openRequirementAccess(r)}
-                                      className="text-sm text-blue-600 hover:underline"
+                                      className="text-sm text-brand hover:underline"
                                     >
                                       Access
                                     </button>
@@ -3488,7 +3492,7 @@ function Setup() {
                 })}
               </div>
             </div>
-          </div>
+          </AppSurface>
         </div>
       )}
 
