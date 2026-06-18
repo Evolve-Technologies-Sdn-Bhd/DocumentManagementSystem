@@ -5,6 +5,11 @@ import {
   encodeSgtin96,
   getSgtinPartition
 } from '../utils/epcEncoder'
+import PageHeader from './ui/PageHeader'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import SelectField from './ui/SelectField'
 
 const initialForm = {
   filter: DEFAULT_SGTIN_SAMPLE.filter,
@@ -37,27 +42,29 @@ function CopyButton({ value, label }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
+      variant="secondary"
       onClick={handleCopy}
-      className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+      className="h-8 rounded-xl px-3 text-xs"
     >
       {copied ? 'Copied' : `Copy ${label}`}
-    </button>
+    </Button>
   )
 }
 
 function OutputRow({ label, value, mono = false }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <AppSurface padding="md" className="rounded-xl">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-slate-900">{label}</h3>
+        <h3 className="text-sm font-semibold text-ink">{label}</h3>
         <CopyButton value={value} label={label} />
       </div>
-      <div className={`break-all rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-800 ${mono ? 'font-mono' : ''}`}>
+      <div className={`break-all rounded-lg bg-surface-muted px-3 py-3 text-sm text-ink-secondary ${mono ? 'font-mono' : ''}`}>
         {value}
       </div>
-    </div>
+    </AppSurface>
   )
 }
 
@@ -97,127 +104,111 @@ export default function RfidLedEpcEncoder() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">RFID LED EPC Module</p>
-            <h1 className="text-2xl font-semibold sm:text-3xl">RFID LED EPC Code Encoding</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200">
-              Module ini encode identifier kepada format EPC standard untuk RFID. Release awal ini fokus pada
-              <span className="font-semibold text-white"> SGTIN-96 </span>
-              dengan output terus dalam bentuk `Tag URI`, `Pure Identity URI`, `binary 96-bit`, `hex EPC`, dan `GTIN-14`.
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/10 p-4 text-sm text-slate-100 backdrop-blur-sm">
-            <p className="font-semibold">Quick Notes</p>
-            <p className="mt-2">- Company prefix: 6 hingga 12 digit</p>
-            <p>- Item reference ikut partition GS1 automatik</p>
-            <p>- Serial disimpan dalam 38-bit field</p>
-          </div>
+      <AppSurface padding="lg" className="space-y-4">
+        <PageHeader
+          title="RFID LED EPC Code Encoding"
+          subtitle="Module ini encode identifier kepada format EPC standard untuk RFID. Release awal ini fokus pada SGTIN-96 dengan output terus dalam bentuk Tag URI, Pure Identity URI, binary 96-bit, hex EPC, dan GTIN-14."
+        />
+        <div className="rounded-xl border border-border bg-surface-muted p-4 text-sm text-ink-secondary">
+          <p className="font-semibold text-ink">Quick Notes</p>
+          <p className="mt-2">- Company prefix: 6 hingga 12 digit</p>
+          <p>- Item reference ikut partition GS1 automatik</p>
+          <p>- Serial disimpan dalam 38-bit field</p>
         </div>
-      </section>
+      </AppSurface>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <AppSurface as="section" padding="lg">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Input EPC</h2>
-              <p className="mt-1 text-sm text-slate-600">Isi nilai GS1 dan hasil encoding akan update secara langsung.</p>
+              <h2 className="text-lg font-semibold text-ink">Input EPC</h2>
+              <p className="mt-1 text-sm text-ink-muted">Isi nilai GS1 dan hasil encoding akan update secara langsung.</p>
             </div>
-            <button
-              type="button"
-              onClick={loadSample}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-            >
+            <Button type="button" variant="secondary" onClick={loadSample}>
               Load Sample
-            </button>
+            </Button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Scheme</span>
-              <input
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">Scheme</span>
+              <TextInput
                 value="SGTIN-96"
                 readOnly
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none"
+                className="bg-surface-muted text-ink-muted"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Filter Value</span>
-              <select
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">Filter Value</span>
+              <SelectField
                 value={form.filter}
                 onChange={handleChange('filter')}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 {FILTER_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Company Prefix Digits</span>
-              <select
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">Company Prefix Digits</span>
+              <SelectField
                 value={form.companyPrefixDigits}
                 onChange={handleChange('companyPrefixDigits')}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 {[6, 7, 8, 9, 10, 11, 12].map((digits) => (
                   <option key={digits} value={digits}>
                     {digits} digits
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Company Prefix</span>
-              <input
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">Company Prefix</span>
+              <TextInput
                 value={form.companyPrefix}
                 onChange={handleChange('companyPrefix')}
                 inputMode="numeric"
                 placeholder="Contoh: 9551234"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">
                 Item Reference
                 {partitionMeta && (
-                  <span className="ml-2 text-xs font-normal text-slate-500">
+                  <span className="ml-2 text-xs font-normal text-ink-muted">
                     diperlukan {partitionMeta.itemReferenceDigits} digit
                   </span>
                 )}
               </span>
-              <input
+              <TextInput
                 value={form.itemReference}
                 onChange={handleChange('itemReference')}
                 inputMode="numeric"
                 placeholder="Item reference termasuk indicator digit"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Serial</span>
-              <input
+              <span className="mb-2 block text-sm font-medium text-ink-secondary">Serial</span>
+              <TextInput
                 value={form.serial}
                 onChange={handleChange('serial')}
                 inputMode="numeric"
                 placeholder="Contoh: 123456"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </label>
           </div>
 
-          <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
-            <h3 className="text-sm font-semibold text-blue-900">Partition Summary</h3>
+          <div className="mt-5 rounded-xl border border-border bg-[var(--dms-color-info-soft)] p-4">
+            <h3 className="text-sm font-semibold text-[var(--dms-color-info-ink)]">Partition Summary</h3>
             {partitionMeta ? (
-              <div className="mt-2 grid gap-3 text-sm text-blue-900 sm:grid-cols-3">
+              <div className="mt-2 grid gap-3 text-sm text-[var(--dms-color-info-ink)] sm:grid-cols-3">
                 <div>
                   <p className="font-medium">Partition</p>
                   <p>{partitionMeta.partition}</p>
@@ -232,22 +223,22 @@ export default function RfidLedEpcEncoder() {
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-blue-900">Pilih company prefix digits yang sah untuk lihat partition detail.</p>
+              <p className="mt-2 text-sm text-[var(--dms-color-info-ink)]">Pilih company prefix digits yang sah untuk lihat partition detail.</p>
             )}
           </div>
 
           {encodedResult.error && (
-            <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mt-5 rounded-xl border border-border bg-[var(--dms-color-danger-soft)] px-4 py-3 text-sm text-[var(--dms-color-danger-ink)]">
               {encodedResult.error}
             </div>
           )}
-        </section>
+        </AppSurface>
 
         <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <AppSurface padding="lg">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Encoded Output</h2>
-              <p className="mt-1 text-sm text-slate-600">Output ini boleh terus dipakai untuk semakan, integrasi middleware, atau tulis ke EPC memory.</p>
+              <h2 className="text-lg font-semibold text-ink">Encoded Output</h2>
+              <p className="mt-1 text-sm text-ink-muted">Output ini boleh terus dipakai untuk semakan, integrasi middleware, atau tulis ke EPC memory.</p>
             </div>
 
             {encodedResult.data ? (
@@ -262,17 +253,17 @@ export default function RfidLedEpcEncoder() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-ink-muted">
                 Betulkan input untuk jana EPC output.
               </div>
             )}
-          </div>
+          </AppSurface>
 
           {encodedResult.data && (
             <>
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <AppSurface padding="lg">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-slate-900">Binary 96-bit</h3>
+                  <h3 className="text-base font-semibold text-ink">Binary 96-bit</h3>
                   <CopyButton value={encodedResult.data.binary} label="Binary" />
                 </div>
                 <div className="rounded-xl bg-slate-950 p-4 font-mono text-xs leading-6 text-emerald-300">
@@ -282,22 +273,22 @@ export default function RfidLedEpcEncoder() {
                     </span>
                   ))}
                 </div>
-              </div>
+              </AppSurface>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <AppSurface padding="lg">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-slate-900">EPC Memory Words</h3>
+                  <h3 className="text-base font-semibold text-ink">EPC Memory Words</h3>
                   <CopyButton value={encodedResult.data.epcWords.join(' ')} label="Words" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {encodedResult.data.epcWords.map((word, index) => (
-                    <div key={`${word}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Word {index + 1}</p>
-                      <p className="mt-1 font-mono text-lg font-semibold text-slate-900">{word}</p>
+                    <div key={`${word}-${index}`} className="rounded-xl border border-border bg-surface-muted px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Word {index + 1}</p>
+                      <p className="mt-1 font-mono text-lg font-semibold text-ink">{word}</p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </AppSurface>
             </>
           )}
         </section>
