@@ -1095,6 +1095,65 @@ function LandingPageSettings() {
   )
 }
 
+function ThemeColorField({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="mb-2 block text-xs text-ink-muted">{label}</label>
+      <div className="flex gap-2">
+        <input
+          type="color"
+          value={value}
+          onChange={onChange}
+          className="h-10 w-16 cursor-pointer rounded border border-border bg-surface"
+        />
+        <TextInput type="text" value={value} onChange={onChange} className="flex-1" />
+        <div className="h-10 w-10 rounded border border-border" style={{ backgroundColor: value }} />
+      </div>
+    </div>
+  )
+}
+
+function ThemeAssetField({
+  label,
+  inputRef,
+  accept,
+  onChange,
+  hint,
+  preview,
+  previewAlt,
+  previewBoxClassName = 'h-20 w-32',
+  previewImageClassName = 'max-h-full max-w-full object-contain',
+  onRemove
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-ink">{label}</label>
+      <div className="flex items-start gap-4">
+        <div className="flex-1">
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={onChange}
+            className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+          />
+          <p className="mt-1 text-xs text-ink-muted">{hint}</p>
+        </div>
+        {preview ? (
+          <div className="flex flex-col gap-2">
+            <div className={`${previewBoxClassName} flex items-center justify-center rounded-lg border border-border bg-surface p-2`}>
+              <img src={preview} alt={previewAlt} className={previewImageClassName} />
+            </div>
+            <Button type="button" variant="danger" size="sm" onClick={onRemove}>
+              Remove
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 // Tab 3: Theme & Branding
 const ThemeBranding = () => {
   const { t } = usePreferences()
@@ -2519,196 +2578,94 @@ const ThemeBranding = () => {
 
       {/* Branding Assets */}
       <div className="space-y-4">
-        <h4 className="font-semibold text-gray-900 text-base">🖼 Brand Assets</h4>
+        <h4 className="text-base font-semibold text-ink">Brand Assets</h4>
       </div>
 
       {/* Logo Upload */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">System Logo</h4>
+      <AppSurface padding="lg">
+        <h4 className="mb-4 font-medium text-ink">System Logo</h4>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Main Logo</label>
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <input 
-                  ref={logoInputRef}
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => handleLogoUpload(e, 'logo')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
-                />
-                <p className="text-xs text-gray-500 mt-1">Recommended: 200x60px, PNG/SVG (Max 2MB)</p>
-              </div>
-              {(logoPreview || theme.mainLogo) && (
-                <div className="flex flex-col gap-2">
-                  <div className="w-32 h-20 border border-gray-300 rounded-lg flex items-center justify-center bg-white p-2">
-                    <img 
-                      src={logoPreview || theme.mainLogo} 
-                      alt="Logo Preview" 
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleRemoveLogo('logo')}
-                    className="text-xs text-red-600 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Favicon</label>
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <input 
-                  ref={faviconInputRef}
-                  type="file" 
-                  accept="image/x-icon,image/png,image/*" 
-                  onChange={(e) => handleLogoUpload(e, 'favicon')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
-                />
-                <p className="text-xs text-gray-500 mt-1">Recommended: 32x32px, ICO/PNG (Max 2MB)</p>
-              </div>
-              {(faviconPreview || theme.favicon) && (
-                <div className="flex flex-col gap-2">
-                  <div className="w-16 h-16 border border-gray-300 rounded-lg flex items-center justify-center bg-white p-2">
-                    <img 
-                      src={faviconPreview || theme.favicon} 
-                      alt="Favicon Preview" 
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleRemoveLogo('favicon')}
-                    className="text-xs text-red-600 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <ThemeAssetField
+            label="Main Logo"
+            inputRef={logoInputRef}
+            accept="image/*"
+            onChange={(e) => handleLogoUpload(e, 'logo')}
+            hint="Recommended: 200x60px, PNG/SVG (Max 2MB)"
+            preview={logoPreview || theme.mainLogo}
+            previewAlt="Logo Preview"
+            previewBoxClassName="h-20 w-32"
+            previewImageClassName="max-h-full max-w-full object-contain"
+            onRemove={() => handleRemoveLogo('logo')}
+          />
+          <ThemeAssetField
+            label="Favicon"
+            inputRef={faviconInputRef}
+            accept="image/x-icon,image/png,image/*"
+            onChange={(e) => handleLogoUpload(e, 'favicon')}
+            hint="Recommended: 32x32px, ICO/PNG (Max 2MB)"
+            preview={faviconPreview || theme.favicon}
+            previewAlt="Favicon Preview"
+            previewBoxClassName="h-16 w-16"
+            previewImageClassName="max-h-full max-w-full object-contain"
+            onRemove={() => handleRemoveLogo('favicon')}
+          />
         </div>
-      </div>
+      </AppSurface>
 
       {/* Background Image */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Background Image</h4>
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">Main Background Image (Optional)</label>
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <input 
-                ref={bgImageInputRef}
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => handleLogoUpload(e, 'bgImage')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
-              />
-              <p className="text-xs text-gray-500 mt-1">Recommended: 1920x1080px, JPG/PNG (Max 5MB). Will be overlaid with background color.</p>
-            </div>
-            {(bgImagePreview || theme.bgImage) && (
-              <div className="flex flex-col gap-2">
-                <div className="w-32 h-20 border border-gray-300 rounded-lg flex items-center justify-center bg-gray-100 p-2">
-                  <img 
-                    src={bgImagePreview || theme.bgImage} 
-                    alt="Background Preview" 
-                    className="max-w-full max-h-full object-cover rounded"
-                  />
-                </div>
-                <button
-                  onClick={() => handleRemoveLogo('bgImage')}
-                  className="text-xs text-red-600 hover:text-red-700"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <AppSurface padding="lg">
+        <h4 className="mb-4 font-medium text-ink">Background Image</h4>
+        <ThemeAssetField
+          label="Main Background Image (Optional)"
+          inputRef={bgImageInputRef}
+          accept="image/*"
+          onChange={(e) => handleLogoUpload(e, 'bgImage')}
+          hint="Recommended: 1920x1080px, JPG/PNG (Max 5MB). Will be overlaid with background color."
+          preview={bgImagePreview || theme.bgImage}
+          previewAlt="Background Preview"
+          previewBoxClassName="h-20 w-32"
+          previewImageClassName="max-h-full max-w-full rounded object-cover"
+          onRemove={() => handleRemoveLogo('bgImage')}
+        />
+      </AppSurface>
 
       {/* Color Scheme */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Color Scheme</h4>
+      <AppSurface padding="lg">
+        <h4 className="mb-4 font-medium text-ink">Color Scheme</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Primary Color (Topbar)</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.primaryColor} onChange={(e) => handleThemeChange('primaryColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.primaryColor} onChange={(e) => handleThemeChange('primaryColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.primaryColor }}></div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Main Background Color</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.mainBgColor} onChange={(e) => handleThemeChange('mainBgColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.mainBgColor} onChange={(e) => handleThemeChange('mainBgColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.mainBgColor }}></div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Sidebar Background</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.sidebarBgColor} onChange={(e) => handleThemeChange('sidebarBgColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.sidebarBgColor} onChange={(e) => handleThemeChange('sidebarBgColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.sidebarBgColor }}></div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Sidebar Text Color</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.sidebarTextColor} onChange={(e) => handleThemeChange('sidebarTextColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.sidebarTextColor} onChange={(e) => handleThemeChange('sidebarTextColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.sidebarTextColor }}></div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Tab Text Color (Inactive)</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.tabTextColor} onChange={(e) => handleThemeChange('tabTextColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.tabTextColor} onChange={(e) => handleThemeChange('tabTextColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.tabTextColor }}></div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Tab Active Color</label>
-            <div className="flex gap-2">
-              <input type="color" value={theme.tabActiveColor} onChange={(e) => handleThemeChange('tabActiveColor', e.target.value)} className="w-16 h-10 border border-gray-300 rounded cursor-pointer" />
-              <input type="text" value={theme.tabActiveColor} onChange={(e) => handleThemeChange('tabActiveColor', e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
-              <div className="w-10 h-10 rounded border border-gray-300" style={{ backgroundColor: theme.tabActiveColor }}></div>
-            </div>
-          </div>
+          <ThemeColorField label="Primary Color (Topbar)" value={theme.primaryColor} onChange={(e) => handleThemeChange('primaryColor', e.target.value)} />
+          <ThemeColorField label="Main Background Color" value={theme.mainBgColor} onChange={(e) => handleThemeChange('mainBgColor', e.target.value)} />
+          <ThemeColorField label="Sidebar Background" value={theme.sidebarBgColor} onChange={(e) => handleThemeChange('sidebarBgColor', e.target.value)} />
+          <ThemeColorField label="Sidebar Text Color" value={theme.sidebarTextColor} onChange={(e) => handleThemeChange('sidebarTextColor', e.target.value)} />
+          <ThemeColorField label="Tab Text Color (Inactive)" value={theme.tabTextColor} onChange={(e) => handleThemeChange('tabTextColor', e.target.value)} />
+          <ThemeColorField label="Tab Active Color" value={theme.tabActiveColor} onChange={(e) => handleThemeChange('tabActiveColor', e.target.value)} />
         </div>
-        <button onClick={handleResetTheme} className="mt-4 text-sm text-blue-600 hover:text-blue-700">Reset to Default</button>
-      </div>
+        <Button type="button" variant="secondary" onClick={handleResetTheme} className="mt-4">Reset to Default</Button>
+      </AppSurface>
 
       {/* Typography */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Typography</h4>
+      <AppSurface padding="lg">
+        <h4 className="mb-4 font-medium text-ink">Typography</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Font Family</label>
-            <select value={theme.fontFamily} onChange={(e) => handleThemeChange('fontFamily', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+            <label className="mb-2 block text-sm font-medium text-ink">Font Family</label>
+            <SelectField value={theme.fontFamily} onChange={(e) => handleThemeChange('fontFamily', e.target.value)}>
               <option>Inter</option>
               <option>Roboto</option>
               <option>Open Sans</option>
               <option>Poppins</option>
-            </select>
+            </SelectField>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
       {/* Extended Color Palette */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Extended Color Palette</h4>
+      <AppSurface padding="lg">
+        <h4 className="mb-4 font-medium text-ink">Extended Color Palette</h4>
         <div className="space-y-4">
           {/* Status Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Status Colors</label>
+            <label className="mb-3 block text-sm font-medium text-ink">Status Colors</label>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { key: 'successColor', label: 'Success' },
@@ -2716,30 +2673,14 @@ const ThemeBranding = () => {
                 { key: 'errorColor', label: 'Error' },
                 { key: 'infoColor', label: 'Info' }
               ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
-                    />
-                  </div>
-                </div>
+                <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />
               ))}
             </div>
           </div>
 
           {/* Text Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Text Colors</label>
+            <label className="mb-3 block text-sm font-medium text-ink">Text Colors</label>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { key: 'textPrimary', label: 'Primary Text' },
@@ -2747,60 +2688,28 @@ const ThemeBranding = () => {
                 { key: 'textMuted', label: 'Muted Text' },
                 { key: 'textDisabled', label: 'Disabled Text' }
               ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
-                    />
-                  </div>
-                </div>
+                <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />
               ))}
             </div>
           </div>
 
           {/* Border Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Border Colors</label>
+            <label className="mb-3 block text-sm font-medium text-ink">Border Colors</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'borderLight', label: 'Light Border' },
                 { key: 'borderMedium', label: 'Medium Border' },
                 { key: 'borderDark', label: 'Dark Border' }
               ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
-                    />
-                  </div>
-                </div>
+                <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />
               ))}
             </div>
           </div>
 
           {/* Background Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Background Variations</label>
+            <label className="mb-3 block text-sm font-medium text-ink">Background Variations</label>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { key: 'bgCard', label: 'Card Background' },
@@ -2808,28 +2717,12 @@ const ThemeBranding = () => {
                 { key: 'bgHover', label: 'Hover Background' },
                 { key: 'bgSelected', label: 'Selected Background' }
               ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
-                    />
-                  </div>
-                </div>
+                <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />
               ))}
             </div>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
       {/* Button Styles */}
       <div className="border border-gray-200 rounded-lg p-4">
