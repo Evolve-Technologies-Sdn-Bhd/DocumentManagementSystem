@@ -2,7 +2,7 @@ import React from 'react'
 
 export function TableContainer({ children, className = '', ...props }) {
   return (
-    <div className={['dms-scrollbar overflow-x-auto rounded-2xl border border-border bg-surface', className].filter(Boolean).join(' ')} {...props}>
+    <div className={['dms-scrollbar overflow-x-auto overscroll-x-contain rounded-2xl border border-border bg-surface', className].filter(Boolean).join(' ')} {...props}>
       {children}
     </div>
   )
@@ -10,7 +10,7 @@ export function TableContainer({ children, className = '', ...props }) {
 
 export function Table({ children, className = '', ...props }) {
   return (
-    <table className={['w-full text-sm', className].filter(Boolean).join(' ')} {...props}>
+    <table className={['w-full text-[13px] leading-5', className].filter(Boolean).join(' ')} {...props}>
       {children}
     </table>
   )
@@ -37,7 +37,7 @@ export function Td({ children, className = '', align = 'left', ...props }) {
   return (
     <td
       className={[
-        'px-4 py-3.5 align-middle text-sm text-ink-secondary border-b border-border/70',
+        'px-4 py-3.5 align-middle text-[13px] text-ink-secondary border-b border-border/70',
         alignClass,
         className
       ].filter(Boolean).join(' ')}
@@ -55,4 +55,3 @@ export function Tr({ children, className = '', ...props }) {
     </tr>
   )
 }
-

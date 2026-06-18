@@ -5,14 +5,15 @@ export default function Pagination({
   currentPage = 1, 
   totalPages = 1, 
   totalRecords = 0,
-  pageSize = 15, 
+  pageSize,
   onPageChange, 
   onPageSizeChange,
-  pageSizeOptions = [10, 15, 25, 50, 100]
+  pageSizeOptions = [10, 20, 50]
 }) {
-  const { t } = usePreferences()
-  const startRecord = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const endRecord = Math.min(currentPage * pageSize, totalRecords)
+  const { t, itemsPerPage } = usePreferences()
+  const effectivePageSize = Number(pageSize) || Number(itemsPerPage) || 10
+  const startRecord = totalRecords === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1
+  const endRecord = Math.min(currentPage * effectivePageSize, totalRecords)
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages && page !== currentPage) {
@@ -76,7 +77,7 @@ export default function Pagination({
             </label>
             <select
               id="pageSize"
-              value={pageSize}
+              value={effectivePageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               className="h-9 rounded-2xl border border-border bg-surface px-2 text-sm text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/30"
             >

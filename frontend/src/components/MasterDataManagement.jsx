@@ -5,6 +5,10 @@ import ActionMenu from './ActionMenu'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import Pagination from './Pagination'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import TextArea from './ui/TextArea'
 
 const VALID_MASTERDATA_TABS = ['departments', 'project-categories', 'document-types']
 
@@ -18,17 +22,17 @@ function MasterDataTabs({ activeTab, onTabChange }) {
   ]
 
   return (
-    <div className="border-b border-gray-200 mb-6" data-tour-id="mdm-tabbar">
-      <nav className="flex space-x-8">
+    <div className="mb-6 border-b border-border" data-tour-id="mdm-tabbar">
+      <nav className="dms-scrollbar flex gap-4 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             data-tour-id={`mdm-tab-${tab.id}`}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`whitespace-nowrap border-b-2 px-2 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-brand text-ink'
+                : 'border-transparent text-ink-soft hover:border-border hover:text-ink-secondary'
             }`}
           >
             {tab.label}
@@ -72,89 +76,55 @@ function DocumentTypeModal({ isOpen, onClose, onSubmit, initialData }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-gray-900">
-            {initialData ? t('mdm_edit_doc_type') : t('mdm_add_doc_type')}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6">
+    <Modal onClose={onClose} closeOnBackdrop size="sm">
+      <ModalHeader title={initialData ? t('mdm_edit_doc_type') : t('mdm_add_doc_type')} onClose={onClose} />
+      <form onSubmit={handleSubmit}>
+        <ModalBody>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_name')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., Minutes of Meeting"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_prefix')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_prefix')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.prefix}
                 onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., MoM"
               />
-              <p className="mt-1.5 text-xs text-gray-500">{t('mdm_prefix_help')}</p>
+              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_prefix_help')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('description')}
-              </label>
-              <textarea
+              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
+              <TextArea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"
                 placeholder={t('mdm_optional_desc')}
               />
             </div>
           </div>
-
-          {/* Modal Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              {initialData ? t('mdm_update') : t('mdm_create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
+          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   )
 }
 
@@ -191,95 +161,61 @@ function ProjectCategoryModal({ isOpen, onClose, onSubmit, initialData }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-gray-900">
-            {initialData ? t('mdm_edit_project_cat') : t('mdm_add_project_cat')}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6">
+    <Modal onClose={onClose} closeOnBackdrop size="sm">
+      <ModalHeader title={initialData ? t('mdm_edit_project_cat') : t('mdm_add_project_cat')} onClose={onClose} />
+      <form onSubmit={handleSubmit}>
+        <ModalBody>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_name')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., Internal Project"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_code')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_code')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., INT"
               />
-              <p className="mt-1.5 text-xs text-gray-500">{t('mdm_code_project_help')}</p>
+              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_code_project_help')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('description')}
-              </label>
-              <textarea
+              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
+              <TextArea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"
                 placeholder={t('mdm_optional_desc')}
               />
             </div>
           </div>
-
-          {/* Modal Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              {initialData ? t('mdm_update') : t('mdm_create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
+          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   )
 }
 
 // Document Types Management
 function DocumentTypesManagement() {
-  const { t } = usePreferences()
+  const { t, itemsPerPage } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
   const [documentTypes, setDocumentTypes] = useState([])
@@ -289,9 +225,13 @@ function DocumentTypesManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(15)
+  const [pageSize, setPageSize] = useState(itemsPerPage || 10)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+
+  useEffect(() => {
+    setPageSize(itemsPerPage || 10)
+  }, [itemsPerPage])
 
   useEffect(() => {
     loadDocumentTypes()
@@ -563,7 +503,7 @@ function DocumentTypesManagement() {
 
 // Project Categories Management
 function ProjectCategoriesManagement() {
-  const { t } = usePreferences()
+  const { t, itemsPerPage } = usePreferences()
   const location = useLocation()
   const navigate = useNavigate()
   const [projectCategories, setProjectCategories] = useState([])
@@ -573,9 +513,13 @@ function ProjectCategoriesManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(15)
+  const [pageSize, setPageSize] = useState(itemsPerPage || 10)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+
+  useEffect(() => {
+    setPageSize(itemsPerPage || 10)
+  }, [itemsPerPage])
 
   useEffect(() => {
     loadProjectCategories()
@@ -843,95 +787,61 @@ function DepartmentModal({ isOpen, onClose, onSubmit, initialData }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-gray-900">
-            {initialData ? t('mdm_edit_dept') : t('mdm_add_dept')}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6">
+    <Modal onClose={onClose} closeOnBackdrop size="sm">
+      <ModalHeader title={initialData ? t('mdm_edit_dept') : t('mdm_add_dept')} onClose={onClose} />
+      <form onSubmit={handleSubmit}>
+        <ModalBody>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_name')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., Information Technology"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('mdm_code')} <span className="text-red-500">*</span>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_code')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
               </label>
-              <input
+              <TextInput
                 type="text"
                 required
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 placeholder="e.g., IT"
               />
-              <p className="mt-1.5 text-xs text-gray-500">{t('mdm_code_dept_help')}</p>
+              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_code_dept_help')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('description')}
-              </label>
-              <textarea
+              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
+              <TextArea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none"
                 placeholder={t('mdm_optional_desc')}
               />
             </div>
           </div>
-
-          {/* Modal Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              {initialData ? t('mdm_update') : t('mdm_create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
+          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   )
 }
 
 // Departments Management
 function DepartmentsManagement() {
-  const { t } = usePreferences()
+  const { t, itemsPerPage } = usePreferences()
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -939,9 +849,13 @@ function DepartmentsManagement() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(15)
+  const [pageSize, setPageSize] = useState(itemsPerPage || 10)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+
+  useEffect(() => {
+    setPageSize(itemsPerPage || 10)
+  }, [itemsPerPage])
 
   useEffect(() => {
     loadDepartments()

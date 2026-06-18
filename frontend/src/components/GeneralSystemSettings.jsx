@@ -3904,45 +3904,44 @@ function DocumentSettings() {
       </AppSurface>
 
       {/* Document Numbering */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <h4 className="font-semibold text-gray-900 text-base">Document Numbering Configuration</h4>
-          <p className="text-sm text-gray-600 mt-1">Configure automatic document code generation and formatting</p>
+      <AppSurface padding="lg" variant="panel" className="space-y-6 overflow-hidden">
+        <div className="space-y-1 border-b border-border pb-4">
+          <h4 className="text-base font-semibold text-ink">Document Numbering Configuration</h4>
+          <p className="text-sm text-ink-muted">Configure automatic document code generation and formatting</p>
         </div>
-        <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
             <input 
               type="checkbox" 
               checked={settings.autoGenerateCode} 
               onChange={(e) => setSettings(prev => ({ ...prev, autoGenerateCode: e.target.checked }))} 
-              className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" 
+              className="mt-1 h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30" 
             />
             <div>
-              <span className="text-sm font-medium text-gray-900">Enable Auto-generate Document Code</span>
-              <p className="text-sm text-gray-600 mt-0.5">Automatically generate unique document codes based on your format</p>
+              <span className="text-sm font-semibold text-ink">Enable Auto-generate Document Code</span>
+              <p className="mt-0.5 text-sm text-ink-muted">Automatically generate unique document codes based on your format</p>
             </div>
           </label>
           {settings.autoGenerateCode && (
             <div className="space-y-6 pl-7">
               {/* Format Builder */}
               <div>
-                <h5 className="text-sm font-semibold text-gray-900 mb-4">Format Builder</h5>
+                <h5 className="mb-4 text-sm font-semibold text-ink">Format Builder</h5>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Prefix Placeholder */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                    <label className="mb-2 block text-sm font-semibold text-ink">
                       Prefix Placeholder
                     </label>
-                    <input 
+                    <TextInput
                       type="text" 
                       value={settings.prefixPlaceholder} 
                       onChange={(e) => setSettings(prev => ({ ...prev, prefixPlaceholder: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm" 
+                      className="font-mono"
                       placeholder="PFX"
                       maxLength="10"
                     />
-                    <p className="text-xs text-gray-500 mt-1">e.g., PFX, PF, PREFIX (pulls actual prefix from Master Data)</p>
+                    <p className="mt-1 text-xs text-ink-soft">e.g., PFX, PF, PREFIX (pulls actual prefix from Master Data)</p>
                   </div>
 
                   <div>
@@ -3951,31 +3950,31 @@ function DocumentSettings() {
                         type="checkbox"
                         checked={settings.includeProjectCategoryCode}
                         onChange={(e) => setSettings(prev => ({ ...prev, includeProjectCategoryCode: e.target.checked }))}
-                        className="w-4 h-4 text-blue-600 rounded"
+                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
                       />
-                      <span className="text-xs font-medium text-gray-700">Include Project Category Code</span>
+                      <span className="text-xs font-semibold text-ink-secondary">Include Project Category Code</span>
                     </label>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="mt-1 text-xs text-ink-soft">
                       When enabled, the file code adds `project category code` as its own leading segment before the document type prefix.
                     </p>
                   </div>
 
                   {/* Separator */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                    <label className="mb-2 block text-sm font-semibold text-ink">
                       Separator
                     </label>
-                    <select 
+                    <SelectField 
                       value={settings.separator} 
                       onChange={(e) => setSettings(prev => ({ ...prev, separator: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono bg-white"
+                      className="font-mono"
                     >
                       <option value="/">/ (Forward Slash)</option>
                       <option value="-">- (Dash)</option>
                       <option value="_">_ (Underscore)</option>
                       <option value=".">. (Dot)</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Character that separates code parts</p>
+                    </SelectField>
+                    <p className="mt-1 text-xs text-ink-soft">Character that separates code parts</p>
                   </div>
 
                   {/* Version */}
@@ -3985,31 +3984,31 @@ function DocumentSettings() {
                         type="checkbox" 
                         checked={settings.includeVersion} 
                         onChange={(e) => setSettings(prev => ({ ...prev, includeVersion: e.target.checked }))} 
-                        className="w-4 h-4 text-blue-600 rounded"
+                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
                       />
-                      <span className="text-xs font-medium text-gray-700">Include Version Number</span>
+                      <span className="text-xs font-semibold text-ink-secondary">Include Version Number</span>
                     </label>
                     {settings.includeVersion && (
-                      <select 
+                      <SelectField 
                         value={settings.versionDigits} 
                         onChange={(e) => setSettings(prev => ({ ...prev, versionDigits: e.target.value }))} 
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm bg-white"
+                        className="font-mono"
                       >
                         <option value="1">1 digit (1-9)</option>
                         <option value="2">2 digits (01-99)</option>
                         <option value="3">3 digits (001-999)</option>
-                      </select>
+                      </SelectField>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">Version padding: 01, 001, etc.</p>
+                    <p className="mt-1 text-xs text-ink-soft">Version padding: 01, 001, etc.</p>
                   </div>
 
                   {/* Date Format */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Date Format</label>
-                    <select 
+                    <label className="mb-1.5 block text-xs font-semibold text-ink-soft">Date Format</label>
+                    <SelectField 
                       value={settings.dateFormat} 
                       onChange={(e) => setSettings(prev => ({ ...prev, dateFormat: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm bg-white"
+                      className="font-mono"
                     >
                       <option value="YYMMDD">YYMMDD (260105)</option>
                       <option value="YYYYMMDD">YYYYMMDD (20260105)</option>
@@ -4017,24 +4016,24 @@ function DocumentSettings() {
                       <option value="YYMM">YYMM (2601)</option>
                       <option value="YYYY">YYYY (2026)</option>
                       <option value="none">No Date</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Date format in document code</p>
+                    </SelectField>
+                    <p className="mt-1 text-xs text-ink-soft">Date format in document code</p>
                   </div>
 
                   {/* Counter Digits */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Counter Digits</label>
-                    <select 
+                    <label className="mb-1.5 block text-xs font-semibold text-ink-soft">Counter Digits</label>
+                    <SelectField 
                       value={settings.counterDigits} 
                       onChange={(e) => setSettings(prev => ({ ...prev, counterDigits: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm bg-white"
+                      className="font-mono"
                     >
                       <option value="2">2 digits (01-99)</option>
                       <option value="3">3 digits (001-999)</option>
                       <option value="4">4 digits (0001-9999)</option>
                       <option value="5">5 digits (00001-99999)</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Running number padding</p>
+                    </SelectField>
+                    <p className="mt-1 text-xs text-ink-soft">Running number padding</p>
                   </div>
 
                   {/* Starting Number */}
@@ -4134,8 +4133,7 @@ function DocumentSettings() {
 
             </div>
           )}
-        </div>
-      </div>
+      </AppSurface>
 
       {/* Version Control */}
       <div className="border border-gray-200 rounded-lg p-4">

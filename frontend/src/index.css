@@ -141,6 +141,9 @@ body {
 .dms-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.8) transparent;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dms-scrollbar::-webkit-scrollbar {
