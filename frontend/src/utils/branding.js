@@ -1,3 +1,69 @@
+export const BRANDING_UPDATED_EVENT = 'brandingUpdated'
+export const LANDING_SETTINGS_UPDATED_EVENT = 'landingPageSettingsUpdated'
+
+export function readStoredJson(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function readThemeSettings() {
+  return readStoredJson('dms_theme_settings')
+}
+
+export function readCompanyInfo() {
+  return readStoredJson('dms_company_info')
+}
+
+export function readBranding() {
+  const theme = readThemeSettings()
+  const companyInfo = readCompanyInfo()
+
+  return {
+    theme,
+    companyInfo,
+    logo: theme?.mainLogo || null,
+    companyName: companyInfo?.companyName || 'FileNix',
+    welcomeMessage: theme?.loginWelcomeMessage || 'Welcome to {companyName}'
+  }
+}
+
+export function readLandingPageSettings() {
+  return readStoredJson('dms_landing_page_settings')
+}
+
+export function subscribeBranding(callback) {
+  const handler = () => callback?.(readBranding())
+  window.addEventListener('storage', handler)
+  window.addEventListener(BRANDING_UPDATED_EVENT, handler)
+  return () => {
+    window.removeEventListener('storage', handler)
+    window.removeEventListener(BRANDING_UPDATED_EVENT, handler)
+  }
+}
+
+export function subscribeLandingPageSettings(callback) {
+  const handler = () => callback?.(readLandingPageSettings())
+  window.addEventListener('storage', handler)
+  window.addEventListener(LANDING_SETTINGS_UPDATED_EVENT, handler)
+  return () => {
+    window.removeEventListener('storage', handler)
+    window.removeEventListener(LANDING_SETTINGS_UPDATED_EVENT, handler)
+  }
+}
+
+export function persistLandingPageSettings(settings) {
+  if (settings && typeof settings === 'object') {
+    try {
+      localStorage.setItem('dms_landing_page_settings', JSON.stringify(settings))
+    } catch {}
+  }
+  window.dispatchEvent(new Event(LANDING_SETTINGS_UPDATED_EVENT))
+}
+
 export function applyTheme(themeObj) {
   if (!themeObj || typeof themeObj !== 'object') return
   const root = document.documentElement
@@ -116,5 +182,5 @@ export function persistBranding({ companyInfo, theme }) {
       localStorage.setItem('dms_theme_settings', JSON.stringify(theme))
     } catch {}
   }
-  window.dispatchEvent(new Event('brandingUpdated'))
+  window.dispatchEvent(new Event(BRANDING_UPDATED_EVENT))
 }

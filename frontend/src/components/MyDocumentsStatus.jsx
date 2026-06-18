@@ -5,6 +5,14 @@ import EmptyState from './EmptyState'
 import Pagination from './Pagination'
 import DocumentRemarksModal from './DocumentRemarksModal'
 import { usePreferences } from '../contexts/PreferencesContext'
+import PageHeader from './ui/PageHeader'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import SelectField from './ui/SelectField'
+import InlineSpinner from './ui/InlineSpinner'
+import EmptyPanelState from './ui/EmptyPanelState'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
 // Progress Tracker Component
 function ProgressTracker({ currentStage, trackingId }) {
@@ -21,23 +29,22 @@ function ProgressTracker({ currentStage, trackingId }) {
   const currentIndex = stages.findIndex(s => s.id === currentStage)
 
   return (
-    <div className="card p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+    <AppSurface padding="lg" className="space-y-4">
+      <h2 className="text-lg font-semibold text-ink">
         {t('tracking')}: {trackingId}
       </h2>
-      
-      {/* Progress Bar - Desktop */}
-      <div className="hidden md:flex items-center gap-0.5">
+
+      <div className="hidden md:flex items-center gap-0.5 overflow-x-auto">
         {stages.map((stage, index) => {
           const isActive = index <= currentIndex
           const isFirst = index === 0
           const isLast = index === stages.length - 1
-          
+
           return (
             <div
               key={stage.id}
               className={`relative flex-1 h-12 flex items-center justify-center text-sm font-medium transition-all ${
-                isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
               } ${
                 isFirst ? 'rounded-l-lg' : ''
               } ${
@@ -53,16 +60,15 @@ function ProgressTracker({ currentStage, trackingId }) {
         })}
       </div>
 
-      {/* Progress Bar - Mobile (Vertical) */}
       <div className="md:hidden space-y-2">
         {stages.map((stage, index) => {
           const isActive = index <= currentIndex
-          
+
           return (
             <div
               key={stage.id}
-              className={`p-3 rounded-lg text-sm font-medium transition-all ${
-                isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+              className={`rounded-2xl p-3 text-sm font-medium transition-all ${
+                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
               }`}
             >
               {stage.label}
@@ -70,7 +76,7 @@ function ProgressTracker({ currentStage, trackingId }) {
           )
         })}
       </div>
-    </div>
+    </AppSurface>
   )
 }
 
@@ -124,11 +130,36 @@ const mapStatusToStage = (status, stage, reviewedAt, approvedAt, publishedAt) =>
   return 'draft'
 }
 
+const summaryCards = (t) => [
+  { label: t('status_pending_ack'), status: 'Pending Acknowledgment', tone: 'warning' },
+  { label: t('status_draft'), status: 'Draft', tone: 'neutral' },
+  { label: t('status_in_review'), status: 'Waiting for Review', tone: 'info' },
+  { label: t('status_in_approval'), status: 'Waiting for Approval', tone: 'brand' },
+  { label: t('status_published'), status: 'Published', tone: 'success' },
+  { label: t('status_archived'), status: 'Obsolete', tone: 'danger' }
+]
+
+const summaryToneClassMap = {
+  warning: 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-border-default)]',
+  neutral: 'bg-surface-muted text-ink-secondary border-border',
+  info: 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-border-default)]',
+  brand: 'bg-brand/10 text-brand border-brand/20',
+  success: 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] border-[var(--dms-color-border-default)]',
+  danger: 'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)] border-[var(--dms-color-border-default)]'
+}
+
+const getDisplayFileCode = (doc) => (
+  doc.rawStatus === 'PENDING_ACKNOWLEDGMENT' || (doc.fileCode && doc.fileCode.startsWith('PENDING-'))
+    ? '-'
+    : doc.fileCode
+)
+
 export default function MyDocumentsStatus() {
   const { itemsPerPage, t, formatDate } = usePreferences()
   const [documents, setDocuments] = useState([])
   const [filteredDocuments, setFilteredDocuments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [currentTracking, setCurrentTracking] = useState(null)
   const [currentStage, setCurrentStage] = useState('draft')
   const [selectedDocId, setSelectedDocId] = useState(null)
@@ -200,80 +231,31 @@ export default function MyDocumentsStatus() {
   }, [documents, statusFilter, searchQuery])
 
   const loadDocuments = async () => {
+    setLoading(true)
+    setLoadError('')
     try {
       const res = await api.get('/documents/my-status')
       const docs = res.data.data?.documents || res.data.documents || []
-      console.log('Loaded documents:', docs.length)
-      console.log('Document statuses:', docs.map(d => ({ id: d.id, fileCode: d.fileCode, status: d.status, rawStatus: d.rawStatus })))
       setDocuments(docs)
       setFilteredDocuments(docs)
-      
-      // Auto-select first document
+
       if (docs.length > 0) {
         setCurrentTracking(docs[0].fileCode)
         setCurrentStage(mapStatusToStage(docs[0].status, docs[0].stage, docs[0].reviewedAt, docs[0].approvedAt, docs[0].publishedAt))
         setSelectedDocId(docs[0].id)
+      } else {
+        setCurrentTracking(null)
+        setSelectedDocId(null)
+        setShowDetailsPanel(false)
       }
     } catch (error) {
       console.error('Failed to load documents:', error)
-      // Mock data for demonstration
-      const mockDocs = [
-        {
-          id: 1,
-          fileCode: 'MoM01250821001',
-          title: 'Minutes of Meeting - Q4 2024',
-          version: '1.0',
-          lastUpdated: '2024-11-15T00:00:00.000Z',
-          status: 'Draft Saved'
-        },
-        {
-          id: 2,
-          fileCode: 'PP01250821001',
-          title: 'Project Implementation Plan',
-          version: '2.0',
-          lastUpdated: '2024-11-17T00:00:00.000Z',
-          status: 'Pending Review'
-        },
-        {
-          id: 3,
-          fileCode: 'PRA01250821001',
-          title: 'System Requirements Analysis',
-          version: '1.1',
-          lastUpdated: '2024-11-10T00:00:00.000Z',
-          status: 'Pending Approval'
-        },
-        {
-          id: 4,
-          fileCode: 'DD01250821001',
-          title: 'Technical Design Document',
-          version: '1.2',
-          lastUpdated: '2024-11-18T00:00:00.000Z',
-          status: 'Return for Amendments'
-        },
-        {
-          id: 5,
-          fileCode: 'SOP-QA-1124001',
-          title: 'Quality Assurance Procedures',
-          version: '3.0',
-          lastUpdated: '2024-11-20T00:00:00.000Z',
-          status: 'Published'
-        },
-        {
-          id: 6,
-          fileCode: 'POL-SEC-0924001',
-          title: 'Security Policy Document',
-          version: '2.1',
-          lastUpdated: '2024-09-05T00:00:00.000Z',
-          status: 'Superseded'
-        }
-      ]
-      setDocuments(mockDocs)
-      setFilteredDocuments(mockDocs)
-      
-      // Auto-select first document
-      setCurrentTracking(mockDocs[0].fileCode)
-      setCurrentStage(mapStatusToStage(mockDocs[0].status, null, null, null, null))
-      setSelectedDocId(mockDocs[0].id)
+      setLoadError(t('failed_load_docs') || 'Failed to load documents.')
+      setDocuments([])
+      setFilteredDocuments([])
+      setCurrentTracking(null)
+      setSelectedDocId(null)
+      setShowDetailsPanel(false)
     } finally {
       setLoading(false)
     }
@@ -558,310 +540,246 @@ export default function MyDocumentsStatus() {
       {/* Document Details Panel */}
       {showDetailsPanel && <DocumentDetailsPanel />}
 
-      <div className="p-6 space-y-6">
-        {/* Page Header */}
-        <div className="card p-6">
-          <h1 className="text-2xl font-bold text-gray-900">{t('my_docs_title')}</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {t('my_docs_status_desc')}
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title={t('my_docs_title')}
+          subtitle={t('my_docs_status_desc')}
+        />
 
-        {/* Status Summary Cards */}
+        {loadError && (
+          <AppSurface
+            padding="md"
+            className="border-[var(--dms-color-border-default)] bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)]"
+          >
+            {loadError}
+          </AppSurface>
+        )}
+
         {!loading && documents.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {[
-              { label: t('status_pending_ack'), status: 'Pending Acknowledgment', color: 'yellow' },
-              { label: t('status_draft'), status: 'Draft', color: 'gray' },
-              { label: t('status_in_review'), status: 'Waiting for Review', color: 'blue' },
-              { label: t('status_in_approval'), status: 'Waiting for Approval', color: 'purple' },
-              { label: t('status_published'), status: 'Published', color: 'green' },
-              { label: t('status_archived'), status: 'Obsolete', color: 'red' }
-            ].map((item) => {
-              const count = documents.filter(doc => {
-                // Handle specific status matching
-                if (item.status === 'Obsolete') {
-                  return ['Obsolete', 'Superseded', 'Archived'].includes(doc.status)
-                }
-                if (item.status === 'Waiting for Review') {
-                  return ['Waiting for Review', 'Pending Review', 'In Review', 'Return for Amendments'].includes(doc.status)
-                }
-                if (item.status === 'Waiting for Approval') {
-                  return [
-                    'Waiting for Approval', 'Pending Approval', 'In Approval',
-                    'PENDING_FIRST_APPROVAL', 'IN_FIRST_APPROVAL', 'Pending First Approval', 'In First Approval',
-                    'PENDING_SECOND_APPROVAL', 'IN_SECOND_APPROVAL', 'Pending Second Approval', 'In Second Approval',
-                    'READY_TO_PUBLISH', 'Ready to Publish'
-                  ].includes(doc.status)
-                }
-                if (item.status === 'Published') {
-                  return ['Published', 'PUBLISHED', 'Approved'].includes(doc.status)
-                }
-                if (item.status === 'Draft') {
-                  return ['Draft', 'Draft Saved', 'Acknowledged', 'Drafting'].includes(doc.status)
-                }
-                return doc.status === item.status
-              }).length
-              
-              const colorClasses = {
-                yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-                gray: 'bg-gray-50 text-gray-700 border-gray-200',
-                blue: 'bg-blue-50 text-blue-700 border-blue-200',
-                purple: 'bg-purple-50 text-purple-700 border-purple-200',
-                green: 'bg-green-50 text-green-700 border-green-200',
-                red: 'bg-red-50 text-red-700 border-red-200'
-              }
-              
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            {summaryCards(t).map((item) => {
+              const count = documents.filter((doc) => matchesStatusFilter(doc, item.status)).length
+              const isActive = statusFilter === item.status
+
               return (
-                <button
+                <AppSurface
                   key={item.status}
+                  as="button"
+                  type="button"
                   onClick={() => setStatusFilter(item.status)}
-                  className={`card p-4 text-left border-2 transition-all hover:shadow-md ${
-                    statusFilter === item.status ? colorClasses[item.color] : 'border-transparent'
-                  }`}
+                  padding="md"
+                  className={[
+                    'text-left transition-all',
+                    isActive ? summaryToneClassMap[item.tone] : 'border-border hover:border-brand/20 hover:bg-surface-muted'
+                  ].join(' ')}
                 >
-                  <div className="text-2xl font-bold text-gray-900">{count}</div>
-                  <div className="text-xs text-gray-600 mt-1">{item.label}</div>
-                </button>
+                  <div className="text-2xl font-semibold text-ink">{count}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{item.label}</div>
+                </AppSurface>
               )
             })}
           </div>
         )}
 
-      {/* Progress Tracker */}
-      {currentTracking ? (
-        <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
-      ) : (
-        <div className="card p-6">
-          <div className="text-center py-8 text-gray-500">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p className="font-medium text-gray-700">{t('select_doc_track')}</p>
-            <p className="text-sm mt-1">{t('click_doc_view')}</p>
-          </div>
-        </div>
-      )}
+        {currentTracking ? (
+          <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
+        ) : (
+          <AppSurface padding="lg">
+            <EmptyPanelState
+              title={t('select_doc_track')}
+              description={t('click_doc_view')}
+            />
+          </AppSurface>
+        )}
 
-      {/* Current Document Status */}
-      <div className="card p-6">
-        <div className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <AppSurface padding="lg" className="space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{t('current_doc_status')}</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-lg font-semibold text-ink">{t('current_doc_status')}</h2>
+              <p className="mt-1 text-sm text-ink-muted">
                 {filteredDocuments.length} document{filteredDocuments.length !== 1 ? 's' : ''} found
               </p>
             </div>
-            
-            {/* Actions */}
-            <div className="flex gap-2">
-              <button 
-                onClick={loadDocuments}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Refresh documents list"
-              >
-                <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {t('refresh')}
-                </span>
-              </button>
-            </div>
+            <Button variant="secondary" onClick={loadDocuments} title="Refresh documents list">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {t('refresh')}
+            </Button>
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex flex-col gap-3 md:flex-row">
+            <div className="relative flex-1">
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <input
+              <TextInput
                 type="text"
                 placeholder={t('search_docs_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="pl-10 pr-10"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft transition-colors hover:text-ink"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
 
-            {/* Status Filter */}
-            <select
+            <SelectField
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white min-w-[200px]"
+              className="min-w-[220px]"
             >
-              {allStatuses.map(status => (
+              {allStatuses.map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
-        </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('file_code')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('title')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('project_category')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('version')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('last_updated')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span>{t('loading_docs')}</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : currentDocuments.length === 0 ? (
-                <tr>
-                  <td colSpan="7">
-                    <EmptyState 
-                      message={t('no_docs_found')} 
-                      description={
-                        searchQuery || statusFilter !== 'All' 
-                          ? t('try_adjusting') 
-                          : t('no_docs_yet')
-                      }
-                      actionLabel={searchQuery ? t('clear_search') : (statusFilter !== 'All' ? t('clear_filter') : null)}
-                      onAction={
-                        searchQuery 
-                          ? () => setSearchQuery('') 
-                          : (statusFilter !== 'All' ? () => setStatusFilter('All') : null)
-                      }
-                    />
-                  </td>
-                </tr>
-              ) : (
-                currentDocuments.map((doc) => (
-                  <tr 
-                    key={doc.id} 
-                    onClick={() => handleDocumentClick(doc)}
-                    className={`border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer ${
-                      selectedDocId === doc.id ? 'bg-blue-50 ring-2 ring-blue-200' : ''
-                    }`}
-                  >
-                    <td className="py-4 px-4">
+          <div className="hidden md:block">
+            <TableContainer>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>{t('file_code')}</Th>
+                    <Th>{t('title')}</Th>
+                    <Th>{t('project_category')}</Th>
+                    <Th>{t('version')}</Th>
+                    <Th>{t('last_updated')}</Th>
+                    <Th>{t('status')}</Th>
+                    <Th align="center">{t('actions')}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="7" className="px-4 py-10">
+                        <div className="flex items-center justify-center gap-2 text-sm text-ink-muted">
+                          <InlineSpinner />
+                          <span>{t('loading_docs')}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : currentDocuments.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-4 py-4">
+                        <EmptyState
+                          message={t('no_docs_found')}
+                          description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
+                          actionLabel={searchQuery ? t('clear_search') : (statusFilter !== 'All' ? t('clear_filter') : null)}
+                          onAction={searchQuery ? () => setSearchQuery('') : (statusFilter !== 'All' ? () => setStatusFilter('All') : null)}
+                        />
+                      </td>
+                    </tr>
+                  ) : (
+                    currentDocuments.map((doc) => (
+                      <Tr
+                        key={doc.id}
+                        onClick={() => handleDocumentClick(doc)}
+                        className={selectedDocId === doc.id ? 'bg-brand/5' : 'cursor-pointer'}
+                      >
+                        <Td>
+                          <div className="flex items-center gap-2">
+                            {selectedDocId === doc.id && (
+                              <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            <span className={selectedDocId === doc.id ? 'font-semibold text-brand' : 'font-medium text-ink'}>
+                              {getDisplayFileCode(doc)}
+                            </span>
+                          </div>
+                        </Td>
+                        <Td className="text-ink-secondary">{doc.title}</Td>
+                        <Td>{doc.projectCategory || '-'}</Td>
+                        <Td>{doc.version}</Td>
+                        <Td>{formatDate(doc.updatedAt || doc.lastUpdated)}</Td>
+                        <Td><StatusBadge status={doc.status} /></Td>
+                        <Td align="center">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDocumentClick(doc)
+                            }}
+                            className="rounded-xl px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand/10 hover:text-brand-hover"
+                          >
+                            {t('view_details')}
+                          </button>
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TableContainer>
+          </div>
+
+          <div className="space-y-4 md:hidden">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-ink-muted">
+                <InlineSpinner />
+                <span>{t('loading_docs')}</span>
+              </div>
+            ) : currentDocuments.length === 0 ? (
+              <EmptyState
+                message={t('no_docs_found')}
+                description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
+                actionLabel={searchQuery ? t('clear_search') : null}
+                onAction={searchQuery ? () => setSearchQuery('') : null}
+              />
+            ) : (
+              currentDocuments.map((doc) => (
+                <AppSurface
+                  key={doc.id}
+                  variant="muted"
+                  padding="md"
+                  onClick={() => handleDocumentClick(doc)}
+                  className={[
+                    'cursor-pointer space-y-3 transition-all',
+                    selectedDocId === doc.id ? 'border-brand/30 bg-brand/5 shadow-dms-soft' : 'hover:border-brand/20'
+                  ].join(' ')}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         {selectedDocId === doc.id && (
-                          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="h-4 w-4 shrink-0 text-brand" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                         )}
-                        <span className={`font-medium ${
-                          selectedDocId === doc.id ? 'text-blue-600' : 'text-gray-900'
-                        }`}>
-                          {(doc.rawStatus === 'PENDING_ACKNOWLEDGMENT' || (doc.fileCode && doc.fileCode.startsWith('PENDING-'))) ? '-' : doc.fileCode}
+                        <span className={selectedDocId === doc.id ? 'font-semibold text-brand' : 'font-semibold text-ink'}>
+                          {getDisplayFileCode(doc)}
                         </span>
                       </div>
-                    </td>
-                    <td className="py-4 px-4 text-gray-700">{doc.title}</td>
-                    <td className="py-4 px-4 text-gray-700">{doc.projectCategory || '-'}</td>
-                    <td className="py-4 px-4 text-gray-700">{doc.version}</td>
-                    <td className="py-4 px-4 text-gray-700">{formatDate(doc.updatedAt || doc.lastUpdated)}</td>
-                    <td className="py-4 px-4">
-                      <StatusBadge status={doc.status} />
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDocumentClick(doc)
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm px-3 py-1 rounded hover:bg-blue-50 transition-colors"
-                      >
-                        {t('view_details')}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-4">
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="flex flex-col items-center gap-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span>{t('loading_docs')}</span>
-              </div>
-            </div>
-          ) : currentDocuments.length === 0 ? (
-            <EmptyState 
-              message={t('no_docs_found')} 
-              description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
-              actionLabel={searchQuery ? t('clear_search') : null}
-              onAction={searchQuery ? () => setSearchQuery('') : null}
-            />
-          ) : (
-            currentDocuments.map((doc) => (
-              <div 
-                key={doc.id} 
-                onClick={() => handleDocumentClick(doc)}
-                className={`border rounded-lg p-4 space-y-3 cursor-pointer transition-all ${
-                  selectedDocId === doc.id 
-                    ? 'border-blue-500 bg-blue-50 shadow-md' 
-                    : 'border-gray-200 hover:border-blue-300 hover:shadow'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      {selectedDocId === doc.id && (
-                        <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      <span className={`font-semibold ${
-                        selectedDocId === doc.id ? 'text-blue-600' : 'text-gray-900'
-                      }`}>
-                        {(doc.rawStatus === 'PENDING_ACKNOWLEDGMENT' || (doc.fileCode && doc.fileCode.startsWith('PENDING-'))) ? '-' : doc.fileCode}
-                      </span>
+                      <div className="mt-1 text-sm text-ink-muted">{doc.title}</div>
                     </div>
-                    <div className="text-sm text-gray-600 mt-1">{doc.title}</div>
+                    <StatusBadge status={doc.status} />
                   </div>
-                  <StatusBadge status={doc.status} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-500">{t('version')}:</span>
-                    <div className="text-gray-900 font-medium">{doc.version}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">{t('last_updated')}:</span>
-                    <div className="text-gray-900 font-medium">{doc.lastUpdated}</div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
 
-      </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-ink-soft">{t('version')}:</span>
+                      <div className="font-medium text-ink">{doc.version}</div>
+                    </div>
+                    <div>
+                      <span className="text-ink-soft">{t('last_updated')}:</span>
+                      <div className="font-medium text-ink">{formatDate(doc.updatedAt || doc.lastUpdated)}</div>
+                    </div>
+                  </div>
+                </AppSurface>
+              ))
+            )}
+          </div>
+        </AppSurface>
 
       {/* Pagination */}
       {!loading && filteredDocuments.length > 0 && (

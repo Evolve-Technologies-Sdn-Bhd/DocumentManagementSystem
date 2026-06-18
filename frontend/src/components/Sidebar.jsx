@@ -147,6 +147,13 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
     loadRfidRegistryStatus()
   }, [])
 
+  const isItemActive = (path) => {
+    if (path === '/project-tracking') {
+      return location.pathname === path || location.pathname.startsWith('/project-tracking/')
+    }
+    return location.pathname === path
+  }
+
   useEffect(() => {
     const handleStorageChange = (e) => {
       // When user data changes in localStorage, re-compute visible items
@@ -241,7 +248,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
             <AppNavItem
               key={item.path}
               item={{...item, name: t(item.translationKey), tourId: pathToTourId(item.path)}}
-              active={location.pathname === item.path}
+              active={isItemActive(item.path)}
               isTourTarget={tourTargetPath === item.path}
               collapsed={Boolean(isCollapsed)}
             />
@@ -265,7 +272,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
               <AppNavItem
                 key={item.path}
                 item={{...item, name: t(item.translationKey), tourId: pathToTourId(item.path)}}
-                active={location.pathname === item.path}
+                active={isItemActive(item.path)}
                 isTourTarget={tourTargetPath === item.path}
                 onClick={onClose}
                 collapsed={false}

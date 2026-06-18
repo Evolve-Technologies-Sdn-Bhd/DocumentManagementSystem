@@ -155,3 +155,38 @@ All pages follow:
 - **Typography:** Inter font family
 - **Spacing:** Consistent padding/margins
 - **Responsive:** Mobile-first approach
+
+## 🧱 Page Structure Convention
+
+To standardize page layout across the authenticated app, use the following structure:
+
+### Standard Page Shell
+1. Use a single outer wrapper such as `space-y-6` for the full page body.
+2. Render `PageHeader` at the top of the page content.
+3. Keep `PageHeader` outside cards and outside `AppSurface`.
+4. Place page content sections, filters, forms, tables, and actions inside `AppSurface` or cards below the header.
+5. Avoid repeating the same page title inside the first content card if the title already appears in `PageHeader`.
+
+### Container Rules
+- **PageHeader:** Intro layer only. Contains page title, subtitle, and optional page-level actions.
+- **AppSurface/Card:** Content layer only. Contains functional UI such as forms, data tables, tabs, summaries, and secondary section headings.
+- **Section Titles Inside Cards:** Allowed only for subsection labels, not for repeating the main page title.
+
+### Recommended Structure Example
+```jsx
+<div className="space-y-6">
+  <PageHeader
+    title={t('page_title')}
+    subtitle={t('page_description')}
+  />
+
+  <AppSurface padding="lg">
+    {/* page content */}
+  </AppSurface>
+</div>
+```
+
+### Current Alignment Notes
+- **Aligned with this convention:** `DraftDocuments.jsx`, `ReviewAndApproval.jsx`, `PublishedDocuments.jsx`, `SupersededObsolete.jsx`
+- **Needs alignment:** `MyDocumentsStatus.jsx` because the page intro is inside a card container
+- **Needs alignment:** `NewDocumentRequest.jsx` because it uses `PageHeader` and repeats the same title again inside the first form card

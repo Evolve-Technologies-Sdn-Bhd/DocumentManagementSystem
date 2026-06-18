@@ -19,6 +19,7 @@ import api from '../api/axios';
 import MarkdownRenderer from './MarkdownRenderer';
 import PublicTopbar from './PublicTopbar';
 import PublicFooter from './PublicFooter';
+import { persistLandingPageSettings, readBranding, subscribeBranding } from '../utils/branding';
 
 const iconMap = {
   'document-text': DocumentTextIcon,
@@ -46,26 +47,7 @@ const HomePage = () => {
   });
   const [submitStatus, setSubmitStatus] = useState(null);
   const [pdfModal, setPdfModal] = useState({ isOpen: false, pdfData: null, title: '' });
-  const [logo, setLogo] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings');
-      if (!savedTheme) return null;
-      const theme = JSON.parse(savedTheme);
-      return theme.mainLogo || null;
-    } catch {
-      return null;
-    }
-  });
-  const [companyName, setCompanyName] = useState(() => {
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info');
-      if (!savedCompanyInfo) return 'FileNix';
-      const companyInfo = JSON.parse(savedCompanyInfo);
-      return companyInfo.companyName || 'FileNix';
-    } catch {
-      return 'FileNix';
-    }
-  });
+  const [branding, setBranding] = useState(() => readBranding());
 
   const isHexColor = (v) => typeof v === 'string' && /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)
   const rolesList = Array.isArray(landingContent?.roles) ? landingContent.roles : []
@@ -127,13 +109,8 @@ const HomePage = () => {
   useEffect(() => {
     fetchFeatures();
     loadLandingContent();
-    loadBranding();
-    window.addEventListener('storage', loadBranding)
-    window.addEventListener('brandingUpdated', loadBranding)
-    return () => {
-      window.removeEventListener('storage', loadBranding)
-      window.removeEventListener('brandingUpdated', loadBranding)
-    }
+    setBranding(readBranding());
+    return subscribeBranding((next) => setBranding(next))
   }, []);
 
   const loadLandingContent = async () => {
@@ -142,9 +119,7 @@ const HomePage = () => {
       const serverSettings = response.data?.data?.settings;
       if (serverSettings && typeof serverSettings === 'object') {
         setLandingContent(serverSettings);
-        try {
-          localStorage.setItem('dms_landing_page_settings', JSON.stringify(serverSettings));
-        } catch {}
+        persistLandingPageSettings(serverSettings);
         return;
       }
     } catch {}
@@ -157,30 +132,6 @@ const HomePage = () => {
     } catch (error) {
       console.error('Error loading landing page content:', error);
     }
-  };
-
-  const loadBranding = () => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings');
-      if (savedTheme) {
-        const theme = JSON.parse(savedTheme);
-        setLogo(theme.mainLogo || null);
-      } else {
-        setLogo(null);
-      }
-    } catch {
-      setLogo(null);
-    }
-
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info');
-      if (savedCompanyInfo) {
-        const companyInfo = JSON.parse(savedCompanyInfo);
-        if (companyInfo.companyName) {
-          setCompanyName(companyInfo.companyName);
-        }
-      }
-    } catch {}
   };
 
   const fetchFeatures = async () => {

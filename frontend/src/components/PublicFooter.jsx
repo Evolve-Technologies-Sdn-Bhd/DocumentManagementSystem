@@ -1,28 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import MarkdownRenderer from './MarkdownRenderer'
+import { readLandingPageSettings, subscribeLandingPageSettings } from '../utils/branding'
 
 export default function PublicFooter({ copyrightText, footerLinks, onPdfLinkClick }) {
-  const [stored, setStored] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dms_landing_page_settings')
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
+  const [stored, setStored] = useState(() => readLandingPageSettings())
 
   useEffect(() => {
-    const load = () => {
-      try {
-        const saved = localStorage.getItem('dms_landing_page_settings')
-        setStored(saved ? JSON.parse(saved) : null)
-      } catch {
-        setStored(null)
-      }
-    }
-
-    window.addEventListener('storage', load)
-    return () => window.removeEventListener('storage', load)
+    setStored(readLandingPageSettings())
+    return subscribeLandingPageSettings((next) => setStored(next))
   }, [])
 
   const resolvedCopyright = copyrightText ?? stored?.copyrightText ?? '© 2025 CLB Groups. All rights reserved.'

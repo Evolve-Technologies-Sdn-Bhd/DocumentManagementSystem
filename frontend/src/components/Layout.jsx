@@ -4,7 +4,7 @@ import Topbar from './Topbar'
 import Sidebar from './Sidebar'
 import RightPanel from './RightPanel'
 import { usePreferences } from '../contexts/PreferencesContext'
-import { applyTheme } from '../utils/branding'
+import { applyTheme, readLandingPageSettings, readThemeSettings, subscribeBranding, subscribeLandingPageSettings } from '../utils/branding'
 import GettingStartedModal from './GettingStartedModal'
 import { isAdmin } from '../utils/permissions'
 import GuidedTour from './GuidedTour'
@@ -35,15 +35,12 @@ export default function Layout({ children }) {
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(location.pathname !== '/dashboard')
 
   useLayoutEffect(() => {
-    // Load theme settings to get sidebar position and apply theme
     const loadThemeSettings = () => {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
+      const savedTheme = readThemeSettings()
       if (savedTheme) {
         try {
-          const theme = JSON.parse(savedTheme)
-          setSidebarPosition(theme.sidebarPosition || 'left')
-          // Apply the full theme
-          applyTheme(theme)
+          setSidebarPosition(savedTheme.sidebarPosition || 'left')
+          applyTheme(savedTheme)
         } catch (e) {
           console.error('Failed to parse theme settings', e)
         }
@@ -104,13 +101,7 @@ export default function Layout({ children }) {
 
     loadThemeSettings()
 
-    window.addEventListener('storage', loadThemeSettings)
-    window.addEventListener('brandingUpdated', loadThemeSettings)
-
-    return () => {
-      window.removeEventListener('storage', loadThemeSettings)
-      window.removeEventListener('brandingUpdated', loadThemeSettings)
-    }
+    return subscribeBranding(() => loadThemeSettings())
   }, [])
 
   useEffect(() => {
@@ -120,12 +111,7 @@ export default function Layout({ children }) {
   useEffect(() => {
     const loadFooterConfig = () => {
       try {
-        const raw = localStorage.getItem('dms_landing_page_settings')
-        if (!raw) {
-          setFooterConfig(null)
-          return
-        }
-        const parsed = JSON.parse(raw)
+        const parsed = readLandingPageSettings()
         if (!parsed || typeof parsed !== 'object') {
           setFooterConfig(null)
           return
@@ -137,8 +123,7 @@ export default function Layout({ children }) {
     }
 
     loadFooterConfig()
-    window.addEventListener('storage', loadFooterConfig)
-    return () => window.removeEventListener('storage', loadFooterConfig)
+    return subscribeLandingPageSettings(() => loadFooterConfig())
   }, [])
 
   useEffect(() => {

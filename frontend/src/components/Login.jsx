@@ -5,6 +5,7 @@ import api from '../api/axios'
 import { getDefaultRoute } from '../utils/defaultRoute'
 import { updateUserData } from '../utils/userDataEvents'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { readBranding, subscribeBranding } from '../utils/branding'
 import PublicTopbar from './PublicTopbar'
 import PublicFooter from './PublicFooter'
 
@@ -26,36 +27,7 @@ export default function Login() {
   const [twoFAAvailableMethods, setTwoFAAvailableMethods] = useState([])
   const [trustDevice, setTrustDevice] = useState(true)
 
-  const [logo, setLogo] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (!savedTheme) return null
-      const theme = JSON.parse(savedTheme)
-      return theme.mainLogo || null
-    } catch {
-      return null
-    }
-  })
-  const [companyName, setCompanyName] = useState(() => {
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info')
-      if (!savedCompanyInfo) return 'FileNix'
-      const companyInfo = JSON.parse(savedCompanyInfo)
-      return companyInfo.companyName || 'FileNix'
-    } catch {
-      return 'FileNix'
-    }
-  })
-  const [welcomeMessage, setWelcomeMessage] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (!savedTheme) return 'Welcome to {companyName}'
-      const theme = JSON.parse(savedTheme)
-      return theme.loginWelcomeMessage || 'Welcome to {companyName}'
-    } catch {
-      return 'Welcome to {companyName}'
-    }
-  })
+  const [branding, setBranding] = useState(() => readBranding())
   const [showPassword, setShowPassword] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [changePasswordData, setChangePasswordData] = useState({
@@ -91,38 +63,8 @@ export default function Login() {
   }, [resendTimer])
 
   useEffect(() => {
-    const loadBrandingFromStorage = () => {
-      try {
-        const savedTheme = localStorage.getItem('dms_theme_settings')
-        if (savedTheme) {
-          const theme = JSON.parse(savedTheme)
-          setLogo(theme.mainLogo || null)
-          if (theme.loginWelcomeMessage) setWelcomeMessage(theme.loginWelcomeMessage)
-        } else {
-          setLogo(null)
-        }
-      } catch {
-        setLogo(null)
-      }
-
-      try {
-        const savedCompanyInfo = localStorage.getItem('dms_company_info')
-        if (savedCompanyInfo) {
-          const companyInfo = JSON.parse(savedCompanyInfo)
-          if (companyInfo.companyName) setCompanyName(companyInfo.companyName)
-        }
-      } catch {
-      }
-    }
-
-    loadBrandingFromStorage()
-
-    window.addEventListener('storage', loadBrandingFromStorage)
-    window.addEventListener('brandingUpdated', loadBrandingFromStorage)
-    return () => {
-      window.removeEventListener('storage', loadBrandingFromStorage)
-      window.removeEventListener('brandingUpdated', loadBrandingFromStorage)
-    }
+    setBranding(readBranding())
+    return subscribeBranding((next) => setBranding(next))
   }, [])
 
   async function submit(e) {
@@ -388,9 +330,9 @@ export default function Login() {
           <div className="hidden md:flex justify-center">
             <div className="text-center">
               <div className="mb-6">
-                {logo ? (
+                {branding.logo ? (
                   <div className="inline-block p-8 bg-white rounded-3xl shadow-sm">
-                    <img src={logo} alt="Company Logo" className="h-48 w-auto object-contain" />
+                    <img src={branding.logo} alt="Company Logo" className="h-48 w-auto object-contain" />
                   </div>
                 ) : (
                   <div className="inline-block p-8 rounded-3xl" style={{ backgroundColor: `var(--dms-login-accent-bg, #DBEAFE)` }}>
@@ -398,7 +340,7 @@ export default function Login() {
                   </div>
                 )}
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{welcomeMessage.replace('{companyName}', companyName)}</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{branding.welcomeMessage.replace('{companyName}', branding.companyName)}</h3>
               <p className="text-gray-600">{t('secure_dms')}</p>
             </div>
           </div>
@@ -409,14 +351,14 @@ export default function Login() {
               {/* Logo & Title */}
               <div className="text-center mb-10">
                 <div className="flex items-center justify-center mb-5">
-                  {logo ? (
+                  {branding.logo ? (
                     <div className="h-20 flex items-center bg-white rounded-xl px-4 shadow-sm">
-                      <img src={logo} alt="Company Logo" className="max-h-16 max-w-[240px] object-contain" />
+                      <img src={branding.logo} alt="Company Logo" className="max-h-16 max-w-[240px] object-contain" />
                     </div>
                   ) : (
                     <div className="flex items-center px-5 py-3 rounded-lg" style={{ backgroundColor: `var(--dms-login-btn-bg, #2563EB)` }}>
                       <DocumentTextIcon className="h-10 w-10" style={{ color: `var(--dms-login-btn-text, #FFFFFF)` }} />
-                      <span className="ml-3 text-3xl font-bold" style={{ color: `var(--dms-login-btn-text, #FFFFFF)` }}>{companyName}</span>
+                      <span className="ml-3 text-3xl font-bold" style={{ color: `var(--dms-login-btn-text, #FFFFFF)` }}>{branding.companyName}</span>
                     </div>
                   )}
                 </div>

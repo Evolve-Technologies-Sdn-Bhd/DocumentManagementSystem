@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
-import { applyTheme } from '../utils/branding'
+import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
 import MarkdownEditor from './MarkdownEditor'
 
 // Sub-tab Navigation
@@ -68,22 +68,16 @@ function CompanyInfo() {
         if (companyInfo && typeof companyInfo === 'object') {
           if (!mounted) return
           setFormData(companyInfo)
-          try {
-            localStorage.setItem('dms_company_info', JSON.stringify(companyInfo))
-            window.dispatchEvent(new Event('brandingUpdated'))
-          } catch {}
+          persistBranding({ companyInfo })
           return
         }
       } catch {}
 
-      try {
-        const saved = localStorage.getItem('dms_company_info')
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (!mounted) return
-          setFormData(parsed)
-        }
-      } catch {}
+      const parsed = readCompanyInfo()
+      if (parsed) {
+        if (!mounted) return
+        setFormData(parsed)
+      }
     }
 
     load()
@@ -100,10 +94,7 @@ function CompanyInfo() {
     try {
       const res = await api.put('/system/config/company-info', formData)
       const savedCompanyInfo = res.data?.data?.companyInfo || formData
-      try {
-        localStorage.setItem('dms_company_info', JSON.stringify(savedCompanyInfo))
-        window.dispatchEvent(new Event('brandingUpdated'))
-      } catch {}
+      persistBranding({ companyInfo: savedCompanyInfo })
       alert('Company information saved successfully!')
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to save company information')
@@ -306,20 +297,15 @@ function LandingPageSettings() {
         if (serverSettings && typeof serverSettings === 'object') {
           if (!mounted) return
           applySettings(serverSettings)
-          try {
-            localStorage.setItem('dms_landing_page_settings', JSON.stringify(serverSettings))
-          } catch {}
+          persistLandingPageSettings(serverSettings)
           return
         }
       } catch {}
 
-      try {
-        const saved = localStorage.getItem('dms_landing_page_settings')
-        if (!saved) return
-        const parsed = JSON.parse(saved)
-        if (!mounted) return
-        applySettings(parsed)
-      } catch {}
+      const parsed = readLandingPageSettings()
+      if (!parsed) return
+      if (!mounted) return
+      applySettings(parsed)
     }
 
     load()
@@ -332,9 +318,7 @@ function LandingPageSettings() {
     try {
       const res = await api.put('/system/config/landing-page-settings', content)
       const savedSettings = res.data?.data?.settings || content
-      try {
-        localStorage.setItem('dms_landing_page_settings', JSON.stringify(savedSettings))
-      } catch {}
+      persistLandingPageSettings(savedSettings)
       alert('Landing page settings saved successfully!')
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to save landing page settings')
@@ -1257,24 +1241,18 @@ const ThemeBranding = () => {
         const res = await api.get('/system/config/theme-settings')
         const savedTheme = res.data?.data?.theme
         if (savedTheme && typeof savedTheme === 'object') {
-          try {
-            localStorage.setItem('dms_theme_settings', JSON.stringify(savedTheme))
-            window.dispatchEvent(new Event('brandingUpdated'))
-          } catch {}
+          persistBranding({ theme: savedTheme })
           if (!mounted) return
           applyLoadedTheme(savedTheme)
           return
         }
       } catch {}
 
-      const saved = localStorage.getItem('dms_theme_settings')
-      if (saved) {
-        try {
-          const savedTheme = JSON.parse(saved)
-          if (!mounted) return
-          applyLoadedTheme(savedTheme)
-          return
-        } catch {}
+      const savedTheme = readThemeSettings()
+      if (savedTheme) {
+        if (!mounted) return
+        applyLoadedTheme(savedTheme)
+        return
       }
 
       const root = document.documentElement
@@ -1387,13 +1365,11 @@ const ThemeBranding = () => {
     try {
       const res = await api.put('/system/config/theme-settings', newTheme)
       const savedTheme = res.data?.data?.theme || newTheme
-      localStorage.setItem('dms_theme_settings', JSON.stringify(savedTheme))
-      window.dispatchEvent(new Event('brandingUpdated'))
+      persistBranding({ theme: savedTheme })
       setOriginalTheme(savedTheme)
       return
     } catch {}
-    localStorage.setItem('dms_theme_settings', JSON.stringify(newTheme))
-    window.dispatchEvent(new Event('brandingUpdated'))
+    persistBranding({ theme: newTheme })
     setOriginalTheme(newTheme)
   }
 
@@ -1415,15 +1391,13 @@ const ThemeBranding = () => {
     try {
       const res = await api.put('/system/config/theme-settings', theme)
       const savedTheme = res.data?.data?.theme || theme
-      localStorage.setItem('dms_theme_settings', JSON.stringify(savedTheme))
-      window.dispatchEvent(new Event('brandingUpdated'))
+      persistBranding({ theme: savedTheme })
       setOriginalTheme(savedTheme)
       setShowConfirmModal(false)
       setHasChanges(false)
       return
     } catch {}
-    localStorage.setItem('dms_theme_settings', JSON.stringify(theme))
-    window.dispatchEvent(new Event('brandingUpdated'))
+    persistBranding({ theme })
     setOriginalTheme(theme)
     setShowConfirmModal(false)
     setHasChanges(false)

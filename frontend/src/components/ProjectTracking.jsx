@@ -6,22 +6,28 @@ import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { hasPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
+import PageHeader from './ui/PageHeader'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import InlineSpinner from './ui/InlineSpinner'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium'
-  if (s === 'COMPLETE') return <span className={`${base} bg-green-100 text-green-800`}>Complete</span>
-  if (s === 'WAIVED') return <span className={`${base} bg-gray-100 text-gray-800`}>Waived</span>
-  return <span className={`${base} bg-yellow-100 text-yellow-800`}>Pending</span>
+  if (s === 'COMPLETE') return <span className={`${base} bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]`}>Complete</span>
+  if (s === 'WAIVED') return <span className={`${base} bg-surface-muted text-ink-secondary`}>Waived</span>
+  return <span className={`${base} bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]`}>Pending</span>
 }
 
 function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-lg shadow-xl w-full ${maxWidthClass}`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+      <div className={`w-full rounded-dms-lg border border-border bg-surface shadow-dms-lg ${maxWidthClass}`}>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h3 className="text-lg font-semibold text-ink">{title}</h3>
+          <button onClick={onClose} className="text-ink-soft transition-colors hover:text-ink">×</button>
         </div>
         <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
       </div>
@@ -69,7 +75,7 @@ const toDateInputValue = (value) => {
 function ProjectField({ label, children, fullWidth = false }) {
   return (
     <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-ink-secondary">{label}</label>
       {children}
     </div>
   )
@@ -84,7 +90,7 @@ function ProjectFormFields({
   stageStatusLabel = 'Will follow workflow stage after creation',
   showLifecycleStatus = false
 }) {
-  const inputClass = 'w-full rounded-md border border-gray-300 px-3 py-2'
+  const inputClass = 'w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/30'
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -182,12 +188,12 @@ function ProjectFormFields({
       </ProjectField>
 
       <ProjectField label="Project Status (based on stage)">
-        <input value={stageStatusLabel} className={`${inputClass} bg-gray-50 text-gray-500`} readOnly />
+        <input value={stageStatusLabel} className={`${inputClass} bg-surface-muted text-ink-muted`} readOnly />
       </ProjectField>
 
       {showLifecycleStatus && (
         <ProjectField label="Lifecycle Status">
-          <input value={formatLifecycleStatus(form.status)} className={`${inputClass} bg-gray-50 text-gray-500`} readOnly />
+          <input value={formatLifecycleStatus(form.status)} className={`${inputClass} bg-surface-muted text-ink-muted`} readOnly />
         </ProjectField>
       )}
 
@@ -234,27 +240,27 @@ function ProjectFormFields({
 function DocumentStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
   const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium'
-  if (s === 'PUBLISHED') return <span className={`${base} bg-green-100 text-green-800`}>Published</span>
-  if (s === 'PENDING_REVIEW' || s === 'IN_REVIEW') return <span className={`${base} bg-amber-100 text-amber-800`}>In Review</span>
-  if (s === 'SUPERSEDED' || s === 'OBSOLETE') return <span className={`${base} bg-gray-100 text-gray-700`}>{s === 'SUPERSEDED' ? 'Superseded' : 'Obsolete'}</span>
-  return <span className={`${base} bg-blue-100 text-blue-800`}>Draft</span>
+  if (s === 'PUBLISHED') return <span className={`${base} bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]`}>Published</span>
+  if (s === 'PENDING_REVIEW' || s === 'IN_REVIEW') return <span className={`${base} bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]`}>In Review</span>
+  if (s === 'SUPERSEDED' || s === 'OBSOLETE') return <span className={`${base} bg-surface-muted text-ink-secondary`}>{s === 'SUPERSEDED' ? 'Superseded' : 'Obsolete'}</span>
+  return <span className={`${base} bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]`}>Draft</span>
 }
 
 function ConfidentialBadge({ isConfidential }) {
   if (!isConfidential) return null
-  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700">Confidential</span>
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)]">Confidential</span>
 }
 
 function ProjectStatusBadge({ status }) {
   const value = String(status || 'ACTIVE').toUpperCase()
   const config =
     value === 'CLOSED'
-      ? { label: 'Closed', className: 'bg-rose-100 text-rose-700' }
+      ? { label: 'Closed', className: 'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)]' }
       : value === 'ON_HOLD'
-        ? { label: 'On Hold', className: 'bg-amber-100 text-amber-700' }
+        ? { label: 'On Hold', className: 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]' }
         : value === 'ARCHIVED'
-          ? { label: 'Archived', className: 'bg-slate-200 text-slate-700' }
-          : { label: 'Active', className: 'bg-emerald-100 text-emerald-700' }
+          ? { label: 'Archived', className: 'bg-surface-muted text-ink-secondary' }
+          : { label: 'Active', className: 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' }
 
   return <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${config.className}`}>{config.label}</span>
 }
@@ -1251,58 +1257,63 @@ function ProjectsList({ onOpenProject }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
-          <input
+          <TextInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t ? t('search') : 'Search...'}
-            className="w-full sm:max-w-md px-3 py-2 border border-gray-300 rounded-md"
+            className="w-full sm:max-w-md"
           />
         </div>
         {canCreate && (
-          <button onClick={() => setShowCreate(true)} className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+          <Button onClick={() => setShowCreate(true)}>
             Create Project
-          </button>
+          </Button>
         )}
       </div>
 
       {loading ? (
-        <div className="p-6 bg-white rounded-lg shadow">Loading...</div>
+        <AppSurface padding="lg">
+          <div className="flex items-center gap-2 text-sm text-ink-muted">
+            <InlineSpinner />
+            <span>Loading projects...</span>
+          </div>
+        </AppSurface>
       ) : totalItems === 0 ? (
         <EmptyState title="No projects" message="Create a project to start tracking documents by stage." />
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+        <AppSurface padding="none" className="overflow-hidden">
+          <TableContainer className="rounded-none border-0">
+            <Table>
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manager</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latest Phase</th>
+                  <Th>Code</Th>
+                  <Th>Name</Th>
+                  <Th>Status</Th>
+                  <Th>Category</Th>
+                  <Th>Manager</Th>
+                  <Th>Latest Phase</Th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody>
                 {paginated.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => onOpenProject(p.id)}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{p.code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><ProjectStatusBadge status={p.status} /></td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{p.projectCategory?.name || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <Tr key={p.id} className="cursor-pointer" onClick={() => onOpenProject(p.id)}>
+                    <Td className="font-medium text-brand">{p.code}</Td>
+                    <Td className="text-ink">{p.name}</Td>
+                    <Td><ProjectStatusBadge status={p.status} /></Td>
+                    <Td>{p.projectCategory?.name || '-'}</Td>
+                    <Td>
                       {`${p.manager?.firstName || ''} ${p.manager?.lastName || ''}`.trim() || p.manager?.email || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    </Td>
+                    <Td>
                       {p.iterations?.[0] ? `Phase ${p.iterations[0].iterationNo} • ${p.iterations[0].currentStage?.name || '-'}` : '-'}
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </Table>
+          </TableContainer>
           {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}
@@ -1313,7 +1324,7 @@ function ProjectsList({ onOpenProject }) {
               totalItems={totalItems}
             />
           )}
-        </div>
+        </AppSurface>
       )}
 
       {showCreate && (
@@ -3264,22 +3275,23 @@ export default function ProjectTracking() {
   }, [])
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Project Tracking</h1>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Project Tracking"
+        subtitle="Track project phases, linked documents, and setup flows under the shared design system."
+      />
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b px-4">
-          <nav className="flex gap-6" aria-label="Tabs">
+      <AppSurface padding="none">
+        <div className="border-b border-border px-4">
+          <nav className="flex gap-2 overflow-x-auto py-2" aria-label="Tabs">
             {tabs.map((t) => {
               const isActive = activeTab === t.id
               return (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`py-3 text-sm font-medium border-b-2 ${
-                    isActive ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'
+                  className={`rounded-2xl px-4 py-2 text-sm font-medium transition-colors ${
+                    isActive ? 'bg-brand/10 text-brand' : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
                   }`}
                 >
                   {t.label}
@@ -3288,7 +3300,7 @@ export default function ProjectTracking() {
             })}
           </nav>
         </div>
-        <div className="p-4">
+        <div className="p-4 md:p-5">
           {activeTab === 'setup' ? (
             <Setup />
           ) : activeTab === 'search' ? (
@@ -3299,7 +3311,7 @@ export default function ProjectTracking() {
             <ProjectsList onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
           )}
         </div>
-      </div>
+      </AppSurface>
     </div>
   )
 }

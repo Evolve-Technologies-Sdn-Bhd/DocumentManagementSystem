@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { normalizeAppPath } from '../utils/normalizeUrl'
+import { readBranding, subscribeBranding } from '../utils/branding'
 import IconButton from './ui/IconButton'
 import AppTopbarBrand from './layout/AppTopbarBrand'
 import AppUserMenu from './layout/AppUserMenu'
@@ -9,26 +10,7 @@ import AppUserMenu from './layout/AppUserMenu'
 export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHint }) {
   const { t } = usePreferences()
   const navigate = useNavigate()
-  const [logo, setLogo] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (!savedTheme) return null
-      const theme = JSON.parse(savedTheme)
-      return theme.mainLogo || null
-    } catch {
-      return null
-    }
-  })
-  const [companyName, setCompanyName] = useState(() => {
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info')
-      if (!savedCompanyInfo) return 'FileNix'
-      const companyInfo = JSON.parse(savedCompanyInfo)
-      return companyInfo.companyName || 'FileNix'
-    } catch {
-      return 'FileNix'
-    }
-  })
+  const [branding, setBranding] = useState(() => readBranding())
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [currentUser, setCurrentUser] = useState({ name: 'John Doe', email: 'john.doe@company.com', role: 'Document Controller', department: '', profileImage: null })
 
@@ -73,48 +55,8 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
   }, [])
 
   useEffect(() => {
-    // Load logo from theme settings
-    const loadLogo = () => {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (savedTheme) {
-        try {
-          const theme = JSON.parse(savedTheme)
-          if (theme.mainLogo) {
-            setLogo(theme.mainLogo)
-          } else {
-            setLogo(null)
-          }
-        } catch (e) {
-          console.error('Failed to parse theme settings', e)
-        }
-      } else {
-        setLogo(null)
-      }
-
-      // Load company name from company info
-      const savedCompanyInfo = localStorage.getItem('dms_company_info')
-      if (savedCompanyInfo) {
-        try {
-          const companyInfo = JSON.parse(savedCompanyInfo)
-          if (companyInfo.companyName) {
-            setCompanyName(companyInfo.companyName)
-          }
-        } catch (e) {
-          console.error('Failed to parse company info', e)
-        }
-      }
-    }
-
-    loadLogo()
-
-    // Listen for storage events (theme/company changes)
-    window.addEventListener('storage', loadLogo)
-    window.addEventListener('brandingUpdated', loadLogo)
-    
-    return () => {
-      window.removeEventListener('storage', loadLogo)
-      window.removeEventListener('brandingUpdated', loadLogo)
-    }
+    setBranding(readBranding())
+    return subscribeBranding((next) => setBranding(next))
   }, [])
 
   const handleLogout = () => {
@@ -149,8 +91,8 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
           </svg>
         </IconButton>
         <AppTopbarBrand
-          logo={logo}
-          companyName={companyName}
+          logo={branding.logo}
+          companyName={branding.companyName}
           appLabel={t('dms_label')}
         />
       </div>

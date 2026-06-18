@@ -23,18 +23,14 @@ import RfidEpcRegistry from './components/RfidEpcRegistry'
 import ProjectTracking from './components/ProjectTracking'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
-import { applyCompanyInfo, applyTheme, persistBranding } from './utils/branding'
+import { applyCompanyInfo, applyTheme, persistBranding, readCompanyInfo, readThemeSettings } from './utils/branding'
 
 export default function App() {
   useLayoutEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (savedTheme) applyTheme(JSON.parse(savedTheme))
-    } catch {}
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info')
-      if (savedCompanyInfo) applyCompanyInfo(JSON.parse(savedCompanyInfo))
-    } catch {}
+    const savedTheme = readThemeSettings()
+    const savedCompanyInfo = readCompanyInfo()
+    if (savedTheme) applyTheme(savedTheme)
+    if (savedCompanyInfo) applyCompanyInfo(savedCompanyInfo)
   }, [])
 
   useEffect(() => {

@@ -2,66 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bars3Icon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { readBranding, subscribeBranding } from '../utils/branding'
 
 export default function PublicTopbar({ onSection }) {
   const { t } = usePreferences()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const [logo, setLogo] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('dms_theme_settings')
-      if (!savedTheme) return null
-      const theme = JSON.parse(savedTheme)
-      return theme.mainLogo || null
-    } catch {
-      return null
-    }
-  })
-
-  const [companyName, setCompanyName] = useState(() => {
-    try {
-      const savedCompanyInfo = localStorage.getItem('dms_company_info')
-      if (!savedCompanyInfo) return 'FileNix'
-      const companyInfo = JSON.parse(savedCompanyInfo)
-      return companyInfo.companyName || 'FileNix'
-    } catch {
-      return 'FileNix'
-    }
-  })
+  const [branding, setBranding] = useState(() => readBranding())
 
   useEffect(() => {
-    const loadBrandingFromStorage = () => {
-      try {
-        const savedTheme = localStorage.getItem('dms_theme_settings')
-        if (savedTheme) {
-          const theme = JSON.parse(savedTheme)
-          setLogo(theme.mainLogo || null)
-        } else {
-          setLogo(null)
-        }
-      } catch {
-        setLogo(null)
-      }
-
-      try {
-        const savedCompanyInfo = localStorage.getItem('dms_company_info')
-        if (savedCompanyInfo) {
-          const companyInfo = JSON.parse(savedCompanyInfo)
-          if (companyInfo.companyName) setCompanyName(companyInfo.companyName)
-        }
-      } catch {
-      }
-    }
-
-    loadBrandingFromStorage()
-
-    window.addEventListener('storage', loadBrandingFromStorage)
-    window.addEventListener('brandingUpdated', loadBrandingFromStorage)
-    return () => {
-      window.removeEventListener('storage', loadBrandingFromStorage)
-      window.removeEventListener('brandingUpdated', loadBrandingFromStorage)
-    }
+    setBranding(readBranding())
+    return subscribeBranding((next) => setBranding(next))
   }, [])
 
   const navItems = useMemo(() => ([
@@ -89,9 +40,9 @@ export default function PublicTopbar({ onSection }) {
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <button type="button" className="flex items-center gap-3 text-left focus-visible:outline-none" onClick={() => navigate('/')} aria-label="Go to home">
-            {logo ? (
+            {branding.logo ? (
               <div className="h-10 flex items-center bg-white rounded-lg px-2 shadow-sm">
-                <img src={logo} alt="Company Logo" className="max-h-8 max-w-[180px] object-contain" />
+                <img src={branding.logo} alt="Company Logo" className="max-h-8 max-w-[180px] object-contain" />
               </div>
             ) : (
               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
@@ -99,7 +50,7 @@ export default function PublicTopbar({ onSection }) {
               </div>
             )}
             <div className="hidden md:flex flex-col items-start text-left">
-              <span className="text-sm font-semibold">{companyName}</span>
+              <span className="text-sm font-semibold">{branding.companyName}</span>
               <span className="text-xs opacity-90">{t('dms_label')}</span>
             </div>
           </button>
