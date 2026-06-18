@@ -1573,6 +1573,7 @@ function ProjectDetail({ projectId }) {
   const [advancing, setAdvancing] = useState(false)
   const [changeRequests, setChangeRequests] = useState([])
   const [changeRequestsLoading, setChangeRequestsLoading] = useState(false)
+  const [isChangeLogExpanded, setIsChangeLogExpanded] = useState(true)
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false)
   const [editChangeRequest, setEditChangeRequest] = useState(null)
 
@@ -1830,6 +1831,18 @@ function ProjectDetail({ projectId }) {
     await api.delete(`/project-tracking/iterations/${selectedIterationId}/stages/${stageId}/links/${linkId}`)
     await loadItems(selectedIterationId)
   }
+
+  const getDocumentWorkspaceLabel = (document) => (
+    String(document?.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'View File'
+  )
+
+  const getDocumentDirectoryLabel = (document) => (
+    String(document?.status || '').toUpperCase() === 'DRAFT' ? 'Open Workflow' : 'Go To Document'
+  )
+
+  const getLinkedDocumentTypeLabel = (link) => (
+    link?.document?.documentType?.name || link?.documentType?.name || 'Other Document'
+  )
 
   const saveProject = async (payload) => {
     const res = await api.put(`/project-tracking/projects/${projectId}`, payload)
@@ -2186,11 +2199,29 @@ function ProjectDetail({ projectId }) {
             <div className="text-sm font-semibold text-ink">Change Control & Amendment Log</div>
             <div className="mt-1 text-sm text-ink-muted">Approved changes recorded for the selected phase.</div>
           </div>
-          <div className="rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary">
-            {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
+          <div className="flex items-center gap-2">
+            <div className="rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary">
+              {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
+            </div>
+            <IconButton
+              size="sm"
+              onClick={() => setIsChangeLogExpanded((prev) => !prev)}
+              aria-label={isChangeLogExpanded ? 'Collapse change control log' : 'Expand change control log'}
+              aria-expanded={isChangeLogExpanded}
+              aria-controls="change-control-log"
+            >
+              <svg
+                className={`h-4 w-4 transition-transform ${isChangeLogExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </IconButton>
           </div>
         </div>
-        <div className="mt-4">
+        <div id="change-control-log" className={isChangeLogExpanded ? 'mt-4' : 'hidden'}>
           {changeRequestsLoading ? (
             <div className="flex items-center gap-2 text-sm text-ink-secondary">
               <InlineSpinner className="h-4 w-4" />
@@ -2496,57 +2527,179 @@ function ProjectDetail({ projectId }) {
                     </div>
                   </div>
                 </div>
-                <>
-                    <div className="flex flex-col gap-3 border-b border-border bg-surface px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-ink">Other Documents Under This Stage</div>
-                        <div className="mt-1 text-sm text-ink-muted">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
-                      </div>
-                      <div className="flex gap-2">
-                        {canLink && isProjectActive && (
-                          <Button
-                            onClick={() => setShowStageLink(st)}
-                            variant="secondary"
-                          >
-                            Attach Existing
-                          </Button>
-                        )}
-                        {canCreate && isProjectActive && (
-                          <Button
-                            onClick={() => setShowStageCreate(st)}
-                          >
-                            Create New
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="border-b border-border bg-surface px-6 py-5">
-                      {links.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-ink-muted">No extra documents added for this stage yet.</div>
-                      ) : (
-                        <div className="space-y-2">
+                <div className="border-b border-border bg-surface px-6 py-5">
+                  <div className="text-sm font-semibold text-ink">Required Documents</div>
+                </div>
+                <TableContainer className="rounded-none border-0 border-b border-border">
+                  <Table>
+                    <thead>
+                      <Tr>
+                        <Th>Document Type</Th>
+                        <Th>Status</Th>
+                        <Th>Completed Documents</Th>
+                        <Th>Action</Th>
+                      </Tr>
+                    </thead>
+                    <tbody>
+                      {stageItems.length === 0 ? (
+                        <Tr>
+                          <Td colSpan={4} className="px-6 py-8 text-sm text-ink-muted">
+                            No required checklist items for this stage yet. Add requirements in Project Setup, or attach extra documents using the buttons below.
+                          </Td>
+                        </Tr>
+                      ) : null}
+                      {stageItems.map((it) => (
+                        <Tr key={it.id} className="align-top hover:bg-surface-muted">
+                          <Td className="whitespace-nowrap text-sm font-medium text-ink">{it.documentType?.name || '-'}</Td>
+                          <Td className="whitespace-nowrap text-sm">
+                            <ItemStatusBadge status={it.status} />
+                          </Td>
+                          <Td className="min-w-[260px] text-sm text-ink-secondary">
+                            <div className="space-y-3">
+                              {it.links?.length ? (
+                                it.links.map((l) => (
+                                  <div key={l.id} className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Link to={`/documents/${l.document.id}`} className="font-medium text-brand hover:underline">
+                                        {getDocumentCodeLabel(l.document)}
+                                      </Link>
+                                      <span className="text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+                                    </div>
+                                    <div className="inline-flex flex-wrap items-center gap-2">
+                                      <ConfidentialBadge isConfidential={l.document.isConfidential} />
+                                      <DocumentStatusBadge status={l.document.status} />
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-ink-soft">-</span>
+                              )}
+                              {canLink && isProjectActive ? (
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-sm">
+                                  <button type="button" onClick={() => setShowLink(it)} className="font-medium text-brand hover:underline">
+                                    Attach Existing
+                                  </button>
+                                  {canCreate ? (
+                                    <button type="button" onClick={() => setShowCreateDoc(it)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                                      Add New File
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          </Td>
+                          <Td className="min-w-[220px] text-sm">
+                            {it.links?.length ? (
+                              <div className="space-y-3">
+                                {it.links.map((l) => (
+                                  <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    {canLink && isProjectActive ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setConfirmModal({
+                                            show: true,
+                                            title: 'Remove Linked Document',
+                                            message: 'Remove this linked document from the required item? If no published document remains, the checklist item will become pending again.',
+                                            onConfirm: () => unlinkItemDocument(it.id, l.id)
+                                          })
+                                        }
+                                        className="font-medium text-red-600 hover:underline"
+                                      >
+                                        Unlink
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocumentWorkspace(l.document)}
+                                      className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                    >
+                                      {getDocumentWorkspaceLabel(l.document)}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocumentWorkspace(l.document)}
+                                      className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                    >
+                                      {getDocumentDirectoryLabel(l.document)}
+                                    </button>
+                                    {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowDocumentAccess(l.document)}
+                                        className="font-medium text-brand hover:underline"
+                                      >
+                                        Access
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-ink-soft">-</span>
+                            )}
+                          </Td>
+                        </Tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableContainer>
+                <div className="flex flex-col gap-4 bg-surface px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-ink">Other Documents Under This Stage</div>
+                    <div className="mt-1 max-w-3xl text-sm text-ink-muted">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
+                  </div>
+                  <div className="flex gap-2">
+                    {canLink && isProjectActive ? (
+                      <Button onClick={() => setShowStageLink(st)} variant="secondary">
+                        Attach Existing
+                      </Button>
+                    ) : null}
+                    {canCreate && isProjectActive ? (
+                      <Button onClick={() => setShowStageCreate(st)}>
+                        Create New
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="px-6 pb-6">
+                  {links.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-ink-muted">No extra documents added for this stage yet.</div>
+                  ) : (
+                    <TableContainer className="overflow-hidden rounded-2xl">
+                      <Table>
+                        <thead>
+                          <Tr>
+                            <Th>Document Type</Th>
+                            <Th>Status</Th>
+                            <Th>Completed Documents</Th>
+                            <Th>Action</Th>
+                          </Tr>
+                        </thead>
+                        <tbody>
                           {links.map((l) => (
-                            <div key={l.id} className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
-                              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                                <div>
-                                  <Link to={`/documents/${l.document.id}`} className="font-medium text-brand hover:underline">
-                                    {getDocumentCodeLabel(l.document)}
-                                  </Link>
-                                  <span className="text-ink-secondary">{` • ${getDocumentTitleLabel(l.document)}`}</span>
-                                  <span className="ml-2 inline-flex items-center gap-2 align-middle">
+                            <Tr key={l.id} className="align-top hover:bg-surface-muted">
+                              <Td className="whitespace-nowrap text-sm font-medium text-ink">{getLinkedDocumentTypeLabel(l)}</Td>
+                              <Td className="whitespace-nowrap text-sm">
+                                <DocumentStatusBadge status={l.document?.status} />
+                              </Td>
+                              <Td className="min-w-[260px] text-sm text-ink-secondary">
+                                <div className="space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Link to={`/documents/${l.document.id}`} className="font-medium text-brand hover:underline">
+                                      {getDocumentCodeLabel(l.document)}
+                                    </Link>
+                                    <span className="text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+                                  </div>
+                                  <div className="inline-flex flex-wrap items-center gap-2">
                                     <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                     <DocumentStatusBadge status={l.document.status} />
-                                  </span>
+                                  </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-3 text-xs">
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocumentWorkspace(l.document)}
-                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                  >
-                                    {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
-                                  </button>
-                                  {canLink && isProjectActive && (
+                              </Td>
+                              <Td className="min-w-[220px] text-sm">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                  {canLink && isProjectActive ? (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -2559,10 +2712,24 @@ function ProjectDetail({ projectId }) {
                                       }
                                       className="font-medium text-red-600 hover:underline"
                                     >
-                                      Remove Link
+                                      Unlink
                                     </button>
-                                  )}
-                                  {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' && (
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => openDocumentWorkspace(l.document)}
+                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                  >
+                                    {getDocumentWorkspaceLabel(l.document)}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openDocumentWorkspace(l.document)}
+                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                  >
+                                    {getDocumentDirectoryLabel(l.document)}
+                                  </button>
+                                  {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
                                     <button
                                       type="button"
                                       onClick={() => setShowDocumentAccess(l.document)}
@@ -2570,112 +2737,16 @@ function ProjectDetail({ projectId }) {
                                     >
                                       Access
                                     </button>
-                                  )}
+                                  ) : null}
                                 </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <TableContainer className="rounded-none border-0">
-                      <Table>
-                        <thead>
-                          <Tr>
-                            <Th>Document Type</Th>
-                            <Th>Status</Th>
-                            <Th>Completed Documents</Th>
-                            <Th align="right">Action</Th>
-                          </Tr>
-                        </thead>
-                        <tbody>
-                          {stageItems.length === 0 ? (
-                            <Tr>
-                              <Td colSpan={4} className="px-6 py-8 text-sm text-ink-muted">
-                                No required checklist items for this stage yet. Add requirements in Project Setup, or attach extra documents using the buttons above.
-                              </Td>
-                            </Tr>
-                          ) : null}
-                          {stageItems.map((it) => (
-                            <Tr key={it.id} className="hover:bg-surface-muted">
-                              <Td className="whitespace-nowrap text-sm text-ink">{it.documentType?.name || '-'}</Td>
-                              <Td className="whitespace-nowrap text-sm">
-                                <ItemStatusBadge status={it.status} />
-                              </Td>
-                              <Td className="text-sm text-ink-secondary">
-                                {it.links?.length ? (
-                                  <div className="space-y-1">
-                                    {it.links.map((l) => (
-                                      <div key={l.id}>
-                                        <Link to={`/documents/${l.document.id}`} className="text-brand hover:underline">
-                                          {getDocumentCodeLabel(l.document)}
-                                        </Link>
-                                        <span className="text-ink-muted">{` • ${getDocumentTitleLabel(l.document)}`}</span>
-                                        <span className="ml-2 inline-flex items-center gap-2 align-middle">
-                                          <ConfidentialBadge isConfidential={l.document.isConfidential} />
-                                          <DocumentStatusBadge status={l.document.status} />
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => openDocumentWorkspace(l.document)}
-                                          className="ml-3 text-xs text-ink-secondary hover:text-ink hover:underline"
-                                        >
-                                          {String(l.document.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'Open Workflow'}
-                                        </button>
-                                        {canLink && isProjectActive && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setConfirmModal({
-                                                show: true,
-                                                title: 'Remove Linked Document',
-                                                message: 'Remove this linked document from the required item? If no published document remains, the checklist item will become pending again.',
-                                                onConfirm: () => unlinkItemDocument(it.id, l.id)
-                                              })
-                                            }
-                                            className="ml-3 text-xs text-red-600 hover:underline"
-                                          >
-                                            Remove Link
-                                          </button>
-                                        )}
-                                        {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' && (
-                                          <button
-                                            type="button"
-                                            onClick={() => setShowDocumentAccess(l.document)}
-                                            className="ml-3 text-xs text-brand hover:underline"
-                                          >
-                                            Access
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-ink-soft">-</span>
-                                )}
-                              </Td>
-                              <Td align="right" className="whitespace-nowrap text-sm">
-                                {canLink && isProjectActive ? (
-                                  <div className="flex items-center justify-end gap-3">
-                                    <button onClick={() => setShowLink(it)} className="text-brand hover:underline">
-                                      Attach Existing
-                                    </button>
-                                    {canCreate && (
-                                      <button onClick={() => setShowCreateDoc(it)} className="text-ink-secondary hover:text-ink hover:underline">
-                                        Create New
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-ink-soft">-</span>
-                                )}
                               </Td>
                             </Tr>
                           ))}
                         </tbody>
                       </Table>
                     </TableContainer>
-                </>
+                  )}
+                </div>
               </AppSurface>
             )
           })() : null}
