@@ -4,21 +4,25 @@ import AuditLogsViewer from '../components/AuditLogsViewer'
 import UserActivityLogs from '../components/UserActivityLogs'
 import SystemReports from '../components/SystemReports'
 import AnalyticsDashboard from '../components/AnalyticsDashboard'
+import AppSurface from '../components/ui/AppSurface'
+import Button from '../components/ui/Button'
+import PageHeader from '../components/ui/PageHeader'
 
 // Error Fallback with translations
 function ErrorDisplay({ error, onRetry }) {
   const { t } = usePreferences()
   return (
-    <div className="p-6 bg-red-50 border border-red-200 rounded-lg m-4">
-      <h3 className="text-lg font-semibold text-red-800 mb-2">{t('lr_error_title')}</h3>
-      <p className="text-red-600 text-sm mb-4">{error?.message || 'Unknown error'}</p>
-      <button
+    <AppSurface className="m-4 border border-red-200 bg-red-50" padding="lg">
+      <h3 className="text-lg font-semibold text-red-800">{t('lr_error_title')}</h3>
+      <p className="mt-2 text-sm text-red-700">{error?.message || 'Unknown error'}</p>
+      <Button
         onClick={onRetry}
-        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        variant="danger"
+        className="mt-4"
       >
         {t('lr_try_again')}
-      </button>
-    </div>
+      </Button>
+    </AppSurface>
   )
 }
 
@@ -61,8 +65,13 @@ function TabNavigation({ activeTab, onTabChange }) {
   ]
 
   return (
-    <div className="border-b border-gray-200 mb-6" data-tour-id="logs-tabbar">
-      <nav className="flex space-x-8" aria-label="Tabs">
+    <AppSurface
+      className="overflow-x-auto"
+      padding="sm"
+      variant="muted"
+      data-tour-id="logs-tabbar"
+    >
+      <nav className="flex min-w-max gap-2" aria-label="Tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -70,15 +79,15 @@ function TabNavigation({ activeTab, onTabChange }) {
             data-tour-id={`logs-tab-${tab.id}`}
             className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'rounded-2xl bg-brand px-4 py-2 text-ink-inverse shadow-dms-soft'
+                : 'rounded-2xl px-4 py-2 text-ink-muted hover:bg-surface hover:text-ink'
             }`}
           >
             {tab.label}
           </button>
         ))}
       </nav>
-    </div>
+    </AppSurface>
   )
 }
 
@@ -88,21 +97,14 @@ export default function LogsReports() {
   const { t } = usePreferences()
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('lr_title')}</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            {t('lr_desc')}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={t('lr_title')}
+        subtitle={t('lr_desc')}
+      />
 
-      {/* Tab Navigation */}
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Tab Content */}
       <div className="mt-6">
         <ErrorBoundary>
           {activeTab === 'activity' && <AuditLogsViewer />}

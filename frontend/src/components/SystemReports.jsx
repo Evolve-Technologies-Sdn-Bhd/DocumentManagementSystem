@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { AlertModal } from './ConfirmModal'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import EmptyPanelState from './ui/EmptyPanelState'
+import InlineSpinner from './ui/InlineSpinner'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
 // Main System Reports Component
 export default function SystemReports() {
@@ -139,165 +144,160 @@ export default function SystemReports() {
 
   const getCategoryColor = (category) => {
     const colors = {
-      Documents: 'bg-blue-50 text-blue-700 border-blue-200',
-      Users: 'bg-purple-50 text-purple-700 border-purple-200',
-      Requests: 'bg-green-50 text-green-700 border-green-200',
-      Security: 'bg-red-50 text-red-700 border-red-200',
-      Templates: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      System: 'bg-gray-50 text-gray-700 border-gray-200'
+      Documents: 'bg-brand-subtle text-brand border-brand/20',
+      Users: 'bg-surface-muted text-ink border-border',
+      Requests: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      Security: 'bg-amber-50 text-amber-700 border-amber-200',
+      Templates: 'bg-violet-50 text-violet-700 border-violet-200',
+      System: 'bg-surface-muted text-ink-secondary border-border'
     }
     return colors[category] || colors.System
   }
 
+  const statCards = [
+    { label: t('sr_available_reports'), value: stats.availableReports, tone: 'text-brand' },
+    { label: t('sr_generated_today'), value: stats.generatedToday, tone: 'text-emerald-600' },
+    { label: t('sr_scheduled_reports'), value: stats.scheduledReports, tone: 'text-violet-600' },
+    { label: t('sr_total_size'), value: stats.totalSize, tone: 'text-amber-600' }
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--dms-text-primary)' }}>{t('sr_title')}</h2>
-        <p className="mt-1 text-sm muted">
-          {t('sr_desc')}
-        </p>
+        <h2 className="text-2xl font-semibold text-ink">{t('sr_title')}</h2>
+        <p className="mt-1 text-sm text-ink-muted">{t('sr_desc')}</p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <p className="text-xs font-medium muted mb-1">{t('sr_available_reports')}</p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--dms-primary)' }}>{stats.availableReports}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium muted mb-1">{t('sr_generated_today')}</p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--dms-secondary)' }}>{stats.generatedToday}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium muted mb-1">{t('sr_scheduled_reports')}</p>
-          <p className="text-2xl font-bold text-purple-600">{stats.scheduledReports}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium muted mb-1">{t('sr_total_size')}</p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--dms-accent)' }}>{stats.totalSize}</p>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((card) => (
+          <AppSurface key={card.label} padding="lg" variant="muted">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{card.label}</p>
+            <p className={`mt-2 text-3xl font-semibold ${card.tone}`}>{card.value}</p>
+          </AppSurface>
+        ))}
       </div>
 
-      {/* Report Types Grid */}
       <div>
-        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary)' }}>Available Reports</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <h3 className="mb-4 text-lg font-semibold text-ink">Available Reports</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {reportTypes.map((report) => (
-            <div key={report.id} className="card p-5 hover:shadow-lg transition-shadow">
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--dms-text-primary)' }}>{report.name}</h4>
+            <AppSurface key={report.id} className="h-full" padding="lg" variant="interactive">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">{report.name}</h4>
+                  <p className="mt-1 text-xs text-ink-muted">{report.description}</p>
+                </div>
                 <span className={`inline-block text-xs px-2 py-0.5 rounded border ${getCategoryColor(report.category)}`}>
                   {report.category}
                 </span>
               </div>
 
-              <p className="text-xs muted mb-3 line-clamp-2">{report.description}</p>
-
-              <div className="mb-3">
-                <p className="text-xs font-medium muted mb-1">Includes:</p>
+              <div className="mb-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">Includes</p>
                 <div className="flex flex-wrap gap-1">
                   {report.metrics.slice(0, 3).map((metric, index) => (
-                    <span key={index} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--dms-panel-bg)', color: 'var(--dms-text-primary)' }}>
+                    <span key={index} className="rounded-full bg-surface-muted px-2.5 py-1 text-xs text-ink-secondary">
                       {metric}
                     </span>
                   ))}
                   {report.metrics.length > 3 && (
-                    <span className="text-xs muted">+{report.metrics.length - 3} more</span>
+                    <span className="text-xs text-ink-muted">+{report.metrics.length - 3} more</span>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs muted mb-3">
+              <div className="mb-4 flex items-center justify-between text-xs text-ink-muted">
                 <span>Est. {report.estimatedTime}</span>
               </div>
 
-              <button
+              <Button
                 onClick={() => handleViewReport(report.id)}
-                className="w-full px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                style={{ background: 'var(--dms-primary)' }}
-                onMouseOver={(e) => e.currentTarget.style.background = 'var(--dms-primary-dark)'}
-                onMouseOut={(e) => e.currentTarget.style.background = 'var(--dms-primary)'}
+                className="w-full"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 {t('sr_generate_view')}
-              </button>
-            </div>
+              </Button>
+            </AppSurface>
           ))}
         </div>
       </div>
 
-      {/* Recent Reports */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{t('sr_recent_reports')}</h3>
-          <button className="text-sm font-medium" style={{ color: 'var(--dms-primary)' }}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-ink">{t('sr_recent_reports')}</h3>
+          <Button variant="ghost" size="sm">
             View All
-          </button>
+          </Button>
         </div>
 
-        <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead style={{ background: 'var(--dms-panel-bg)' }}>
+        <TableContainer>
+          <Table>
+            <thead className="bg-surface-muted/80">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider" style={{ color: 'var(--dms-text-primary)' }}>
+                <Th>
                   Report Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider" style={{ color: 'var(--dms-text-primary)' }}>
+                </Th>
+                <Th>
                   Generated At
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider" style={{ color: 'var(--dms-text-primary)' }}>
+                </Th>
+                <Th>
                   Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider" style={{ color: 'var(--dms-text-primary)' }}>
+                </Th>
+                <Th>
                   Actions
-                </th>
+                </Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200" style={{ background: 'var(--dms-card-bg)' }}>
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="px-4 py-8 text-center muted">
-                    {t('loading')}...
-                  </td>
+                  <Td colSpan="4" className="py-10 text-center">
+                    <span className="inline-flex items-center gap-2 text-ink-muted">
+                      <InlineSpinner />
+                      {t('loading')}...
+                    </span>
+                  </Td>
                 </tr>
               ) : recentReports.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-4 py-8 text-center muted">
-                    {t('sr_no_recent')}
-                  </td>
+                  <Td colSpan="4" className="py-8">
+                    <EmptyPanelState
+                      title={t('sr_no_recent')}
+                      description="Generated reports will appear here once they are available."
+                    />
+                  </Td>
                 </tr>
               ) : (
                 recentReports.map((report) => (
-                  <tr key={report.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--dms-text-primary)' }}>
+                  <Tr key={report.id}>
+                    <Td className="font-medium text-ink">
                       {report.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm muted">
+                    </Td>
+                    <Td>
                       {report.generatedAt}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className="px-2 py-1 text-xs font-medium rounded" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--dms-secondary)' }}>
+                    </Td>
+                    <Td>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         {report.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
+                    </Td>
+                    <Td>
+                      <Button
                         onClick={() => handleDownloadReport(report)}
-                        className="font-medium"
-                        style={{ color: 'var(--dms-primary)' }}
+                        variant="ghost"
+                        size="sm"
                       >
                         Download
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </Td>
+                  </Tr>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        </TableContainer>
       </div>
 
       {/* Alert Modal */}

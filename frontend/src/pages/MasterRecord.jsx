@@ -2,8 +2,15 @@ import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
 import ActionMenu from '../components/ActionMenu'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
-import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
+import AppSurface from '../components/ui/AppSurface'
+import Button from '../components/ui/Button'
+import EmptyPanelState from '../components/ui/EmptyPanelState'
+import InlineSpinner from '../components/ui/InlineSpinner'
+import PageHeader from '../components/ui/PageHeader'
+import SelectField from '../components/ui/SelectField'
+import { TableContainer, Table, Th, Td, Tr } from '../components/ui/Table'
+import TextInput from '../components/ui/TextInput'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { isAdmin } from '../utils/permissions'
 
@@ -19,24 +26,24 @@ function TabNavigation({ activeTab, onTabChange }) {
   ]
 
   return (
-    <div className="border-b border-gray-200 mb-6" data-tour-id="mr-tabbar">
-      <nav className="flex space-x-8" aria-label="Register Tabs">
+    <AppSurface className="overflow-x-auto" padding="sm" variant="muted" data-tour-id="mr-tabbar">
+      <nav className="flex min-w-max gap-2" aria-label="Register Tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             data-tour-id={`mr-tab-${tab.id}`}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+            className={`rounded-2xl px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'bg-brand text-ink-inverse shadow-dms-soft'
+                : 'text-ink-muted hover:bg-surface hover:text-ink'
             }`}
           >
             {tab.label}
           </button>
         ))}
       </nav>
-    </div>
+    </AppSurface>
   )
 }
 
@@ -145,33 +152,29 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <AppSurface padding="lg" variant="muted">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('mr_date_from')}</label>
-            <input
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('mr_date_from')}</label>
+            <TextInput
               type="date"
               value={filters.dateFrom}
               onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('mr_date_to')}</label>
-            <input
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('mr_date_to')}</label>
+            <TextInput
               type="date"
               value={filters.dateTo}
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('document_type')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('document_type')}</label>
+            <SelectField
               value={filters.documentTypeId}
               onChange={(e) => setFilters({ ...filters, documentTypeId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={documentTypes.length === 0}
             >
               <option value="all">{t('mr_all_types')}</option>
@@ -180,14 +183,13 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                   {dt.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('project_category')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('project_category')}</label>
+            <SelectField
               value={filters.projectCategoryId}
               onChange={(e) => setFilters({ ...filters, projectCategoryId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={projectCategories.length === 0}
             >
               <option value="all">All Categories</option>
@@ -196,14 +198,13 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                   {pc.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('owner')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('owner')}</label>
+            <SelectField
               value={filters.ownerId}
               onChange={(e) => setFilters({ ...filters, ownerId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={users.length === 0}
             >
               <option value="all">{t('mr_all_owners')}</option>
@@ -212,101 +213,97 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                   {u.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('mr_search')}</label>
-            <input
-              type="text"
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('mr_search')}</label>
+            <TextInput
               placeholder={t('mr_file_code_placeholder')}
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <button
+          <Button
             onClick={handleExport}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             {t('mr_export_excel')}
-          </button>
+          </Button>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <TableContainer>
+        <Table>
+          <thead className="bg-surface-muted/80">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Th>
                   {t('file_code')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('mr_doc_title')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('type')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('project_category')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('version')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('mr_registered_date')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('owner')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('actions')}
-                </th>
+                </Th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center text-gray-500">
-                    {t('mr_loading_documents')}
-                  </td>
+                  <Td colSpan="9" className="py-10 text-center">
+                    <span className="inline-flex items-center gap-2 text-ink-muted">
+                      <InlineSpinner />
+                      {t('mr_loading_documents')}
+                    </span>
+                  </Td>
                 </tr>
               ) : paginatedDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-8">
-                    <EmptyState
-                      message={t('mr_no_docs_found')}
+                  <Td colSpan="9" className="py-8">
+                    <EmptyPanelState
+                      title={t('mr_no_docs_found')}
                       description={filters.search ? t('mr_try_adjust') : t('mr_no_docs_registered')}
-                      actionLabel={filters.search ? 'Clear Search' : null}
-                      onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
                     />
-                  </td>
+                  </Td>
                 </tr>
               ) : (
                 paginatedDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                  <Tr key={doc.id}>
+                    <Td className="font-medium text-brand">
                       {doc.fileCode}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    </Td>
+                    <Td className="text-ink">
                       {doc.title}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    </Td>
+                    <Td>
                       {doc.type}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    </Td>
+                    <Td>
                       {doc.projectCategory || ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    </Td>
+                    <Td>
                       {(() => {
                         const seg = String(doc.fileCode || '').split('/')[1] || ''
                         const m = /^(\d+)([a-zA-Z]*)$/.exec(String(seg || '').trim())
@@ -316,20 +313,20 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                         const digitsLen = Math.max(2, digitsStr.length)
                         return `${digitsStr.padStart(digitsLen, '0')}${suffix}` || doc.version
                       })()}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    </Td>
+                    <Td>
                       {doc.registeredDate}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    </Td>
+                    <Td>
                       <div>{doc.owner}</div>
-                      <div className="text-xs text-gray-500">{doc.department}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                      <div className="text-xs text-ink-muted">{doc.department}</div>
+                    </Td>
+                    <Td>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         {doc.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
+                    </Td>
+                    <Td>
                       <ActionMenu
                         actions={[
                           { label: 'View', onClick: () => console.log('View document:', doc) },
@@ -346,14 +343,13 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                           }] : [])
                         ]}
                       />
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-      </div>
+        </Table>
+      </TableContainer>
 
       <ConfirmModal
         show={confirmModal.show}
@@ -1367,44 +1363,25 @@ export default function MasterRecord() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
-            <span>{t('mr_title')}</span>
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            {t('mr_desc')}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={t('mr_title')}
+        subtitle={t('mr_desc')}
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="card p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">{t('mr_total_documents')}</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalDocuments.toLocaleString()}</p>
-          <p className="text-xs text-gray-500 mt-1">{t('mr_all_registered')}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">{t('mr_active')}</p>
-          <p className="text-3xl font-bold text-green-600">{stats.active.toLocaleString()}</p>
-          <p className="text-xs text-gray-500 mt-1">{t('mr_currently_in_use')}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">{t('mr_new_this_month')}</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.newThisMonth}</p>
-          <p className="text-xs text-gray-500 mt-1">{t('mr_recently_registered')}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium text-gray-600 mb-2">{t('status_obsolete')}</p>
-          <p className="text-3xl font-bold text-red-600">{stats.obsolete}</p>
-          <p className="text-xs text-gray-500 mt-1">{t('mr_deprecated_docs')}</p>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: t('mr_total_documents'), value: stats.totalDocuments.toLocaleString(), helper: t('mr_all_registered'), tone: 'text-ink' },
+          { label: t('mr_active'), value: stats.active.toLocaleString(), helper: t('mr_currently_in_use'), tone: 'text-emerald-600' },
+          { label: t('mr_new_this_month'), value: stats.newThisMonth, helper: t('mr_recently_registered'), tone: 'text-brand' },
+          { label: t('status_obsolete'), value: stats.obsolete, helper: t('mr_deprecated_docs'), tone: 'text-amber-600' }
+        ].map((card) => (
+          <AppSurface key={card.label} padding="lg" variant="muted">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{card.label}</p>
+            <p className={`mt-2 text-3xl font-semibold ${card.tone}`}>{card.value}</p>
+            <p className="mt-1 text-xs text-ink-muted">{card.helper}</p>
+          </AppSurface>
+        ))}
       </div>
 
       {/* Tab Navigation */}

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
+import AppSurface from './ui/AppSurface'
+import EmptyPanelState from './ui/EmptyPanelState'
+import InlineSpinner from './ui/InlineSpinner'
+import SelectField from './ui/SelectField'
 
 export default function AnalyticsDashboard() {
   const { t } = usePreferences()
@@ -98,115 +102,132 @@ export default function AnalyticsDashboard() {
     )
   }
 
+  const metricCards = [
+    {
+      label: t('ad_total_events'),
+      value: analytics.totalEvents.toLocaleString(),
+      tone: 'text-brand',
+      helper: `${analytics.totalEventsTrend.direction === 'up' ? '↑' : analytics.totalEventsTrend.direction === 'down' ? '↓' : '→'} ${analytics.totalEventsTrend.percent}% ${t('ad_from_last_period')}`
+    },
+    {
+      label: t('ad_active_users'),
+      value: analytics.activeUsers,
+      tone: 'text-emerald-600',
+      helper: `${analytics.successfulLogins} ${t('ad_logins_period')}`
+    },
+    {
+      label: t('ad_failed_logins'),
+      value: analytics.failedLogins,
+      tone: 'text-amber-600',
+      helper: `${analytics.failedLoginsTrend.direction === 'up' ? '↑' : analytics.failedLoginsTrend.direction === 'down' ? '↓' : '→'} ${analytics.failedLoginsTrend.percent}% ${t('ad_from_last_period')}`
+    },
+    {
+      label: t('ad_documents'),
+      value: analytics.documentsProcessed.toLocaleString(),
+      tone: 'text-violet-600',
+      helper: `${analytics.documentsTrend.direction === 'up' ? '↑' : analytics.documentsTrend.direction === 'down' ? '↓' : '→'} ${analytics.documentsTrend.percent}% ${t('ad_from_last_period')}`
+    }
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_title')}</h2>
-          <p className="mt-1 text-sm muted">
-            {t('ad_desc')}
-          </p>
+          <h2 className="text-2xl font-semibold text-ink">{t('ad_title')}</h2>
+          <p className="mt-1 text-sm text-ink-muted">{t('ad_desc')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium" style={{ color: 'var(--dms-text-primary, #374151)' }}>{t('ad_time_period')}</label>
-          <select
+          <label className="text-sm font-medium text-ink-secondary">{t('ad_time_period')}</label>
+          <SelectField
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-blue-500"
-            style={{ background: 'var(--dms-card-bg, #fff)', color: 'var(--dms-text-primary, #111827)' }}
+            className="min-w-[170px]"
           >
             <option value="7days">{t('ad_last_7')}</option>
             <option value="30days">{t('ad_last_30')}</option>
             <option value="90days">{t('ad_last_90')}</option>
             <option value="year">{t('ad_this_year')}</option>
-          </select>
+          </SelectField>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="card p-6">
-          <p className="text-sm font-medium muted mb-2">{t('ad_total_events')}</p>
-          <p className="text-3xl font-bold" style={{ color: 'var(--dms-primary)' }}>{analytics.totalEvents.toLocaleString()}</p>
-          <p className={`text-xs mt-2 ${analytics.totalEventsTrend.direction === 'up' ? 'text-green-600' : analytics.totalEventsTrend.direction === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
-            {analytics.totalEventsTrend.direction === 'up' ? '↑' : analytics.totalEventsTrend.direction === 'down' ? '↓' : '→'} {analytics.totalEventsTrend.percent}% {t('ad_from_last_period')}
-          </p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium muted mb-2">{t('ad_active_users')}</p>
-          <p className="text-3xl font-bold" style={{ color: 'var(--dms-secondary)' }}>{analytics.activeUsers}</p>
-          <p className="text-xs text-gray-500 mt-2">{analytics.successfulLogins} {t('ad_logins_period')}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium muted mb-2">{t('ad_failed_logins')}</p>
-          <p className="text-3xl font-bold text-red-600">{analytics.failedLogins}</p>
-          <p className={`text-xs mt-2 ${analytics.failedLoginsTrend.direction === 'up' ? 'text-red-600' : analytics.failedLoginsTrend.direction === 'down' ? 'text-green-600' : 'text-gray-500'}`}>
-            {analytics.failedLoginsTrend.direction === 'up' ? '↑' : analytics.failedLoginsTrend.direction === 'down' ? '↓' : '→'} {analytics.failedLoginsTrend.percent}% {t('ad_from_last_period')}
-          </p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm font-medium muted mb-2">{t('ad_documents')}</p>
-          <p className="text-3xl font-bold" style={{ color: 'var(--dms-accent)' }}>{analytics.documentsProcessed.toLocaleString()}</p>
-          <p className={`text-xs mt-2 ${analytics.documentsTrend.direction === 'up' ? 'text-green-600' : analytics.documentsTrend.direction === 'down' ? 'text-red-600' : 'text-gray-500'}`}>
-            {analytics.documentsTrend.direction === 'up' ? '↑' : analytics.documentsTrend.direction === 'down' ? '↓' : '→'} {analytics.documentsTrend.percent}% {t('ad_from_last_period')}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {metricCards.map((card) => (
+          <AppSurface key={card.label} padding="lg" variant="muted">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{card.label}</p>
+            <p className={`mt-2 text-3xl font-semibold ${card.tone}`}>{card.value}</p>
+            <p className="mt-2 text-xs text-ink-muted">{card.helper}</p>
+          </AppSurface>
+        ))}
       </div>
 
-      {/* Activity Timeline Chart */}
-      <div className="card p-6">
-        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_activity_timeline')}</h3>
-        <div className="h-64 flex items-end justify-between gap-2">
-          {activityTimeline.map((data, index) => {
-            const maxValue = Math.max(...activityTimeline.map(d => d.events))
-            const height = (data.events / maxValue) * 100
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className="w-full flex flex-col items-center gap-1">
-                  <div className="relative w-full">
-                    <div
-                      className="w-full bg-blue-500 rounded-t hover:bg-blue-600 transition-colors cursor-pointer"
-                      style={{ height: `${height * 2}px` }}
-                      title={`${data.events} events`}
-                    />
+      <AppSurface padding="lg">
+        <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_activity_timeline')}</h3>
+        {loading ? (
+          <div className="flex h-64 items-center justify-center text-ink-muted">
+            <span className="inline-flex items-center gap-2">
+              <InlineSpinner />
+              {t('loading')}...
+            </span>
+          </div>
+        ) : activityTimeline.length === 0 ? (
+          <EmptyPanelState
+            title={t('ad_activity_timeline')}
+            description="Analytics data will appear here when events are available."
+            className="h-64"
+          />
+        ) : (
+          <>
+            <div className="flex h-64 items-end justify-between gap-2">
+              {activityTimeline.map((data, index) => {
+                const maxValue = Math.max(...activityTimeline.map(d => d.events))
+                const height = (data.events / maxValue) * 100
+                return (
+                  <div key={index} className="flex flex-1 flex-col items-center">
+                    <div className="flex w-full flex-col items-center gap-1">
+                      <div className="relative w-full">
+                        <div
+                          className="w-full rounded-t bg-brand transition-colors"
+                          style={{ height: `${height * 2}px` }}
+                          title={`${data.events} events`}
+                        />
+                      </div>
+                      <div
+                        className="w-full rounded-t bg-emerald-500 transition-colors"
+                        style={{ height: `${(data.documents / maxValue) * 200}px` }}
+                        title={`${data.documents} documents`}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs font-medium text-ink-muted">{data.day}</p>
                   </div>
-                  <div
-                    className="w-full bg-green-500 rounded-t hover:bg-green-600 transition-colors cursor-pointer"
-                    style={{ height: `${(data.documents / maxValue) * 200}px` }}
-                    title={`${data.documents} documents`}
-                  />
-                </div>
-                <p className="text-xs muted mt-2 font-medium">{data.day}</p>
+                )
+              })}
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded bg-brand"></div>
+                <span className="text-xs text-ink-muted">{t('ad_events')}</span>
               </div>
-            )
-          })}
-        </div>
-        <div className="flex items-center justify-center gap-6 mt-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-            <span className="text-xs muted">{t('ad_events')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded"></div>
-            <span className="text-xs muted">{t('ad_documents')}</span>
-          </div>
-        </div>
-      </div>
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded bg-emerald-500"></div>
+                <span className="text-xs text-ink-muted">{t('ad_documents')}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </AppSurface>
 
-      {/* Module Usage & Document Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Module Usage */}
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_module_usage')}</h3>
+        <AppSurface padding="lg">
+          <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_module_usage')}</h3>
           <div className="space-y-4">
             {moduleUsage.map((module, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">{module.name}</span>
-                  <span className="text-gray-600">{module.value}%</span>
+                  <span className="font-medium text-ink-secondary">{module.name}</span>
+                  <span className="text-ink-muted">{module.value}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full rounded-full bg-surface-muted h-2">
                   <div
                     className={`${module.color} h-2 rounded-full transition-all`}
                     style={{ width: `${module.value}%` }}
@@ -215,82 +236,80 @@ export default function AnalyticsDashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </AppSurface>
 
-        {/* Document Status */}
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_doc_status')}</h3>
+        <AppSurface padding="lg">
+          <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_doc_status')}</h3>
           <div className="space-y-3">
             {documentStatus.map((status, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 ${status.color} rounded-full`}></div>
-                  <span className="text-sm font-medium text-gray-700">{formatToTitleCase(status.status)}</span>
+                  <span className="text-sm font-medium text-ink-secondary">{formatToTitleCase(status.status)}</span>
                 </div>
-                <span className="text-sm font-bold text-gray-900">{status.count}</span>
+                <span className="text-sm font-bold text-ink">{status.count}</span>
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="mt-4 border-t border-border pt-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">Total Documents</span>
-              <span className="text-lg font-bold text-gray-900">
+              <span className="text-sm font-semibold text-ink-secondary">Total Documents</span>
+              <span className="text-lg font-bold text-ink">
                 {documentStatus.reduce((sum, s) => sum + s.count, 0)}
               </span>
             </div>
           </div>
-        </div>
+        </AppSurface>
       </div>
 
 
       {/* Top Users & Activities */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Most Active Users */}
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_top_users')}</h3>
+        <AppSurface padding="lg">
+          <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_top_users')}</h3>
           <div className="space-y-3">
             {topUsers.map((user, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3 transition-colors hover:bg-surface">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-blue-600">{user.avatar}</span>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-subtle">
+                    <span className="text-sm font-bold text-brand">{user.avatar}</span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.actions} actions</p>
+                    <p className="text-sm font-medium text-ink">{user.name}</p>
+                    <p className="text-xs text-ink-muted">{user.actions} actions</p>
                   </div>
                 </div>
-                        {getTrendIcon(user.trend)}
+                {getTrendIcon(user.trend)}
               </div>
             ))}
           </div>
-        </div>
+        </AppSurface>
 
-        {/* Top Activities */}
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--dms-text-primary, #111827)' }}>{t('ad_top_activities')}</h3>
+        <AppSurface padding="lg">
+          <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_top_activities')}</h3>
           <div className="space-y-3">
             {topActivities.map((activity, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-ink-secondary">
                     {index + 1}. {formatToTitleCase(activity.name)}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-900 font-semibold">{activity.count}</span>
-                    <span className="text-gray-500">({activity.percentage}%)</span>
+                    <span className="font-semibold text-ink">{activity.count}</span>
+                    <span className="text-ink-muted">({activity.percentage}%)</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full rounded-full bg-surface-muted h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all"
+                    className="h-2 rounded-full bg-brand transition-all"
                     style={{ width: `${activity.percentage}%` }}
                   />
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </AppSurface>
       </div>
 
     </div>

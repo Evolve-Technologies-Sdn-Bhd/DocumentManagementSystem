@@ -1,145 +1,121 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
-import EmptyState from './EmptyState'
 import Pagination from './Pagination'
 import { formatDateTime } from '../utils/dateFormatter'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import EmptyPanelState from './ui/EmptyPanelState'
+import InlineSpinner from './ui/InlineSpinner'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import SelectField from './ui/SelectField'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import TextInput from './ui/TextInput'
 
-// User Activity Detail Modal
 function UserActivityDetailModal({ activity, onClose }) {
   const { t } = usePreferences()
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {t('ual_detail_title')} - {activity.userName}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="px-6 py-4 space-y-4">
-          {/* Session Info */}
-          <div className="grid grid-cols-2 gap-4">
+    <Modal onClose={onClose} size="xl">
+      <ModalHeader title={`${t('ual_detail_title')} - ${activity.userName}`} onClose={onClose} />
+      <ModalBody>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_user')}</p>
-              <p className="text-sm text-gray-900 font-medium">{activity.userName}</p>
-              <p className="text-xs text-gray-500">{activity.email}</p>
-              <p className="text-xs text-gray-500">{activity.role}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_user')}</p>
+              <p className="text-sm font-medium text-ink">{activity.userName}</p>
+              <p className="text-xs text-ink-muted">{activity.email}</p>
+              <p className="text-xs text-ink-muted">{activity.role}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('department')}</p>
-              <p className="text-sm text-gray-900">{activity.department || 'N/A'}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('department')}</p>
+              <p className="text-sm text-ink">{activity.department || 'N/A'}</p>
             </div>
           </div>
 
-          <hr className="border-gray-200" />
-
-          {/* Session Details */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('ual_login_time')}</p>
-              <p className="text-sm text-gray-900">{formatDateTime(activity.loginTime)}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_login_time')}</p>
+              <p className="text-sm text-ink">{formatDateTime(activity.loginTime)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('ual_logout_time')}</p>
-              <p className="text-sm text-gray-900">{activity.logoutTime ? formatDateTime(activity.logoutTime) : t('ual_still_active')}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_logout_time')}</p>
+              <p className="text-sm text-ink">{activity.logoutTime ? formatDateTime(activity.logoutTime) : t('ual_still_active')}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('ual_session_duration')}</p>
-              <p className="text-sm text-gray-900">{activity.duration}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_session_duration')}</p>
+              <p className="text-sm text-ink">{activity.duration}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_ip_address')}</p>
-              <p className="text-sm text-gray-900">{activity.ipAddress}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_ip_address')}</p>
+              <p className="text-sm text-ink">{activity.ipAddress}</p>
             </div>
           </div>
 
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-1">{t('ual_device')}</p>
-            <p className="text-sm text-gray-900">{activity.device}</p>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_device')}</p>
+            <p className="text-sm text-ink">{activity.device}</p>
           </div>
 
-          <hr className="border-gray-200" />
-
-          {/* Activity Summary */}
-          <div>
-            <p className="text-xs font-medium text-gray-500 mb-3">{t('ual_activity_summary')}</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600">{t('ual_pages_viewed')}</p>
-                <p className="text-2xl font-bold text-blue-600">{activity.pagesViewed || 0}</p>
-              </div>
-              <div className="bg-green-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600">{t('ual_docs_accessed')}</p>
-                <p className="text-2xl font-bold text-green-600">{activity.documentsAccessed || 0}</p>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600">{t('ual_actions_performed')}</p>
-                <p className="text-2xl font-bold text-purple-600">{activity.actionsPerformed || 0}</p>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600">{t('ual_downloads')}</p>
-                <p className="text-2xl font-bold text-orange-600">{activity.downloads || 0}</p>
-              </div>
+          <div className="border-t border-border pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_activity_summary')}</p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {[
+                { label: t('ual_pages_viewed'), value: activity.pagesViewed || 0, tone: 'text-brand' },
+                { label: t('ual_docs_accessed'), value: activity.documentsAccessed || 0, tone: 'text-emerald-600' },
+                { label: t('ual_actions_performed'), value: activity.actionsPerformed || 0, tone: 'text-violet-600' },
+                { label: t('ual_downloads'), value: activity.downloads || 0, tone: 'text-amber-600' }
+              ].map((item) => (
+                <AppSurface key={item.label} padding="md" variant="muted">
+                  <p className="text-xs text-ink-muted">{item.label}</p>
+                  <p className={`mt-2 text-2xl font-semibold ${item.tone}`}>{item.value}</p>
+                </AppSurface>
+              ))}
             </div>
           </div>
 
-          {/* Recent Actions */}
           {activity.recentActions && activity.recentActions.length > 0 && (
-            <>
-              <hr className="border-gray-200" />
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-3">{t('ual_recent_actions')}</p>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {activity.recentActions.map((action, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{action.action}</p>
-                        <p className="text-xs text-gray-500">{action.entityName}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-600">{formatDateTime(action.time)}</p>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          action.module === 'Document' ? 'bg-blue-100 text-blue-800' :
-                          action.module === 'Configuration' ? 'bg-purple-100 text-purple-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {action.module}
-                        </span>
-                      </div>
+            <div className="border-t border-border pt-4">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('ual_recent_actions')}</p>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {activity.recentActions.map((action, index) => (
+                  <AppSurface key={index} className="flex items-center justify-between gap-3" padding="md" variant="muted">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-ink">{action.action}</p>
+                      <p className="text-xs text-ink-muted">{action.entityName}</p>
                     </div>
-                  ))}
-                </div>
+                    <div className="text-right">
+                      <p className="text-xs text-ink-muted">{formatDateTime(action.time)}</p>
+                      <span className="mt-1 inline-flex rounded-full bg-surface px-2 py-1 text-xs text-ink-secondary">
+                        {action.module}
+                      </span>
+                    </div>
+                  </AppSurface>
+                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
-
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {t('close')}
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button onClick={onClose}>{t('close')}</Button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
-// Main User Activity Logs Component
+function SummaryCard({ label, value, tone = 'text-brand' }) {
+  return (
+    <AppSurface padding="lg" variant="muted">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
+      <p className={`mt-2 text-3xl font-semibold ${tone}`}>{value}</p>
+    </AppSurface>
+  )
+}
+
 export default function UserActivityLogs() {
   const { t } = usePreferences()
   const [activities, setActivities] = useState([])
@@ -178,12 +154,11 @@ export default function UserActivityLogs() {
       const res = await api.get('/users')
       const userList = res.data.data?.users || res.data.data || []
       setUsers(userList)
-      
-      // Extract unique departments
-      const depts = [...new Set(userList.map(u => u.department).filter(Boolean))]
-      setDepartments(depts)
+      setDepartments([...new Set(userList.map((u) => u.department).filter(Boolean))])
     } catch (error) {
       console.error('Failed to load users:', error)
+      setUsers([])
+      setDepartments([])
     }
   }
 
@@ -222,7 +197,7 @@ export default function UserActivityLogs() {
   }
 
   const handleFilterChange = (field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }))
+    setFilters((prev) => ({ ...prev, [field]: value }))
     setCurrentPage(1)
   }
 
@@ -248,6 +223,7 @@ export default function UserActivityLogs() {
       document.body.appendChild(link)
       link.click()
       link.remove()
+      window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to export user activities:', error)
       alert('Export failed. Please try again.')
@@ -257,215 +233,167 @@ export default function UserActivityLogs() {
   const getStatusBadge = (status) => {
     if (status === 'Active') {
       return (
-        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded flex items-center gap-1">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
           {t('ual_active')}
         </span>
       )
     }
-    return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">{t('ual_completed')}</span>
+    return <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-ink-secondary">{t('ual_completed')}</span>
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <p className="text-xs font-medium text-gray-600 mb-1">{t('ual_active_users')}</p>
-          <p className="text-2xl font-bold text-green-600">{stats.activeUsers}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium text-gray-600 mb-1">{t('ual_total_sessions')}</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.totalSessionsToday}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium text-gray-600 mb-1">{t('ual_avg_duration')}</p>
-          <p className="text-2xl font-bold text-purple-600">{stats.avgSessionDuration}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs font-medium text-gray-600 mb-1">{t('ual_total_actions')}</p>
-          <p className="text-2xl font-bold text-orange-600">{stats.totalActionsToday.toLocaleString()}</p>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label={t('ual_active_users')} value={stats.activeUsers} tone="text-emerald-600" />
+        <SummaryCard label={t('ual_total_sessions')} value={stats.totalSessionsToday} tone="text-brand" />
+        <SummaryCard label={t('ual_avg_duration')} value={stats.avgSessionDuration} tone="text-violet-600" />
+        <SummaryCard label={t('ual_total_actions')} value={stats.totalActionsToday.toLocaleString()} tone="text-amber-600" />
       </div>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <AppSurface padding="lg" variant="muted">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('alv_date_range')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('alv_date_range')}</label>
+            <SelectField
               value={filters.dateRange}
               onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="today">{t('alv_today')}</option>
               <option value="7days">{t('alv_7days')}</option>
               <option value="30days">{t('alv_30days')}</option>
               <option value="90days">{t('alv_90days')}</option>
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('alv_user')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('alv_user')}</label>
+            <SelectField
               value={filters.user}
               onChange={(e) => handleFilterChange('user', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('ual_all_users')}</option>
-              {users.map(user => (
+              {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('department')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('department')}</label>
+            <SelectField
               value={filters.department}
               onChange={(e) => handleFilterChange('department', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('ual_all_departments')}</option>
-              {departments.map(dept => (
+              {departments.map((dept) => (
                 <option key={dept} value={dept}>{dept}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('status')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('status')}</label>
+            <SelectField
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('ual_all_status')}</option>
               <option value="active">{t('ual_active_sessions_filter')}</option>
               <option value="completed">{t('ual_completed_sessions')}</option>
-            </select>
+            </SelectField>
           </div>
         </div>
 
-        <div className="mt-4 flex gap-4">
+        <div className="mt-4 flex flex-col gap-3 md:flex-row">
           <div className="flex-1">
-            <input
-              type="text"
+            <TextInput
               placeholder={t('ual_search_placeholder')}
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <button
+          <Button
             onClick={handleExport}
             data-tour-id="logs-export-users"
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            className="md:self-end"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             <span>{t('alv_export_csv')}</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Activities Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <TableContainer>
+        <Table>
+          <thead className="bg-surface-muted/80">
+            <tr>
+              <Th>{t('alv_user')}</Th>
+              <Th>{t('ual_login_time')}</Th>
+              <Th>{t('ual_session_duration')}</Th>
+              <Th>{t('alv_ip_address')}</Th>
+              <Th>{t('actions')}</Th>
+              <Th>{t('status')}</Th>
+              <Th>{t('view_details')}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('alv_user')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('ual_login_time')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('ual_session_duration')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('alv_ip_address')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('actions')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('status')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {t('view_details')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                <Td colSpan="7" className="py-10 text-center">
+                  <span className="inline-flex items-center gap-2 text-ink-muted">
+                    <InlineSpinner />
                     {t('ual_loading')}
-                  </td>
-                </tr>
-              ) : activities.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-8">
-                    <EmptyState
-                      message={t('ual_no_activities')}
-                      description={filters.search ? t('ual_no_activities_search_desc') : t('ual_no_activities_filter_desc')}
-                      actionLabel={filters.search ? t('alv_clear_search') : null}
-                      onAction={filters.search ? () => handleFilterChange('search', '') : null}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                activities.map((activity) => (
-                  <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-blue-600">
-                            {activity.userName.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="text-gray-900 font-medium">{activity.userName}</div>
-                          <div className="text-gray-500 text-xs">{activity.role}</div>
-                        </div>
+                  </span>
+                </Td>
+              </tr>
+            ) : activities.length === 0 ? (
+              <tr>
+                <Td colSpan="7" className="py-8">
+                  <EmptyPanelState
+                    title={t('ual_no_activities')}
+                    description={filters.search ? t('ual_no_activities_search_desc') : t('ual_no_activities_filter_desc')}
+                  />
+                </Td>
+              </tr>
+            ) : (
+              activities.map((activity) => (
+                <Tr key={activity.id}>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-subtle text-sm font-semibold text-brand">
+                        {activity.userName.split(' ').map((n) => n[0]).join('')}
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                      {formatDateTime(activity.loginTime)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {activity.duration}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {activity.ipAddress}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {activity.actionsPerformed}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {getStatusBadge(activity.status)}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => setSelectedActivity(activity)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        {t('alv_view')}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <div>
+                        <div className="font-medium text-ink">{activity.userName}</div>
+                        <div className="text-xs text-ink-muted">{activity.role}</div>
+                      </div>
+                    </div>
+                  </Td>
+                  <Td className="whitespace-nowrap text-ink">{formatDateTime(activity.loginTime)}</Td>
+                  <Td className="text-ink">{activity.duration}</Td>
+                  <Td className="text-ink">{activity.ipAddress}</Td>
+                  <Td className="text-ink">{activity.actionsPerformed}</Td>
+                  <Td>{getStatusBadge(activity.status)}</Td>
+                  <Td>
+                    <Button
+                      onClick={() => setSelectedActivity(activity)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      {t('alv_view')}
+                    </Button>
+                  </Td>
+                </Tr>
+              ))
+            )}
+          </tbody>
+        </Table>
 
-        {/* Pagination */}
         {!loading && totalRecords > 0 && (
           <Pagination
             currentPage={currentPage}
@@ -476,13 +404,12 @@ export default function UserActivityLogs() {
             onPageSizeChange={handlePageSizeChange}
           />
         )}
-      </div>
+      </TableContainer>
 
-      {/* Activity Detail Modal */}
       {selectedActivity && (
-        <UserActivityDetailModal 
-          activity={selectedActivity} 
-          onClose={() => setSelectedActivity(null)} 
+        <UserActivityDetailModal
+          activity={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
         />
       )}
     </div>

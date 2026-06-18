@@ -1,99 +1,77 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
-import EmptyState from './EmptyState'
 import Pagination from './Pagination'
 import { usePreferences } from '../contexts/PreferencesContext'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import EmptyPanelState from './ui/EmptyPanelState'
+import InlineSpinner from './ui/InlineSpinner'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import SelectField from './ui/SelectField'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import TextInput from './ui/TextInput'
 
 // Log Detail Modal Component
 function LogDetailModal({ log, onClose }) {
   const { t, formatDateTime } = usePreferences()
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {t('alv_detail_title')}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="px-6 py-4 space-y-4">
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
+    <Modal onClose={onClose} size="lg">
+      <ModalHeader title={t('alv_detail_title')} />
+      <ModalBody>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_timestamp')}</p>
-              <p className="text-sm text-gray-900">{formatDateTime(log.timestamp)}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_timestamp')}</p>
+              <p className="text-sm text-ink">{formatDateTime(log.timestamp)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('status')}</p>
-              <p className="text-sm">
-                <span className="text-green-600 font-medium">{t('alv_success')}</span>
-              </p>
-            </div>
-          </div>
-
-          {/* User Info */}
-          <div>
-            <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_user')}</p>
-            <p className="text-sm text-gray-900">{log.user || t('alv_system')}</p>
-          </div>
-
-          <div>
-            <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_ip_address')}</p>
-            <p className="text-sm text-gray-900">{log.ipAddress || '-'}</p>
-          </div>
-
-          <hr className="border-gray-200" />
-
-          {/* Action Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('alv_module')}</p>
-              <p className="text-sm text-gray-900">{log.module}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">{t('action')}</p>
-              <p className="text-sm text-gray-900">{log.action}</p>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('status')}</p>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{t('alv_success')}</span>
             </div>
           </div>
 
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-1">{t('description')}</p>
-            <p className="text-sm text-gray-900">{log.description || '-'}</p>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_user')}</p>
+            <p className="text-sm text-ink">{log.user || t('alv_system')}</p>
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_ip_address')}</p>
+            <p className="text-sm text-ink">{log.ipAddress || '-'}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_module')}</p>
+              <p className="text-sm text-ink">{log.module}</p>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('action')}</p>
+              <p className="text-sm text-ink">{log.action}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('description')}</p>
+            <p className="text-sm text-ink">{log.description || '-'}</p>
           </div>
 
           {log.metadata && Object.keys(log.metadata).length > 0 && (
-            <>
-              <hr className="border-gray-200" />
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">{t('alv_additional_details')}</p>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <pre className="text-xs text-gray-700 overflow-x-auto">
-                    {JSON.stringify(log.metadata, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </>
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">{t('alv_additional_details')}</p>
+              <AppSurface padding="md" variant="muted">
+                <pre className="overflow-x-auto text-xs text-ink-secondary">
+                  {JSON.stringify(log.metadata, null, 2)}
+                </pre>
+              </AppSurface>
+            </div>
           )}
         </div>
-
-        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            {t('close')}
-          </button>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button onClick={onClose}>{t('close')}</Button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
@@ -333,52 +311,45 @@ export default function AuditLogsViewer() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">{t('alv_header')}</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          {t('alv_header_desc')}
-        </p>
+        <h2 className="text-2xl font-semibold text-ink">{t('alv_header')}</h2>
+        <p className="mt-1 text-sm text-ink-muted">{t('alv_header_desc')}</p>
       </div>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <AppSurface padding="lg" variant="muted">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('alv_date_range')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('alv_date_range')}</label>
+            <SelectField
               value={filters.dateRange}
               onChange={(e) => handleFilterChange('dateRange', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="today">{t('alv_today')}</option>
               <option value="7days">{t('alv_7days')}</option>
               <option value="30days">{t('alv_30days')}</option>
               <option value="90days">{t('alv_90days')}</option>
               <option value="custom">{t('alv_custom_range')}</option>
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('alv_module')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('alv_module')}</label>
+            <SelectField
               value={filters.module}
               onChange={(e) => handleFilterChange('module', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('alv_all_modules')}</option>
               {filterOptions.modules.map(module => (
                 <option key={module} value={module}>{module}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('action')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('action')}</label>
+            <SelectField
               value={filters.action}
               onChange={(e) => handleFilterChange('action', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('alv_all_actions')}</option>
               <optgroup label={t('alv_auth_group')}>
@@ -443,125 +414,120 @@ export default function AuditLogsViewer() {
                 <option value="FOLDER_UPDATE">FOLDER_UPDATE</option>
                 <option value="FOLDER_DELETE">FOLDER_DELETE</option>
               </optgroup>
-            </select>
+            </SelectField>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('alv_user')}</label>
-            <select
+            <label className="mb-1 block text-sm font-medium text-ink-secondary">{t('alv_user')}</label>
+            <SelectField
               value={filters.user}
               onChange={(e) => handleFilterChange('user', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">{t('alv_all_users')}</option>
               {filterOptions.users.map(user => (
                 <option key={user.id} value={user.id}>{user.name}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
         </div>
 
-        <div className="mt-4 flex gap-4">
+        <div className="mt-4 flex flex-col gap-3 md:flex-row">
           <div className="flex-1">
-            <input
-              type="text"
+            <TextInput
               placeholder={t('alv_search_placeholder')}
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <button
+          <Button
             onClick={handleExport}
             data-tour-id="logs-export-activity"
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            className="md:self-end"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             <span>{t('alv_export_csv')}</span>
-          </button>
+          </Button>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Logs Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <TableContainer>
+        <Table>
+          <thead className="bg-surface-muted/80">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Th>
                   {t('alv_timestamp')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('alv_user')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('alv_module')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('action')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('description')}
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </Th>
+                <Th>
                   {t('view_details')}
-                </th>
+                </Th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
-                    {t('loading')}...
-                  </td>
+                  <Td colSpan="6" className="py-10 text-center">
+                    <span className="inline-flex items-center gap-2 text-ink-muted">
+                      <InlineSpinner />
+                      {t('loading')}...
+                    </span>
+                  </Td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8">
-                    <EmptyState
-                      message={t('alv_no_logs')}
+                  <Td colSpan="6" className="py-8">
+                    <EmptyPanelState
+                      title={t('alv_no_logs')}
                       description={filters.search ? t('alv_no_logs_search_desc') : t('alv_no_logs_filter_desc')}
-                      actionLabel={filters.search ? t('alv_clear_search') : null}
-                      onAction={filters.search ? () => handleFilterChange('search', '') : null}
                     />
-                  </td>
+                  </Td>
                 </tr>
               ) : (
                 logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                  <Tr key={log.id}>
+                    <Td className="whitespace-nowrap text-ink">
                       {formatDateTime(log.timestamp)}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="text-gray-900 font-medium">{log.user || t('alv_system')}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    </Td>
+                    <Td className="font-medium text-ink">
+                      {log.user || t('alv_system')}
+                    </Td>
+                    <Td>
                       {log.module}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
+                    </Td>
+                    <Td>
                       {getActionBadge(log.action)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    </Td>
+                    <Td className="text-ink">
                       <div className="max-w-xs truncate" title={log.description}>{log.description || '-'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
+                    </Td>
+                    <Td>
+                      <Button
                         onClick={() => setSelectedLog(log)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
+                        variant="ghost"
+                        size="sm"
                       >
                         {t('alv_view')}
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </Td>
+                  </Tr>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+          </Table>
 
-        {/* Pagination */}
         {!loading && totalRecords > 0 && (
           <Pagination
             currentPage={currentPage}
@@ -572,9 +538,8 @@ export default function AuditLogsViewer() {
             onPageSizeChange={handlePageSizeChange}
           />
         )}
-      </div>
+      </TableContainer>
 
-      {/* Log Detail Modal */}
       {selectedLog && (
         <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
       )}
