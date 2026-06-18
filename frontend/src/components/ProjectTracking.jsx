@@ -1999,24 +1999,24 @@ function ProjectDetail({ projectId }) {
           )}
         />
 
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Status</div>
-            <div className="mt-2">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Status</div>
+            <div className="mt-1.5">
               <ProjectStatusBadge status={project.status} />
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Category</div>
-            <div className="mt-2 text-sm font-medium text-ink">{project.projectCategory?.name || '-'}</div>
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Category</div>
+            <div className="mt-1.5 text-sm font-medium text-ink">{project.projectCategory?.name || '-'}</div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Manager</div>
-            <div className="mt-2 text-sm font-medium text-ink">{managerLabel}</div>
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Manager</div>
+            <div className="mt-1.5 truncate text-sm font-medium text-ink" title={managerLabel}>{managerLabel}</div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Current Stage</div>
-            <div className="mt-2 text-sm font-medium text-ink">{selectedPhase?.currentStage?.name || 'Not set'}</div>
+          <div className="rounded-xl border border-border bg-surface px-3 py-2.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Current Stage</div>
+            <div className="mt-1.5 truncate text-sm font-medium text-ink" title={selectedPhase?.currentStage?.name || 'Not set'}>{selectedPhase?.currentStage?.name || 'Not set'}</div>
           </div>
         </div>
 
