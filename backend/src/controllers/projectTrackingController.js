@@ -332,7 +332,7 @@ exports.unlinkDocumentFromItem = asyncHandler(async (req, res) => {
   if (!itemId) throw new ValidationError('Invalid itemId');
   if (!linkId) throw new ValidationError('Invalid linkId');
 
-  const result = await projectTrackingService.unlinkDocumentFromItem(itemId, linkId);
+  const result = await projectTrackingService.unlinkDocumentFromItem(itemId, linkId, { user: req.user });
   return ResponseFormatter.success(res, result, 'Document unlinked successfully');
 });
 
@@ -361,7 +361,7 @@ exports.unlinkDocumentFromStage = asyncHandler(async (req, res) => {
   if (!stageId) throw new ValidationError('Invalid stageId');
   if (!linkId) throw new ValidationError('Invalid linkId');
 
-  const result = await projectTrackingService.unlinkDocumentFromStage(iterationId, stageId, linkId);
+  const result = await projectTrackingService.unlinkDocumentFromStage(iterationId, stageId, linkId, { user: req.user });
   return ResponseFormatter.success(res, result, 'Document unlinked successfully');
 });
 

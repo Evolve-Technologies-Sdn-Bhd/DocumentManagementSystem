@@ -1817,6 +1817,10 @@ function ProjectDetail({ projectId }) {
 
   const downloadDocument = async (document) => {
     if (!document?.id) return
+    if (!canInteractWithDocument(document)) {
+      showRestrictedDocumentAlert('download this file')
+      return
+    }
 
     try {
       const res = await api.get(`/documents/${document.id}/download`, {
@@ -1849,6 +1853,10 @@ function ProjectDetail({ projectId }) {
 
   const openDocumentWorkspace = async (document) => {
     if (!document?.id) return
+    if (!canInteractWithDocument(document)) {
+      showRestrictedDocumentAlert('view this file')
+      return
+    }
 
     const currentStatus = String(document.status || '').toUpperCase()
     if (currentStatus === 'DRAFT') {
@@ -1861,6 +1869,10 @@ function ProjectDetail({ projectId }) {
 
   const openDocumentDirectory = async (document) => {
     if (!document?.id) return
+    if (!canInteractWithDocument(document)) {
+      showRestrictedDocumentAlert('go to this file directory')
+      return
+    }
 
     const currentStatus = String(document.status || '').toUpperCase()
     if (currentStatus === 'DRAFT') {
@@ -1962,6 +1974,17 @@ function ProjectDetail({ projectId }) {
   const getDocumentDirectoryLabel = (document) => {
     const currentStage = String(document?.stage || document?.status || '').toUpperCase()
     return currentStage === 'DRAFT' ? 'Continue Draft' : 'Go to File Directory'
+  }
+
+  const canInteractWithDocument = (document) => document?.canAccess !== false
+
+  const showRestrictedDocumentAlert = (actionLabel = 'interact with this document') => {
+    setAlertModal({
+      show: true,
+      title: 'Confidential Access Required',
+      message: `You can see this file is uploaded, but you do not have permission to ${actionLabel}.`,
+      type: 'warning'
+    })
   }
 
   const getLinkedDocumentTypeLabel = (link) => (
@@ -2556,21 +2579,29 @@ function ProjectDetail({ projectId }) {
                   {consolidatedDocuments.map((entry) => (
                     <Tr key={entry.id} className="hover:bg-surface-muted">
                       <Td>
-                        <button
-                          type="button"
-                          onClick={() => downloadDocument(entry.document)}
-                          className="font-medium text-brand hover:underline"
-                        >
-                          {getDocumentCodeLabel(entry.document)}
-                        </button>
-                        <div className="mt-1">
+                        {canInteractWithDocument(entry.document) ? (
                           <button
                             type="button"
                             onClick={() => downloadDocument(entry.document)}
-                            className="text-left text-ink-secondary hover:underline"
+                            className="font-medium text-brand hover:underline"
                           >
-                            {getDocumentTitleLabel(entry.document)}
+                            {getDocumentCodeLabel(entry.document)}
                           </button>
+                        ) : (
+                          <span className="font-medium text-ink">{getDocumentCodeLabel(entry.document)}</span>
+                        )}
+                        <div className="mt-1">
+                          {canInteractWithDocument(entry.document) ? (
+                            <button
+                              type="button"
+                              onClick={() => downloadDocument(entry.document)}
+                              className="text-left text-ink-secondary hover:underline"
+                            >
+                              {getDocumentTitleLabel(entry.document)}
+                            </button>
+                          ) : (
+                            <span className="text-left text-ink-secondary">{getDocumentTitleLabel(entry.document)}</span>
+                          )}
                         </div>
                         <div className="mt-2 inline-flex items-center gap-2">
                           <ConfidentialBadge isConfidential={entry.document.isConfidential} />
@@ -2587,9 +2618,13 @@ function ProjectDetail({ projectId }) {
                         <DocumentStatusBadge status={entry.document.status} />
                       </Td>
                       <Td align="right">
-                        <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
-                          {getDocumentDirectoryLabel(entry.document)}
-                        </button>
+                        {canInteractWithDocument(entry.document) ? (
+                          <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
+                            {getDocumentDirectoryLabel(entry.document)}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+                        )}
                       </Td>
                     </Tr>
                   ))}
@@ -2669,24 +2704,36 @@ function ProjectDetail({ projectId }) {
                                 it.links.map((l) => (
                                   <div key={l.id} className="space-y-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadDocument(l.document)}
-                                        className="font-medium text-brand hover:underline"
-                                      >
-                                        {getDocumentCodeLabel(l.document)}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadDocument(l.document)}
-                                        className="text-left text-ink-muted hover:underline"
-                                      >
-                                        {getDocumentTitleLabel(l.document)}
-                                      </button>
+                                      {canInteractWithDocument(l.document) ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => downloadDocument(l.document)}
+                                            className="font-medium text-brand hover:underline"
+                                          >
+                                            {getDocumentCodeLabel(l.document)}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => downloadDocument(l.document)}
+                                            className="text-left text-ink-muted hover:underline"
+                                          >
+                                            {getDocumentTitleLabel(l.document)}
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
+                                          <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+                                        </>
+                                      )}
                                     </div>
                                     <div className="inline-flex flex-wrap items-center gap-2">
                                       <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                       <DocumentStatusBadge status={l.document.status} />
+                                      {!canInteractWithDocument(l.document) ? (
+                                        <span className="text-xs font-medium text-ink-muted">Visible only</span>
+                                      ) : null}
                                     </div>
                                   </div>
                                 ))
@@ -2712,7 +2759,7 @@ function ProjectDetail({ projectId }) {
                               <div className="space-y-3">
                                 {it.links.map((l) => (
                                   <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                    {canLink && isProjectActive ? (
+                                    {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -2728,20 +2775,26 @@ function ProjectDetail({ projectId }) {
                                         Unlink
                                       </button>
                                     ) : null}
-                                    <button
-                                      type="button"
-                                      onClick={() => openDocumentWorkspace(l.document)}
-                                      className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                    >
-                                      {getDocumentWorkspaceLabel(l.document)}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openDocumentDirectory(l.document)}
-                                      className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                    >
-                                      {getDocumentDirectoryLabel(l.document)}
-                                    </button>
+                                    {canInteractWithDocument(l.document) ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => openDocumentWorkspace(l.document)}
+                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                        >
+                                          {getDocumentWorkspaceLabel(l.document)}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => openDocumentDirectory(l.document)}
+                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                        >
+                                          {getDocumentDirectoryLabel(l.document)}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+                                    )}
                                     {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
                                       <button
                                         type="button"
@@ -2805,30 +2858,42 @@ function ProjectDetail({ projectId }) {
                               <Td className="min-w-[260px] text-sm text-ink-secondary">
                                 <div className="space-y-1">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => downloadDocument(l.document)}
-                                      className="font-medium text-brand hover:underline"
-                                    >
-                                      {getDocumentCodeLabel(l.document)}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => downloadDocument(l.document)}
-                                      className="text-left text-ink-muted hover:underline"
-                                    >
-                                      {getDocumentTitleLabel(l.document)}
-                                    </button>
+                                    {canInteractWithDocument(l.document) ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadDocument(l.document)}
+                                          className="font-medium text-brand hover:underline"
+                                        >
+                                          {getDocumentCodeLabel(l.document)}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadDocument(l.document)}
+                                          className="text-left text-ink-muted hover:underline"
+                                        >
+                                          {getDocumentTitleLabel(l.document)}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
+                                        <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+                                      </>
+                                    )}
                                   </div>
                                   <div className="inline-flex flex-wrap items-center gap-2">
                                     <ConfidentialBadge isConfidential={l.document.isConfidential} />
                                     <DocumentStatusBadge status={l.document.status} />
+                                    {!canInteractWithDocument(l.document) ? (
+                                      <span className="text-xs font-medium text-ink-muted">Visible only</span>
+                                    ) : null}
                                   </div>
                                 </div>
                               </Td>
                               <Td className="min-w-[220px] text-sm">
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                  {canLink && isProjectActive ? (
+                                  {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -2844,20 +2909,26 @@ function ProjectDetail({ projectId }) {
                                       Unlink
                                     </button>
                                   ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocumentWorkspace(l.document)}
-                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                  >
-                                    {getDocumentWorkspaceLabel(l.document)}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openDocumentDirectory(l.document)}
-                                    className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                  >
-                                    {getDocumentDirectoryLabel(l.document)}
-                                  </button>
+                                  {canInteractWithDocument(l.document) ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocumentWorkspace(l.document)}
+                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                      >
+                                        {getDocumentWorkspaceLabel(l.document)}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDocumentDirectory(l.document)}
+                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                      >
+                                        {getDocumentDirectoryLabel(l.document)}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+                                  )}
                                   {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
                                     <button
                                       type="button"

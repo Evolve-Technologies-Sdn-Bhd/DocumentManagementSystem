@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { ConflictError, NotFoundError, ValidationError } = require('../utils/errors');
+const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../utils/errors');
 const documentService = require('./documentService');
 const documentAssignmentService = require('./documentAssignmentService')
 const folderPermissionService = require('./folderPermissionService')
@@ -25,6 +25,56 @@ const assertProjectCanProgress = (project, actionLabel) => {
   }
 
   throw new ValidationError(`This project is ${status.toLowerCase()}. Update the project status before you can ${actionLabel}.`)
+}
+
+const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) => {
+  const userId = Number.isFinite(Number(user?.id)) ? Number(user.id) : null
+  const normalizedRoleIds = Array.isArray(roleIds) ? roleIds.filter((id) => Number.isFinite(id)) : []
+  const accessMatch = []
+
+  if (userId) accessMatch.push({ userId, canView: true })
+  if (normalizedRoleIds.length > 0) {
+    accessMatch.push({ roleId: { in: normalizedRoleIds }, canView: true })
+  }
+
+  return {
+    id: true,
+    fileCode: true,
+    title: true,
+    status: true,
+    stage: true,
+    isConfidential: true,
+    updatedAt: true,
+    ownerId: true,
+    createdById: true,
+    confidentialAccess: {
+      where: accessMatch.length > 0 ? { OR: accessMatch } : { id: -1 },
+      select: { id: true }
+    },
+    ...extraSelect
+  }
+}
+
+const canInteractWithLinkedDocument = (document, user) => {
+  if (!document) return false
+  if (!document.isConfidential) return true
+  if (!user) return false
+  if (user?.permissions?.projectTracking?.viewConfidential) return true
+
+  const userId = Number.isFinite(Number(user.id)) ? Number(user.id) : null
+  if (userId && (document.ownerId === userId || document.createdById === userId)) return true
+
+  return Array.isArray(document.confidentialAccess) && document.confidentialAccess.length > 0
+}
+
+const serializeLinkedDocumentForUser = (document, user) => {
+  if (!document) return document
+  const canAccess = canInteractWithLinkedDocument(document, user)
+  const { ownerId, createdById, confidentialAccess, ...safeDocument } = document
+  return {
+    ...safeDocument,
+    canAccess
+  }
 }
 
 const getActiveStageDefinitions = async () => {
@@ -650,10 +700,6 @@ exports.listIterationItems = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  const docWhere =
-    user && !user?.permissions?.projectTracking?.viewConfidential
-      ? confidentialAccessService.buildConfidentialWhereClause(user, roleIds)
-      : {}
 
   const items = await prisma.projectIterationDocumentItem.findMany({
     where: { projectIterationId: iterationId },
@@ -661,10 +707,9 @@ exports.listIterationItems = async (iterationId, { user }) => {
       stage: true,
       documentType: true,
       links: {
-        where: user ? { document: docWhere } : undefined,
         include: {
           document: {
-            select: { id: true, fileCode: true, title: true, status: true, stage: true, isConfidential: true, updatedAt: true }
+            select: buildLinkedDocumentAccessSelect(user, roleIds)
           }
         },
         orderBy: { linkedAt: 'desc' }
@@ -677,7 +722,11 @@ exports.listIterationItems = async (iterationId, { user }) => {
     ...item,
     stage: item.stage
       ? { ...item.stage, name: stageNameMap.get(item.stageId) || item.stage.name }
-      : item.stage
+      : item.stage,
+    links: (item.links || []).map((link) => ({
+      ...link,
+      document: serializeLinkedDocumentForUser(link.document, user)
+    }))
   }))
 
   return withStageNames;
@@ -738,7 +787,7 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
   });
 };
 
-exports.unlinkDocumentFromItem = async (itemId, linkId) => {
+exports.unlinkDocumentFromItem = async (itemId, linkId, { user } = {}) => {
   return prisma.$transaction(async (tx) => {
     const item = await tx.projectIterationDocumentItem.findUnique({
       where: { id: itemId },
@@ -755,6 +804,7 @@ exports.unlinkDocumentFromItem = async (itemId, linkId) => {
     if (!item) throw new NotFoundError('Project item')
     assertProjectCanProgress(item.iteration.project, 'remove linked documents from this project')
 
+    const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
     const link = await tx.projectDocumentLink.findFirst({
       where: {
         id: linkId,
@@ -764,11 +814,15 @@ exports.unlinkDocumentFromItem = async (itemId, linkId) => {
       },
       include: {
         document: {
-          select: { id: true, status: true }
+          select: buildLinkedDocumentAccessSelect(user, roleIds, { status: true })
         }
       }
     })
     if (!link) throw new NotFoundError('Project document link')
+
+    if (!canInteractWithLinkedDocument(link.document, user)) {
+      throw new ForbiddenError('You do not have access to unlink this confidential document')
+    }
 
     await tx.projectDocumentLink.delete({ where: { id: link.id } })
 
@@ -813,30 +867,18 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  const docWhere =
-    user && !user?.permissions?.projectTracking?.viewConfidential
-      ? confidentialAccessService.buildConfidentialWhereClause(user, roleIds)
-      : {}
 
   const links = await prisma.projectDocumentLink.findMany({
     where: {
       projectIterationId: iterationId,
-      itemId: null,
-      ...(user ? { document: docWhere } : {})
+      itemId: null
     },
     include: {
       document: {
-        select: {
-          id: true,
-          fileCode: true,
-          title: true,
-          status: true,
-          stage: true,
-          isConfidential: true,
+        select: buildLinkedDocumentAccessSelect(user, roleIds, {
           documentTypeId: true,
-          updatedAt: true,
           documentType: { select: { id: true, name: true } }
-        }
+        })
       },
       stage: true
     },
@@ -845,6 +887,7 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
 
   return links.map((link) => ({
     ...link,
+    document: serializeLinkedDocumentForUser(link.document, user),
     stage: link.stage
       ? { ...link.stage, name: stageNameMap.get(link.stageId) || link.stage.name }
       : link.stage
@@ -894,7 +937,7 @@ exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedB
   })
 }
 
-exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId) => {
+exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId, { user } = {}) => {
   const iteration = await prisma.projectIteration.findUnique({
     where: { id: iterationId },
     include: {
@@ -906,6 +949,7 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId) => {
   if (!iteration) throw new NotFoundError('Project iteration')
   assertProjectCanProgress(iteration.project, 'remove linked documents from this project')
 
+  const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
   const link = await prisma.projectDocumentLink.findFirst({
     where: {
       id: linkId,
@@ -913,9 +957,18 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId) => {
       stageId,
       itemId: null
     },
-    select: { id: true }
+    select: {
+      id: true,
+      document: {
+        select: buildLinkedDocumentAccessSelect(user, roleIds)
+      }
+    }
   })
   if (!link) throw new NotFoundError('Project document link')
+
+  if (!canInteractWithLinkedDocument(link.document, user)) {
+    throw new ForbiddenError('You do not have access to unlink this confidential document')
+  }
 
   await prisma.projectDocumentLink.delete({ where: { id: link.id } })
   return { removedLinkId: link.id }
