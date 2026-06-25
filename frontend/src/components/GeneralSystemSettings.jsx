@@ -4847,19 +4847,19 @@ export default function GeneralSystemSettings() {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t('gss_title')}</h2>
-        <p className="text-sm text-gray-600 mt-1">{t('gss_title_desc')}</p>
-        <p className="text-sm text-gray-600">{t('gss_title_desc2')}</p>
+        <h2 className="text-2xl font-bold text-ink">{t('gss_title')}</h2>
+        <p className="text-sm text-ink-muted mt-1">{t('gss_title_desc')}</p>
+        <p className="text-sm text-ink-muted">{t('gss_title_desc2')}</p>
       </div>
 
       {/* System Info Panel */}
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('gss_system_info')}</h3>
+          <h3 className="text-lg font-semibold text-ink">{t('gss_system_info')}</h3>
           <button
             onClick={loadSystemInfo}
             disabled={loading}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium disabled:text-gray-400 flex items-center gap-1"
+            className="text-sm text-brand hover:text-brand-hover font-medium disabled:text-ink-soft flex items-center gap-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -4869,32 +4869,32 @@ export default function GeneralSystemSettings() {
         </div>
         
         {loading ? (
-          <div className="text-center py-8 text-gray-500">{t('gss_loading_system')}</div>
+          <div className="text-center py-8 text-ink-muted">{t('gss_loading_system')}</div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{systemInfo.version}</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_version')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-brand">{systemInfo.version}</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_version')}</div>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{formatNumber(systemInfo.totalUsers)}</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_total_users')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-[var(--dms-color-success-ink)]">{formatNumber(systemInfo.totalUsers)}</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_total_users')}</div>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">{formatNumber(systemInfo.totalDocuments)}</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_documents')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-[var(--dms-color-info-ink)]">{formatNumber(systemInfo.totalDocuments)}</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_documents')}</div>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{systemInfo.storageUsed}</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_storage_used')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-[var(--dms-color-warning-ink)]">{systemInfo.storageUsed}</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_storage_used')}</div>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{systemInfo.databaseSize}</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_database')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-[var(--dms-color-danger-ink)]">{systemInfo.databaseSize}</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_database')}</div>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-cyan-600">{systemInfo.capacityPercent}%</div>
-              <div className="text-xs text-gray-600 mt-1">{t('gss_capacity')}</div>
+            <div className="text-center p-3 bg-surface-muted border border-border rounded-lg">
+              <div className="text-2xl font-bold text-brand-secondary">{systemInfo.capacityPercent}%</div>
+              <div className="text-xs text-ink-muted mt-1">{t('gss_capacity')}</div>
             </div>
           </div>
         )}

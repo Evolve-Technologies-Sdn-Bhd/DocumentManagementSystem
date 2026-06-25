@@ -944,19 +944,19 @@ export default function NewDocumentRequest() {
       <AppSurface padding="lg" data-tour-id="ndr-request-list-card">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{t('document_request_list')}</h2>
-            <p className="text-sm text-gray-600 mt-1">{t('document_request_list_desc')}</p>
+            <h2 className="text-lg font-semibold text-ink">{t('document_request_list')}</h2>
+            <p className="text-sm text-ink-secondary mt-1">{t('document_request_list_desc')}</p>
           </div>
           <div className="flex gap-3">
             {requests.length > 0 && (
-              <div className="text-sm text-gray-600 flex items-center">
-                {t('showing_results')} <span className="font-medium text-gray-900 mx-1">{requests.length}</span> {t('requests')}
+              <div className="text-sm text-ink-secondary flex items-center">
+                {t('showing_results')} <span className="font-medium text-ink mx-1">{requests.length}</span> {t('requests')}
               </div>
             )}
             <PermissionGate module="newDocumentRequest" action="create">
               <Button
                 onClick={() => setShowVersionModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-brand hover:bg-brand-hover text-ink-inverse"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -976,11 +976,11 @@ export default function NewDocumentRequest() {
         ) : requests.length === 0 ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-16">
-            <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-20 h-20 text-ink-soft mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('no_requests_yet')}</h3>
-            <p className="text-gray-600 text-center max-w-md">
+            <h3 className="text-lg font-medium text-ink mb-2">{t('no_requests_yet')}</h3>
+            <p className="text-ink-secondary text-center max-w-md">
               {t('no_requests_desc')}
             </p>
           </div>
@@ -999,7 +999,7 @@ export default function NewDocumentRequest() {
                         <span>{t('document_type')}</span>
                         <span className="relative inline-flex group">
                           <svg
-                            className="w-4 h-4 text-gray-400 hover:text-gray-600"
+                            className="w-4 h-4 text-ink-soft hover:text-ink-secondary"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1008,7 +1008,7 @@ export default function NewDocumentRequest() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
                           </svg>
                           <span
-                            className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-96 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs normal-case text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+                            className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-96 -translate-x-1/2 rounded-md bg-surface-strong border border-border px-3 py-2 text-xs normal-case text-ink opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
                             role="tooltip"
                           >
                             If a template does not exist, please request a template in Configuration &gt; Template Management &gt; Template Request.
@@ -1032,8 +1032,10 @@ export default function NewDocumentRequest() {
                   {requests.map((req) => (
                     <Tr key={req.id}>
                       <Td>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                          req.requestType === 'NVR' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                          req.requestType === 'NVR'
+                            ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-warning-ink)]/20'
+                            : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-info-ink)]/20'
                         }`}>
                           {req.requestType || 'NDR'}
                         </span>
@@ -1089,7 +1091,7 @@ export default function NewDocumentRequest() {
                                     })
                                   }}
                                   disabled={purgingFileCode === req.fileCode}
-                                  className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50"
+                                  className="w-full text-left px-3 py-2 text-xs text-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)] rounded-md disabled:opacity-50"
                                 >
                                   {purgingFileCode === req.fileCode ? 'Deleting...' : 'Delete record'}
                                 </button>

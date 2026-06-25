@@ -7,10 +7,10 @@ const sizeMap = {
 }
 
 const variantMap = {
-  primary: 'bg-brand text-ink-inverse border border-border shadow-dms-soft hover:bg-brand-hover',
+  primary: 'bg-brand text-ink-onBrand border border-border shadow-dms-soft hover:bg-brand-hover',
   secondary: 'bg-surface text-ink-secondary border border-border shadow-dms-soft hover:bg-surface-muted hover:text-ink',
   ghost: 'bg-transparent text-ink-secondary hover:bg-surface-muted hover:text-ink',
-  danger: 'bg-[var(--dms-color-danger-ink)] text-ink-inverse border border-border shadow-dms-soft hover:opacity-90'
+  danger: 'bg-[var(--dms-color-danger-ink)] text-ink-onDanger border border-border shadow-dms-soft hover:opacity-90'
 }
 
 export default function Button({

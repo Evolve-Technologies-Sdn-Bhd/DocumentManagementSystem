@@ -39,7 +39,9 @@ module.exports = {
           secondary: 'var(--dms-color-text-secondary)',
           muted: 'var(--dms-color-text-muted)',
           soft: 'var(--dms-color-text-soft)',
-          inverse: 'var(--dms-color-text-inverse)'
+          inverse: 'var(--dms-color-text-inverse)',
+          onBrand: 'var(--dms-color-text-on-brand)',
+          onDanger: 'var(--dms-color-text-on-danger)'
         },
         primary: {
           DEFAULT: 'var(--dms-color-brand-secondary)',

@@ -173,7 +173,7 @@ class SessionManager {
    */
   setupHMRDetection() {
     // Only in development mode
-    if (import.meta.env.DEV && import.meta.hot) {
+    if (import.meta.env.DEV && import.meta.hot && import.meta.env.VITE_HMR_LOGOUT === 'true') {
       // Check if we were flagged for logout after HMR
       const shouldLogout = sessionStorage.getItem('hmrUpdate')
       if (shouldLogout === 'true') {
