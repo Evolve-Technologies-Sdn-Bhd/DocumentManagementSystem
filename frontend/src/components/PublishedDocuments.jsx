@@ -157,6 +157,10 @@ export default function PublishedDocuments() {
     loadDocuments()
   }, [selectedFolder, searchQuery, currentPage, pageSize, folders])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedFolder])
+
   const loadUserRole = () => {
     // Get user role from localStorage
     const savedUser = localStorage.getItem('user')
