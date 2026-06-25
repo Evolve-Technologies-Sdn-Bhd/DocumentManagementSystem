@@ -131,11 +131,11 @@ export default function WorkflowConfiguration() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      Active: 'bg-green-100 text-green-800',
-      Inactive: 'bg-gray-100 text-gray-800'
+      Active: 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]',
+      Inactive: 'bg-surface-muted text-ink-secondary'
     }
     return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-surface-muted text-ink-secondary'}`}>
         {status}
       </span>
     )
@@ -174,11 +174,11 @@ export default function WorkflowConfiguration() {
 
       {/* Header */}
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">Workflow Configuration</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-ink">Workflow Configuration</h2>
+        <p className="text-sm text-ink-secondary mt-1">
           Configure approval workflows and routing rules for document processing
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-ink-secondary">
           Define review, approval, and acknowledgement steps for each document type
         </p>
       </div>
@@ -188,8 +188,8 @@ export default function WorkflowConfiguration() {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Workflow List</h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <h3 className="text-lg font-semibold text-ink">Workflow List</h3>
+              <p className="text-sm text-ink-secondary mt-1">
                 Manage and configure document approval workflows
               </p>
             </div>
@@ -198,7 +198,7 @@ export default function WorkflowConfiguration() {
             <PermissionGate module="configuration.workflows" action="create">
               <button 
                 onClick={handleAddNewWorkflow}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors"
               >
                 + Add New Workflow
               </button>
@@ -209,7 +209,7 @@ export default function WorkflowConfiguration() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -217,7 +217,7 @@ export default function WorkflowConfiguration() {
                 placeholder="Search by workflow name, document type, or description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
               />
             </div>
 
@@ -226,7 +226,7 @@ export default function WorkflowConfiguration() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -240,31 +240,31 @@ export default function WorkflowConfiguration() {
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Workflow Name</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Document Type</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Description</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Steps</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Status</th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Active</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Action</th>
+              <tr className="border-b border-border bg-surface-muted">
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Workflow Name</th>
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Document Type</th>
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Description</th>
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Steps</th>
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Status</th>
+                <th className="text-center py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Active</th>
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-gray-500">
+                  <td colSpan="7" className="text-center py-8 text-ink-muted">
                     <div className="flex flex-col items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
                       <span>Loading workflows...</span>
                     </div>
                   </td>
                 </tr>
               ) : currentWorkflows.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-500">
+                  <td colSpan="7" className="text-center py-12 text-ink-muted">
                     <div className="flex flex-col items-center gap-2">
-                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-12 h-12 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
                       <span>No workflows found</span>
@@ -273,17 +273,17 @@ export default function WorkflowConfiguration() {
                 </tr>
               ) : (
                 currentWorkflows.map((workflow) => (
-                  <tr key={workflow.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={workflow.id} className="border-b border-border hover:bg-surface-muted transition-colors">
                     <td className="py-4 px-4">
-                      <div className="font-medium text-gray-900">{workflow.workflowName}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">Created: {workflow.createdOn}</div>
+                      <div className="font-medium text-ink">{workflow.workflowName}</div>
+                      <div className="text-xs text-ink-muted mt-0.5">Created: {workflow.createdOn}</div>
                     </td>
-                    <td className="py-4 px-4 text-gray-700">{workflow.documentType}</td>
-                    <td className="py-4 px-4 text-gray-600 max-w-xs truncate">{workflow.description}</td>
+                    <td className="py-4 px-4 text-ink-secondary">{workflow.documentType}</td>
+                    <td className="py-4 px-4 text-ink-secondary max-w-xs truncate">{workflow.description}</td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-1">
-                        <span className="font-semibold text-blue-600">{workflow.steps}</span>
-                        <span className="text-gray-500 text-xs">steps</span>
+                        <span className="font-semibold text-brand">{workflow.steps}</span>
+                        <span className="text-ink-muted text-xs">steps</span>
                       </div>
                     </td>
                     <td className="py-4 px-4">{getStatusBadge(workflow.status)}</td>
@@ -292,22 +292,18 @@ export default function WorkflowConfiguration() {
                         {hasPermission('configuration.workflows', 'update') ? (
                           <button
                             onClick={() => handleStatusChange(workflow.id, workflow.status === 'Active' ? 'Inactive' : 'Active')}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                              workflow.status === 'Active' ? 'bg-green-600' : 'bg-gray-300'
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 focus:ring-offset-0 ${
+                              workflow.status === 'Active' ? 'bg-[var(--dms-color-success-ink)]' : 'bg-surface-strong'
                             }`}
                           >
                             <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              className={`inline-block h-4 w-4 transform rounded-full bg-surface transition-transform ${
                                 workflow.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
                               }`}
                             />
                           </button>
                         ) : (
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            workflow.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {workflow.status}
-                          </span>
+                          getStatusBadge(workflow.status)
                         )}
                       </div>
                     </td>
@@ -330,49 +326,49 @@ export default function WorkflowConfiguration() {
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-ink-muted">
               <div className="flex flex-col items-center gap-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
                 <span>Loading workflows...</span>
               </div>
             </div>
           ) : currentWorkflows.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-ink-muted">
               <span>No workflows found</span>
             </div>
           ) : (
             currentWorkflows.map((workflow) => (
-              <div key={workflow.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div key={workflow.id} className="border border-border rounded-lg p-4 space-y-3 bg-surface">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{workflow.workflowName}</div>
-                    <div className="text-sm text-gray-600 mt-1">{workflow.documentType}</div>
+                    <div className="font-semibold text-ink">{workflow.workflowName}</div>
+                    <div className="text-sm text-ink-secondary mt-1">{workflow.documentType}</div>
                   </div>
                   {getStatusBadge(workflow.status)}
                 </div>
-                <p className="text-sm text-gray-600">{workflow.description}</p>
+                <p className="text-sm text-ink-secondary">{workflow.description}</p>
                 <div className="flex items-center gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Steps:</span>
-                    <span className="ml-1 font-medium text-blue-600">{workflow.steps}</span>
+                    <span className="text-ink-muted">Steps:</span>
+                    <span className="ml-1 font-medium text-brand">{workflow.steps}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Created:</span>
-                    <span className="ml-1 text-gray-900">{workflow.createdOn}</span>
+                    <span className="text-ink-muted">Created:</span>
+                    <span className="ml-1 text-ink">{workflow.createdOn}</span>
                   </div>
                 </div>
-                <div className="space-y-2 pt-2 border-t border-gray-200">
+                <div className="space-y-2 pt-2 border-t border-border">
                   {hasPermission('configuration.workflows', 'update') && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Active:</span>
+                      <span className="text-sm font-medium text-ink-secondary">Active:</span>
                       <button
                         onClick={() => handleStatusChange(workflow.id, workflow.status === 'Active' ? 'Inactive' : 'Active')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                          workflow.status === 'Active' ? 'bg-green-600' : 'bg-gray-300'
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/20 focus:ring-offset-0 ${
+                          workflow.status === 'Active' ? 'bg-[var(--dms-color-success-ink)]' : 'bg-surface-strong'
                         }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          className={`inline-block h-4 w-4 transform rounded-full bg-surface transition-transform ${
                             workflow.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
                           }`}
                         />
@@ -383,7 +379,7 @@ export default function WorkflowConfiguration() {
                     {hasPermission('configuration.workflows', 'read') && (
                       <button
                         onClick={() => handleView(workflow)}
-                        className="flex-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                        className="flex-1 px-3 py-2 text-sm text-ink-secondary bg-surface-muted rounded hover:bg-surface-strong"
                       >
                         View
                       </button>
@@ -391,7 +387,7 @@ export default function WorkflowConfiguration() {
                     {hasPermission('configuration.workflows', 'update') && (
                       <button
                         onClick={(e) => handleEdit(e, workflow)}
-                        className="flex-1 px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                        className="flex-1 px-3 py-2 text-sm text-brand bg-surface-muted rounded hover:bg-surface-strong"
                       >
                         Edit
                       </button>
@@ -405,8 +401,8 @@ export default function WorkflowConfiguration() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border">
+            <div className="text-sm text-ink-secondary">
               Showing {startIndex + 1} to {Math.min(endIndex, filteredWorkflows.length)} of {filteredWorkflows.length} workflows
             </div>
             
@@ -414,9 +410,9 @@ export default function WorkflowConfiguration() {
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 hover:bg-surface-muted rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-ink-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -434,15 +430,15 @@ export default function WorkflowConfiguration() {
                       onClick={() => handlePageChange(page)}
                       className={`w-8 h-8 rounded ${
                         page === currentPage
-                          ? 'bg-blue-600 text-white'
-                          : 'hover:bg-gray-100 text-gray-700'
+                          ? 'bg-brand text-ink-inverse'
+                          : 'hover:bg-surface-muted text-ink-secondary'
                       }`}
                     >
                       {page}
                     </button>
                   )
                 } else if (page === currentPage - 2 || page === currentPage + 2) {
-                  return <span key={page} className="text-gray-500 px-1">...</span>
+                  return <span key={page} className="text-ink-muted px-1">...</span>
                 }
                 return null
               })}
@@ -450,9 +446,9 @@ export default function WorkflowConfiguration() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 hover:bg-surface-muted rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-ink-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>

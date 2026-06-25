@@ -481,7 +481,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         onCancel={() => setReassignConfirm({ show: false, conflicts: [], payload: null })}
       />
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-overlay transition-opacity"
         onClick={() => {
           if (submitting) return
           handleClose()
@@ -489,16 +489,16 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden" data-tour-id="bulk-import-modal">
-          <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="relative bg-surface border border-border rounded-2xl shadow-dms-lg max-w-2xl w-full max-h-[90vh] overflow-hidden" data-tour-id="bulk-import-modal">
+          <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-surface">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{t('bulk_import_title')}</h2>
-              <p className="text-sm text-gray-600 mt-1">{t('bulk_import_subtitle')}</p>
+              <h2 className="text-lg font-bold text-ink">{t('bulk_import_title')}</h2>
+              <p className="text-sm text-ink-secondary mt-1">{t('bulk_import_subtitle')}</p>
             </div>
             <button
               onClick={handleClose}
               disabled={submitting}
-              className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 disabled:hover:text-gray-400"
+              className="text-ink-soft hover:text-ink transition-colors disabled:opacity-50 disabled:hover:text-ink-soft"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -508,18 +508,18 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
           <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
             {formError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              <div className="p-3 rounded-lg border border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-soft)] text-sm text-[var(--dms-color-danger-ink)]">
                 {formError}
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('bulk_import_folder_label')}</label>
+                <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_folder_label')}</label>
                 <select
                   value={folderId || ''}
                   onChange={(e) => setFolderId(e.target.value)}
                   data-tour-id="bulk-import-folder"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 >
                   <option value="">{t('bulk_import_select_folder')}</option>
                   {(folders || []).map((folder) => (
@@ -530,11 +530,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('bulk_import_project_category_label')}</label>
+                <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_project_category_label')}</label>
                 <select
                   value={projectCategoryId || ''}
                   onChange={(e) => setProjectCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
                   disabled={projectCategories.length === 0}
                 >
                   <option value="">
@@ -550,17 +550,17 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('bulk_import_description_label')}</label>
+              <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_description_label')}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
               />
             </div>
 
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
+            <div className="border border-border rounded-lg p-4 space-y-3 bg-surface">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
                 <input
                   type="checkbox"
                   checked={expiryInfo.trackingEnabled}
@@ -569,38 +569,39 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     trackingEnabled: e.target.checked,
                     startDate: prev.startDate || getToday()
                   }))}
+                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                 />
                 Track Expiry (apply to all imported documents)
               </label>
               {expiryInfo.trackingEnabled ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
                     <input
                       type="date"
                       value={expiryInfo.startDate}
                       onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                    <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
                     <input
                       type="date"
                       value={expiryInfo.expiryDate}
                       onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                       required
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Remarks</label>
+                    <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Remarks</label>
                     <textarea
                       value={expiryInfo.remarks}
                       onChange={(e) => setExpiryInfo((prev) => ({ ...prev, remarks: e.target.value }))}
                       rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                       placeholder="Optional expiry remarks"
                     />
                   </div>
@@ -610,7 +611,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
             <div
               className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors ${
-                isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
+                isDragging ? 'border-brand bg-[var(--dms-color-info-soft)]' : 'border-border bg-surface-muted'
               }`}
               data-tour-id="bulk-import-dropzone"
               onDragEnter={handleDrag}
@@ -638,25 +639,25 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               />
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-900">{t('bulk_import_dropzone_title')}</p>
-                <p className="text-xs text-gray-600">
+                <p className="text-sm font-medium text-ink">{t('bulk_import_dropzone_title')}</p>
+                <p className="text-xs text-ink-secondary">
                   {String(t('bulk_import_allowed_types')).replace('{types}', getAllowedTypesDisplay())}
                 </p>
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-[var(--dms-color-warning-ink)]">
                   {String(t('bulk_import_total_upload_limit_note')).replace('{max}', String(totalUploadLimitMB))}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={handleBrowseClick}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors"
                   >
                     {t('bulk_import_browse_files')}
                   </button>
                   <button
                     type="button"
                     onClick={handleBrowseFolderClick}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-brand bg-surface-strong rounded-lg hover:bg-surface-muted transition-colors"
                   >
                     {t('bulk_import_browse_folder')}
                   </button>
@@ -665,44 +666,44 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             </div>
 
             {fileItems.length > 0 && (
-              <div className="border border-gray-200 rounded-lg">
-                <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-                  <div className="text-sm font-medium text-gray-900">
+              <div className="border border-border rounded-lg bg-surface">
+                <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-surface-muted">
+                  <div className="text-sm font-medium text-ink">
                     {String(t('bulk_import_files_count')).replace('{count}', String(fileItems.length))}
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={`text-xs font-medium ${totalSelectedExceeded ? 'text-red-700' : 'text-gray-700'}`}>
+                    <div className={`text-xs font-medium ${totalSelectedExceeded ? 'text-[var(--dms-color-danger-ink)]' : 'text-ink-secondary'}`}>
                       {String(t('bulk_import_total_upload_total')).replace('{current}', String(totalSelectedMB)).replace('{max}', String(totalUploadLimitMB))}
                     </div>
                     <button
                       type="button"
                       onClick={() => setFileItems((prev) => prev.map((it) => ({ ...it, collapsed: true })))}
-                      className="text-sm text-gray-700 hover:text-gray-900 font-medium"
+                      className="text-sm text-ink-secondary hover:text-ink font-medium"
                     >
                       {t('bulk_import_collapse_all')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setFileItems((prev) => prev.map((it) => ({ ...it, collapsed: false })))}
-                      className="text-sm text-gray-700 hover:text-gray-900 font-medium"
+                      className="text-sm text-ink-secondary hover:text-ink font-medium"
                     >
                       {t('bulk_import_expand_all')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setFileItems([])}
-                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                      className="text-sm text-[var(--dms-color-danger-ink)] hover:opacity-90 font-medium"
                     >
                       {t('bulk_import_clear')}
                     </button>
                   </div>
                 </div>
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <label className="inline-flex items-start gap-2 text-xs text-gray-700">
+                <div className="px-4 py-3 border-b border-border">
+                  <label className="inline-flex items-start gap-2 text-xs text-ink-secondary">
                     <input
                       ref={clientDeclarationRef}
                       type="checkbox"
-                      className="mt-0.5"
+                      className="mt-0.5 h-4 w-4 text-brand rounded focus:ring-brand/20"
                       checked={allClientChecked}
                       onChange={(e) => {
                         const checked = e.target.checked
@@ -716,7 +717,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     <span>{t('client_document_declaration')}</span>
                   </label>
                 </div>
-                <div className="max-h-[50vh] overflow-auto divide-y divide-gray-100">
+                <div className="max-h-[50vh] overflow-auto divide-y divide-border">
                   {fileItems.map((it, idx) => {
                     const matchedType = documentTypes.find((dt) => String(dt.id) === String(it.documentTypeId))
                     const typeLabel = matchedType ? `${matchedType.name} (${matchedType.prefix})` : t('bulk_import_not_selected')
@@ -730,11 +731,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                           className="w-full flex items-start justify-between gap-3 text-left"
                         >
                           <div className="min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate">{it.file.name}</div>
+                            <div className="text-sm font-medium text-ink truncate">{it.file.name}</div>
                             {it.relativePath && (
-                              <div className="mt-0.5 text-xs text-gray-500 font-mono truncate">{it.relativePath}</div>
+                              <div className="mt-0.5 text-xs text-ink-muted font-mono truncate">{it.relativePath}</div>
                             )}
-                            <div className="mt-0.5 text-xs text-gray-600">
+                            <div className="mt-0.5 text-xs text-ink-secondary">
                               <span className="font-mono">{it.fileCode || '-'}</span>
                               <span className="mx-2">•</span>
                               <span>{typeLabel}</span>
@@ -756,12 +757,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <label
-                              className="inline-flex items-center gap-2 text-xs text-gray-700 select-none"
+                              className="inline-flex items-center gap-2 text-xs text-ink-secondary select-none"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <input
                                 type="checkbox"
-                                className="h-4 w-4"
+                                className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                                 checked={Boolean(it.isClientDocument)}
                                 onChange={(e) => {
                                   const checked = e.target.checked
@@ -775,11 +776,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                               <span className="hidden sm:inline">{t('client_document_label')}</span>
                             </label>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              it.documentTypeId && (projectCategories.length === 0 || projectCategoryId) ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                              it.documentTypeId && (projectCategories.length === 0 || projectCategoryId) ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
                             }`}>
                               {it.documentTypeId && (projectCategories.length === 0 || projectCategoryId) ? t('bulk_import_ready') : t('bulk_import_needs_attention')}
                             </span>
-                            <svg className={`w-5 h-5 text-gray-500 transition-transform ${it.collapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={`w-5 h-5 text-ink-soft transition-transform ${it.collapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                           </div>
@@ -788,7 +789,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                         {!it.collapsed && (
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">{t('bulk_import_file_code_label')}</label>
+                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_file_code_label')}</label>
                               <input
                                 type="text"
                                 value={it.fileCode}
@@ -805,18 +806,18 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                   }))
                                 }}
                                 disabled={Boolean(it.isClientDocument)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-mono"
+                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm font-mono bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
                               />
-                              <p className="mt-1 text-xs text-gray-500">{t('bulk_import_auto_extracted_hint')}</p>
+                              <p className="mt-1 text-xs text-ink-muted">{t('bulk_import_auto_extracted_hint')}</p>
                             </div>
 
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">{t('bulk_import_document_type_label')}</label>
+                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_document_type_label')}</label>
                               <select
                                 value={it.documentTypeId || ''}
                                 onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, documentTypeId: e.target.value } : x))}
                                 disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
                               >
                                 <option value="">{t('bulk_import_select_document_type')}</option>
                                 {documentTypes.map((dt) => (
@@ -827,11 +828,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                               </select>
                             </div>
 
-                            <div className="md:col-span-2 border border-gray-200 rounded-lg p-3">
-                              <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-800">
+                            <div className="md:col-span-2 border border-border rounded-lg p-3 bg-surface-muted">
+                              <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-secondary">
                                 <input
                                   type="checkbox"
-                                  className="h-4 w-4"
+                                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                                   checked={Boolean(it.expiryOverrideEnabled)}
                                   disabled={Boolean(it.isClientDocument)}
                                   onChange={(e) => {
@@ -857,10 +858,10 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                               </label>
                               {it.expiryOverrideEnabled ? (
                                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <label className="inline-flex items-center gap-2 text-xs font-medium text-gray-800 md:col-span-2">
+                                  <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-secondary md:col-span-2">
                                     <input
                                       type="checkbox"
-                                      className="h-4 w-4"
+                                      className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                                       checked={Boolean(it.expiryOverride?.trackingEnabled)}
                                       onChange={(e) => {
                                         const enabled = e.target.checked
@@ -882,32 +883,32 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                   {it.expiryOverride?.trackingEnabled ? (
                                     <>
                                       <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Start Date</label>
                                         <input
                                           type="date"
                                           value={it.expiryOverride?.startDate || ''}
                                           onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), startDate: e.target.value } } : x))}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                                           required
                                         />
                                       </div>
                                       <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date</label>
+                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Date</label>
                                         <input
                                           type="date"
                                           value={it.expiryOverride?.expiryDate || ''}
                                           onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), expiryDate: e.target.value } } : x))}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white"
+                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                                           required
                                         />
                                       </div>
                                       <div className="md:col-span-2">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Remarks</label>
+                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Remarks</label>
                                         <textarea
                                           value={it.expiryOverride?.remarks || ''}
                                           onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), remarks: e.target.value } } : x))}
                                           rows={2}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                                         />
                                       </div>
                                     </>
@@ -917,10 +918,10 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                             </div>
 
                             <div className="md:col-span-2">
-                              <label className="inline-flex items-start gap-2 text-xs text-gray-700">
+                              <label className="inline-flex items-start gap-2 text-xs text-ink-secondary">
                                 <input
                                   type="checkbox"
-                                  className="mt-0.5"
+                                  className="mt-0.5 h-4 w-4 text-brand rounded focus:ring-brand/20"
                                   checked={Boolean(it.isClientDocument)}
                                   onChange={(e) => {
                                     const checked = e.target.checked
@@ -941,12 +942,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                             </div>
 
                             <div className="md:col-span-2">
-                              <label className="block text-xs font-medium text-gray-700 mb-1">{t('bulk_import_title_label')}</label>
+                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_title_label')}</label>
                               <input
                                 type="text"
                                 value={it.title}
                                 onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, title: e.target.value } : x))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                               />
                             </div>
 
@@ -954,7 +955,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                               <button
                                 type="button"
                                 onClick={() => removeFile(idx)}
-                                className="text-sm text-red-600 hover:text-red-700 font-medium"
+                                className="text-sm text-[var(--dms-color-danger-ink)] hover:opacity-90 font-medium"
                               >
                                 {t('bulk_import_remove_file')}
                               </button>
@@ -969,10 +970,10 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             )}
           </div>
 
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+          <div className="px-6 py-4 bg-surface-muted border-t border-border flex justify-end gap-3">
             <button
               onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-ink-secondary bg-surface border border-border rounded-lg hover:bg-surface-strong transition-colors"
               disabled={submitting}
             >
               {t('cancel')}
@@ -980,7 +981,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             <button
               onClick={handleSubmit}
               data-tour-id="bulk-import-submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+              className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-60"
               disabled={submitting || totalSelectedExceeded}
             >
               {submitting ? t('bulk_import_uploading') : t('bulk_import_upload')}

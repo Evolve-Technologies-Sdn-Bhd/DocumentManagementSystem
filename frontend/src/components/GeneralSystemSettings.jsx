@@ -2725,12 +2725,12 @@ const ThemeBranding = () => {
       </AppSurface>
 
       {/* Button Styles */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Button Styles</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">Button Styles</h4>
         <div className="space-y-4">
           {/* Primary Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Primary Button</label>
+            <label className="block text-sm font-medium text-ink mb-3">Primary Button</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'btnPrimaryBg', label: 'Background' },
@@ -2738,19 +2738,19 @@ const ThemeBranding = () => {
                 { key: 'btnPrimaryHover', label: 'Hover Color' }
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
+                  <label className="block text-xs text-ink-secondary mb-2">{label}</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                     />
                     <input
                       type="text"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                     />
                   </div>
                 </div>
@@ -2760,7 +2760,7 @@ const ThemeBranding = () => {
 
           {/* Secondary Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Secondary Button</label>
+            <label className="block text-sm font-medium text-ink mb-3">Secondary Button</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'btnSecondaryBg', label: 'Background' },
@@ -2768,19 +2768,19 @@ const ThemeBranding = () => {
                 { key: 'btnSecondaryHover', label: 'Hover Color' }
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
+                  <label className="block text-xs text-ink-secondary mb-2">{label}</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                     />
                     <input
                       type="text"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                     />
                   </div>
                 </div>
@@ -2790,7 +2790,7 @@ const ThemeBranding = () => {
 
           {/* Danger Button */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Danger/Destructive Button</label>
+            <label className="block text-sm font-medium text-ink mb-3">Danger/Destructive Button</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { key: 'btnDangerBg', label: 'Background' },
@@ -2798,19 +2798,19 @@ const ThemeBranding = () => {
                 { key: 'btnDangerHover', label: 'Hover Color' }
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="block text-xs text-gray-600 mb-2">{label}</label>
+                  <label className="block text-xs text-ink-secondary mb-2">{label}</label>
                   <div className="flex gap-2">
                     <input
                       type="color"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                     />
                     <input
                       type="text"
                       value={theme[key]}
                       onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                     />
                   </div>
                 </div>
@@ -2822,54 +2822,54 @@ const ThemeBranding = () => {
       </div>
 
       {/* Content Formatting */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Content Formatting</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">Content Formatting</h4>
         <div className="space-y-4">
           {/* Table Styling */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Table Styling</label>
+            <label className="block text-sm font-medium text-ink mb-3">Table Styling</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Row Height</label>
+                <label className="block text-xs text-ink-secondary mb-2">Row Height</label>
                 <input
                   type="text"
                   value={theme.tableRowHeight}
                   onChange={(e) => handleThemeChange('tableRowHeight', e.target.value)}
                   placeholder="3rem"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Header Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Header Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.tableHeaderBg}
                     onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.tableHeaderBg}
                     onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Header Text</label>
+                <label className="block text-xs text-ink-secondary mb-2">Header Text</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.tableHeaderText}
                     onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.tableHeaderText}
                     onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -2878,26 +2878,26 @@ const ThemeBranding = () => {
 
           {/* Badge Styling */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Badge/Status Styling</label>
+            <label className="block text-sm font-medium text-ink mb-3">Badge/Status Styling</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Padding X</label>
+                <label className="block text-xs text-ink-secondary mb-2">Padding X</label>
                 <input
                   type="text"
                   value={theme.badgePaddingX}
                   onChange={(e) => handleThemeChange('badgePaddingX', e.target.value)}
                   placeholder="0.625rem"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Padding Y</label>
+                <label className="block text-xs text-ink-secondary mb-2">Padding Y</label>
                 <input
                   type="text"
                   value={theme.badgePaddingY}
                   onChange={(e) => handleThemeChange('badgePaddingY', e.target.value)}
                   placeholder="0.25rem"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
             </div>
@@ -2906,44 +2906,44 @@ const ThemeBranding = () => {
       </div>
 
       {/* Landing Page Colors */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Landing Page Colors (Pre-Login)</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">Landing Page Colors (Pre-Login)</h4>
         <div className="space-y-4">
           {/* Navigation Bar */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Navigation Bar</label>
+            <label className="block text-sm font-medium text-ink mb-3">Navigation Bar</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Background Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Background Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingNavBg}
                     onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingNavBg}
                     onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Text Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Text Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingNavText}
                     onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingNavText}
                     onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -2952,74 +2952,74 @@ const ThemeBranding = () => {
 
           {/* Hero Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Hero Section Gradient</label>
+            <label className="block text-sm font-medium text-ink mb-3">Hero Section Gradient</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Start Color (Left)</label>
+                <label className="block text-xs text-ink-secondary mb-2">Start Color (Left)</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingHeroGradientStart}
                     onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingHeroGradientStart}
                     onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Middle Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Middle Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingHeroGradientMid}
                     onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingHeroGradientMid}
                     onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">End Color (Right)</label>
+                <label className="block text-xs text-ink-secondary mb-2">End Color (Right)</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingHeroGradientEnd}
                     onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingHeroGradientEnd}
                     onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
             </div>
             <div className="mt-4">
-              <label className="block text-xs text-gray-600 mb-2">Hero Text Color</label>
+              <label className="block text-xs text-ink-secondary mb-2">Hero Text Color</label>
               <div className="flex gap-2 md:w-1/3">
                 <input
                   type="color"
                   value={theme.landingHeroText}
                   onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
-                  className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                  className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                 />
                 <input
                   type="text"
                   value={theme.landingHeroText}
                   onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                  className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
             </div>
@@ -3027,74 +3027,74 @@ const ThemeBranding = () => {
 
           {/* Buttons */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Landing Page Buttons</label>
+            <label className="block text-sm font-medium text-ink mb-3">Landing Page Buttons</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Primary Button Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Primary Button Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingButtonPrimary}
                     onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingButtonPrimary}
                     onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Primary Button Text</label>
+                <label className="block text-xs text-ink-secondary mb-2">Primary Button Text</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingButtonPrimaryText}
                     onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingButtonPrimaryText}
                     onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Secondary Button Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Secondary Button Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingButtonSecondary?.startsWith('#') ? theme.landingButtonSecondary : '#FFFFFF'}
                     onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingButtonSecondary}
                     onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
                     placeholder="transparent"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Secondary Button Text</label>
+                <label className="block text-xs text-ink-secondary mb-2">Secondary Button Text</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingButtonSecondaryText}
                     onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingButtonSecondaryText}
                     onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -3103,114 +3103,114 @@ const ThemeBranding = () => {
 
           {/* Section Backgrounds */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Section Backgrounds</label>
-            <p className="text-xs text-gray-500 mb-3">Customize the background color or gradient for each landing page section</p>
+            <label className="block text-sm font-medium text-ink mb-3">Section Backgrounds</label>
+            <p className="text-xs text-ink-muted mb-3">Customize the background color or gradient for each landing page section</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">What is DMS Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">What is DMS Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingAboutBg?.startsWith('#') ? theme.landingAboutBg : '#F9FAFB'}
                     onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingAboutBg || ''}
                     onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
                     placeholder="#F9FAFB or linear-gradient(...)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Core Features Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">Core Features Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingCoreFeaturesBg?.startsWith('#') ? theme.landingCoreFeaturesBg : '#F9FAFB'}
                     onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingCoreFeaturesBg || ''}
                     onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
                     placeholder="#F9FAFB or linear-gradient(...)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">System Features Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">System Features Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingSystemFeaturesBg?.startsWith('#') ? theme.landingSystemFeaturesBg : '#EFF6FF'}
                     onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingSystemFeaturesBg || ''}
                     onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
                     placeholder="linear-gradient(to bottom right, #EFF6FF, #FAF5FF)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Who Uses This System Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">Who Uses This System Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingRolesBg?.startsWith('#') ? theme.landingRolesBg : '#ECFEFF'}
                     onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingRolesBg || ''}
                     onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
                     placeholder="linear-gradient(to bottom right, #ECFEFF, #EFF6FF, #FAF5FF)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Workflow Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">Workflow Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingWorkflowBg?.startsWith('#') ? theme.landingWorkflowBg : '#F8FAFC'}
                     onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingWorkflowBg || ''}
                     onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
                     placeholder="linear-gradient(to bottom right, #F8FAFC, #EFF6FF)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Contact Section</label>
+                <label className="block text-xs text-ink-secondary mb-2">Contact Section</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.landingContactBg?.startsWith('#') ? theme.landingContactBg : '#F3F4F6'}
                     onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.landingContactBg || ''}
                     onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
                     placeholder="#F3F4F6"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -3220,44 +3220,44 @@ const ThemeBranding = () => {
       </div>
 
       {/* Login Page Colors */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Login Page Colors</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">Login Page Colors</h4>
         <div className="space-y-4">
           {/* Background Gradient */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Background Gradient</label>
+            <label className="block text-sm font-medium text-ink mb-3">Background Gradient</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Gradient Start Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Gradient Start Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginBgGradientStart}
                     onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginBgGradientStart}
                     onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Gradient End Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Gradient End Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginBgGradientEnd}
                     onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginBgGradientEnd}
                     onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -3266,33 +3266,33 @@ const ThemeBranding = () => {
 
           {/* Card Styling */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Login Card</label>
+            <label className="block text-sm font-medium text-ink mb-3">Login Card</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Card Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Card Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginCardBg}
                     onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginCardBg}
                     onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Card Shadow</label>
+                <label className="block text-xs text-ink-secondary mb-2">Card Shadow</label>
                 <input
                   type="text"
                   value={theme.loginCardShadow}
                   onChange={(e) => handleThemeChange('loginCardShadow', e.target.value)}
                   placeholder="0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
             </div>
@@ -3300,56 +3300,56 @@ const ThemeBranding = () => {
 
           {/* Button Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Login Button</label>
+            <label className="block text-sm font-medium text-ink mb-3">Login Button</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Button Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Button Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginButtonBg}
                     onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginButtonBg}
                     onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Button Text</label>
+                <label className="block text-xs text-ink-secondary mb-2">Button Text</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginButtonText}
                     onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginButtonText}
                     onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Button Hover</label>
+                <label className="block text-xs text-ink-secondary mb-2">Button Hover</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginButtonHover}
                     onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginButtonHover}
                     onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -3358,39 +3358,39 @@ const ThemeBranding = () => {
 
           {/* Accent/Icon Colors */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-3">Icon Accent</label>
+            <label className="block text-sm font-medium text-ink mb-3">Icon Accent</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Accent Background</label>
+                <label className="block text-xs text-ink-secondary mb-2">Accent Background</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginAccentBg}
                     onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginAccentBg}
                     onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-2">Icon Color</label>
+                <label className="block text-xs text-ink-secondary mb-2">Icon Color</label>
                 <div className="flex gap-2">
                   <input
                     type="color"
                     value={theme.loginAccentIcon}
                     onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
-                    className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
                   />
                   <input
                     type="text"
                     value={theme.loginAccentIcon}
                     onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   />
                 </div>
               </div>
@@ -3399,45 +3399,45 @@ const ThemeBranding = () => {
 
           {/* Welcome Message */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Welcome Message</label>
+            <label className="block text-sm font-medium text-ink mb-2">Welcome Message</label>
             <input
               type="text"
               value={theme.loginWelcomeMessage || 'Welcome to {companyName}'}
               onChange={(e) => handleThemeChange('loginWelcomeMessage', e.target.value)}
               placeholder="Welcome to {companyName}"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
             />
-            <p className="text-xs text-gray-500 mt-1">Use {'{companyName}'} to dynamically insert company name</p>
+            <p className="text-xs text-ink-muted mt-1">Use {'{companyName}'} to dynamically insert company name</p>
           </div>
         </div>
       </div>
 
       {/* Layout */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">Layout</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">Layout</h4>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Sidebar Position</label>
+            <label className="block text-sm font-medium text-ink mb-2">Sidebar Position</label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" checked={theme.sidebarPosition === 'left'} onChange={() => handleThemeChange('sidebarPosition', 'left')} className="w-4 h-4 text-blue-600" />
-                <span className="text-sm">Left</span>
+                <input type="radio" checked={theme.sidebarPosition === 'left'} onChange={() => handleThemeChange('sidebarPosition', 'left')} className="w-4 h-4 text-brand focus:ring-brand/20" />
+                <span className="text-sm text-ink-secondary">Left</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" checked={theme.sidebarPosition === 'right'} onChange={() => handleThemeChange('sidebarPosition', 'right')} className="w-4 h-4 text-blue-600" />
-                <span className="text-sm">Right</span>
+                <input type="radio" checked={theme.sidebarPosition === 'right'} onChange={() => handleThemeChange('sidebarPosition', 'right')} className="w-4 h-4 text-brand focus:ring-brand/20" />
+                <span className="text-sm text-ink-secondary">Right</span>
               </label>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+      <div className="rounded-lg p-4 mt-4 border border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-soft)]">
         <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-[var(--dms-color-info-ink)] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div className="text-sm text-blue-800">
+          <div className="text-sm text-[var(--dms-color-info-ink)]">
             <p className="font-medium">Live Preview Active</p>
             <p>Changes are applied instantly. A confirmation dialog will appear to save or revert your changes.</p>
           </div>
@@ -3952,34 +3952,34 @@ function DocumentSettings() {
 
                   {/* Starting Number */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Starting Counter Value</label>
+                    <label className="block text-xs font-medium text-ink-secondary mb-1.5">Starting Counter Value</label>
                     <input 
                       type="number" 
                       min="1"
                       value={settings.startingNumber} 
                       onChange={(e) => setSettings(prev => ({ ...prev, startingNumber: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm" 
+                      className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand font-mono text-sm" 
                       placeholder="1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Auto-increments with each document</p>
+                    <p className="text-xs text-ink-muted mt-1">Auto-increments with each document</p>
                   </div>
                 </div>
               </div>
 
               {/* Live Preview */}
-              <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-300 rounded-xl p-5 shadow-lg">
+              <div className="rounded-xl p-5 shadow-dms border border-[var(--dms-color-success-ink)]/30 bg-[var(--dms-color-success-soft)]">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-base font-bold text-green-900">Live Preview</p>
-                    <p className="text-xs text-green-700">Updates in real-time</p>
+                    <p className="text-base font-bold text-[var(--dms-color-success-ink)]">Live Preview</p>
+                    <p className="text-xs text-[var(--dms-color-success-ink)]">Updates in real-time</p>
                   </div>
-                  <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-full font-semibold border border-green-200">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  <span className="flex items-center gap-1.5 text-xs text-[var(--dms-color-success-ink)] bg-[color:var(--dms-color-bg-canvas)]/30 px-3 py-1.5 rounded-full font-semibold border border-[var(--dms-color-success-ink)]/25">
+                    <span className="w-2 h-2 bg-[var(--dms-color-success-ink)] rounded-full animate-pulse"></span>
                     Auto-updates
                   </span>
                 </div>
-                <div className="bg-white rounded-xl p-5 border-2 border-green-300 shadow-inner">
-                  <p className="font-mono text-3xl text-green-700 font-bold tracking-wide text-center">{(() => {
+                <div className="bg-surface rounded-xl p-5 border border-border shadow-inner">
+                  <p className="font-mono text-3xl text-[var(--dms-color-success-ink)] font-bold tracking-wide text-center">{(() => {
                     const now = new Date();
                     const year = now.getFullYear();
                     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -4037,8 +4037,8 @@ function DocumentSettings() {
                     return parts.join(separator);
                   })()}</p>
                 </div>
-                <div className="mt-3 flex items-start gap-2 text-xs text-green-800 bg-white/50 rounded-lg p-3 border border-green-200">
-                  <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="mt-3 flex items-start gap-2 text-xs text-[var(--dms-color-success-ink)] bg-[color:var(--dms-color-bg-canvas)]/30 rounded-lg p-3 border border-[var(--dms-color-success-ink)]/25">
+                  <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-[var(--dms-color-success-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <p className="leading-relaxed">This is how your document codes will be generated. <span className="font-semibold">Existing files stay unchanged</span>; only newly generated file codes follow the updated format.</p>
@@ -4050,77 +4050,77 @@ function DocumentSettings() {
       </AppSurface>
 
       {/* Version Control */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_ds_version_control')}</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">{t('gss_ds_version_control')}</h4>
         <div className="space-y-4">
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-            <span className="text-sm font-medium text-gray-900">Enable Automatic Versioning</span>
+            <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
+            <span className="text-sm font-medium text-ink">Enable Automatic Versioning</span>
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Version Format</label>
-              <select value={settings.versionFormat} onChange={(e) => setSettings(prev => ({ ...prev, versionFormat: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+              <label className="block text-sm font-medium text-ink mb-2">Version Format</label>
+              <select value={settings.versionFormat} onChange={(e) => setSettings(prev => ({ ...prev, versionFormat: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-ink outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand">
                 <option>v1.0</option>
                 <option>v1.0.0</option>
                 <option>1.0</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Max Versions Kept</label>
+              <label className="block text-sm font-medium text-ink mb-2">Max Versions Kept</label>
               <input 
                 type="number" 
                 min="1" 
                 max="50" 
                 value={settings.maxVersions} 
                 onChange={(e) => setSettings(prev => ({ ...prev, maxVersions: parseInt(e.target.value) || 1 }))} 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
               />
-              <p className="text-xs text-gray-500 mt-1">Number of versions to retain (1-50)</p>
+              <p className="text-xs text-ink-muted mt-1">Number of versions to retain (1-50)</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Retention Policy */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_ds_retention')}</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">{t('gss_ds_retention')}</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Draft Retention (days)</label>
+            <label className="block text-sm font-medium text-ink mb-2">Draft Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="3650" 
               value={settings.draftRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, draftRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
             />
-            <p className="text-xs text-gray-500 mt-1">Days to keep draft documents before cleanup</p>
+            <p className="text-xs text-ink-muted mt-1">Days to keep draft documents before cleanup</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Archived Retention (days)</label>
+            <label className="block text-sm font-medium text-ink mb-2">Archived Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="3650" 
               value={settings.archivedRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, archivedRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
             />
-            <p className="text-xs text-gray-500 mt-1">Days to keep archived documents before permanent removal</p>
+            <p className="text-xs text-ink-muted mt-1">Days to keep archived documents before permanent removal</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Deleted Retention (days)</label>
+            <label className="block text-sm font-medium text-ink mb-2">Deleted Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="365" 
               value={settings.deletedRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, deletedRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
             />
-            <p className="text-xs text-gray-500 mt-1">Days to keep deleted items in trash before permanent deletion</p>
+            <p className="text-xs text-ink-muted mt-1">Days to keep deleted items in trash before permanent deletion</p>
           </div>
         </div>
       </div>
@@ -4155,10 +4155,10 @@ function DocumentSettings() {
         <p className="text-xs text-ink-soft">Status logic uses `Expiring Soon Days`, while reminders are sent on the configured day thresholds before expiry.</p>
       </AppSurface>
 
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <h4 className="font-semibold text-gray-900 text-base">EPC Registry</h4>
-          <p className="text-sm text-gray-600 mt-1">Enable optional EPC registry generation after draft upload</p>
+      <div className="border border-border rounded-lg overflow-hidden bg-surface">
+        <div className="bg-surface border-b border-border px-6 py-4">
+          <h4 className="font-semibold text-ink text-base">EPC Registry</h4>
+          <p className="text-sm text-ink-secondary mt-1">Enable optional EPC registry generation after draft upload</p>
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
@@ -4166,21 +4166,21 @@ function DocumentSettings() {
               type="checkbox"
               checked={settings.rfidEpcRegistryEnabled}
               onChange={(e) => setSettings((prev) => ({ ...prev, rfidEpcRegistryEnabled: e.target.checked }))}
-              className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-4 h-4 text-brand rounded focus:ring-2 focus:ring-brand/20"
             />
             <div>
-              <span className="text-sm font-medium text-gray-900">Enable EPC Registry</span>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <span className="text-sm font-medium text-ink">Enable EPC Registry</span>
+              <p className="text-sm text-ink-secondary mt-0.5">
                 When enabled, the system generates a fixed-length 96-bit EPC value from the document file code and stores it for later RFID encoding.
               </p>
             </div>
           </label>
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm font-medium text-blue-900">How it works</p>
-            <p className="mt-1 text-sm text-blue-800">
+          <div className="rounded-lg border border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-soft)] p-4">
+            <p className="text-sm font-medium text-[var(--dms-color-info-ink)]">How it works</p>
+            <p className="mt-1 text-sm text-[var(--dms-color-info-ink)]">
               The system takes the generated document file code, creates a deterministic fixed-length EPC hex value, and saves the result in the EPC registry.
             </p>
-            <p className="mt-2 text-xs text-blue-700">
+            <p className="mt-2 text-xs text-[var(--dms-color-info-ink)]">
               No GS1, SGTIN-96, company prefix, or item reference setup is required for this simplified flow. The EPC output is capped at 24 hex characters for better tag compatibility.
             </p>
           </div>
@@ -4191,7 +4191,7 @@ function DocumentSettings() {
         <button 
           onClick={handleSave} 
           disabled={saving}
-          className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? t('gss_saving') : t('gss_save_changes')}
         </button>
@@ -4351,7 +4351,7 @@ function NotificationSettings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading notification settings...</div>
+        <div className="text-ink-muted">Loading notification settings...</div>
       </div>
     )
   }
@@ -4359,29 +4359,29 @@ function NotificationSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Email & Notification Preferences</h3>
-        <p className="text-sm text-gray-600 mt-1">Configure email server and notification rules</p>
-        <p className="text-xs text-gray-400 mt-1">UI: {smtpUiRevision}</p>
+        <h3 className="text-lg font-semibold text-ink">Email & Notification Preferences</h3>
+        <p className="text-sm text-ink-secondary mt-1">Configure email server and notification rules</p>
+        <p className="text-xs text-ink-soft mt-1">UI: {smtpUiRevision}</p>
       </div>
 
       {/* Email Configuration */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_ns_smtp')}</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">{t('gss_ns_smtp')}</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">SMTP Host</label>
-            <input type="text" value={settings.smtpHost} onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">SMTP Host</label>
+            <input type="text" value={settings.smtpHost} onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">SMTP Port</label>
-            <input type="text" value={settings.smtpPort} onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">SMTP Port</label>
+            <input type="text" value={settings.smtpPort} onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">SMTP Username</label>
-            <input type="text" value={settings.smtpUsername} onChange={(e) => setSettings(prev => ({ ...prev, smtpUsername: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">SMTP Username</label>
+            <input type="text" value={settings.smtpUsername} onChange={(e) => setSettings(prev => ({ ...prev, smtpUsername: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">SMTP Password</label>
+            <label className="block text-sm font-medium text-ink mb-2">SMTP Password</label>
             {showPasswordField ? (
               <div className="flex gap-2">
                 <input 
@@ -4389,11 +4389,11 @@ function NotificationSettings() {
                   value={settings.smtpPassword} 
                   onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))} 
                   placeholder="Enter new password"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
                 <button 
                   onClick={() => setShowPasswordField(false)}
-                  className="px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-3 py-2 text-sm text-ink-secondary border border-border rounded-lg hover:bg-surface-muted hover:text-ink"
                 >
                   Cancel
                 </button>
@@ -4403,7 +4403,7 @@ function NotificationSettings() {
                 <input 
                   type="password" 
                   value={settings.smtpPassword ? '••••••••' : ''} 
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none bg-gray-50" 
+                  className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface-muted text-ink-soft" 
                   readOnly 
                   placeholder="No password set"
                 />
@@ -4412,7 +4412,7 @@ function NotificationSettings() {
                     setSettings(prev => ({ ...prev, smtpPassword: '' }))
                     setShowPasswordField(true)
                   }}
-                  className="px-3 py-2 text-sm text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
+                  className="px-3 py-2 text-sm text-brand border border-brand rounded-lg hover:bg-surface-muted"
                 >
                   Change
                 </button>
@@ -4420,47 +4420,47 @@ function NotificationSettings() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">From Name</label>
-            <input type="text" value={settings.fromName} onChange={(e) => setSettings(prev => ({ ...prev, fromName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">From Name</label>
+            <input type="text" value={settings.fromName} onChange={(e) => setSettings(prev => ({ ...prev, fromName: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">From Email</label>
-            <input type="email" value={settings.fromEmail} onChange={(e) => setSettings(prev => ({ ...prev, fromEmail: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">From Email</label>
+            <input type="email" value={settings.fromEmail} onChange={(e) => setSettings(prev => ({ ...prev, fromEmail: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-900 mb-2">Frontend URL (for email buttons)</label>
+            <label className="block text-sm font-medium text-ink mb-2">Frontend URL (for email buttons)</label>
             <input
               type="url"
               value={settings.frontendUrl || ''}
               onChange={(e) => setSettings(prev => ({ ...prev, frontendUrl: e.target.value }))}
               placeholder="e.g. https://dms.clbgroups.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
+              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-900 mb-2">Test Recipient Email</label>
+            <label className="block text-sm font-medium text-ink mb-2">Test Recipient Email</label>
             <input
               type="email"
               value={testEmail}
               onChange={(e) => setTestEmail(e.target.value)}
               placeholder="e.g. you@company.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none"
+              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
             />
           </div>
         </div>
         <button 
           onClick={handleTestEmail} 
           disabled={testingEmail}
-          className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-4 px-4 py-2 text-sm font-medium text-brand bg-surface-muted rounded-lg hover:bg-surface-strong disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {testingEmail ? 'Sending test email...' : 'Test Email Connection'}
         </button>
       </div>
 
       {/* Notification Events */}
-      <div className="border border-gray-200 rounded-lg p-4">
+      <div className="border border-border rounded-lg p-4 bg-surface">
         <div className="flex items-center justify-between mb-4">
-          <h4 className="font-medium text-gray-900">{t('gss_ns_events')}</h4>
+          <h4 className="font-medium text-ink">{t('gss_ns_events')}</h4>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -4472,7 +4472,7 @@ function NotificationSettings() {
                   }, {})
                 }));
               }}
-              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-brand bg-surface-muted rounded-lg hover:bg-surface-strong transition-colors"
             >
               ✓ {t('gss_ns_select_all')}
             </button>
@@ -4486,7 +4486,7 @@ function NotificationSettings() {
                   }, {})
                 }));
               }}
-              className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-ink-secondary bg-surface-muted rounded-lg hover:bg-surface-strong transition-colors"
             >
               ✕ {t('gss_ns_deselect_all')}
             </button>
@@ -4495,21 +4495,21 @@ function NotificationSettings() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-2 font-medium text-gray-700">Event</th>
-                <th className="text-center py-2 px-2 font-medium text-gray-700">Email</th>
-                <th className="text-center py-2 px-2 font-medium text-gray-700">In-App</th>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 px-2 font-medium text-ink-secondary">Event</th>
+                <th className="text-center py-2 px-2 font-medium text-ink-secondary">Email</th>
+                <th className="text-center py-2 px-2 font-medium text-ink-secondary">In-App</th>
               </tr>
             </thead>
             <tbody>
               {settings.notifications && Object.entries(settings.notifications).map(([key, value]) => (
-                <tr key={key} className="border-b border-gray-100">
-                  <td className="py-2 px-2 text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</td>
+                <tr key={key} className="border-b border-border">
+                  <td className="py-2 px-2 text-ink-secondary capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</td>
                   <td className="py-2 px-2 text-center">
-                    <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="w-4 h-4 text-blue-600 rounded" />
+                    <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
                   </td>
                   <td className="py-2 px-2 text-center">
-                    <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="w-4 h-4 text-blue-600 rounded" />
+                    <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
                   </td>
                 </tr>
               ))}
@@ -4519,22 +4519,22 @@ function NotificationSettings() {
       </div>
 
       {/* Reminder Settings */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_ns_reminder')}</h4>
+      <div className="border border-border rounded-lg p-4 bg-surface">
+        <h4 className="font-medium text-ink mb-4">{t('gss_ns_reminder')}</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Review Reminder (days)</label>
-            <input type="number" value={settings.reviewReminder} onChange={(e) => setSettings(prev => ({ ...prev, reviewReminder: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Review Reminder (days)</label>
+            <input type="number" value={settings.reviewReminder} onChange={(e) => setSettings(prev => ({ ...prev, reviewReminder: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Approval Reminder (days)</label>
-            <input type="number" value={settings.approvalReminder} onChange={(e) => setSettings(prev => ({ ...prev, approvalReminder: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Approval Reminder (days)</label>
+            <input type="number" value={settings.approvalReminder} onChange={(e) => setSettings(prev => ({ ...prev, approvalReminder: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Daily Digest</label>
+            <label className="block text-sm font-medium text-ink mb-2">Daily Digest</label>
             <div className="flex gap-2">
-              <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="w-4 h-4 mt-2 text-blue-600 rounded" />
-              <input type="time" value={settings.digestTime} onChange={(e) => setSettings(prev => ({ ...prev, digestTime: e.target.value }))} disabled={!settings.dailyDigest} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none disabled:bg-gray-100" />
+              <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="w-4 h-4 mt-2 text-brand rounded focus:ring-brand/20" />
+              <input type="time" value={settings.digestTime} onChange={(e) => setSettings(prev => ({ ...prev, digestTime: e.target.value }))} disabled={!settings.dailyDigest} className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft" />
             </div>
           </div>
         </div>
@@ -4544,7 +4544,7 @@ function NotificationSettings() {
         <button 
           onClick={handleSave} 
           disabled={saving}
-          className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? t('gss_saving') : t('gss_save_changes')}
         </button>
