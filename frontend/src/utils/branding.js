@@ -14,6 +14,11 @@ export function readThemeSettings() {
   return readStoredJson('dms_theme_settings')
 }
 
+export function readThemeMode() {
+  const preferences = readStoredJson('userPreferences')
+  return preferences?.themeMode === 'dark' ? 'dark' : 'light'
+}
+
 export function readCompanyInfo() {
   return readStoredJson('dms_company_info')
 }
@@ -175,6 +180,13 @@ export function applyTheme(themeObj) {
   if (themeObj.loginButtonHover) root.style.setProperty('--dms-login-btn-hover', themeObj.loginButtonHover)
   if (themeObj.loginAccentBg) root.style.setProperty('--dms-login-accent-bg', themeObj.loginAccentBg)
   if (themeObj.loginAccentIcon) root.style.setProperty('--dms-login-accent-icon', themeObj.loginAccentIcon)
+}
+
+export function applyThemeMode(mode = 'light') {
+  const root = document.documentElement
+  const nextMode = mode === 'dark' ? 'dark' : 'light'
+  root.dataset.theme = nextMode
+  root.style.colorScheme = nextMode
 }
 
 export function applyCompanyInfo(companyInfo) {

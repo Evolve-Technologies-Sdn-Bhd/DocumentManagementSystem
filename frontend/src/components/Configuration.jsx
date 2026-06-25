@@ -486,16 +486,16 @@ function TemplateManagement() {
       )}
       {/* Header */}
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t('cfg_template_config')}</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-ink">{t('cfg_template_config')}</h2>
+        <p className="mt-1 text-sm text-ink-secondary">
           {t('cfg_template_config_desc')}
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-ink-secondary">
           {t('cfg_template_autolink')}
         </p>
       </div>
 
-      <div className="border-b border-gray-200 mb-6">
+      <div className="mb-6 border-b border-border">
         <nav className="flex space-x-8">
           <button
             type="button"
@@ -503,8 +503,8 @@ function TemplateManagement() {
             data-tour-id="tmpl-subtab-templates"
             className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeSubTab === 'templates'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
             }`}
           >
             {t('cfg_template_list')}
@@ -516,8 +516,8 @@ function TemplateManagement() {
               data-tour-id="tmpl-subtab-requests"
               className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeSubTab === 'requests'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
               }`}
             >
               Template Requests
@@ -527,14 +527,14 @@ function TemplateManagement() {
       </div>
 
       {showTemplateRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Request Template</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h3 className="text-lg font-semibold text-ink">Request Template</h3>
               <button
                 type="button"
                 onClick={() => setShowTemplateRequestModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-ink-soft transition-colors hover:text-ink"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -542,10 +542,10 @@ function TemplateManagement() {
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4 px-6 py-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Request Type</label>
+                  <label className="mb-2 block text-sm font-medium text-ink-secondary">Request Type</label>
                   <select
                     value={templateRequestForm.requestType}
                     onChange={(e) => {
@@ -557,7 +557,7 @@ function TemplateManagement() {
                         templateId: v === 'NEW' ? '' : prev.templateId
                       }))
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   >
                     <option value="NEW">New Template</option>
                     <option value="UPDATE">Update Existing Template</option>
@@ -565,9 +565,9 @@ function TemplateManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
-                  <div className="flex items-center gap-4 mb-2">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <label className="mb-2 block text-sm font-medium text-ink-secondary">Document Type</label>
+                  <div className="mb-2 flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                       <input
                         type="radio"
                         name="docTypeModeCfg"
@@ -576,7 +576,7 @@ function TemplateManagement() {
                       />
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                       <input
                         type="radio"
                         name="docTypeModeCfg"
@@ -591,7 +591,7 @@ function TemplateManagement() {
                     <select
                       value={templateRequestForm.documentTypeId}
                       onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, documentTypeId: e.target.value, templateId: '' }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                     >
                       <option value="">Select document type</option>
                       {documentTypes.map((dt) => (
@@ -604,17 +604,17 @@ function TemplateManagement() {
                       value={templateRequestForm.documentTypeName}
                       onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, documentTypeName: e.target.value }))}
                       placeholder="Enter new document type"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Template</label>
+                <label className="mb-2 block text-sm font-medium text-ink-secondary">Template</label>
                 {templateRequestForm.requestType === 'UPDATE' && (
-                  <div className="flex items-center gap-4 mb-2">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <div className="mb-2 flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                       <input
                         type="radio"
                         name="tplModeCfg"
@@ -623,7 +623,7 @@ function TemplateManagement() {
                       />
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
                       <input
                         type="radio"
                         name="tplModeCfg"
@@ -641,13 +641,13 @@ function TemplateManagement() {
                     value={templateRequestForm.templateName}
                     onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, templateName: e.target.value }))}
                     placeholder="Enter template name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 ) : (
                   <select
                     value={templateRequestForm.templateId}
                     onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, templateId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-surface-muted disabled:text-ink-soft"
                     disabled={templateRequestForm.documentTypeMode !== 'existing' || !templateRequestForm.documentTypeId}
                   >
                     <option value="">Select template</option>
@@ -662,34 +662,34 @@ function TemplateManagement() {
                   </select>
                 )}
                 {templateRequestForm.requestType === 'UPDATE' && templateRequestForm.templateMode === 'existing' && templateRequestForm.documentTypeMode !== 'existing' && (
-                  <p className="mt-1 text-xs text-gray-500">Select an existing document type to choose an existing template.</p>
+                  <p className="mt-1 text-xs text-ink-muted">Select an existing document type to choose an existing template.</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description / Reason</label>
+                <label className="mb-2 block text-sm font-medium text-ink-secondary">Description / Reason</label>
                 <textarea
                   value={templateRequestForm.description}
                   onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   rows={3}
                   placeholder="Describe what you need (optional)"
                 />
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
               <button
                 type="button"
                 onClick={() => setShowTemplateRequestModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-muted hover:text-ink"
               >
                 {t('cancel')}
               </button>
               <button
                 type="button"
                 onClick={submitTemplateRequest}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
               >
                 {t('submit')}
               </button>
@@ -705,15 +705,15 @@ function TemplateManagement() {
             <div className="mb-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{t('cfg_template_list')}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{t('cfg_template_list_desc')}</p>
+                  <h3 className="text-lg font-semibold text-ink">{t('cfg_template_list')}</h3>
+                  <p className="mt-1 text-sm text-ink-secondary">{t('cfg_template_list_desc')}</p>
                 </div>
 
                 <PermissionGate module="configuration.templates" action="create">
                   <button
                     onClick={handleAddNewTemplate}
                     data-tour-id="tmpl-btn-add-template"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
                   >
                     {t('cfg_add_new_template')}
                   </button>
@@ -721,7 +721,7 @@ function TemplateManagement() {
               </div>
 
               <div className="relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -729,7 +729,7 @@ function TemplateManagement() {
                   placeholder={t('cfg_search_template')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full rounded-lg border border-border bg-surface py-2 pl-10 pr-4 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </div>
             </div>
@@ -737,31 +737,31 @@ function TemplateManagement() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('document_type')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('cfg_template_name')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('version')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('cfg_prefix_code')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('cfg_uploaded_by')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('cfg_uploaded_on')}</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('action')}</th>
+                  <tr className="border-b border-border bg-surface-muted">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('document_type')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_template_name')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('version')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_prefix_code')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_by')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_on')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('action')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500">
+                      <td colSpan="7" className="py-8 text-center text-ink-muted">
                         <div className="flex flex-col items-center gap-2">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
                           <span>{t('cfg_loading_templates')}</span>
                         </div>
                       </td>
                     </tr>
                   ) : currentTemplates.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="text-center py-12 text-gray-500">
+                      <td colSpan="7" className="py-12 text-center text-ink-muted">
                         <div className="flex flex-col items-center gap-2">
-                          <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-12 w-12 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           <span>{t('cfg_no_templates')}</span>
@@ -770,14 +770,14 @@ function TemplateManagement() {
                     </tr>
                   ) : (
                     currentTemplates.map((template) => (
-                      <tr key={template.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4 text-gray-700">{template.documentType}</td>
-                        <td className="py-4 px-4 text-gray-700">{template.templateName}</td>
-                        <td className="py-4 px-4 text-gray-700">{template.version}</td>
-                        <td className="py-4 px-4 text-gray-700">{template.prefixCode}</td>
-                        <td className="py-4 px-4 text-gray-700">{template.uploadedBy}</td>
-                        <td className="py-4 px-4 text-gray-700">{template.uploadedOn}</td>
-                        <td className="py-4 px-4">
+                      <tr key={template.id} className="border-b border-border transition-colors hover:bg-surface-muted">
+                        <td className="px-4 py-4 text-ink-secondary">{template.documentType}</td>
+                        <td className="px-4 py-4 text-ink-secondary">{template.templateName}</td>
+                        <td className="px-4 py-4 text-ink-secondary">{template.version}</td>
+                        <td className="px-4 py-4 text-ink-secondary">{template.prefixCode}</td>
+                        <td className="px-4 py-4 text-ink-secondary">{template.uploadedBy}</td>
+                        <td className="px-4 py-4 text-ink-secondary">{template.uploadedOn}</td>
+                        <td className="px-4 py-4">
                           <ActionMenu
                             actions={[
                               ...(hasPermission('configuration.templates', 'read') ? [{ label: t('view'), onClick: () => handleView(template) }] : []),
@@ -796,46 +796,46 @@ function TemplateManagement() {
 
             <div className="md:hidden space-y-4">
               {loading ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="py-8 text-center text-ink-muted">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
                     <span>{t('cfg_loading_templates')}</span>
                   </div>
                 </div>
               ) : currentTemplates.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="py-12 text-center text-ink-muted">
                   <span>{t('cfg_no_templates')}</span>
                 </div>
               ) : (
                 currentTemplates.map((template) => (
-                  <div key={template.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div key={template.id} className="space-y-3 rounded-lg border border-border bg-surface p-4">
                     <div>
-                      <div className="font-semibold text-gray-900">{template.documentType}</div>
-                      <div className="text-sm text-gray-600 mt-1">{template.templateName}</div>
+                      <div className="font-semibold text-ink">{template.documentType}</div>
+                      <div className="mt-1 text-sm text-ink-secondary">{template.templateName}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <span className="text-gray-500">{t('version')}:</span>
-                        <div className="text-gray-900 font-medium">{template.version}</div>
+                        <span className="text-ink-muted">{t('version')}:</span>
+                        <div className="font-medium text-ink">{template.version}</div>
                       </div>
                       <div>
-                        <span className="text-gray-500">{t('cfg_prefix_code')}:</span>
-                        <div className="text-gray-900 font-medium">{template.prefixCode}</div>
+                        <span className="text-ink-muted">{t('cfg_prefix_code')}:</span>
+                        <div className="font-medium text-ink">{template.prefixCode}</div>
                       </div>
                       <div>
-                        <span className="text-gray-500">{t('cfg_uploaded_by')}:</span>
-                        <div className="text-gray-900 font-medium">{template.uploadedBy}</div>
+                        <span className="text-ink-muted">{t('cfg_uploaded_by')}:</span>
+                        <div className="font-medium text-ink">{template.uploadedBy}</div>
                       </div>
                       <div>
-                        <span className="text-gray-500">{t('cfg_uploaded_on')}:</span>
-                        <div className="text-gray-900 font-medium">{template.uploadedOn}</div>
+                        <span className="text-ink-muted">{t('cfg_uploaded_on')}:</span>
+                        <div className="font-medium text-ink">{template.uploadedOn}</div>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2 border-t border-gray-200">
+                    <div className="flex gap-2 border-t border-border pt-2">
                       {hasPermission('configuration.templates', 'read') && (
                         <button
                           onClick={() => handleView(template)}
-                          className="flex-1 px-3 py-2 text-sm text-white bg-gray-500 rounded hover:bg-gray-600"
+                          className="flex-1 rounded bg-surface-muted px-3 py-2 text-sm text-ink-secondary transition-colors hover:bg-surface-strong hover:text-ink"
                         >
                           {t('view')}
                         </button>
@@ -843,7 +843,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'update') && (
                         <button
                           onClick={(e) => handleReupload(e, template)}
-                          className="flex-1 px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+                          className="flex-1 rounded bg-surface-muted px-3 py-2 text-sm text-brand transition-colors hover:bg-surface-strong"
                         >
                           {t('cfg_reupload')}
                         </button>
@@ -851,7 +851,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'read') && (
                         <button
                           onClick={() => handleDownload(template)}
-                          className="flex-1 px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+                          className="flex-1 rounded bg-brand px-3 py-2 text-sm text-ink-inverse transition-colors hover:bg-brand-hover"
                         >
                           {t('download')}
                         </button>
@@ -859,7 +859,7 @@ function TemplateManagement() {
                       {isAdminUser && (
                         <button
                           onClick={() => handleDeleteTemplate(template)}
-                          className="flex-1 px-3 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700"
+                          className="flex-1 rounded bg-[var(--dms-color-danger-ink)] px-3 py-2 text-sm text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
                         >
                           {t('delete')}
                         </button>
@@ -885,15 +885,15 @@ function TemplateManagement() {
           <div>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Template Requests</h3>
-                <p className="text-sm text-gray-600 mt-1">Request a new template or ask to update an existing template.</p>
+                <h3 className="text-lg font-semibold text-ink">Template Requests</h3>
+                <p className="mt-1 text-sm text-ink-secondary">Request a new template or ask to update an existing template.</p>
               </div>
               <PermissionGate module="configuration.templateRequests" action="create">
                 <button
                   type="button"
                   onClick={openTemplateRequestModal}
                   data-tour-id="tmpl-btn-request-template"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
                 >
                   Request Template
                 </button>
@@ -903,28 +903,28 @@ function TemplateManagement() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Type</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Document Type</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Template</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Status</th>
+                  <tr className="border-b border-border bg-surface-muted">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Document Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Template</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Status</th>
                     {hasPermission('configuration.templateRequests', 'update') && (
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Requested By</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Requested By</th>
                     )}
                     {hasPermission('configuration.templateRequests', 'update') && (
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">Action</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Action</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {loadingTemplateRequests ? (
                     <tr>
-                      <td colSpan={hasPermission('configuration.templateRequests', 'update') ? 7 : 5} className="text-center py-8 text-gray-500">Loading...</td>
+                      <td colSpan={hasPermission('configuration.templateRequests', 'update') ? 7 : 5} className="py-8 text-center text-ink-muted">Loading...</td>
                     </tr>
                   ) : templateRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={hasPermission('configuration.templateRequests', 'update') ? 7 : 5} className="text-center py-12 text-gray-500">No template requests found.</td>
+                      <td colSpan={hasPermission('configuration.templateRequests', 'update') ? 7 : 5} className="py-12 text-center text-ink-muted">No template requests found.</td>
                     </tr>
                   ) : (
                     templateRequests.map((r) => {
@@ -932,22 +932,22 @@ function TemplateManagement() {
                       const tplLabel = r.template?.templateName || r.templateName || '-'
                       const requesterLabel = r.requestedBy ? ([r.requestedBy.firstName, r.requestedBy.lastName].filter(Boolean).join(' ').trim() || r.requestedBy.email) : '-'
                       return (
-                        <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4 text-gray-700">{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-GB') : '-'}</td>
-                          <td className="py-3 px-4 text-gray-700">{r.requestType}</td>
-                          <td className="py-3 px-4 text-gray-700">{docLabel}</td>
-                          <td className="py-3 px-4 text-gray-700">{tplLabel}</td>
+                        <tr key={r.id} className="border-b border-border transition-colors hover:bg-surface-muted">
+                          <td className="px-4 py-3 text-ink-secondary">{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-GB') : '-'}</td>
+                          <td className="px-4 py-3 text-ink-secondary">{r.requestType}</td>
+                          <td className="px-4 py-3 text-ink-secondary">{docLabel}</td>
+                          <td className="px-4 py-3 text-ink-secondary">{tplLabel}</td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              r.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                              r.status === 'RESOLVED' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
+                              r.status === 'PENDING' ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]' :
+                              r.status === 'RESOLVED' ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' :
+                              'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)]'
                             }`}>
                               {r.status}
                             </span>
                           </td>
                           {hasPermission('configuration.templateRequests', 'update') && (
-                            <td className="py-3 px-4 text-gray-700">{requesterLabel}</td>
+                            <td className="px-4 py-3 text-ink-secondary">{requesterLabel}</td>
                           )}
                           {hasPermission('configuration.templateRequests', 'update') && (
                             <td className="py-3 px-4">
@@ -956,20 +956,20 @@ function TemplateManagement() {
                                   <button
                                     type="button"
                                     onClick={() => updateTemplateRequestStatus(r, 'RESOLVED')}
-                                    className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700"
+                                    className="rounded bg-[var(--dms-color-success-ink)] px-3 py-1.5 text-xs font-medium text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
                                   >
                                     Resolve
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateTemplateRequestStatus(r, 'REJECTED')}
-                                    className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700"
+                                    className="rounded bg-[var(--dms-color-danger-ink)] px-3 py-1.5 text-xs font-medium text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
                                   >
                                     Reject
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-500">—</span>
+                                <span className="text-xs text-ink-muted">—</span>
                               )}
                             </td>
                           )}

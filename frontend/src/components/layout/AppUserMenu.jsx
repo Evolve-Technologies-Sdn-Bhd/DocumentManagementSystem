@@ -25,7 +25,7 @@ export default function AppUserMenu({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 py-1.5 pl-1.5 pr-3 text-white transition-colors hover:bg-white/15"
+        className="flex items-center gap-2 rounded-2xl border border-topbar-border bg-topbar-surface py-1.5 pl-1.5 pr-3 text-ink-inverse transition-colors hover:bg-topbar-surfaceHover"
         aria-label="User menu"
       >
         <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-brand text-sm font-semibold text-white shadow-dms-soft">
@@ -37,7 +37,7 @@ export default function AppUserMenu({
         </div>
         <div className="hidden text-left lg:block">
           <div className="max-w-[160px] truncate text-sm font-medium leading-tight">{currentUser.name}</div>
-          <div className="max-w-[160px] truncate text-xs text-white/70">{currentUser.department || currentUser.role}</div>
+          <div className="max-w-[160px] truncate text-xs text-ink-soft">{currentUser.department || currentUser.role}</div>
         </div>
         <svg className={['h-4 w-4 transition-transform', open ? 'rotate-180' : ''].filter(Boolean).join(' ')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -80,7 +80,7 @@ export default function AppUserMenu({
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--dms-color-danger-ink)] transition-colors hover:bg-[var(--dms-color-danger-soft)]"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

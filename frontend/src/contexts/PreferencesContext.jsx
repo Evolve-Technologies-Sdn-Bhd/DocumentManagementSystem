@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../api/axios'
+import { applyThemeMode } from '../utils/branding'
 
 const PreferencesContext = createContext(null)
 
@@ -9,7 +10,8 @@ const DEFAULT_PREFERENCES = {
   dateFormat: 'DD/MM/YYYY',
   timeFormat: '24h',
   itemsPerPage: 15,
-  defaultView: 'list'
+  defaultView: 'list',
+  themeMode: 'light'
 }
 
 const translations = {
@@ -3408,6 +3410,10 @@ export function PreferencesProvider({ children }) {
     }
   }, [preferences])
 
+  useEffect(() => {
+    applyThemeMode(preferences.themeMode)
+  }, [preferences.themeMode])
+
   // Format date according to user preference
   const formatDate = useCallback((timestamp) => {
     if (!timestamp) return '-'
@@ -3499,10 +3505,15 @@ export function PreferencesProvider({ children }) {
     return translations[lang]?.[key] || translations['en']?.[key] || key
   }, [preferences.language])
 
+  const setThemeMode = useCallback((themeMode) => {
+    updatePreferences({ themeMode: themeMode === 'dark' ? 'dark' : 'light' })
+  }, [updatePreferences])
+
   const value = {
     preferences,
     loading,
     updatePreferences,
+    setThemeMode,
     formatDate,
     formatTime,
     formatDateTime,
@@ -3514,7 +3525,8 @@ export function PreferencesProvider({ children }) {
     dateFormat: preferences.dateFormat,
     timeFormat: preferences.timeFormat,
     language: preferences.language,
-    timezone: preferences.timezone
+    timezone: preferences.timezone,
+    themeMode: preferences.themeMode
   }
 
   return (
@@ -3549,13 +3561,15 @@ export function usePreferences() {
         return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}, ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`
       },
       formatRelativeTime: (ts) => ts ? 'Just now' : '-',
+      setThemeMode: () => {},
       t: (key) => key,
       itemsPerPage: 15,
       defaultView: 'list',
       dateFormat: 'DD/MM/YYYY',
       timeFormat: '24h',
       language: 'en',
-      timezone: 'Asia/Kuala_Lumpur'
+      timezone: 'Asia/Kuala_Lumpur',
+      themeMode: 'light'
     }
   }
   return context

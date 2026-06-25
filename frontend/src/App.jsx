@@ -24,12 +24,14 @@ import ProjectTracking from './components/ProjectTracking'
 import ExpiryTracking from './components/ExpiryTracking'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
-import { applyCompanyInfo, applyTheme, persistBranding, readCompanyInfo, readThemeSettings } from './utils/branding'
+import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
 
 export default function App() {
   useLayoutEffect(() => {
     const savedTheme = readThemeSettings()
     const savedCompanyInfo = readCompanyInfo()
+    const savedPreferences = readStoredJson('userPreferences')
+    applyThemeMode(savedPreferences?.themeMode)
     if (savedTheme) applyTheme(savedTheme)
     if (savedCompanyInfo) applyCompanyInfo(savedCompanyInfo)
   }, [])

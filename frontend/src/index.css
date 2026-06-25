@@ -5,6 +5,9 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+html {
+  background-color: var(--dms-color-bg-canvas);
+}
 body { 
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   background-color: var(--dms-main-bg);
@@ -13,6 +16,8 @@ body {
   background-position: center center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  color: var(--dms-color-text-primary);
+  transition: background-color 180ms ease, color 180ms ease;
 }
 .app-topbar { background-color: var(--dms-color-bg-topbar); }
 .app-sidebar { 
@@ -100,6 +105,43 @@ body {
   --dms-layout-page-gutter-mobile: 12px;
   --dms-layout-page-gutter-tablet: 16px;
   --dms-layout-page-gutter-desktop: 20px;
+}
+
+:root[data-theme='dark'] {
+  --dms-main-bg: #0b1220;
+  --dms-card-bg: #111827;
+  --dms-panel-bg: #0f172a;
+  --dms-color-bg-canvas: #0b1220;
+  --dms-color-bg-surface: rgba(15, 23, 42, 0.96);
+  --dms-color-bg-surface-muted: #111827;
+  --dms-color-bg-surface-strong: #172033;
+  --dms-color-bg-overlay: rgba(2, 6, 23, 0.72);
+  --dms-color-bg-topbar: #08111f;
+  --dms-color-border-topbar: rgba(148, 163, 184, 0.16);
+  --dms-color-bg-topbar-surface: rgba(148, 163, 184, 0.12);
+  --dms-color-bg-topbar-surface-hover: rgba(148, 163, 184, 0.2);
+  --dms-color-bg-sidebar: #0f172a;
+  --dms-color-bg-sidebar-hover: rgba(148, 163, 184, 0.1);
+  --dms-color-bg-sidebar-active: rgba(59, 130, 246, 0.24);
+  --dms-sidebar-text: #e2e8f0;
+  --dms-color-text-primary: #e5eefb;
+  --dms-color-text-secondary: #cbd5e1;
+  --dms-color-text-muted: #94a3b8;
+  --dms-color-text-soft: #64748b;
+  --dms-color-text-inverse: #f8fafc;
+  --dms-color-border-default: rgba(148, 163, 184, 0.16);
+  --dms-color-border-strong: rgba(148, 163, 184, 0.3);
+  --dms-color-success-soft: #052e2b;
+  --dms-color-success-ink: #6ee7b7;
+  --dms-color-warning-soft: #3f2a05;
+  --dms-color-warning-ink: #fbbf24;
+  --dms-color-danger-soft: #450a0a;
+  --dms-color-danger-ink: #fca5a5;
+  --dms-color-info-soft: #172554;
+  --dms-color-info-ink: #93c5fd;
+  --dms-shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.38);
+  --dms-shadow-md: 0 12px 28px rgba(2, 6, 23, 0.42);
+  --dms-shadow-lg: 0 18px 38px rgba(2, 6, 23, 0.5);
 }
 
 .card {
