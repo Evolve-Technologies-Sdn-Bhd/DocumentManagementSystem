@@ -156,22 +156,38 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
 
   const handleExport = async () => {
     try {
-      const res = await api.get('/reports/master-record/new-documents', {
-        params: { ...filters, export: 'excel' },
-        responseType: 'blob'
-      })
-      
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `new_document_register_${new Date().toISOString().split('T')[0]}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
+      const res = await api.get('/reports/master-record/new-documents', { params: filters })
+      const exportRows = res.data?.data?.documents || []
+      const rows = exportRows.map((doc) => [
+        doc.fileCode || '',
+        doc.title || '',
+        doc.type || '',
+        doc.projectCategory || '',
+        doc.version || '',
+        doc.registeredDate || '',
+        doc.owner || '',
+        doc.department || '',
+        doc.status || ''
+      ])
+
+      downloadExcelTable(
+        `new_document_register_${new Date().toISOString().slice(0, 10)}.xls`,
+        [
+          t('file_code'),
+          t('mr_doc_title'),
+          t('type'),
+          t('project_category'),
+          t('version'),
+          t('mr_registered_date'),
+          t('owner'),
+          t('department'),
+          t('status')
+        ],
+        rows
+      )
     } catch (error) {
       console.error('Failed to export:', error)
-      alert('Export failed. Please try again.')
+      alert(t('mr_export_failed_desc'))
     }
   }
 
@@ -444,6 +460,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
     dateTo: '',
     type: 'all',
     reason: 'all',
+    owner: 'all',
     projectCategoryId: 'all',
     search: ''
   })
@@ -732,6 +749,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
     dateFrom: '',
     dateTo: '',
     type: 'all',
+    reason: 'all',
     owner: 'all',
     projectCategoryId: 'all',
     search: ''
@@ -776,7 +794,48 @@ function ObsoleteRegister({ projectCategories = [] }) {
       filters
     })
     // #endregion
-    alert('Exporting Obsolete Register...')
+    ;(async () => {
+      try {
+        const res = await api.get('/reports/master-record/obsolete-register', { params: filters })
+        const exportRows = res.data?.data?.records || []
+        const needle = String(filters.search || '').trim().toLowerCase()
+        const filteredExportRows = needle
+          ? exportRows.filter((record) => {
+              const fc = String(record.fileCode || '').toLowerCase()
+              const title = String(record.documentTitle || '').toLowerCase()
+              return fc.includes(needle) || title.includes(needle)
+            })
+          : exportRows
+        const rows = filteredExportRows.map((record) => [
+          record.fileCode || '',
+          record.documentTitle || '',
+          record.documentType || '',
+          record.projectCategory || '',
+          record.obsoleteDate ? new Date(record.obsoleteDate).toLocaleDateString('en-GB') : '',
+          record.reason || '',
+          record.replacedBy || '',
+          record.lastOwner || ''
+        ])
+
+        downloadExcelTable(
+          `obsolete_register_${new Date().toISOString().slice(0, 10)}.xls`,
+          [
+            t('file_code'),
+            t('mr_doc_title'),
+            t('type'),
+            t('project_category'),
+            t('mr_obsolete_date'),
+            t('mr_reason'),
+            t('mr_replaced_by'),
+            t('owner')
+          ],
+          rows
+        )
+      } catch (error) {
+        console.error('Failed to export obsolete register:', error)
+        alert(t('mr_export_failed_desc'))
+      }
+    })()
   }
 
   const handlePageChange = (newPage) => {
@@ -1030,7 +1089,40 @@ function OldVersionRegister({ projectCategories = [] }) {
       filters
     })
     // #endregion
-    alert('Exporting Old Version Register...')
+    ;(async () => {
+      try {
+        const res = await api.get('/reports/master-record/archive-register', { params: filters })
+        const exportRows = res.data?.data?.records || []
+        const rows = exportRows.map((record) => [
+          record.fileCode || '',
+          record.documentTitle || '',
+          record.projectCategory || '',
+          record.version || '',
+          record.currentVersion || '',
+          record.archivedDate ? new Date(record.archivedDate).toLocaleDateString('en-GB') : '',
+          record.retentionUntil ? new Date(record.retentionUntil).toLocaleDateString('en-GB') : '',
+          record.archivedBy || ''
+        ])
+
+        downloadExcelTable(
+          `old_version_register_${new Date().toISOString().slice(0, 10)}.xls`,
+          [
+            t('file_code'),
+            t('mr_doc_title'),
+            t('project_category'),
+            t('mr_old_version'),
+            t('mr_current_version'),
+            t('mr_archived_date'),
+            t('mr_retention_until'),
+            t('mr_updated_by')
+          ],
+          rows
+        )
+      } catch (error) {
+        console.error('Failed to export old version register:', error)
+        alert(t('mr_export_failed_desc'))
+      }
+    })()
   }
 
   const handlePageChange = (newPage) => {
