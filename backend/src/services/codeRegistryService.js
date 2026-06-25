@@ -11,7 +11,23 @@ class CodeRegistryService {
       : null
     const page = Math.max(1, parseInt(pagination.page, 10) || 1)
     const limit = Math.max(1, parseInt(pagination.limit, 10) || 50)
-    const exportAll = String(filters.export || '') === '1'
+    const exportToken = String(filters.export || '').trim().toLowerCase()
+    const exportAll = exportToken === '1' || exportToken === 'true' || exportToken === 'excel' || exportToken === 'all'
+
+    const normalizeRevision = (rev, fileCode) => {
+      const raw = String(rev || '').trim()
+      const fallback = String(fileCode || '').split('/')[1] || ''
+      const candidate = raw || String(fallback || '').trim()
+      const m = /^0*(\d+)(?:\.(\d+))?([a-z]*)$/i.exec(candidate)
+      if (!m) return raw || candidate
+      const major = parseInt(m[1], 10)
+      const minor = typeof m[2] === 'string' ? m[2] : null
+      const suffix = String(m[3] || '').toLowerCase()
+      if (!Number.isFinite(major)) return raw || candidate
+      if (minor !== null) return `${major}.${minor}${suffix}`
+      if (suffix) return `${major}${suffix}`
+      return `${major}.0`
+    }
 
     const whereContains = (field) => search ? { [field]: { contains: search } } : undefined
 
@@ -122,6 +138,7 @@ class CodeRegistryService {
         ? String(parts[1]).trim().padStart(2, '0')
         : String(parts[1] || '').trim()
       const register = versionSegment && versionSegment !== '01' ? 'NVR' : 'NDR'
+      const rev = normalizeRevision(versionSegment ? `${versionSegment}.0` : r.version, r.fileCode)
       rows.push({
         register,
         fileCode: r.fileCode,
@@ -131,7 +148,7 @@ class CodeRegistryService {
         projectCategoryId: doc?.projectCategory?.id ?? r.projectCategoryId ?? null,
         date: r.registeredDate,
         status: r.status,
-        rev: versionSegment ? `${versionSegment}.0` : r.version,
+        rev: register === 'NDR' ? '1.0' : rev,
         source: 'SYSTEM'
       })
     }
@@ -139,8 +156,8 @@ class CodeRegistryService {
     for (const vr of nvrRequests) {
       const originalParts = vr.document?.fileCode?.split('/') || []
       const newParts = vr.newDocument?.fileCode?.split('/') || []
-      const prevVersion = originalParts[1] ? `${originalParts[1]}.0` : vr.document?.version || '1.0'
-      const newVersion = newParts[1] ? `${newParts[1]}.0` : vr.newDocument?.version || '2.0'
+      const prevVersion = normalizeRevision(originalParts[1] ? `${originalParts[1]}.0` : vr.document?.version || '1.0', vr.document?.fileCode)
+      const newVersion = normalizeRevision(newParts[1] ? `${newParts[1]}.0` : vr.newDocument?.version || '2.0', vr.newDocument?.fileCode)
       rows.push({
         register: 'NVR',
         fileCode: vr.newDocument?.fileCode || vr.document?.fileCode || '',
@@ -182,7 +199,7 @@ class CodeRegistryService {
         projectCategoryId: doc?.projectCategoryId ?? null,
         date: r.archivedDate,
         status: 'ARCHIVED',
-        rev: r.version,
+        rev: normalizeRevision(r.version, r.fileCode),
         source: 'SYSTEM'
       })
     }
@@ -202,7 +219,7 @@ class CodeRegistryService {
         projectCategoryId: doc.projectCategoryId ?? r.projectCategory?.id ?? null,
         date: doc.updatedAt || doc.createdAt || r.documentDate || r.createdAt,
         status: doc.status || 'NOT EXIST',
-        rev: doc.version || r.revision || '',
+        rev: normalizeRevision(doc.version || r.revision || '', doc.fileCode),
         source: r.source || 'SYSTEM'
       })
     }

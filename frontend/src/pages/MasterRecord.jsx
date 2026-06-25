@@ -33,6 +33,20 @@ const reportMasterRecordDebug = (hypothesisId, location, msg, data = {}, runId =
 }
 
 const escapeCsvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+const normalizeRevision = (rev, fileCode) => {
+  const raw = String(rev || '').trim()
+  const fallback = String(fileCode || '').split('/')[1] || ''
+  const candidate = raw || String(fallback || '').trim()
+  const m = /^0*(\d+)(?:\.(\d+))?([a-z]*)$/i.exec(candidate)
+  if (!m) return raw || candidate
+  const major = parseInt(m[1], 10)
+  const minor = typeof m[2] === 'string' ? m[2] : null
+  const suffix = String(m[3] || '').toLowerCase()
+  if (!Number.isFinite(major)) return raw || candidate
+  if (minor !== null) return `${major}.${minor}${suffix}`
+  if (suffix) return `${major}${suffix}`
+  return `${major}.0`
+}
 
 const downloadCsv = (fileName, headers, rows) => {
   const csv = [headers, ...rows].map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
@@ -147,7 +161,7 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
         doc.title || '',
         doc.type || '',
         doc.projectCategory || '',
-        doc.version || '',
+        normalizeRevision(doc.version, doc.fileCode),
         doc.registeredDate || '',
         doc.owner || '',
         doc.department || '',
@@ -350,15 +364,7 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                       {doc.projectCategory || ''}
                     </Td>
                     <Td>
-                      {(() => {
-                        const seg = String(doc.fileCode || '').split('/')[1] || ''
-                        const m = /^(\d+)([a-zA-Z]*)$/.exec(String(seg || '').trim())
-                        if (!m) return doc.version
-                        const digitsStr = m[1]
-                        const suffix = (m[2] || '').toLowerCase()
-                        const digitsLen = Math.max(2, digitsStr.length)
-                        return `${digitsStr.padStart(digitsLen, '0')}${suffix}` || doc.version
-                      })()}
+                      {normalizeRevision(doc.version, doc.fileCode)}
                     </Td>
                     <Td>
                       {doc.registeredDate}
@@ -1376,7 +1382,7 @@ function ConsolidatedRegister() {
         params: {
           search: filters.search,
           projectCategoryId: filters.projectCategoryId,
-          export: 'excel'
+          export: '1'
         }
       })
       const exportRows = res.data?.data?.rows || []
@@ -1387,7 +1393,7 @@ function ConsolidatedRegister() {
         row.projectCategory || '',
         row.date ? new Date(row.date).toLocaleDateString('en-GB') : '',
         row.status || '',
-        row.rev || '',
+        normalizeRevision(row.rev, row.fileCode),
         row.register || ''
       ])
 
@@ -1504,7 +1510,7 @@ function ConsolidatedRegister() {
                   <td className="px-4 py-3 text-sm text-gray-700">{r.projectCategory}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{r.date ? new Date(r.date).toLocaleDateString('en-GB') : ''}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{r.status}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{r.rev}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{normalizeRevision(r.rev, r.fileCode)}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{r.register}</td>
                 </tr>
               ))}

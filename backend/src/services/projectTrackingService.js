@@ -1479,14 +1479,59 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
   }
   if (projectId) {
     andWhere.push({ projectLinks: { some: { iteration: { projectId } } } })
-  } else {
-    andWhere.push({ projectLinks: { some: {} } })
   }
 
-  let docs
+  if (query) {
+    const tokens = new Set(
+      String(query)
+        .trim()
+        .split(/[^A-Za-z0-9]+/g)
+        .filter(Boolean)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2)
+    )
+    tokens.add(query)
+
+    const normalizedPrefix = normalizedQuery ? normalizedQuery.slice(0, Math.min(3, normalizedQuery.length)) : ''
+    if (normalizedPrefix && normalizedPrefix.length >= 2) tokens.add(normalizedPrefix)
+
+    const tokenList = Array.from(tokens).slice(0, 12)
+    const orWhere = tokenList.flatMap((t) => ([
+      { fileCode: { contains: t } },
+      { title: { contains: t } },
+      { description: { contains: t } }
+    ]))
+    andWhere.push({ OR: orWhere })
+  }
+
+  let candidates
   try {
-    docs = await prisma.document.findMany({
+    candidates = await prisma.document.findMany({
       where: andWhere.length > 0 ? { AND: andWhere } : {},
+      select: {
+        id: true,
+        fileCode: true,
+        title: true,
+        description: true,
+        status: true,
+        isConfidential: true,
+        updatedAt: true,
+        documentTypeId: true,
+        documentType: { select: { id: true, name: true } }
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: query ? 2000 : 500
+    })
+  } catch (error) {
+    throw error
+  }
+
+  const fetchWithLinks = async (ids) => {
+    if (!ids?.length) return []
+    return prisma.document.findMany({
+      where: {
+        AND: andWhere.length > 0 ? [{ AND: andWhere }, { id: { in: ids } }] : [{ id: { in: ids } }]
+      },
       select: {
         id: true,
         fileCode: true,
@@ -1511,12 +1556,8 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
             item: { include: { documentType: true } }
           }
         }
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 500
+      }
     })
-  } catch (error) {
-    throw error
   }
 
   const toResult = (doc) => {
@@ -1547,10 +1588,13 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
   }
 
   if (!query) {
-    return docs.slice(0, 200).map(toResult)
+    const ids = candidates.slice(0, 200).map((d) => d.id)
+    const docs = await fetchWithLinks(ids)
+    const byId = new Map(docs.map((d) => [d.id, d]))
+    return ids.map((id) => toResult(byId.get(id))).filter(Boolean)
   }
 
-  const scored = docs
+  const scored = candidates
     .map((doc) => {
       const normalizedFileCode = normalizeSearchValue(doc.fileCode)
       const normalizedTitle = normalizeSearchValue(doc.title)
@@ -1577,7 +1621,7 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
       return {
         score,
         updatedAt: doc.updatedAt,
-        result: toResult(doc)
+        id: doc.id
       }
     })
     .filter(Boolean)
@@ -1586,9 +1630,11 @@ exports.searchDocuments = async ({ projectId, q }, { user }) => {
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     })
     .slice(0, 200)
-    .map((entry) => entry.result)
+    .map((entry) => entry.id)
 
-  return scored
+  const docs = await fetchWithLinks(scored)
+  const byId = new Map(docs.map((d) => [d.id, d]))
+  return scored.map((id) => toResult(byId.get(id))).filter(Boolean)
 };
 
 exports.getCategoryStages = async (projectCategoryId) => {
