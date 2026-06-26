@@ -14,7 +14,7 @@ import { hasPermission, hasAnyPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const VALID_CONFIG_TABS = ['general', 'masterdata', 'roles', 'template', 'audit', 'backup', 'cleanup']
 
@@ -985,6 +985,7 @@ function TemplateManagement() {
 // Main Configuration Component
 export default function Configuration() {
   const location = useLocation()
+  const navigate = useNavigate()
   const configTabs = useMemo(() => {
     const allTabs = [
       { id: 'general', translationKey: 'cfg_general_system', modules: ['configuration.settings'] },
@@ -1016,8 +1017,8 @@ export default function Configuration() {
     const requested = tab && VALID_CONFIG_TABS.includes(tab) ? tab : null
     const allowedIds = new Set((configTabs || []).map((t) => t.id))
     const nextTab = requested && allowedIds.has(requested) ? requested : (configTabs?.[0]?.id || 'general')
-    if (nextTab !== activeTab) setActiveTab(nextTab)
-  }, [location.search, activeTab, configTabs])
+    setActiveTab((prev) => (prev === nextTab ? prev : nextTab))
+  }, [location.search, configTabs])
 
   useEffect(() => {
     const allowedIds = new Set((configTabs || []).map((t) => t.id))
@@ -1026,9 +1027,18 @@ export default function Configuration() {
     if (nextTab !== activeTab) setActiveTab(nextTab)
   }, [activeTab, configTabs])
 
+  const handleTabChange = (nextTabId) => {
+    const allowedIds = new Set((configTabs || []).map((t) => t.id))
+    const safeTab = allowedIds.has(nextTabId) ? nextTabId : (configTabs?.[0]?.id || 'general')
+    setActiveTab(safeTab)
+    const params = new URLSearchParams(location.search)
+    params.set('tab', safeTab)
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+  }
+
   return (
     <div className="p-6">
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} tabs={configTabs} />
+      <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} tabs={configTabs} />
       
       {activeTab === 'general' && <GeneralSystemSettings />}
       {activeTab === 'masterdata' && <MasterDataManagement />}
