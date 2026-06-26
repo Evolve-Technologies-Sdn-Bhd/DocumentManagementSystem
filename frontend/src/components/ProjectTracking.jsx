@@ -1541,49 +1541,75 @@ function ProjectsList({ onOpenProject }) {
   )
 }
 
-function ProjectStagesProgress({ stages, currentStageId }) {
+function ProjectStageBulletTimeline({ stages, currentStageId }) {
   const ordered = Array.isArray(stages) ? stages : []
   const currentIndex = ordered.findIndex((s) => String(s.id) === String(currentStageId))
 
+  if (ordered.length === 0) {
+    return <div className="text-sm text-ink-muted">No stages configured for this project.</div>
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="hidden items-center gap-0.5 overflow-x-auto md:flex">
-        {ordered.map((stage, index) => {
-          const isActive = currentIndex >= 0 ? index <= currentIndex : false
-          const isFirst = index === 0
-          const isLast = index === ordered.length - 1
+    <div className="space-y-0">
+      {ordered.map((stage, index) => {
+        const state =
+          currentIndex >= 0
+            ? index < currentIndex
+              ? 'done'
+              : index === currentIndex
+                ? 'current'
+                : 'upcoming'
+            : 'upcoming'
 
-          return (
-            <div
-              key={stage.id}
-              className={`relative flex h-12 flex-1 items-center justify-center text-sm font-medium transition-all ${
-                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
-              } ${isFirst ? 'rounded-l-lg' : ''} ${isLast ? 'rounded-r-lg' : !isLast ? 'clip-arrow-right' : ''} ${
-                !isFirst ? 'clip-arrow-left' : ''
-              }`}
-              style={{ minWidth: isLast ? '200px' : '140px' }}
-            >
-              <span className="px-2 text-center">{stage.label}</span>
-            </div>
-          )
-        })}
-      </div>
+        const bulletTone =
+          state === 'done'
+            ? 'border-[var(--dms-color-success-ink)] bg-[var(--dms-color-success-ink)]'
+            : state === 'current'
+              ? 'border-brand bg-brand'
+              : 'border-border-strong bg-surface'
 
-      <div className="space-y-2 md:hidden">
-        {ordered.map((stage, index) => {
-          const isActive = currentIndex >= 0 ? index <= currentIndex : false
-          return (
-            <div
-              key={stage.id}
-              className={`rounded-2xl p-3 text-sm font-medium transition-all ${
-                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
-              }`}
-            >
-              {stage.label}
+        const lineTone =
+          state === 'done'
+            ? 'bg-[var(--dms-color-success-ink)]/30'
+            : state === 'current'
+              ? 'bg-brand/25'
+              : 'bg-border'
+
+        const badgeTone =
+          state === 'done'
+            ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]'
+            : state === 'current'
+              ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
+              : 'border border-border bg-surface text-ink-secondary'
+
+        const badgeLabel = state === 'done' ? 'Completed' : state === 'current' ? 'Current' : 'Upcoming'
+
+        return (
+          <div key={stage.id} className="flex gap-4">
+            <div className="flex w-5 flex-col items-center">
+              <div className={`mt-1 h-3.5 w-3.5 rounded-full border-2 ${bulletTone}`} />
+              {index < ordered.length - 1 && <div className={`mt-1 w-0.5 flex-1 ${lineTone}`} />}
             </div>
-          )
-        })}
-      </div>
+            <div className={`flex-1 pb-5 ${index === ordered.length - 1 ? 'pb-0' : ''}`}>
+              <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-ink">{stage.label}</div>
+                  <div className="mt-1 text-xs text-ink-muted">
+                    {state === 'done'
+                      ? 'This stage is completed.'
+                      : state === 'current'
+                        ? 'This is the current active stage.'
+                        : 'This stage has not started yet.'}
+                  </div>
+                </div>
+                <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${badgeTone}`}>
+                  {badgeLabel}
+                </span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -1612,76 +1638,6 @@ function ProjectPhaseTimeline({ events }) {
   )
 }
 
-function ProjectDashboardDetailsPanel({ open, loading, project, phases, stageSteps, timelinesByIteration, onClose, onOpenProjectDetail }) {
-  if (!open) return null
-
-  return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-[520px]">
-      <div className="sticky top-0 border-b border-border bg-surface p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold text-ink">{project?.name || 'Project'}</div>
-            <div className="mt-1 text-sm text-ink-muted">
-              {project?.code ? `${project.code} • ` : ''}
-              {project ? formatLifecycleStatus(project.status) : ''}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!!project && <ProjectStatusBadge status={project.status} />}
-            <IconButton size="sm" onClick={onClose} aria-label="Close">
-              <span className="text-lg leading-none">×</span>
-            </IconButton>
-          </div>
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Close
-          </Button>
-          <Button type="button" onClick={onOpenProjectDetail} disabled={!project?.id} className="flex-1">
-            Open Project Detail
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-4 p-4">
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-ink-muted">
-            <InlineSpinner className="h-4 w-4" />
-            <span>Loading project...</span>
-          </div>
-        ) : !project ? (
-          <div className="text-sm text-ink-muted">No project selected.</div>
-        ) : phases.length === 0 ? (
-          <EmptyPanelState title="No phases yet" message="Create a phase to start tracking stage progress and timeline." />
-        ) : (
-          phases.map((phase) => (
-            <AppSurface key={phase.id} padding="lg" className="space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-base font-semibold text-ink">{getPhaseTitle(phase, 'Phase')}</div>
-                  <div className="mt-1 text-sm text-ink-muted">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
-                </div>
-                <div className="text-xs font-medium text-ink-muted">{phase.visibleDocumentLinksCount != null ? `${phase.visibleDocumentLinksCount} linked docs` : ''}</div>
-              </div>
-
-              {stageSteps.length > 0 ? (
-                <ProjectStagesProgress stages={stageSteps} currentStageId={phase.currentStageId} />
-              ) : (
-                <div className="text-sm text-ink-muted">No stages configured for this project.</div>
-              )}
-
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-ink">Timeline</div>
-                <ProjectPhaseTimeline events={timelinesByIteration.get(phase.iterationNo) || []} />
-              </div>
-            </AppSurface>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
 function ProjectDashboard({ onOpenProject }) {
   const { itemsPerPage } = usePreferences()
   const [projects, setProjects] = useState([])
@@ -1689,11 +1645,11 @@ function ProjectDashboard({ onOpenProject }) {
   const [projectQuery, setProjectQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
-  const [detailsOpen, setDetailsOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [selectedProject, setSelectedProject] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [expandedPhaseIds, setExpandedPhaseIds] = useState([])
 
   useEffect(() => {
     setPageSize(itemsPerPage)
@@ -1820,19 +1776,31 @@ function ProjectDashboard({ onOpenProject }) {
     return list.slice().sort((a, b) => (a.iterationNo || 0) - (b.iterationNo || 0))
   }, [selectedProject])
 
+  useEffect(() => {
+    if (!phases.length) {
+      setExpandedPhaseIds([])
+      return
+    }
+    const latestPhaseId = phases[phases.length - 1]?.id
+    setExpandedPhaseIds(latestPhaseId ? [latestPhaseId] : [])
+  }, [selectedProject?.id, phases])
+
   const openProject = async (id) => {
     if (!id) return
     setSelectedProjectId(id)
-    setDetailsOpen(true)
     await loadProjectDetail(id)
   }
 
-  const closeDetails = () => {
-    setDetailsOpen(false)
+  const togglePhase = (phaseId) => {
+    setExpandedPhaseIds((prev) =>
+      prev.includes(phaseId)
+        ? prev.filter((id) => id !== phaseId)
+        : [...prev, phaseId]
+    )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <AppSurface padding="none" className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1876,12 +1844,15 @@ function ProjectDashboard({ onOpenProject }) {
                     <Th>Category</Th>
                     <Th>Manager</Th>
                     <Th>Latest Phase</Th>
-                    <Th align="right">Action</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.map((p) => (
-                    <Tr key={p.id} className="cursor-pointer" onClick={() => openProject(p.id)}>
+                    <Tr
+                      key={p.id}
+                      className={`cursor-pointer ${String(selectedProjectId) === String(p.id) ? 'bg-[var(--dms-color-info-soft)]/60' : ''}`}
+                      onClick={() => openProject(p.id)}
+                    >
                       <Td className="font-medium text-brand">{p.code}</Td>
                       <Td className="text-ink">{p.name}</Td>
                       <Td><ProjectStatusBadge status={p.status} /></Td>
@@ -1891,11 +1862,6 @@ function ProjectDashboard({ onOpenProject }) {
                       </Td>
                       <Td>
                         {p.iterations?.[0] ? `Phase ${p.iterations[0].iterationNo} • ${p.iterations[0].currentStage?.name || '-'}` : '-'}
-                      </Td>
-                      <Td align="right">
-                        <Button type="button" variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); openProject(p.id) }}>
-                          View Details
-                        </Button>
                       </Td>
                     </Tr>
                   ))}
@@ -1918,18 +1884,96 @@ function ProjectDashboard({ onOpenProject }) {
         )}
       </AppSurface>
 
-      <ProjectDashboardDetailsPanel
-        open={detailsOpen}
-        loading={loadingDetail}
-        project={selectedProject}
-        phases={phases}
-        stageSteps={stageSteps}
-        timelinesByIteration={timelinesByIteration}
-        onClose={closeDetails}
-        onOpenProjectDetail={() => {
-          if (selectedProjectId) onOpenProject(selectedProjectId)
-        }}
-      />
+      {loadingDetail ? (
+        <AppSurface padding="lg" className="flex items-center gap-3">
+          <InlineSpinner className="h-4 w-4" />
+          <span className="text-sm text-ink-muted">Loading project...</span>
+        </AppSurface>
+      ) : !selectedProject ? (
+        <EmptyPanelState title="Select a project" message="Click a project from the list above to see the current stage and timeline." />
+      ) : (
+        <div className="space-y-5">
+          <AppSurface padding="lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-lg font-semibold text-ink">{selectedProject.name}</div>
+                <div className="mt-1 text-sm text-ink-muted">
+                  {selectedProject.code ? `${selectedProject.code} • ` : ''}
+                  {formatLifecycleStatus(selectedProject.status)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <ProjectStatusBadge status={selectedProject.status} />
+                <Button type="button" variant="secondary" onClick={() => onOpenProject(selectedProject.id)}>
+                  Open Project Detail
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Category</div>
+                <div className="mt-1 text-sm font-semibold text-ink">{selectedProject.projectCategory?.name || '-'}</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Manager</div>
+                <div className="mt-1 text-sm font-semibold text-ink">
+                  {`${selectedProject.manager?.firstName || ''} ${selectedProject.manager?.lastName || ''}`.trim() || selectedProject.manager?.email || '-'}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Latest Phase</div>
+                <div className="mt-1 text-sm font-semibold text-ink">
+                  {selectedProject.iterations?.[0]
+                    ? `Phase ${selectedProject.iterations[0].iterationNo} • ${selectedProject.iterations[0].currentStage?.name || '-'}`
+                    : '-'}
+                </div>
+              </div>
+            </div>
+          </AppSurface>
+
+          {phases.length === 0 ? (
+            <EmptyPanelState title="No phases yet" message="Create a phase to start tracking stage progress and timeline." />
+          ) : (
+            phases.map((phase) => (
+              <AppSurface key={phase.id} padding="lg" className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => togglePhase(phase.id)}
+                  className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="text-base font-semibold text-ink">{getPhaseTitle(phase, 'Phase')}</div>
+                    <div className="mt-1 text-sm text-ink-muted">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs font-medium text-ink-muted">
+                      {phase.visibleDocumentLinksCount != null ? `${phase.visibleDocumentLinksCount} linked docs` : ''}
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                      {expandedPhaseIds.includes(phase.id) ? 'Collapse' : 'Expand'}
+                    </span>
+                  </div>
+                </button>
+
+                {expandedPhaseIds.includes(phase.id) && (
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-ink">Stage Timeline</div>
+                      <ProjectStageBulletTimeline stages={stageSteps} currentStageId={phase.currentStageId} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-ink">Activity Timeline</div>
+                      <ProjectPhaseTimeline events={timelinesByIteration.get(phase.iterationNo) || []} />
+                    </div>
+                  </div>
+                )}
+              </AppSurface>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }
