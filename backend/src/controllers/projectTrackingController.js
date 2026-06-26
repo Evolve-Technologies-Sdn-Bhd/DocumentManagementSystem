@@ -413,8 +413,10 @@ exports.advanceIterationStage = asyncHandler(async (req, res) => {
 exports.searchDocuments = asyncHandler(async (req, res) => {
   const projectId = req.query.projectId ? Number(req.query.projectId) : undefined;
   const q = req.query.q ? String(req.query.q) : undefined;
+  const attachedOnlyRaw = String(req.query.attachedOnly || '').trim().toLowerCase()
+  const attachedOnly = attachedOnlyRaw === 'true' || attachedOnlyRaw === '1'
 
-  const documents = await projectTrackingService.searchDocuments({ projectId, q }, { user: req.user });
+  const documents = await projectTrackingService.searchDocuments({ projectId, q, attachedOnly }, { user: req.user });
   return ResponseFormatter.success(res, { documents }, 'Documents retrieved successfully');
 });
 

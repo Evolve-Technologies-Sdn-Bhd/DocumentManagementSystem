@@ -1612,15 +1612,92 @@ function ProjectPhaseTimeline({ events }) {
   )
 }
 
+function ProjectDashboardDetailsPanel({ open, loading, project, phases, stageSteps, timelinesByIteration, onClose, onOpenProjectDetail }) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-y-0 right-0 z-50 w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-[520px]">
+      <div className="sticky top-0 border-b border-border bg-surface p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold text-ink">{project?.name || 'Project'}</div>
+            <div className="mt-1 text-sm text-ink-muted">
+              {project?.code ? `${project.code} • ` : ''}
+              {project ? formatLifecycleStatus(project.status) : ''}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {!!project && <ProjectStatusBadge status={project.status} />}
+            <IconButton size="sm" onClick={onClose} aria-label="Close">
+              <span className="text-lg leading-none">×</span>
+            </IconButton>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+            Close
+          </Button>
+          <Button type="button" onClick={onOpenProjectDetail} disabled={!project?.id} className="flex-1">
+            Open Project Detail
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-4">
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-ink-muted">
+            <InlineSpinner className="h-4 w-4" />
+            <span>Loading project...</span>
+          </div>
+        ) : !project ? (
+          <div className="text-sm text-ink-muted">No project selected.</div>
+        ) : phases.length === 0 ? (
+          <EmptyPanelState title="No phases yet" message="Create a phase to start tracking stage progress and timeline." />
+        ) : (
+          phases.map((phase) => (
+            <AppSurface key={phase.id} padding="lg" className="space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-base font-semibold text-ink">{getPhaseTitle(phase, 'Phase')}</div>
+                  <div className="mt-1 text-sm text-ink-muted">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                </div>
+                <div className="text-xs font-medium text-ink-muted">{phase.visibleDocumentLinksCount != null ? `${phase.visibleDocumentLinksCount} linked docs` : ''}</div>
+              </div>
+
+              {stageSteps.length > 0 ? (
+                <ProjectStagesProgress stages={stageSteps} currentStageId={phase.currentStageId} />
+              ) : (
+                <div className="text-sm text-ink-muted">No stages configured for this project.</div>
+              )}
+
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-ink">Timeline</div>
+                <ProjectPhaseTimeline events={timelinesByIteration.get(phase.iterationNo) || []} />
+              </div>
+            </AppSurface>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ProjectDashboard({ onOpenProject }) {
-  const { t } = usePreferences()
+  const { itemsPerPage } = usePreferences()
   const [projects, setProjects] = useState([])
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [projectQuery, setProjectQuery] = useState('')
-  const [selectedProjectId, setSelectedProjectId] = useState('')
-  const [project, setProject] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(itemsPerPage)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [selectedProject, setSelectedProject] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  useEffect(() => {
+    setPageSize(itemsPerPage)
+  }, [itemsPerPage])
 
   const loadProjects = async () => {
     setLoadingProjects(true)
@@ -1628,7 +1705,6 @@ function ProjectDashboard({ onOpenProject }) {
       const res = await api.get('/project-tracking/projects')
       const data = res?.data?.data?.projects || []
       setProjects(data)
-      if (!selectedProjectId && data[0]?.id) setSelectedProjectId(String(data[0].id))
     } finally {
       setLoadingProjects(false)
     }
@@ -1640,9 +1716,9 @@ function ProjectDashboard({ onOpenProject }) {
     try {
       const [projectRes, logRes] = await Promise.all([
         api.get(`/project-tracking/projects/${id}`),
-        api.get(`/project-tracking/projects/${id}/activity-logs`, { params: { page: 1, limit: 200 } })
+        api.get(`/project-tracking/projects/${id}/activity-logs`, { params: { page: 1, limit: 250 } })
       ])
-      setProject(projectRes?.data?.data?.project || null)
+      setSelectedProject(projectRes?.data?.data?.project || null)
       setActivityLogs(logRes?.data?.data?.logs || [])
     } finally {
       setLoadingDetail(false)
@@ -1653,32 +1729,35 @@ function ProjectDashboard({ onOpenProject }) {
     loadProjects()
   }, [])
 
-  useEffect(() => {
-    if (!selectedProjectId) return
-    loadProjectDetail(selectedProjectId)
-  }, [selectedProjectId])
-
   const filteredProjects = useMemo(() => {
     if (!projectQuery) return projects
     const q = projectQuery.toLowerCase()
     return projects.filter((p) => String(p.code || '').toLowerCase().includes(q) || String(p.name || '').toLowerCase().includes(q))
   }, [projectQuery, projects])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [projectQuery])
+
+  const totalItems = filteredProjects.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const paginated = filteredProjects.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   const stageSteps = useMemo(() => {
-    const enabled = Array.isArray(project?.enabledStages) ? project.enabledStages : []
+    const enabled = Array.isArray(selectedProject?.enabledStages) ? selectedProject.enabledStages : []
     return enabled
       .slice()
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
       .map((s) => ({ id: s.stageId, label: s.name }))
-  }, [project])
+  }, [selectedProject])
 
   const stageNameMap = useMemo(() => {
     const map = new Map()
-    ;(project?.enabledStages || []).forEach((s) => {
+    ;(selectedProject?.enabledStages || []).forEach((s) => {
       map.set(String(s.stageId), s.name)
     })
     return map
-  }, [project])
+  }, [selectedProject])
 
   const timelinesByIteration = useMemo(() => {
     const map = new Map()
@@ -1737,133 +1816,120 @@ function ProjectDashboard({ onOpenProject }) {
   }, [activityLogs, stageNameMap])
 
   const phases = useMemo(() => {
-    const list = Array.isArray(project?.iterations) ? project.iterations : []
+    const list = Array.isArray(selectedProject?.iterations) ? selectedProject.iterations : []
     return list.slice().sort((a, b) => (a.iterationNo || 0) - (b.iterationNo || 0))
-  }, [project])
+  }, [selectedProject])
+
+  const openProject = async (id) => {
+    if (!id) return
+    setSelectedProjectId(id)
+    setDetailsOpen(true)
+    await loadProjectDetail(id)
+  }
+
+  const closeDetails = () => {
+    setDetailsOpen(false)
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <AppSurface padding="lg" className="lg:col-span-2">
-          <div className="text-sm font-semibold text-ink">{t ? t('search') : 'Search'}</div>
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <TextInput
-              value={projectQuery}
-              onChange={(e) => setProjectQuery(e.target.value)}
-              placeholder="Search project code/name..."
-              className="w-full sm:flex-1"
-            />
-            <SelectField
-              value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="w-full sm:w-[320px]"
-              disabled={loadingProjects || filteredProjects.length === 0}
-            >
-              {filteredProjects.length === 0 ? (
-                <option value="">{loadingProjects ? 'Loading...' : 'No projects found'}</option>
-              ) : (
-                filteredProjects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code ? `${p.code} • ${p.name}` : p.name}
-                  </option>
-                ))
-              )}
-            </SelectField>
+    <div className="space-y-4">
+      <AppSurface padding="none" className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-ink">Project Dashboard</div>
+            <div className="mt-1 text-sm text-ink-muted">List all projects and click one to see the current stage and timeline.</div>
           </div>
-        </AppSurface>
-
-        <AppSurface padding="lg">
-          <div className="text-sm font-semibold text-ink">Quick Actions</div>
-          <div className="mt-3 space-y-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              disabled={!selectedProjectId}
-              onClick={() => onOpenProject(Number(selectedProjectId))}
-            >
-              Open Project Detail
-            </Button>
-            <Button type="button" className="w-full" onClick={loadProjects} disabled={loadingProjects}>
-              {loadingProjects ? 'Refreshing...' : 'Refresh Projects'}
-            </Button>
-          </div>
-        </AppSurface>
-      </div>
-
-      {loadingDetail ? (
-        <AppSurface padding="lg" className="flex items-center gap-3">
-          <InlineSpinner className="h-4 w-4" />
-          <span className="text-sm text-ink-muted">Loading dashboard...</span>
-        </AppSurface>
-      ) : !project ? (
-        <EmptyPanelState title="Select a project" message="Choose a project to see the current stage and timeline." />
-      ) : (
-        <div className="space-y-5">
-          <AppSurface padding="lg">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="text-lg font-semibold text-ink">{project.name}</div>
-                <div className="mt-1 text-sm text-ink-muted">
-                  {project.code ? `${project.code} • ` : ''}
-                  {formatLifecycleStatus(project.status)}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <ProjectStatusBadge status={project.status} />
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Category</div>
-                <div className="mt-1 text-sm font-semibold text-ink">{project.projectCategory?.name || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Manager</div>
-                <div className="mt-1 text-sm font-semibold text-ink">
-                  {`${project.manager?.firstName || ''} ${project.manager?.lastName || ''}`.trim() || project.manager?.email || '-'}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Latest Phase</div>
-                <div className="mt-1 text-sm font-semibold text-ink">
-                  {project.iterations?.[0]
-                    ? `Phase ${project.iterations[0].iterationNo} • ${project.iterations[0].currentStage?.name || '-'}`
-                    : '-'}
-                </div>
-              </div>
-            </div>
-          </AppSurface>
-
-          {phases.length === 0 ? (
-            <EmptyPanelState title="No phases yet" message="Create a phase to start tracking stage progress and timeline." />
-          ) : (
-            phases.map((phase) => (
-              <AppSurface key={phase.id} padding="lg" className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-base font-semibold text-ink">{getPhaseTitle(phase, 'Phase')}</div>
-                    <div className="mt-1 text-sm text-ink-muted">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
-                  </div>
-                  <div className="text-xs font-medium text-ink-muted">{phase.visibleDocumentLinksCount != null ? `${phase.visibleDocumentLinksCount} linked docs` : ''}</div>
-                </div>
-
-                {stageSteps.length > 0 ? (
-                  <ProjectStagesProgress stages={stageSteps} currentStageId={phase.currentStageId} />
-                ) : (
-                  <div className="text-sm text-ink-muted">No stages configured for this project.</div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-ink">Timeline</div>
-                  <ProjectPhaseTimeline events={timelinesByIteration.get(phase.iterationNo) || []} />
-                </div>
-              </AppSurface>
-            ))
-          )}
+          <Button type="button" onClick={loadProjects} disabled={loadingProjects}>
+            {loadingProjects ? 'Refreshing...' : 'Refresh'}
+          </Button>
         </div>
-      )}
+
+        <div className="px-6 py-4">
+          <TextInput
+            value={projectQuery}
+            onChange={(e) => setProjectQuery(e.target.value)}
+            placeholder="Search project code/name..."
+            className="w-full sm:max-w-md"
+          />
+        </div>
+
+        {loadingProjects ? (
+          <div className="px-6 pb-6">
+            <div className="flex items-center gap-2 text-sm text-ink-muted">
+              <InlineSpinner />
+              <span>Loading projects...</span>
+            </div>
+          </div>
+        ) : totalItems === 0 ? (
+          <div className="px-6 pb-6">
+            <EmptyPanelState title="No projects found" message="Try clearing the search or create a new project." />
+          </div>
+        ) : (
+          <>
+            <TableContainer className="rounded-none border-0">
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Code</Th>
+                    <Th>Name</Th>
+                    <Th>Status</Th>
+                    <Th>Category</Th>
+                    <Th>Manager</Th>
+                    <Th>Latest Phase</Th>
+                    <Th align="right">Action</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((p) => (
+                    <Tr key={p.id} className="cursor-pointer" onClick={() => openProject(p.id)}>
+                      <Td className="font-medium text-brand">{p.code}</Td>
+                      <Td className="text-ink">{p.name}</Td>
+                      <Td><ProjectStatusBadge status={p.status} /></Td>
+                      <Td>{p.projectCategory?.name || '-'}</Td>
+                      <Td>
+                        {`${p.manager?.firstName || ''} ${p.manager?.lastName || ''}`.trim() || p.manager?.email || '-'}
+                      </Td>
+                      <Td>
+                        {p.iterations?.[0] ? `Phase ${p.iterations[0].iterationNo} • ${p.iterations[0].currentStage?.name || '-'}` : '-'}
+                      </Td>
+                      <Td align="right">
+                        <Button type="button" variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); openProject(p.id) }}>
+                          View Details
+                        </Button>
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableContainer>
+            {totalPages > 1 && (
+              <div className="px-6 py-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  itemsPerPage={pageSize}
+                  onItemsPerPageChange={setPageSize}
+                  totalItems={totalItems}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </AppSurface>
+
+      <ProjectDashboardDetailsPanel
+        open={detailsOpen}
+        loading={loadingDetail}
+        project={selectedProject}
+        phases={phases}
+        stageSteps={stageSteps}
+        timelinesByIteration={timelinesByIteration}
+        onClose={closeDetails}
+        onOpenProjectDetail={() => {
+          if (selectedProjectId) onOpenProject(selectedProjectId)
+        }}
+      />
     </div>
   )
 }
@@ -3641,7 +3707,7 @@ function DocumentsSearch() {
     setLoading(true)
     setHasSearched(true)
     try {
-      const params = { q }
+      const params = { q, attachedOnly: true }
       if (projectId) params.projectId = projectId
       const res = await api.get('/project-tracking/documents/search', { params })
       setResults(res?.data?.data?.documents || [])
@@ -3670,7 +3736,7 @@ function DocumentsSearch() {
         <TextInput
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search documents across all projects or by selected project..."
+          placeholder="Search documents attached to projects (or by selected project)..."
           className="flex-1"
         />
         <Button onClick={search}>
@@ -3709,7 +3775,7 @@ function DocumentsSearch() {
                       <div className="text-ink-muted">{r.document.title}</div>
                     </Td>
                     <Td className="text-ink-secondary">
-                      {r.iteration?.project?.code} • {r.iteration?.project?.name}
+                      {r.iteration?.project ? `${r.iteration.project.code} • ${r.iteration.project.name}` : '-'}
                     </Td>
                     <Td className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</Td>
                     <Td className="text-ink-secondary">{r.stage?.name || '-'}</Td>
@@ -4308,10 +4374,10 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
-  const activeTab = String(searchParams.get('tab') || 'projects')
+  const activeTab = String(searchParams.get('tab') || 'dashboard')
 
   const setTab = (tab) => {
-    if (tab === 'projects') {
+    if (tab === 'dashboard') {
       navigate('/project-tracking')
       return
     }
@@ -4338,7 +4404,7 @@ export default function ProjectTracking() {
     return base
   }, [canOpenProjectSetup, canSearchProjects])
 
-  const fallbackTab = tabs[0]?.id || 'projects'
+  const fallbackTab = tabs[0]?.id || 'dashboard'
 
   useEffect(() => {
     if (projectId) return
