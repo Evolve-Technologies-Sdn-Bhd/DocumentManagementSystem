@@ -1283,14 +1283,58 @@ class DocumentService {
           select: {
             id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            email: true
           }
         },
         owner: {
           select: {
             id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            email: true
+          }
+        },
+        reviewer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        firstApprover: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        secondApprover: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        approvalHistory: {
+          where: {
+            action: {
+              in: ['REVIEWED', 'FIRST_APPROVED', 'SECOND_APPROVED', 'PUBLISHED', 'ACKNOWLEDGED']
+            }
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
           }
         },
         versions: {

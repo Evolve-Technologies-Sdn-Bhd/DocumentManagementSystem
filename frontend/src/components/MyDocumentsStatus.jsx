@@ -312,6 +312,14 @@ export default function MyDocumentsStatus() {
   const DocumentDetailsPanel = () => {
     if (!selectedDocDetails) return null
 
+    const readyToPublishBy =
+      selectedDocDetails.secondApprovedBy ||
+      selectedDocDetails.firstApprovedBy ||
+      selectedDocDetails.secondApprover ||
+      selectedDocDetails.firstApprover ||
+      selectedDocDetails.reviewedBy ||
+      selectedDocDetails.reviewer
+
     const workflowHistory = [
       {
         stage: 'Created',
@@ -328,7 +336,7 @@ export default function MyDocumentsStatus() {
       {
         stage: 'Acknowledged',
         date: selectedDocDetails.acknowledgedAt,
-        user: selectedDocDetails.owner,
+        user: selectedDocDetails.acknowledgedBy || selectedDocDetails.owner,
         status: selectedDocDetails.acknowledgedAt ? 'completed' : 'pending'
       },
       {
@@ -340,37 +348,37 @@ export default function MyDocumentsStatus() {
       {
         stage: 'Reviewed',
         date: selectedDocDetails.reviewedAt,
-        user: selectedDocDetails.owner,
+        user: selectedDocDetails.reviewedBy || selectedDocDetails.reviewer,
         status: selectedDocDetails.reviewedAt ? 'completed' : 'pending'
       },
       {
         stage: 'Submitted for Approval',
         date: selectedDocDetails.reviewedAt,
-        user: selectedDocDetails.owner,
-        status: ['APPROVAL', 'FIRST_APPROVAL', 'SECOND_APPROVAL', 'READY_TO_PUBLISH'].includes(selectedDocDetails.stage) || selectedDocDetails.approvedAt || selectedDocDetails.firstApprovedAt ? 'completed' : 'pending'
+        user: selectedDocDetails.reviewedBy || selectedDocDetails.reviewer,
+        status: ['APPROVAL', 'FIRST_APPROVAL', 'SECOND_APPROVAL', 'READY_TO_PUBLISH', 'PUBLISHED'].includes(selectedDocDetails.stage) || selectedDocDetails.firstApprovedAt || selectedDocDetails.secondApprovedAt || selectedDocDetails.publishedAt ? 'completed' : 'pending'
       },
       {
         stage: 'First Approval',
         date: selectedDocDetails.firstApprovedAt,
-        user: selectedDocDetails.owner,
+        user: selectedDocDetails.firstApprovedBy || selectedDocDetails.firstApprover,
         status: selectedDocDetails.firstApprovedAt ? 'completed' : (selectedDocDetails.stage === 'FIRST_APPROVAL' || selectedDocDetails.stage === 'Approval' ? 'pending' : null)
       },
       {
         stage: 'Second Approval',
         date: selectedDocDetails.secondApprovedAt,
-        user: selectedDocDetails.owner,
+        user: selectedDocDetails.secondApprovedBy || selectedDocDetails.secondApprover,
         status: selectedDocDetails.secondApprovedAt ? 'completed' : (selectedDocDetails.stage === 'SECOND_APPROVAL' ? 'pending' : null)
       },
       {
         stage: 'Ready to Publish',
         date: null,
-        user: selectedDocDetails.owner,
-        status: selectedDocDetails.stage === 'READY_TO_PUBLISH' ? 'completed' : 'pending'
+        user: readyToPublishBy,
+        status: ['READY_TO_PUBLISH', 'PUBLISHED'].includes(selectedDocDetails.stage) ? 'completed' : 'pending'
       },
       {
         stage: 'Published',
         date: selectedDocDetails.publishedAt,
-        user: selectedDocDetails.owner,
+        user: selectedDocDetails.publishedBy,
         status: selectedDocDetails.publishedAt ? 'completed' : 'pending'
       }
     ].filter(item => item.date || item.status === 'completed' || selectedDocDetails.rawStatus !== 'DRAFT')

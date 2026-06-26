@@ -59,6 +59,20 @@ const resolveExistingFilePath = (storedPath) => {
   return null
 }
 
+const getUserDisplayName = (user) => {
+  if (!user) return null
+
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+  return fullName || user.email || null
+}
+
+const getLatestApprovalActorName = (approvalHistory = [], action) => {
+  if (!Array.isArray(approvalHistory) || !action) return null
+
+  const entry = approvalHistory.find((item) => item.action === action)
+  return getUserDisplayName(entry?.user)
+}
+
 class DocumentController {
   /**
    * Create new document
@@ -1088,6 +1102,11 @@ class DocumentController {
     const documents = result.documents.map(doc => {
       // Get the latest version info
       const latestVersion = doc.versions && doc.versions.length > 0 ? doc.versions[0] : null;
+      const reviewedBy = getLatestApprovalActorName(doc.approvalHistory, 'REVIEWED') || getUserDisplayName(doc.reviewer);
+      const firstApprovedBy = getLatestApprovalActorName(doc.approvalHistory, 'FIRST_APPROVED') || getUserDisplayName(doc.firstApprover);
+      const secondApprovedBy = getLatestApprovalActorName(doc.approvalHistory, 'SECOND_APPROVED') || getUserDisplayName(doc.secondApprover);
+      const publishedBy = getLatestApprovalActorName(doc.approvalHistory, 'PUBLISHED');
+      const acknowledgedBy = getLatestApprovalActorName(doc.approvalHistory, 'ACKNOWLEDGED');
       
       // Debug log for documentType
       if (!doc.documentType) {
@@ -1118,8 +1137,16 @@ class DocumentController {
         publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toLocaleDateString('en-GB') : null,
         obsoleteDate: doc.obsoleteDate ? new Date(doc.obsoleteDate).toLocaleDateString('en-GB') : null,
         // User information
-        owner: doc.owner ? `${doc.owner.firstName || ''} ${doc.owner.lastName || ''}`.trim() || doc.owner.email : '',
-        createdBy: doc.createdBy ? `${doc.createdBy.firstName || ''} ${doc.createdBy.lastName || ''}`.trim() || doc.createdBy.email : '',
+        owner: getUserDisplayName(doc.owner) || '',
+        createdBy: getUserDisplayName(doc.createdBy) || '',
+        reviewer: getUserDisplayName(doc.reviewer),
+        reviewedBy,
+        firstApprover: getUserDisplayName(doc.firstApprover),
+        firstApprovedBy,
+        secondApprover: getUserDisplayName(doc.secondApprover),
+        secondApprovedBy,
+        acknowledgedBy,
+        publishedBy,
         // File information
         hasFile: !!latestVersion,
         fileName: latestVersion?.fileName || null,

@@ -1189,7 +1189,12 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
       entity: 'ProjectIteration',
       entityId: iterationId,
       description: `projectId=${iteration.projectId} moved phase ${iteration.iterationNo} to next stage`,
-      metadata: { projectId: iteration.projectId, fromStageId: current.stageId, toStageId: next.stageId }
+      metadata: {
+        projectId: iteration.projectId,
+        iterationNo: iteration.iterationNo,
+        fromStageId: current.stageId,
+        toStageId: next.stageId
+      }
     }
   })
 

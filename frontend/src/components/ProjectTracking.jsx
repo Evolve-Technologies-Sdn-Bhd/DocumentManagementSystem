@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import Pagination from './Pagination'
 import EmptyState from './EmptyState'
@@ -1536,6 +1536,333 @@ function ProjectsList({ onOpenProject }) {
             if (project?.id) onOpenProject(project.id)
           }}
         />
+      )}
+    </div>
+  )
+}
+
+function ProjectStagesProgress({ stages, currentStageId }) {
+  const ordered = Array.isArray(stages) ? stages : []
+  const currentIndex = ordered.findIndex((s) => String(s.id) === String(currentStageId))
+
+  return (
+    <div className="space-y-3">
+      <div className="hidden items-center gap-0.5 overflow-x-auto md:flex">
+        {ordered.map((stage, index) => {
+          const isActive = currentIndex >= 0 ? index <= currentIndex : false
+          const isFirst = index === 0
+          const isLast = index === ordered.length - 1
+
+          return (
+            <div
+              key={stage.id}
+              className={`relative flex h-12 flex-1 items-center justify-center text-sm font-medium transition-all ${
+                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
+              } ${isFirst ? 'rounded-l-lg' : ''} ${isLast ? 'rounded-r-lg' : !isLast ? 'clip-arrow-right' : ''} ${
+                !isFirst ? 'clip-arrow-left' : ''
+              }`}
+              style={{ minWidth: isLast ? '200px' : '140px' }}
+            >
+              <span className="px-2 text-center">{stage.label}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="space-y-2 md:hidden">
+        {ordered.map((stage, index) => {
+          const isActive = currentIndex >= 0 ? index <= currentIndex : false
+          return (
+            <div
+              key={stage.id}
+              className={`rounded-2xl p-3 text-sm font-medium transition-all ${
+                isActive ? 'bg-brand text-ink-inverse' : 'bg-surface-muted text-ink-muted'
+              }`}
+            >
+              {stage.label}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ProjectPhaseTimeline({ events }) {
+  const rows = Array.isArray(events) ? events : []
+  if (rows.length === 0) {
+    return <div className="text-sm text-ink-muted">No timeline recorded yet.</div>
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((e) => (
+        <div key={e.key} className="flex items-start gap-3 rounded-2xl border border-border bg-surface-muted px-4 py-3">
+          <div className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-brand" />
+          <div className="flex-1">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm font-semibold text-ink">{e.title}</div>
+              <div className="text-xs text-ink-muted">{e.timeLabel}</div>
+            </div>
+            {e.subtitle && <div className="mt-1 text-xs text-ink-secondary">{e.subtitle}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ProjectDashboard({ onOpenProject }) {
+  const { t } = usePreferences()
+  const [projects, setProjects] = useState([])
+  const [loadingProjects, setLoadingProjects] = useState(true)
+  const [projectQuery, setProjectQuery] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [project, setProject] = useState(null)
+  const [activityLogs, setActivityLogs] = useState([])
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
+  const loadProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const res = await api.get('/project-tracking/projects')
+      const data = res?.data?.data?.projects || []
+      setProjects(data)
+      if (!selectedProjectId && data[0]?.id) setSelectedProjectId(String(data[0].id))
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
+  const loadProjectDetail = async (id) => {
+    if (!id) return
+    setLoadingDetail(true)
+    try {
+      const [projectRes, logRes] = await Promise.all([
+        api.get(`/project-tracking/projects/${id}`),
+        api.get(`/project-tracking/projects/${id}/activity-logs`, { params: { page: 1, limit: 200 } })
+      ])
+      setProject(projectRes?.data?.data?.project || null)
+      setActivityLogs(logRes?.data?.data?.logs || [])
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedProjectId) return
+    loadProjectDetail(selectedProjectId)
+  }, [selectedProjectId])
+
+  const filteredProjects = useMemo(() => {
+    if (!projectQuery) return projects
+    const q = projectQuery.toLowerCase()
+    return projects.filter((p) => String(p.code || '').toLowerCase().includes(q) || String(p.name || '').toLowerCase().includes(q))
+  }, [projectQuery, projects])
+
+  const stageSteps = useMemo(() => {
+    const enabled = Array.isArray(project?.enabledStages) ? project.enabledStages : []
+    return enabled
+      .slice()
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map((s) => ({ id: s.stageId, label: s.name }))
+  }, [project])
+
+  const stageNameMap = useMemo(() => {
+    const map = new Map()
+    ;(project?.enabledStages || []).forEach((s) => {
+      map.set(String(s.stageId), s.name)
+    })
+    return map
+  }, [project])
+
+  const timelinesByIteration = useMemo(() => {
+    const map = new Map()
+    const rows = Array.isArray(activityLogs) ? activityLogs : []
+    const phaseRe = /phase\s+(\d+)/i
+
+    rows.forEach((log) => {
+      if (String(log.entity || '') !== 'ProjectIteration') return
+      const meta = log.metadata || {}
+      const iterationNo =
+        Number.isFinite(parseInt(meta.iterationNo, 10))
+          ? parseInt(meta.iterationNo, 10)
+          : phaseRe.test(String(log.description || ''))
+            ? parseInt(String(log.description || '').match(phaseRe)?.[1] || '', 10)
+            : null
+      if (!iterationNo) return
+
+      if (!map.has(iterationNo)) map.set(iterationNo, [])
+
+      if (String(log.action || '') === 'CREATE') {
+        map.get(iterationNo).push({
+          key: `${log.id}:create`,
+          timestamp: log.timestamp,
+          title: 'Phase created',
+          subtitle: log.user ? `By ${log.user}` : null
+        })
+        return
+      }
+
+      const fromStageId = meta.fromStageId
+      const toStageId = meta.toStageId
+      if (String(log.action || '') === 'UPDATE' && fromStageId && toStageId) {
+        const fromName = stageNameMap.get(String(fromStageId)) || `Stage ${fromStageId}`
+        const toName = stageNameMap.get(String(toStageId)) || `Stage ${toStageId}`
+        map.get(iterationNo).push({
+          key: `${log.id}:move`,
+          timestamp: log.timestamp,
+          title: `Moved to ${toName}`,
+          subtitle: `${fromName} → ${toName}${log.user ? ` • By ${log.user}` : ''}`
+        })
+      }
+    })
+
+    for (const [iterNo, events] of map.entries()) {
+      events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      map.set(
+        iterNo,
+        events.map((e) => ({
+          ...e,
+          timeLabel: e.timestamp ? new Date(e.timestamp).toLocaleString() : '-'
+        }))
+      )
+    }
+
+    return map
+  }, [activityLogs, stageNameMap])
+
+  const phases = useMemo(() => {
+    const list = Array.isArray(project?.iterations) ? project.iterations : []
+    return list.slice().sort((a, b) => (a.iterationNo || 0) - (b.iterationNo || 0))
+  }, [project])
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <AppSurface padding="lg" className="lg:col-span-2">
+          <div className="text-sm font-semibold text-ink">{t ? t('search') : 'Search'}</div>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <TextInput
+              value={projectQuery}
+              onChange={(e) => setProjectQuery(e.target.value)}
+              placeholder="Search project code/name..."
+              className="w-full sm:flex-1"
+            />
+            <SelectField
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="w-full sm:w-[320px]"
+              disabled={loadingProjects || filteredProjects.length === 0}
+            >
+              {filteredProjects.length === 0 ? (
+                <option value="">{loadingProjects ? 'Loading...' : 'No projects found'}</option>
+              ) : (
+                filteredProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code ? `${p.code} • ${p.name}` : p.name}
+                  </option>
+                ))
+              )}
+            </SelectField>
+          </div>
+        </AppSurface>
+
+        <AppSurface padding="lg">
+          <div className="text-sm font-semibold text-ink">Quick Actions</div>
+          <div className="mt-3 space-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              disabled={!selectedProjectId}
+              onClick={() => onOpenProject(Number(selectedProjectId))}
+            >
+              Open Project Detail
+            </Button>
+            <Button type="button" className="w-full" onClick={loadProjects} disabled={loadingProjects}>
+              {loadingProjects ? 'Refreshing...' : 'Refresh Projects'}
+            </Button>
+          </div>
+        </AppSurface>
+      </div>
+
+      {loadingDetail ? (
+        <AppSurface padding="lg" className="flex items-center gap-3">
+          <InlineSpinner className="h-4 w-4" />
+          <span className="text-sm text-ink-muted">Loading dashboard...</span>
+        </AppSurface>
+      ) : !project ? (
+        <EmptyPanelState title="Select a project" message="Choose a project to see the current stage and timeline." />
+      ) : (
+        <div className="space-y-5">
+          <AppSurface padding="lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-lg font-semibold text-ink">{project.name}</div>
+                <div className="mt-1 text-sm text-ink-muted">
+                  {project.code ? `${project.code} • ` : ''}
+                  {formatLifecycleStatus(project.status)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <ProjectStatusBadge status={project.status} />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Category</div>
+                <div className="mt-1 text-sm font-semibold text-ink">{project.projectCategory?.name || '-'}</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Manager</div>
+                <div className="mt-1 text-sm font-semibold text-ink">
+                  {`${project.manager?.firstName || ''} ${project.manager?.lastName || ''}`.trim() || project.manager?.email || '-'}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Latest Phase</div>
+                <div className="mt-1 text-sm font-semibold text-ink">
+                  {project.iterations?.[0]
+                    ? `Phase ${project.iterations[0].iterationNo} • ${project.iterations[0].currentStage?.name || '-'}`
+                    : '-'}
+                </div>
+              </div>
+            </div>
+          </AppSurface>
+
+          {phases.length === 0 ? (
+            <EmptyPanelState title="No phases yet" message="Create a phase to start tracking stage progress and timeline." />
+          ) : (
+            phases.map((phase) => (
+              <AppSurface key={phase.id} padding="lg" className="space-y-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-base font-semibold text-ink">{getPhaseTitle(phase, 'Phase')}</div>
+                    <div className="mt-1 text-sm text-ink-muted">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                  </div>
+                  <div className="text-xs font-medium text-ink-muted">{phase.visibleDocumentLinksCount != null ? `${phase.visibleDocumentLinksCount} linked docs` : ''}</div>
+                </div>
+
+                {stageSteps.length > 0 ? (
+                  <ProjectStagesProgress stages={stageSteps} currentStageId={phase.currentStageId} />
+                ) : (
+                  <div className="text-sm text-ink-muted">No stages configured for this project.</div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-ink">Timeline</div>
+                  <ProjectPhaseTimeline events={timelinesByIteration.get(phase.iterationNo) || []} />
+                </div>
+              </AppSurface>
+            ))
+          )}
+        </div>
       )}
     </div>
   )
@@ -4001,6 +4328,7 @@ export default function ProjectTracking() {
   const tabs = useMemo(() => {
     const base = []
     if (canSearchProjects) {
+      base.push({ id: 'dashboard', label: 'Dashboard' })
       base.push({ id: 'projects', label: 'Projects' })
       base.push({ id: 'search', label: 'Search' })
     }
@@ -4050,6 +4378,8 @@ export default function ProjectTracking() {
         <div className="p-4 md:p-5">
           {activeTab === 'setup' && canOpenProjectSetup ? (
             <Setup />
+          ) : activeTab === 'dashboard' && canSearchProjects ? (
+            <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
           ) : activeTab === 'search' && canSearchProjects ? (
             <DocumentsSearch />
           ) : projectId && canViewProjectDetail ? (
