@@ -1699,6 +1699,34 @@ function ProjectDashboard({ onOpenProject }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const paginated = filteredProjects.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
+  const dashboardMetrics = useMemo(() => {
+    const totalProjects = projects.length
+    const activeProjects = projects.filter((project) => String(project.status || '').toUpperCase() === 'ACTIVE').length
+    const categoryCount = new Set(
+      projects
+        .map((project) => String(project.projectCategory?.name || '').trim())
+        .filter(Boolean)
+    ).size
+
+    const stageCounts = new Map()
+    projects.forEach((project) => {
+      const latestPhase = project.iterations?.[0]
+      const stageName = String(latestPhase?.currentStage?.name || '').trim()
+      if (!stageName) return
+      stageCounts.set(stageName, (stageCounts.get(stageName) || 0) + 1)
+    })
+
+    const topStageEntry = Array.from(stageCounts.entries()).sort((a, b) => b[1] - a[1])[0] || null
+
+    return {
+      totalProjects,
+      activeProjects,
+      categoryCount,
+      topStageLabel: topStageEntry ? topStageEntry[0] : '-',
+      topStageCount: topStageEntry ? topStageEntry[1] : 0
+    }
+  }, [projects])
+
   const stageSteps = useMemo(() => {
     const enabled = Array.isArray(selectedProject?.enabledStages) ? selectedProject.enabledStages : []
     return enabled
@@ -1812,7 +1840,37 @@ function ProjectDashboard({ onOpenProject }) {
           </Button>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Total Projects</div>
+            <div className="mt-2 text-2xl font-semibold text-ink">{dashboardMetrics.totalProjects}</div>
+            <div className="mt-1 text-sm text-ink-secondary">All tracked projects in the module.</div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-[var(--dms-color-success-soft)] px-4 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--dms-color-success-ink)]/80">Active Projects</div>
+            <div className="mt-2 text-2xl font-semibold text-[var(--dms-color-success-ink)]">{dashboardMetrics.activeProjects}</div>
+            <div className="mt-1 text-sm text-[var(--dms-color-success-ink)]/80">Projects currently marked as active.</div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface-muted px-4 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Categories</div>
+            <div className="mt-2 text-2xl font-semibold text-ink">{dashboardMetrics.categoryCount}</div>
+            <div className="mt-1 text-sm text-ink-secondary">Unique project categories in use.</div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-[var(--dms-color-info-soft)] px-4 py-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--dms-color-info-ink)]/80">Most Common Stage</div>
+            <div className="mt-2 text-lg font-semibold text-[var(--dms-color-info-ink)]">{dashboardMetrics.topStageLabel}</div>
+            <div className="mt-1 text-sm text-[var(--dms-color-info-ink)]/80">
+              {dashboardMetrics.topStageCount > 0
+                ? `${dashboardMetrics.topStageCount} project${dashboardMetrics.topStageCount > 1 ? 's' : ''} currently at this stage.`
+                : 'No latest phase stage data available yet.'}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-border px-6 py-4">
           <TextInput
             value={projectQuery}
             onChange={(e) => setProjectQuery(e.target.value)}
@@ -4426,7 +4484,8 @@ export default function ProjectTracking() {
       return
     }
 
-    navigate(`/project-tracking?tab=${encodeURIComponent(tab)}`)
+    const basePath = projectId ? `/project-tracking/${projectId}` : '/project-tracking'
+    navigate(`${basePath}?tab=${encodeURIComponent(tab)}`)
   }
 
   useEffect(() => {
@@ -4439,8 +4498,8 @@ export default function ProjectTracking() {
     const base = []
     if (canSearchProjects) {
       base.push({ id: 'dashboard', label: 'Dashboard' })
-      base.push({ id: 'projects', label: 'Projects' })
-      base.push({ id: 'search', label: 'Search' })
+      base.push({ id: 'projects', label: 'Project Lists' })
+      base.push({ id: 'search', label: 'Search Documents' })
     }
     if (canOpenProjectSetup) {
       base.push({ id: 'setup', label: 'Project Setup' })
