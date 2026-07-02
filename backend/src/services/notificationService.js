@@ -2,6 +2,13 @@ const prisma = require('../config/database');
 const config = require('../config/app');
 const emailService = require('./emailService');
 const configService = require('./configService');
+const {
+  NOTIFICATION_EVENT_DB_TYPE_MAP,
+  NOTIFICATION_EVENT_KEYS,
+  LEGACY_NOTIFICATION_EVENT_ALIASES,
+  LEGACY_NOTIFICATION_EVENT_EXPANSIONS,
+  createDefaultUserNotificationPreferences
+} = require('../constants/notificationEvents');
 
 class NotificationService {
   getValidNotificationTypes() {
@@ -25,7 +32,7 @@ class NotificationService {
 
   normalizeTypeKey(type) {
     const raw = String(type || '').trim()
-    return raw
+    return LEGACY_NOTIFICATION_EVENT_ALIASES[raw] || raw
   }
 
   resolveNotificationDbType(type) {
@@ -35,58 +42,74 @@ class NotificationService {
     const valid = this.getValidNotificationTypes()
     if (valid.has(raw)) return raw
 
-    const map = {
-      acknowledgeRequired: 'ACKNOWLEDGMENT_REQUIRED',
-      acknowledgeCompleted: 'STATUS_CHANGED',
-      documentSubmitted: 'REVIEW_REQUIRED',
-      reviewAssigned: 'DOCUMENT_ASSIGNED',
-      reviewCompleted: 'STATUS_CHANGED',
-      approvalRequest: 'APPROVAL_REQUIRED',
-      documentApproved: 'DOCUMENT_APPROVED',
-      documentRejected: 'DOCUMENT_REJECTED',
-      documentReturned: 'DOCUMENT_RETURNED',
-      documentPublished: 'STATUS_CHANGED',
-      documentSuperseded: 'STATUS_CHANGED',
-      documentObsoleted: 'STATUS_CHANGED',
-      documentAssigned: 'DOCUMENT_ASSIGNED',
-      statusChanged: 'STATUS_CHANGED',
-      versionUpdate: 'VERSION_UPDATE',
-      documentExpiring: 'DOCUMENT_EXPIRING',
-      documentExpired: 'DOCUMENT_EXPIRED',
-      renewalInProgress: 'RENEWAL_IN_PROGRESS',
-      renewalCompleted: 'RENEWAL_COMPLETED',
-      reviewRequired: 'REVIEW_REQUIRED',
-      approvalRequired: 'APPROVAL_REQUIRED',
-      acknowledgementRequired: 'ACKNOWLEDGMENT_REQUIRED',
-      approvalGranted: 'DOCUMENT_APPROVED',
-      approvalRejected: 'DOCUMENT_REJECTED',
-      systemAlerts: 'SYSTEM_ALERT'
+    return NOTIFICATION_EVENT_DB_TYPE_MAP[raw] || 'SYSTEM_ALERT'
+  }
+
+  normalizeUserNotificationSettings(settings) {
+    const defaults = createDefaultUserNotificationPreferences()
+    const source = (settings && typeof settings === 'object') ? settings : {}
+    const normalized = {
+      ...defaults,
+      emailNotifications: { ...defaults.emailNotifications },
+      inAppNotifications: { ...defaults.inAppNotifications },
+      quietHours: {
+        ...defaults.quietHours,
+        ...(source.quietHours && typeof source.quietHours === 'object' ? source.quietHours : {})
+      }
     }
 
-    return map[raw] || 'SYSTEM_ALERT'
+    const applyValue = (targetMap, key, value) => {
+      const expandedKeys = LEGACY_NOTIFICATION_EVENT_EXPANSIONS[key]
+      const normalizedKey = LEGACY_NOTIFICATION_EVENT_ALIASES[key] || key
+      const targets = expandedKeys || (NOTIFICATION_EVENT_KEYS.includes(normalizedKey) ? [normalizedKey] : [])
+      if (targets.length === 0) return
+      for (const targetKey of targets) {
+        targetMap[targetKey] = Boolean(value)
+      }
+    }
+
+    const directEntries = Object.entries(source).filter(([, value]) => value && typeof value === 'object' && !Array.isArray(value))
+    for (const [key, value] of directEntries) {
+      if (!('email' in value) && !('inApp' in value)) continue
+      const expandedKeys = LEGACY_NOTIFICATION_EVENT_EXPANSIONS[key]
+      const normalizedKey = LEGACY_NOTIFICATION_EVENT_ALIASES[key] || key
+      const targets = expandedKeys || (NOTIFICATION_EVENT_KEYS.includes(normalizedKey) ? [normalizedKey] : [])
+      for (const targetKey of targets) {
+        if ('email' in value) normalized.emailNotifications[targetKey] = Boolean(value.email)
+        if ('inApp' in value) normalized.inAppNotifications[targetKey] = Boolean(value.inApp)
+      }
+    }
+
+    const emailMap = source.emailNotifications && typeof source.emailNotifications === 'object'
+      ? source.emailNotifications
+      : {}
+    const inAppMap = source.inAppNotifications && typeof source.inAppNotifications === 'object'
+      ? source.inAppNotifications
+      : {}
+
+    for (const [key, value] of Object.entries(emailMap)) {
+      applyValue(normalized.emailNotifications, key, value)
+    }
+    for (const [key, value] of Object.entries(inAppMap)) {
+      applyValue(normalized.inAppNotifications, key, value)
+    }
+
+    normalized.digestFrequency = String(source.digestFrequency || defaults.digestFrequency).trim().toLowerCase() || defaults.digestFrequency
+    if (!['realtime', 'hourly', 'daily', 'weekly'].includes(normalized.digestFrequency)) {
+      normalized.digestFrequency = defaults.digestFrequency
+    }
+
+    return normalized
   }
 
   getUserEventPreference(notificationsObj, eventKey) {
     if (!notificationsObj || typeof notificationsObj !== 'object') return null
-
-    const direct = notificationsObj[eventKey]
-    if (direct && typeof direct === 'object') {
-      return {
-        inApp: direct.inApp,
-        email: direct.email
-      }
+    const normalized = this.normalizeUserNotificationSettings(notificationsObj)
+    const key = this.normalizeTypeKey(eventKey)
+    return {
+      inApp: normalized.inAppNotifications?.[key],
+      email: normalized.emailNotifications?.[key]
     }
-
-    const emailMap = notificationsObj.emailNotifications
-    const inAppMap = notificationsObj.inAppNotifications
-    if ((emailMap && typeof emailMap === 'object') || (inAppMap && typeof inAppMap === 'object')) {
-      return {
-        inApp: inAppMap?.[eventKey],
-        email: emailMap?.[eventKey]
-      }
-    }
-
-    return null
   }
 
   buildRoleNameCandidates(name) {

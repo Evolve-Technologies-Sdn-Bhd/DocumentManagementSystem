@@ -165,7 +165,12 @@ class EmailService {
         documentObsoleted: 'DOCUMENT_OBSOLETED',
         documentReturned: 'DOCUMENT_RETURNED',
         acknowledgeRequired: 'ACKNOWLEDGE_REQUIRED',
-        acknowledgeCompleted: 'ACKNOWLEDGE_COMPLETED'
+        acknowledgeCompleted: 'ACKNOWLEDGE_COMPLETED',
+        documentExpiring: 'DOCUMENT_EXPIRING',
+        documentExpired: 'DOCUMENT_EXPIRED',
+        renewalInProgress: 'RENEWAL_IN_PROGRESS',
+        renewalCompleted: 'RENEWAL_COMPLETED',
+        systemAlert: 'SYSTEM_ALERT'
       }
       return map[raw] || raw
     }

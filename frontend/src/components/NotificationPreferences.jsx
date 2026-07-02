@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNotifications } from '../contexts/NotificationContext'
+import { normalizeNotificationPreferences, notificationEventCategories } from '../constants/notificationEvents'
 
 export default function NotificationPreferences() {
   const { preferences: contextPreferences, updatePreferences, loading } = useNotifications()
@@ -9,7 +10,7 @@ export default function NotificationPreferences() {
 
   useEffect(() => {
     if (contextPreferences) {
-      setSettings(contextPreferences)
+      setSettings(normalizeNotificationPreferences(contextPreferences))
     }
   }, [contextPreferences])
 
@@ -92,54 +93,6 @@ export default function NotificationPreferences() {
     )
   }
 
-  const documentNotifications = [
-    { key: 'documentAssigned', label: 'Document Assigned', description: 'When a document is assigned to you' },
-    { key: 'statusChanged', label: 'Status Changed', description: 'When document status changes (draft → review → published)' },
-    { key: 'versionUpdate', label: 'New Version', description: 'When a new version of a document is published' },
-    { key: 'documentUploaded', label: 'Document Uploaded', description: 'When a new document is uploaded to the system' },
-    { key: 'documentDownloaded', label: 'Document Downloaded', description: 'When someone downloads your document' },
-    { key: 'documentDeleted', label: 'Document Deleted', description: 'When a document is deleted or archived' },
-    { key: 'documentShared', label: 'Document Shared', description: 'When a document is shared with you' }
-  ]
-
-  const reviewNotifications = [
-    { key: 'reviewRequired', label: 'Review Required', description: 'When your review is required on a document' },
-    { key: 'approvalRequired', label: 'Approval Required', description: 'When your approval is needed' },
-    { key: 'reviewCompleted', label: 'Review Completed', description: 'When someone completes a review on your document' },
-    { key: 'approvalGranted', label: 'Approval Granted', description: 'When your document is approved' },
-    { key: 'approvalRejected', label: 'Approval Rejected', description: 'When your document is rejected with comments' },
-    { key: 'acknowledgementRequired', label: 'Acknowledgement Required', description: 'When you need to acknowledge a published document' }
-  ]
-
-  const commentNotifications = [
-    { key: 'commentAdded', label: 'New Comment', description: 'When someone comments on your document' },
-    { key: 'mentionInComment', label: 'Mentioned in Comment', description: 'When someone mentions you (@username) in a comment' },
-    { key: 'commentReply', label: 'Comment Reply', description: 'When someone replies to your comment' }
-  ]
-
-  const workflowNotifications = [
-    { key: 'workflowAssigned', label: 'Workflow Assigned', description: 'When a workflow task is assigned to you' },
-    { key: 'workflowCompleted', label: 'Workflow Completed', description: 'When a workflow you initiated is completed' },
-    { key: 'workflowDelayed', label: 'Workflow Delayed', description: 'When a workflow is experiencing delays' },
-    { key: 'taskAssigned', label: 'Task Assigned', description: 'When a specific task is assigned to you' },
-    { key: 'taskDueSoon', label: 'Task Due Soon', description: 'Reminder when a task is due within 24 hours' },
-    { key: 'taskOverdue', label: 'Task Overdue', description: 'When a task assigned to you is overdue' }
-  ]
-
-  const systemNotifications = [
-    { key: 'systemAlerts', label: 'System Alerts', description: 'Important system notifications and updates' },
-    { key: 'systemMaintenance', label: 'System Maintenance', description: 'Scheduled maintenance and downtime notifications' },
-    { key: 'storageWarning', label: 'Storage Warning', description: 'When storage quota is running low' },
-    { key: 'securityAlert', label: 'Security Alert', description: 'Suspicious activity or security-related notifications' },
-    { key: 'passwordExpiry', label: 'Password Expiry', description: 'Reminder when your password is about to expire' }
-  ]
-
-  const teamNotifications = [
-    { key: 'teamInvitation', label: 'Team Invitation', description: "When you're invited to join a team or project" },
-    { key: 'userAdded', label: 'User Added', description: 'When a new user joins your team' },
-    { key: 'permissionChanged', label: 'Permission Changed', description: 'When your permissions are updated' }
-  ]
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -210,42 +163,14 @@ export default function NotificationPreferences() {
         </div>
       </div>
 
-      {/* Categories */}
-      <NotificationCategory
-        title="📄 Document Events"
-        description="Notifications related to document creation, updates, and lifecycle changes"
-        items={documentNotifications}
-      />
-
-      <NotificationCategory
-        title="✅ Review & Approval"
-        description="Notifications for review and approval processes"
-        items={reviewNotifications}
-      />
-
-      <NotificationCategory
-        title="💬 Comments & Mentions"
-        description="Notifications for comments and when you're mentioned"
-        items={commentNotifications}
-      />
-
-      <NotificationCategory
-        title="🔄 Workflow & Tasks"
-        description="Notifications for workflow assignments and task management"
-        items={workflowNotifications}
-      />
-
-      <NotificationCategory
-        title="⚙️ System & Security"
-        description="System alerts, maintenance, and security notifications"
-        items={systemNotifications}
-      />
-
-      <NotificationCategory
-        title="👥 Team & Collaboration"
-        description="Notifications for team activities and permission changes"
-        items={teamNotifications}
-      />
+      {notificationEventCategories.map((category) => (
+        <NotificationCategory
+          key={category.id}
+          title={`${category.icon} ${category.title}`}
+          description={category.description}
+          items={category.items}
+        />
+      ))}
 
       {/* Email Digest Settings */}
       <div className="card p-6">
@@ -317,7 +242,7 @@ export default function NotificationPreferences() {
       {/* Save Button */}
       <div className="flex justify-end gap-3">
         <button
-          onClick={() => setSettings(contextPreferences)}
+          onClick={() => setSettings(normalizeNotificationPreferences(contextPreferences))}
           className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
         >
           Reset Changes

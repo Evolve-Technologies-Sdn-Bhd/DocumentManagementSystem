@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const configService = require('../services/configService');
+const expiryTrackingService = require('../services/expiryTrackingService');
 const { ValidationError } = require('../utils/errors');
 const prisma = require('../config/database');
 const { updateFileUploadSettingsCache } = require('../middleware/upload');
@@ -509,6 +510,16 @@ exports.updateExpiryTrackingSettings = asyncHandler(async (req, res) => {
     res,
     { settings: updatedSettings },
     'Expiry tracking settings updated successfully'
+  )
+})
+
+exports.applyExpiryTrackingSettingsToExistingProfiles = asyncHandler(async (req, res) => {
+  const result = await expiryTrackingService.applyGlobalSettingsToExistingProfiles(req.user?.id)
+
+  return ResponseFormatter.success(
+    res,
+    result,
+    'Expiry tracking settings applied to existing profiles successfully'
   )
 })
 

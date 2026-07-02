@@ -13,6 +13,7 @@ import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import ActionMenu from './ActionMenu'
 
 const toDateInputValue = (value) => {
   if (!value) return ''
@@ -74,19 +75,31 @@ function Field({ label, children, hint = null }) {
   )
 }
 
-function ExpiryEditModal({ open, profile, onClose, onSubmit, saving }) {
+function ExpiryEditModal({ open, profile, globalSettings, onClose, onSubmit, saving }) {
+  const [useGlobalRule, setUseGlobalRule] = useState(false)
   const [form, setForm] = useState({
     startDate: '',
     expiryDate: '',
-    remarks: ''
+    remarks: '',
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
   })
 
   useEffect(() => {
     if (!profile || !open) return
+    setUseGlobalRule(false)
     setForm({
       startDate: toDateInputValue(profile.startDate),
       expiryDate: toDateInputValue(profile.expiryDate),
-      remarks: profile.remarks || ''
+      remarks: profile.remarks || '',
+      expiringSoonDays: profile.expiringSoonDays ?? 60,
+      reminder1Days: profile.reminderRule?.reminder1Days ?? 90,
+      reminder2Days: profile.reminderRule?.reminder2Days ?? 60,
+      reminder3Days: profile.reminderRule?.reminder3Days ?? 30,
+      reminder4Days: profile.reminderRule?.reminder4Days ?? 7
     })
   }, [profile, open])
 
@@ -101,7 +114,7 @@ function ExpiryEditModal({ open, profile, onClose, onSubmit, saving }) {
       />
       <form onSubmit={(e) => {
         e.preventDefault()
-        onSubmit(form)
+        onSubmit({ ...form, useGlobalRule })
       }}>
         <ModalBody>
           <div className="grid gap-4 md:grid-cols-2">
@@ -122,6 +135,45 @@ function ExpiryEditModal({ open, profile, onClose, onSubmit, saving }) {
             </Field>
             <Field label="Expiry Date">
               <TextInput type="date" value={form.expiryDate} onChange={(e) => setForm((prev) => ({ ...prev, expiryDate: e.target.value }))} required />
+            </Field>
+            <div className="md:col-span-2">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                <input
+                  type="checkbox"
+                  checked={useGlobalRule}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setUseGlobalRule(checked)
+                    if (checked && globalSettings) {
+                      setForm((prev) => ({
+                        ...prev,
+                        expiringSoonDays: globalSettings.expiringSoonDays,
+                        reminder1Days: globalSettings.reminder1Days,
+                        reminder2Days: globalSettings.reminder2Days,
+                        reminder3Days: globalSettings.reminder3Days,
+                        reminder4Days: globalSettings.reminder4Days
+                      }))
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                />
+                Use Global Defaults
+              </label>
+            </div>
+            <Field label="Expiring Soon Days" hint="Document status switches to Expiring Soon based on this threshold.">
+              <TextInput type="number" min="0" value={form.expiringSoonDays} onChange={(e) => setForm((prev) => ({ ...prev, expiringSoonDays: e.target.value }))} required disabled={useGlobalRule} />
+            </Field>
+            <Field label="Reminder 1">
+              <TextInput type="number" min="0" value={form.reminder1Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder1Days: e.target.value }))} required disabled={useGlobalRule} />
+            </Field>
+            <Field label="Reminder 2">
+              <TextInput type="number" min="0" value={form.reminder2Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder2Days: e.target.value }))} required disabled={useGlobalRule} />
+            </Field>
+            <Field label="Reminder 3">
+              <TextInput type="number" min="0" value={form.reminder3Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder3Days: e.target.value }))} required disabled={useGlobalRule} />
+            </Field>
+            <Field label="Reminder 4">
+              <TextInput type="number" min="0" value={form.reminder4Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder4Days: e.target.value }))} required disabled={useGlobalRule} />
             </Field>
             <div className="md:col-span-2">
               <Field label="Remarks">
@@ -238,6 +290,16 @@ function DetailModal({ open, profile, onClose, canEdit, onManageWatchers }) {
             </div>
           </AppSurface>
         </div>
+        <AppSurface padding="lg" variant="panel" className="space-y-3">
+          <h3 className="text-sm font-semibold text-ink">Reminder Rules</h3>
+          <div className="grid gap-3 md:grid-cols-5">
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Expiring Soon</p><p className="mt-1 text-sm text-ink">{profile.expiringSoonDays ?? '-'} day(s)</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 1</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder1Days ?? '-'} day(s)</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 2</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder2Days ?? '-'} day(s)</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 3</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder3Days ?? '-'} day(s)</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 4</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder4Days ?? '-'} day(s)</p></div>
+          </div>
+        </AppSurface>
         <AppSurface padding="lg" variant="panel" className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-ink">Subscribers</h3>
@@ -438,6 +500,13 @@ export default function ExpiryTracking() {
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedProfile, setSelectedProfile] = useState(null)
+  const [globalExpirySettings, setGlobalExpirySettings] = useState({
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
+  })
   const [detailOpen, setDetailOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [renewalOpen, setRenewalOpen] = useState(false)
@@ -450,12 +519,14 @@ export default function ExpiryTracking() {
 
   const loadLookups = async () => {
     try {
-      const [usersRes, docTypesRes] = await Promise.all([
+      const [usersRes, docTypesRes, expiryRes] = await Promise.all([
         api.get('/users'),
-        api.get('/system/config/document-types')
+        api.get('/system/config/document-types'),
+        api.get('/system/config/expiry-tracking')
       ])
       setOwners(usersRes.data?.data?.users || usersRes.data?.users || [])
       setDocumentTypes(docTypesRes.data?.data?.documentTypes || [])
+      setGlobalExpirySettings(expiryRes.data?.data?.settings || globalExpirySettings)
     } catch (error) {
       console.error('Failed to load expiry tracking lookups:', error)
     }
@@ -521,7 +592,8 @@ export default function ExpiryTracking() {
   const openEdit = async (record) => {
     try {
       const res = await api.get(`/expiry-tracking/${record.documentId}`)
-      setSelectedProfile(res.data?.data?.profile || null)
+      const profile = res.data?.data?.profile || null
+      setSelectedProfile(profile)
       setEditOpen(true)
     } catch (error) {
       console.error('Failed to load expiry profile:', error)
@@ -542,7 +614,27 @@ export default function ExpiryTracking() {
     if (!selectedProfile) return
     setSaving(true)
     try {
-      await api.patch(`/expiry-tracking/${selectedProfile.documentId}`, form)
+      const payload = {
+        startDate: form.startDate,
+        expiryDate: form.expiryDate,
+        remarks: form.remarks
+      }
+
+      if (form.useGlobalRule) {
+        payload.expiringSoonDays = parseInt(globalExpirySettings.expiringSoonDays, 10) || 0
+        payload.reminder1Days = parseInt(globalExpirySettings.reminder1Days, 10) || 0
+        payload.reminder2Days = parseInt(globalExpirySettings.reminder2Days, 10) || 0
+        payload.reminder3Days = parseInt(globalExpirySettings.reminder3Days, 10) || 0
+        payload.reminder4Days = parseInt(globalExpirySettings.reminder4Days, 10) || 0
+      } else {
+        payload.expiringSoonDays = parseInt(form.expiringSoonDays, 10) || 0
+        payload.reminder1Days = parseInt(form.reminder1Days, 10) || 0
+        payload.reminder2Days = parseInt(form.reminder2Days, 10) || 0
+        payload.reminder3Days = parseInt(form.reminder3Days, 10) || 0
+        payload.reminder4Days = parseInt(form.reminder4Days, 10) || 0
+      }
+
+      await api.patch(`/expiry-tracking/${selectedProfile.documentId}`, payload)
       setEditOpen(false)
       setSelectedProfile(null)
       refresh()
@@ -828,21 +920,28 @@ export default function ExpiryTracking() {
                         <Td><ExpiryStatusBadge status={record.expiryStatus} /></Td>
                         <Td><RenewalStatusBadge status={record.renewalStatus} /></Td>
                         <Td>
-                          <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="secondary" onClick={() => openProfileDetail(record)}>View</Button>
-                            {canEdit ? <Button size="sm" variant="secondary" onClick={() => openEdit(record)}>Update</Button> : null}
-                            {canRenew && record.document?.allowRenewal ? (
-                              <Button size="sm" variant="secondary" onClick={() => handleStartRenewal(record)}>Start Renewal</Button>
-                            ) : null}
-                            {canRenew && record.document?.allowRenewal ? (
-                              <Button size="sm" onClick={() => openRenewal(record)}>Renew</Button>
-                            ) : null}
-                            {canRenew && record.renewalStatus === 'IN_PROGRESS' ? (
-                              <Button size="sm" variant="secondary" onClick={() => handleRejectRenewal(record)}>Reject</Button>
-                            ) : null}
-                            {canEdit && record.trackingEnabled ? (
-                              <Button size="sm" variant="secondary" onClick={() => handleDisableTracking(record)}>Disable</Button>
-                            ) : null}
+                          <div className="flex justify-end">
+                            <ActionMenu
+                              actions={[
+                                { label: 'View', onClick: () => openProfileDetail(record) },
+                                ...(canEdit ? [{ label: 'Update', onClick: () => openEdit(record) }] : []),
+                                ...(canRenew && record.document?.allowRenewal
+                                  ? [
+                                      { label: 'Start Renewal', onClick: () => handleStartRenewal(record) },
+                                      { label: 'Renew', onClick: () => openRenewal(record) }
+                                    ]
+                                  : []
+                                ),
+                                ...(canRenew && record.renewalStatus === 'IN_PROGRESS'
+                                  ? [{ label: 'Reject', onClick: () => handleRejectRenewal(record), variant: 'destructive', dividerAfter: true }]
+                                  : []
+                                ),
+                                ...(canEdit && record.trackingEnabled
+                                  ? [{ label: 'Disable', onClick: () => handleDisableTracking(record), variant: 'destructive' }]
+                                  : []
+                                )
+                              ]}
+                            />
                           </div>
                         </Td>
                       </Tr>
@@ -870,7 +969,7 @@ export default function ExpiryTracking() {
 
       <WatchersModal open={watchersOpen} profile={selectedProfile} users={owners} saving={saving} onSave={handleSaveWatchers} onClose={() => setWatchersOpen(false)} />
 
-      <ExpiryEditModal open={editOpen} profile={selectedProfile} onClose={() => {
+      <ExpiryEditModal open={editOpen} profile={selectedProfile} globalSettings={globalExpirySettings} onClose={() => {
         setEditOpen(false)
         setSelectedProfile(null)
       }} onSubmit={handleProfileUpdate} saving={saving} />

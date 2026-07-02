@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import api from '../api/axios'
-import NotificationPreferences from '../components/NotificationPreferences.jsx'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { createDefaultNotificationPreferences, normalizeNotificationPreferences, notificationEventCategories } from '../constants/notificationEvents'
 import { normalizeAppPath } from '../utils/normalizeUrl'
 
 // Tab Navigation Component
@@ -940,55 +940,8 @@ function NotificationSettings() {
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [settings, setSettings] = useState({
-    emailNotifications: {
-      // Document Events
-      documentAssigned: true,
-      statusChanged: true,
-      versionUpdate: false,
-      documentUploaded: true,
-      documentDeleted: true,
-      // Review & Approval
-      reviewRequired: true,
-      approvalRequired: true,
-      reviewCompleted: true,
-      approvalGranted: true,
-      approvalRejected: true,
-      // Workflow & Tasks
-      workflowAssigned: true,
-      workflowCompleted: true,
-      taskDueSoon: true,
-      taskOverdue: true,
-      // System & Security
-      systemAlerts: true,
-      securityAlert: true,
-      passwordExpiry: true
-    },
-    inAppNotifications: {
-      // Document Events
-      documentAssigned: true,
-      statusChanged: true,
-      versionUpdate: true,
-      documentUploaded: true,
-      documentDeleted: true,
-      // Review & Approval
-      reviewRequired: true,
-      approvalRequired: true,
-      reviewCompleted: true,
-      approvalGranted: true,
-      approvalRejected: true,
-      // Workflow & Tasks
-      workflowAssigned: true,
-      workflowCompleted: true,
-      taskDueSoon: true,
-      taskOverdue: true,
-      // System & Security
-      systemAlerts: true,
-      securityAlert: true,
-      passwordExpiry: true
-    },
-    digestFrequency: 'daily'
-  })
+  const [settings, setSettings] = useState(createDefaultNotificationPreferences())
+  const [adminChannels, setAdminChannels] = useState(null)
 
   // Load notification settings on mount
   useEffect(() => {
@@ -997,14 +950,22 @@ function NotificationSettings() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get('/user/notification-settings')
-      if (res.data?.data) {
-        setSettings(prev => ({
-          ...prev,
-          ...res.data.data,
-          emailNotifications: { ...prev.emailNotifications, ...res.data.data?.emailNotifications },
-          inAppNotifications: { ...prev.inAppNotifications, ...res.data.data?.inAppNotifications }
-        }))
+      const [userRes, adminRes] = await Promise.allSettled([
+        api.get('/user/notification-settings'),
+        api.get('/config/notification-settings')
+      ])
+
+      if (userRes.status === 'fulfilled' && userRes.value?.data?.data) {
+        setSettings(normalizeNotificationPreferences(userRes.value.data.data))
+      }
+
+      if (adminRes.status === 'fulfilled') {
+        const adminSettings = adminRes.value?.data?.data?.settings
+        const notifications = adminSettings?.notifications || {}
+        const keys = notificationEventCategories.flatMap((c) => c.items.map((i) => i.key))
+        const emailNotifications = Object.fromEntries(keys.map((key) => [key, notifications[key]?.email ?? true]))
+        const inAppNotifications = Object.fromEntries(keys.map((key) => [key, notifications[key]?.inApp ?? true]))
+        setAdminChannels({ emailNotifications, inAppNotifications })
       }
     } catch (error) {
       console.error('Failed to load notification settings:', error)
@@ -1016,7 +977,7 @@ function NotificationSettings() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.put('/user/notification-settings', settings)
+      await api.put('/user/notification-settings', normalizeNotificationPreferences(settings))
       setAlertModal({ show: true, title: 'Success', message: 'Notification settings saved successfully!', type: 'success' })
     } catch (error) {
       setAlertModal({ show: true, title: 'Error', message: 'Failed to save notification settings', type: 'error' })
@@ -1025,36 +986,78 @@ function NotificationSettings() {
     }
   }
 
-  const NotificationToggle = ({ label, description, emailChecked, inAppChecked, onEmailChange, onInAppChange }) => (
-    <div className="py-3 border-b border-border last:border-0">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="font-medium text-ink text-sm">{label}</p>
-          <p className="text-xs text-ink-muted mt-0.5">{description}</p>
-        </div>
-        <div className="flex gap-4 ml-4">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={emailChecked}
-              onChange={onEmailChange}
-              className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
-            />
-            <span className="text-xs text-ink-secondary">Email</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={inAppChecked}
-              onChange={onInAppChange}
-              className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
-            />
-            <span className="text-xs text-ink-secondary">In-App</span>
-          </label>
+  const NotificationToggle = ({
+    label,
+    description,
+    emailChecked,
+    inAppChecked,
+    onEmailChange,
+    onInAppChange,
+    adminEmailEnabled,
+    adminInAppEnabled
+  }) => {
+    const emailDisabledByAdmin = adminEmailEnabled === false
+    const inAppDisabledByAdmin = adminInAppEnabled === false
+    const emailMutedByUser = adminEmailEnabled !== false && emailChecked === false
+    const inAppMutedByUser = adminInAppEnabled !== false && inAppChecked === false
+
+    return (
+      <div className="py-3 border-b border-border last:border-0">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <p className="font-medium text-ink text-sm">{label}</p>
+            <p className="text-xs text-ink-muted mt-0.5">{description}</p>
+            {(emailDisabledByAdmin || inAppDisabledByAdmin || emailMutedByUser || inAppMutedByUser) && (
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {emailDisabledByAdmin && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-surface-muted text-ink-muted border border-border">
+                    Email disabled by admin
+                  </span>
+                )}
+                {inAppDisabledByAdmin && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-surface-muted text-ink-muted border border-border">
+                    In-app disabled by admin
+                  </span>
+                )}
+                {emailMutedByUser && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-surface-muted text-ink-muted border border-border">
+                    Email muted by you
+                  </span>
+                )}
+                {inAppMutedByUser && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-surface-muted text-ink-muted border border-border">
+                    In-app muted by you
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-4 ml-4">
+            <label className={`flex items-center gap-1.5 ${emailDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+              <input
+                type="checkbox"
+                checked={emailChecked}
+                onChange={onEmailChange}
+                disabled={emailDisabledByAdmin}
+                className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
+              />
+              <span className="text-xs text-ink-secondary">Email</span>
+            </label>
+            <label className={`flex items-center gap-1.5 ${inAppDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+              <input
+                type="checkbox"
+                checked={inAppChecked}
+                onChange={onInAppChange}
+                disabled={inAppDisabledByAdmin}
+                className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
+              />
+              <span className="text-xs text-ink-secondary">In-App</span>
+            </label>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const NotificationCategory = ({ title, icon, items }) => (
     <div className="card p-5 mb-4">
@@ -1069,6 +1072,8 @@ function NotificationSettings() {
             description={item.description}
             emailChecked={settings.emailNotifications[item.key] ?? true}
             inAppChecked={settings.inAppNotifications[item.key] ?? true}
+            adminEmailEnabled={adminChannels?.emailNotifications?.[item.key]}
+            adminInAppEnabled={adminChannels?.inAppNotifications?.[item.key]}
             onEmailChange={(e) => setSettings({
               ...settings,
               emailNotifications: { ...settings.emailNotifications, [item.key]: e.target.checked }
@@ -1082,35 +1087,6 @@ function NotificationSettings() {
       </div>
     </div>
   )
-
-  const documentNotifications = [
-    { key: 'documentAssigned', label: 'Document Assigned', description: 'When a document is assigned to you' },
-    { key: 'statusChanged', label: 'Status Changed', description: 'When document status changes (draft → review → published)' },
-    { key: 'versionUpdate', label: 'New Version', description: 'When a new version of a document is published' },
-    { key: 'documentUploaded', label: 'Document Uploaded', description: 'When a new document is uploaded to the system' },
-    { key: 'documentDeleted', label: 'Document Deleted', description: 'When a document is deleted or archived' }
-  ]
-
-  const reviewNotifications = [
-    { key: 'reviewRequired', label: 'Review Required', description: 'When your review is required on a document' },
-    { key: 'approvalRequired', label: 'Approval Required', description: 'When your approval is needed' },
-    { key: 'reviewCompleted', label: 'Review Completed', description: 'When someone completes a review on your document' },
-    { key: 'approvalGranted', label: 'Approval Granted', description: 'When your document is approved' },
-    { key: 'approvalRejected', label: 'Approval Rejected', description: 'When your document is rejected with comments' }
-  ]
-
-  const workflowNotifications = [
-    { key: 'workflowAssigned', label: 'Workflow Assigned', description: 'When a workflow task is assigned to you' },
-    { key: 'workflowCompleted', label: 'Workflow Completed', description: 'When a workflow you initiated is completed' },
-    { key: 'taskDueSoon', label: 'Task Due Soon', description: 'Reminder when a task is due within 24 hours' },
-    { key: 'taskOverdue', label: 'Task Overdue', description: 'When a task assigned to you is overdue' }
-  ]
-
-  const systemNotifications = [
-    { key: 'systemAlerts', label: 'System Alerts', description: 'Important system notifications and updates' },
-    { key: 'securityAlert', label: 'Security Alert', description: 'Suspicious activity or security-related notifications' },
-    { key: 'passwordExpiry', label: 'Password Expiry', description: 'Reminder when your password is about to expire' }
-  ]
 
   if (loading) {
     return (
@@ -1128,35 +1104,21 @@ function NotificationSettings() {
         <p className="text-sm text-ink-secondary">
           {t('notification_desc')}
         </p>
+        {adminChannels && (
+          <p className="text-xs text-ink-muted mt-2">
+            Admin settings control the maximum delivery. If admin turns Email or In-App off for an event, it cannot be enabled here.
+          </p>
+        )}
       </div>
 
-      {/* Document Events */}
-      <NotificationCategory
-        title={t('document_events')}
-        icon="📄"
-        items={documentNotifications}
-      />
-
-      {/* Review & Approval */}
-      <NotificationCategory
-        title={t('review_approval')}
-        icon="✅"
-        items={reviewNotifications}
-      />
-
-      {/* Workflow & Tasks */}
-      <NotificationCategory
-        title={t('workflow_tasks')}
-        icon="🔄"
-        items={workflowNotifications}
-      />
-
-      {/* System & Security */}
-      <NotificationCategory
-        title={t('system_security')}
-        icon="⚙️"
-        items={systemNotifications}
-      />
+      {notificationEventCategories.map((category) => (
+        <NotificationCategory
+          key={category.id}
+          title={category.title}
+          icon={category.icon}
+          items={category.items}
+        />
+      ))}
 
       {/* Email Digest */}
       <div className="card p-5">

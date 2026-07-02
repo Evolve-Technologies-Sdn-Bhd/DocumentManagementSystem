@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { NotFoundError, ConflictError } = require('../utils/errors');
+const { createDefaultAdminNotificationChannels, LEGACY_NOTIFICATION_EVENT_ALIASES } = require('../constants/notificationEvents');
 
 class ConfigService {
   getDefaultDocumentNumberingSettings() {
@@ -32,22 +33,7 @@ class ConfigService {
   }
 
   getDefaultNotificationSettings() {
-    const notifications = {
-      acknowledgeRequired: { email: true, inApp: true },
-      acknowledgeCompleted: { email: true, inApp: true },
-      documentSubmitted: { email: true, inApp: true },
-      reviewAssigned: { email: true, inApp: true },
-      reviewRequired: { email: true, inApp: true },
-      reviewCompleted: { email: true, inApp: true },
-      approvalRequest: { email: true, inApp: true },
-      approvalRequired: { email: true, inApp: true },
-      documentApproved: { email: true, inApp: true },
-      documentRejected: { email: true, inApp: true },
-      documentReturned: { email: true, inApp: true },
-      documentPublished: { email: true, inApp: true },
-      documentSuperseded: { email: true, inApp: true },
-      documentObsoleted: { email: true, inApp: true }
-    }
+    const notifications = createDefaultAdminNotificationChannels()
 
     return {
       frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -79,8 +65,14 @@ class ConfigService {
     const sourceNotifications = (source.notifications && typeof source.notifications === 'object')
       ? source.notifications
       : {}
+    const normalizedSourceNotifications = Object.entries(sourceNotifications).reduce((acc, [key, value]) => {
+      const normalizedKey = LEGACY_NOTIFICATION_EVENT_ALIASES[key] || key
+      if (!allowedKeys.includes(normalizedKey)) return acc
+      acc[normalizedKey] = value
+      return acc
+    }, {})
     const filteredNotifications = allowedKeys.reduce((acc, key) => {
-      const v = sourceNotifications[key]
+      const v = normalizedSourceNotifications[key]
       acc[key] = {
         email: Boolean(v?.email ?? defaults.notifications[key]?.email),
         inApp: Boolean(v?.inApp ?? defaults.notifications[key]?.inApp)

@@ -41,9 +41,15 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   })
   const [expiryInfo, setExpiryInfo] = useState({
     trackingEnabled: false,
+    useGlobalRule: true,
     startDate: '',
     expiryDate: '',
-    remarks: ''
+    remarks: '',
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
   })
 
   useEffect(() => {
@@ -55,9 +61,15 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     setError('')
     setExpiryInfo({
       trackingEnabled: requiresExpiryTracking,
+      useGlobalRule: true,
       startDate: toDateInputValue(new Date()),
       expiryDate: '',
-      remarks: ''
+      remarks: '',
+      expiringSoonDays: expirySettings.expiringSoonDays,
+      reminder1Days: expirySettings.reminder1Days,
+      reminder2Days: expirySettings.reminder2Days,
+      reminder3Days: expirySettings.reminder3Days,
+      reminder4Days: expirySettings.reminder4Days
     })
     void fetchFolders()
     void fetchExpirySettings()
@@ -93,7 +105,19 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   const fetchExpirySettings = async () => {
     try {
       const response = await api.get('/system/config/expiry-tracking')
-      setExpirySettings(response.data?.data?.settings || expirySettings)
+      const nextSettings = response.data?.data?.settings || expirySettings
+      setExpirySettings(nextSettings)
+      setExpiryInfo((prev) => {
+        if (!prev.useGlobalRule) return prev
+        return {
+          ...prev,
+          expiringSoonDays: nextSettings.expiringSoonDays,
+          reminder1Days: nextSettings.reminder1Days,
+          reminder2Days: nextSettings.reminder2Days,
+          reminder3Days: nextSettings.reminder3Days,
+          reminder4Days: nextSettings.reminder4Days
+        }
+      })
     } catch (fetchError) {
       console.error('Error fetching expiry settings:', fetchError)
     }
@@ -125,7 +149,12 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
               trackingEnabled: true,
               startDate: expiryInfo.startDate,
               expiryDate: expiryInfo.expiryDate,
-              remarks: expiryInfo.remarks
+              remarks: expiryInfo.remarks,
+              expiringSoonDays: parseInt(expiryInfo.expiringSoonDays, 10) || 0,
+              reminder1Days: parseInt(expiryInfo.reminder1Days, 10) || 0,
+              reminder2Days: parseInt(expiryInfo.reminder2Days, 10) || 0,
+              reminder3Days: parseInt(expiryInfo.reminder3Days, 10) || 0,
+              reminder4Days: parseInt(expiryInfo.reminder4Days, 10) || 0
             }
           : { trackingEnabled: false }
       })
@@ -197,7 +226,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
               <div>
                 <h3 className="text-sm font-semibold text-ink">Expiry Info</h3>
                 <p className="mt-1 text-sm text-ink-muted">
-                  Expiry tracking is linked directly to this document. No second data entry is required in the expiry module.
+                  Expiry tracking is linked directly to this document. You can keep the global reminder schedule or adjust it for this document only.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
@@ -227,26 +256,50 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                   </div>
                 </div>
 
-                <AppSurface padding="md" variant="panel" className="grid gap-3 md:grid-cols-5">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Expiring Soon</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">{expirySettings.expiringSoonDays} day(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 1</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">{expirySettings.reminder1Days} day(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 2</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">{expirySettings.reminder2Days} day(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 3</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">{expirySettings.reminder3Days} day(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 4</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">{expirySettings.reminder4Days} day(s)</p>
+                <AppSurface padding="md" variant="panel" className="space-y-4">
+                  <p className="text-sm text-ink-muted">
+                    Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
+                  </p>
+                  <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                    <input
+                      type="checkbox"
+                      checked={expiryInfo.useGlobalRule}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setExpiryInfo((prev) => ({
+                          ...prev,
+                          useGlobalRule: checked,
+                          ...(checked
+                            ? {
+                                expiringSoonDays: expirySettings.expiringSoonDays,
+                                reminder1Days: expirySettings.reminder1Days,
+                                reminder2Days: expirySettings.reminder2Days,
+                                reminder3Days: expirySettings.reminder3Days,
+                                reminder4Days: expirySettings.reminder4Days
+                              }
+                            : {})
+                        }))
+                      }}
+                      className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                    />
+                    Use Global Defaults
+                  </label>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <Field label="Expiring Soon Days">
+                      <TextInput type="number" min="0" value={expiryInfo.expiringSoonDays} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
+                    </Field>
+                    <Field label="Reminder 1">
+                      <TextInput type="number" min="0" value={expiryInfo.reminder1Days} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
+                    </Field>
+                    <Field label="Reminder 2">
+                      <TextInput type="number" min="0" value={expiryInfo.reminder2Days} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
+                    </Field>
+                    <Field label="Reminder 3">
+                      <TextInput type="number" min="0" value={expiryInfo.reminder3Days} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
+                    </Field>
+                    <Field label="Reminder 4">
+                      <TextInput type="number" min="0" value={expiryInfo.reminder4Days} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
+                    </Field>
                   </div>
                 </AppSurface>
               </>

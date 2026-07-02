@@ -6,6 +6,7 @@ const prisma = require('../config/database');
 const { uploadTemplate } = require('../middleware/upload');
 const path = require('path');
 const documentConversionService = require('../services/documentConversionService');
+const notificationService = require('../services/notificationService');
 
 const router = express.Router();
 
@@ -98,15 +99,19 @@ router.post('/requests', asyncHandler(async (req, res) => {
   })
 
   if (recipients.length > 0) {
-    await prisma.notification.createMany({
-      data: recipients.map((u) => ({
-        userId: u.id,
-        type: 'SYSTEM_ALERT',
+    await notificationService.sendBulkNotifications(
+      recipients.map((u) => u.id),
+      'systemAlert',
+      'Template Request',
+      `${requesterName} requested ${type === 'NEW' ? 'a new template' : 'a template update'} for "${docTypeLabel}" (${tplLabel}).`,
+      '/new-document-request',
+      {
+        subject: 'Template Request',
         title: 'Template Request',
         message: `${requesterName} requested ${type === 'NEW' ? 'a new template' : 'a template update'} for "${docTypeLabel}" (${tplLabel}).`,
-        link: '/new-document-request'
-      }))
-    })
+        link: notificationService.buildAbsoluteLink('/new-document-request')
+      }
+    )
   }
 
   return ResponseFormatter.success(res, { request: created }, 'Template request submitted successfully', 201)
@@ -148,15 +153,19 @@ router.patch('/requests/:id', authorize('admin', 'document_controller'), asyncHa
     }
   })
 
-  await prisma.notification.create({
-    data: {
-      userId: updated.requestedById,
-      type: 'SYSTEM_ALERT',
+  await notificationService.sendNotification(
+    updated.requestedById,
+    'systemAlert',
+    'Template Request Update',
+    `Your template request has been ${normalizedStatus === 'RESOLVED' ? 'resolved' : 'rejected'}.`,
+    '/new-document-request',
+    {
+      subject: 'Template Request Update',
       title: 'Template Request Update',
       message: `Your template request has been ${normalizedStatus === 'RESOLVED' ? 'resolved' : 'rejected'}.`,
-      link: '/new-document-request'
+      link: notificationService.buildAbsoluteLink('/new-document-request')
     }
-  })
+  )
 
   return ResponseFormatter.success(res, { request: updated }, 'Template request updated successfully')
 }))
