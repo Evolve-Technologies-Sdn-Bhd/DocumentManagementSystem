@@ -773,6 +773,7 @@ model ProjectIterationDocumentItem {
   stageId            Int
   documentTypeId     Int
   status             ProjectItemStatus @default(PENDING)
+  isManualOverride   Boolean          @default(false)
   dueDate            DateTime?
   assignedToId       Int?
   completedAt        DateTime?

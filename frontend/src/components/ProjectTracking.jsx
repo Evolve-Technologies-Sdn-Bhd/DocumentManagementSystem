@@ -2670,6 +2670,22 @@ function ProjectDetail({ projectId }) {
     }
   }
 
+  const updateChecklistItemStatus = async (itemId, status) => {
+    try {
+      await api.put(`/project-tracking/items/${itemId}/status`, { status })
+      if (selectedIterationId) await loadItems(selectedIterationId)
+    } catch (error) {
+      console.error('Failed to update checklist item status:', error)
+      const message = error?.response?.data?.message || error?.response?.data?.error || 'Unable to update this checklist item right now.'
+      setAlertModal({
+        show: true,
+        title: 'Update Failed',
+        message,
+        type: 'warning'
+      })
+    }
+  }
+
   const unlinkStageDocument = async (stageId, linkId) => {
     if (!selectedIterationId) return
     try {
@@ -3421,7 +3437,42 @@ function ProjectDetail({ projectId }) {
                         <Tr key={it.id} className="align-top hover:bg-surface-muted">
                           <Td className="whitespace-nowrap text-sm font-medium text-ink">{it.documentType?.name || '-'}</Td>
                           <Td className="whitespace-nowrap text-sm">
-                            <ItemStatusBadge status={it.status} />
+                            <div className="flex flex-col items-start gap-2">
+                              <ItemStatusBadge status={it.status} />
+                              {canEdit && isProjectActive ? (
+                                String(it.status || '').toUpperCase() === 'PENDING' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setConfirmModal({
+                                        show: true,
+                                        title: 'Waive Required Document',
+                                        message: 'Waive this checklist item for this phase? It will no longer block stage progression.',
+                                        onConfirm: () => updateChecklistItemStatus(it.id, 'WAIVED')
+                                      })
+                                    }
+                                    className="text-xs font-medium text-red-600 hover:underline"
+                                  >
+                                    Waive
+                                  </button>
+                                ) : String(it.status || '').toUpperCase() === 'WAIVED' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setConfirmModal({
+                                        show: true,
+                                        title: 'Make Required Again',
+                                        message: 'Make this checklist item required again for this phase?',
+                                        onConfirm: () => updateChecklistItemStatus(it.id, 'PENDING')
+                                      })
+                                    }
+                                    className="text-xs font-medium text-brand hover:underline"
+                                  >
+                                    Make Required
+                                  </button>
+                                ) : null
+                              ) : null}
+                            </div>
                           </Td>
                           <Td className="min-w-[260px] text-sm text-ink-secondary">
                             <div className="space-y-3">

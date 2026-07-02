@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `ProjectIterationDocumentItem` ADD COLUMN `isManualOverride` BOOLEAN NOT NULL DEFAULT false;
+
