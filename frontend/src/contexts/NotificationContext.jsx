@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../api/axios'
+import { createDefaultNotificationPreferences, normalizeNotificationPreferences } from '../constants/notificationEvents'
 
 const NotificationContext = createContext()
 
@@ -16,47 +17,28 @@ export const useNotifications = () => {
 
 // Notification types mapped to preference keys
 export const NOTIFICATION_TYPES = {
-  // Document-related
-  DOCUMENT_ASSIGNED: 'documentAssigned',
-  DOCUMENT_STATUS_CHANGED: 'statusChanged',
-  DOCUMENT_VERSION_UPDATE: 'versionUpdate',
-  DOCUMENT_UPLOADED: 'documentUploaded',
-  DOCUMENT_DOWNLOADED: 'documentDownloaded',
-  DOCUMENT_DELETED: 'documentDeleted',
-  DOCUMENT_SHARED: 'documentShared',
-  
-  // Review & Approval
+  DOCUMENT_ASSIGNED: 'reviewAssigned',
+  DOCUMENT_RETURNED: 'documentReturned',
   REVIEW_REQUIRED: 'reviewRequired',
+  DOCUMENT_SUBMITTED: 'documentSubmitted',
   APPROVAL_REQUIRED: 'approvalRequired',
+  APPROVAL_REQUEST: 'approvalRequest',
   REVIEW_COMPLETED: 'reviewCompleted',
-  APPROVAL_GRANTED: 'approvalGranted',
-  APPROVAL_REJECTED: 'approvalRejected',
-  ACKNOWLEDGEMENT_REQUIRED: 'acknowledgementRequired',
-  
-  // Comments & Mentions
-  COMMENT_ADDED: 'commentAdded',
-  MENTION_IN_COMMENT: 'mentionInComment',
-  COMMENT_REPLY: 'commentReply',
-  
-  // Workflow & Tasks
-  WORKFLOW_ASSIGNED: 'workflowAssigned',
-  WORKFLOW_COMPLETED: 'workflowCompleted',
-  WORKFLOW_DELAYED: 'workflowDelayed',
-  TASK_ASSIGNED: 'taskAssigned',
-  TASK_DUE_SOON: 'taskDueSoon',
-  TASK_OVERDUE: 'taskOverdue',
-  
-  // System & Security
-  SYSTEM_ALERT: 'systemAlerts',
-  SYSTEM_MAINTENANCE: 'systemMaintenance',
-  STORAGE_WARNING: 'storageWarning',
-  SECURITY_ALERT: 'securityAlert',
-  PASSWORD_EXPIRY: 'passwordExpiry',
-  
-  // Team & Collaboration
-  TEAM_INVITATION: 'teamInvitation',
-  USER_ADDED: 'userAdded',
-  PERMISSION_CHANGED: 'permissionChanged'
+  DOCUMENT_APPROVED: 'documentApproved',
+  APPROVAL_GRANTED: 'documentApproved',
+  DOCUMENT_REJECTED: 'documentRejected',
+  APPROVAL_REJECTED: 'documentRejected',
+  ACKNOWLEDGMENT_REQUIRED: 'acknowledgeRequired',
+  ACKNOWLEDGEMENT_REQUIRED: 'acknowledgeRequired',
+  ACKNOWLEDGMENT_COMPLETED: 'acknowledgeCompleted',
+  DOCUMENT_PUBLISHED: 'documentPublished',
+  DOCUMENT_SUPERSEDED: 'documentSuperseded',
+  DOCUMENT_OBSOLETED: 'documentObsoleted',
+  DOCUMENT_EXPIRING: 'documentExpiring',
+  DOCUMENT_EXPIRED: 'documentExpired',
+  RENEWAL_IN_PROGRESS: 'renewalInProgress',
+  RENEWAL_COMPLETED: 'renewalCompleted',
+  SYSTEM_ALERT: 'systemAlert'
 }
 
 export const NotificationProvider = ({ children }) => {
@@ -79,7 +61,7 @@ export const NotificationProvider = ({ children }) => {
       // Try to load from localStorage first
       const savedPreferences = localStorage.getItem('notificationPreferences')
       if (savedPreferences) {
-        setPreferences(JSON.parse(savedPreferences))
+        setPreferences(normalizeNotificationPreferences(JSON.parse(savedPreferences)))
         setLoading(false)
       }
 
@@ -95,7 +77,9 @@ export const NotificationProvider = ({ children }) => {
       // Backend sync enabled
       try {
         const res = await silentApi.get('/user/notification-settings')
-        const serverPreferences = res.data.data || res.data.data?.settings || res.data.settings || getDefaultPreferences()
+        const serverPreferences = normalizeNotificationPreferences(
+          res.data.data || res.data.data?.settings || res.data.settings || getDefaultPreferences()
+        )
         setPreferences(serverPreferences)
         localStorage.setItem('notificationPreferences', JSON.stringify(serverPreferences))
       } catch (apiError) {
@@ -200,7 +184,8 @@ export const NotificationProvider = ({ children }) => {
     if (!preferences) return true // Show by default if preferences not loaded
     
     const channelKey = channel === 'email' ? 'emailNotifications' : 'inAppNotifications'
-    return preferences[channelKey]?.[type] !== false
+    const preferenceKey = NOTIFICATION_TYPES[type] || type
+    return preferences[channelKey]?.[preferenceKey] !== false
   }, [preferences])
 
   // Add a new notification
@@ -314,13 +299,14 @@ export const NotificationProvider = ({ children }) => {
 
   // Update preferences
   const updatePreferences = useCallback(async (newPreferences) => {
-    setPreferences(newPreferences)
+    const normalizedPreferences = normalizeNotificationPreferences(newPreferences)
+    setPreferences(normalizedPreferences)
     
     // Save to localStorage immediately
-    localStorage.setItem('notificationPreferences', JSON.stringify(newPreferences))
+    localStorage.setItem('notificationPreferences', JSON.stringify(normalizedPreferences))
     
     try {
-      await silentApi.put('/user/notification-settings', newPreferences)
+      await silentApi.put('/user/notification-settings', normalizedPreferences)
     } catch (error) {
       // Backend endpoint doesn't exist yet, already saved to localStorage
       console.log('Notification preferences saved to localStorage (backend not available)')
@@ -351,98 +337,5 @@ export const NotificationProvider = ({ children }) => {
 
 // Default notification preferences
 function getDefaultPreferences() {
-  return {
-    emailNotifications: {
-      // Document events
-      documentAssigned: true,
-      statusChanged: true,
-      versionUpdate: false,
-      documentUploaded: false,
-      documentDownloaded: false,
-      documentDeleted: true,
-      documentShared: true,
-      
-      // Review & Approval
-      reviewRequired: true,
-      approvalRequired: true,
-      reviewCompleted: true,
-      approvalGranted: true,
-      approvalRejected: true,
-      acknowledgementRequired: true,
-      
-      // Comments
-      commentAdded: true,
-      mentionInComment: true,
-      commentReply: true,
-      
-      // Workflow
-      workflowAssigned: true,
-      workflowCompleted: false,
-      workflowDelayed: true,
-      taskAssigned: true,
-      taskDueSoon: true,
-      taskOverdue: true,
-      
-      // System
-      systemAlerts: true,
-      systemMaintenance: true,
-      storageWarning: true,
-      securityAlert: true,
-      passwordExpiry: true,
-      
-      // Team
-      teamInvitation: true,
-      userAdded: false,
-      permissionChanged: true
-    },
-    inAppNotifications: {
-      // Document events
-      documentAssigned: true,
-      statusChanged: true,
-      versionUpdate: true,
-      documentUploaded: true,
-      documentDownloaded: false,
-      documentDeleted: true,
-      documentShared: true,
-      
-      // Review & Approval
-      reviewRequired: true,
-      approvalRequired: true,
-      reviewCompleted: true,
-      approvalGranted: true,
-      approvalRejected: true,
-      acknowledgementRequired: true,
-      
-      // Comments
-      commentAdded: true,
-      mentionInComment: true,
-      commentReply: true,
-      
-      // Workflow
-      workflowAssigned: true,
-      workflowCompleted: true,
-      workflowDelayed: true,
-      taskAssigned: true,
-      taskDueSoon: true,
-      taskOverdue: true,
-      
-      // System
-      systemAlerts: true,
-      systemMaintenance: true,
-      storageWarning: true,
-      securityAlert: true,
-      passwordExpiry: true,
-      
-      // Team
-      teamInvitation: true,
-      userAdded: true,
-      permissionChanged: true
-    },
-    digestFrequency: 'daily', // 'realtime', 'hourly', 'daily', 'weekly'
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00'
-    }
-  }
+  return createDefaultNotificationPreferences()
 }

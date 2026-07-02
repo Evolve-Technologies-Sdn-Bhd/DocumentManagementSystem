@@ -561,7 +561,6 @@ class ExpiryTrackingService {
           expiryStatus: profile.trackingEnabled
             ? this.calculateExpiryStatus(profile.expiryDate, settings.expiringSoonDays)
             : profile.expiryStatus,
-          // Reset reminder checkpoints because each reminder slot now represents a new schedule.
           lastReminder1SentAt: null,
           lastReminder2SentAt: null,
           lastReminder3SentAt: null,
@@ -738,12 +737,19 @@ class ExpiryTrackingService {
     })
 
     const document = await this.getDocumentContext(documentId)
-    await notificationService.createNotification(
+    await notificationService.sendNotification(
       document.ownerId,
-      'RENEWAL_IN_PROGRESS',
+      'renewalInProgress',
       'Renewal In Progress',
       `Renewal has started for document "${document.title}" (${document.fileCode}).`,
-      '/expiry-tracking'
+      '/expiry-tracking',
+      {
+        subject: `Renewal In Progress - ${document.fileCode || 'DMS'}`,
+        title: document.title,
+        fileCode: document.fileCode,
+        message: `Renewal has started for document "${document.title}" (${document.fileCode}).`,
+        link: notificationService.buildAbsoluteLink('/expiry-tracking')
+      }
     )
 
     return this.getProfile(documentId)
@@ -900,12 +906,19 @@ class ExpiryTrackingService {
       })
     }
 
-    await notificationService.createNotification(
+    await notificationService.sendNotification(
       document.ownerId,
-      'RENEWAL_COMPLETED',
+      'renewalCompleted',
       'Renewal Completed',
       `Renewal completed for document "${document.title}" (${document.fileCode}). New version ${nextVersion} is now active.`,
-      '/expiry-tracking'
+      '/expiry-tracking',
+      {
+        subject: `Renewal Completed - ${document.fileCode || 'DMS'}`,
+        title: document.title,
+        fileCode: document.fileCode,
+        message: `Renewal completed for document "${document.title}" (${document.fileCode}). New version ${nextVersion} is now active.`,
+        link: notificationService.buildAbsoluteLink('/expiry-tracking')
+      }
     )
 
     return this.getProfile(document.id)
@@ -979,12 +992,20 @@ class ExpiryTrackingService {
         if (!alreadySent && daysLeft === reminder.threshold) {
           updateData[reminder.field] = new Date()
           for (const recipientId of recipients) {
-            await notificationService.createNotification(
+            await notificationService.sendNotification(
               recipientId,
-              'DOCUMENT_EXPIRING',
+              'documentExpiring',
               'Document Expiry Reminder',
-              `Document is due to expire in ${daysLeft} day(s).`,
-              '/expiry-tracking'
+              `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) is due to expire in ${daysLeft} day(s).`,
+              '/expiry-tracking',
+              {
+                subject: `Document Expiry Reminder - ${profile.document?.fileCode || 'DMS'}`,
+                title: profile.document?.title || 'Document Expiry Reminder',
+                fileCode: profile.document?.fileCode || '',
+                daysLeft,
+                expiryDate: profile.expiryDate,
+                link: notificationService.buildAbsoluteLink('/expiry-tracking')
+              }
             )
           }
         }
@@ -992,12 +1013,20 @@ class ExpiryTrackingService {
 
       if (daysLeft < 0 && (!profile.lastReminder4SentAt || this.startOfDay(profile.lastReminder4SentAt).getTime() !== this.startOfDay(new Date()).getTime())) {
         for (const recipientId of recipients) {
-          await notificationService.createNotification(
+          await notificationService.sendNotification(
             recipientId,
-            'DOCUMENT_EXPIRED',
+            'documentExpired',
             'Document Expired',
-            'A tracked document has already expired.',
-            '/expiry-tracking'
+            `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) has already expired.`,
+            '/expiry-tracking',
+            {
+              subject: `Document Expired - ${profile.document?.fileCode || 'DMS'}`,
+              title: profile.document?.title || 'Document Expired',
+              fileCode: profile.document?.fileCode || '',
+              daysLeft,
+              expiryDate: profile.expiryDate,
+              link: notificationService.buildAbsoluteLink('/expiry-tracking')
+            }
           )
         }
       }

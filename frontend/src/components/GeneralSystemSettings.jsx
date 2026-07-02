@@ -4260,7 +4260,12 @@ function NotificationSettings() {
       documentReturned: { email: true, inApp: true },
       documentPublished: { email: true, inApp: true },
       documentSuperseded: { email: true, inApp: true },
-      documentObsoleted: { email: true, inApp: true }
+      documentObsoleted: { email: true, inApp: true },
+      documentExpiring: { email: true, inApp: true },
+      documentExpired: { email: true, inApp: true },
+      renewalInProgress: { email: true, inApp: true },
+      renewalCompleted: { email: true, inApp: true },
+      systemAlert: { email: true, inApp: true }
     },
     reviewReminder: 3,
     approvalReminder: 2,

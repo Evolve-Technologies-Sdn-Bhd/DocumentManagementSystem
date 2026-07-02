@@ -20,6 +20,7 @@ const rolesRoutes = require('./routes/roles');
 const epcRegistryRoutes = require('./routes/epcRegistry');
 const projectTrackingRoutes = require('./routes/projectTracking');
 const expiryTrackingRoutes = require('./routes/expiryTracking');
+const notificationService = require('./services/notificationService');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -198,13 +199,13 @@ app.get('/api/user/notification-settings', authenticate, asyncHandler(async (req
     where: { userId: req.user.id }
   });
   
-  const settings = userPref?.notifications || null;
+  const settings = notificationService.normalizeUserNotificationSettings(userPref?.notifications || null);
   
   return ResponseFormatter.success(res, settings, 'Notification settings retrieved successfully');
 }));
 
 app.put('/api/user/notification-settings', authenticate, asyncHandler(async (req, res) => {
-  const settings = req.body;
+  const settings = notificationService.normalizeUserNotificationSettings(req.body);
   // Store in user preferences
   await prisma.userPreference.upsert({
     where: { userId: req.user.id },
