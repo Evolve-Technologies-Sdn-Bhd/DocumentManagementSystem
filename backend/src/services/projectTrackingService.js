@@ -287,6 +287,90 @@ const createChecklistItemsFromRequirements = async (projectId, iterationId, db =
   })
 }
 
+const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = prisma) => {
+  const enabledStages = await getEnabledStagesForProject(projectId, db)
+  const stageIds = enabledStages.map((s) => s.stageId)
+
+  const defaultRequired = stageIds.length
+    ? await db.projectSetupDocumentRequirementDefault.findMany({
+        where: {
+          stageId: { in: stageIds },
+          isRequired: true
+        },
+        select: { stageId: true, documentTypeId: true }
+      })
+    : []
+
+  const overrides = stageIds.length
+    ? await db.projectSetupDocumentRequirementOverride.findMany({
+        where: {
+          projectId: parseInt(projectId, 10),
+          stageId: { in: stageIds }
+        },
+        select: { stageId: true, documentTypeId: true, isRequired: true, isExcluded: true }
+      })
+    : []
+
+  const requiredKeys = new Map()
+  for (const r of defaultRequired) {
+    requiredKeys.set(`${r.stageId}:${r.documentTypeId}`, r)
+  }
+
+  for (const o of overrides) {
+    const key = `${o.stageId}:${o.documentTypeId}`
+    if (o.isExcluded || !o.isRequired) {
+      requiredKeys.delete(key)
+      continue
+    }
+    requiredKeys.set(key, { stageId: o.stageId, documentTypeId: o.documentTypeId })
+  }
+
+  const requirements = Array.from(requiredKeys.values())
+
+  if (requirements.length > 0) {
+    await db.projectIterationDocumentItem.createMany({
+      data: requirements.map((r) => ({
+        projectIterationId: iterationId,
+        stageId: r.stageId,
+        documentTypeId: r.documentTypeId
+      })),
+      skipDuplicates: true
+    })
+  }
+
+  const existingItems = await db.projectIterationDocumentItem.findMany({
+    where: { projectIterationId: iterationId },
+    select: { id: true, stageId: true, documentTypeId: true, status: true, isManualOverride: true }
+  })
+
+  const toWaiveIds = []
+  const toPendingIds = []
+
+  for (const item of existingItems) {
+    if (item.isManualOverride) continue
+    const key = `${item.stageId}:${item.documentTypeId}`
+    const isRequired = requiredKeys.has(key)
+    const status = String(item.status || '').toUpperCase()
+
+    if (!isRequired && status === 'PENDING') toWaiveIds.push(item.id)
+    if (isRequired && status === 'WAIVED') toPendingIds.push(item.id)
+  }
+
+  if (toWaiveIds.length > 0) {
+    await db.projectIterationDocumentItem.updateMany({
+      where: { id: { in: toWaiveIds } },
+      data: { status: 'WAIVED', completedAt: new Date() }
+    })
+  }
+
+  if (toPendingIds.length > 0) {
+    await db.projectIterationDocumentItem.updateMany({
+      where: { id: { in: toPendingIds } },
+      data: { status: 'PENDING', completedAt: null }
+    })
+  }
+}
+
 exports.listProjects = async ({ projectCategoryId, search }) => {
   const where = {};
   if (projectCategoryId) where.projectCategoryId = projectCategoryId;
@@ -697,10 +781,7 @@ exports.listIterationItems = async (iterationId, { user }) => {
   })
   if (!iteration) throw new NotFoundError('Project iteration')
 
-  const existingCount = await prisma.projectIterationDocumentItem.count({ where: { projectIterationId: iterationId } })
-  if (existingCount === 0) {
-    await createChecklistItemsFromRequirements(iteration.project.id, iterationId, prisma)
-  }
+  await syncChecklistItemsFromRequirements(iteration.project.id, iterationId, prisma)
 
   const categoryStages = await getEffectiveStagesForProject(iteration.project.id)
   const stageNameMap = new Map(
@@ -742,6 +823,63 @@ exports.listIterationItems = async (iterationId, { user }) => {
 
   return withStageNames;
 };
+
+exports.updateIterationItemStatus = async (itemId, { status, updatedById }) => {
+  const normalized = String(status || '').trim().toUpperCase()
+  if (!['PENDING', 'WAIVED'].includes(normalized)) {
+    throw new ValidationError('Invalid status')
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const item = await tx.projectIterationDocumentItem.findUnique({
+      where: { id: itemId },
+      include: {
+        iteration: {
+          include: {
+            project: true
+          }
+        }
+      }
+    })
+    if (!item) throw new NotFoundError('Project item')
+    assertProjectCanProgress(item.iteration.project, 'update checklist items for this project')
+
+    const currentStatus = String(item.status || '').toUpperCase()
+    if (currentStatus === 'COMPLETE') {
+      throw new ValidationError('Completed checklist items cannot be waived or made required')
+    }
+
+    const completedAt = normalized === 'WAIVED' ? new Date() : null
+
+    const updated = await tx.projectIterationDocumentItem.update({
+      where: { id: itemId },
+      data: {
+        status: normalized,
+        completedAt,
+        isManualOverride: true
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: updatedById,
+        action: 'UPDATE',
+        entity: 'ProjectIterationDocumentItem',
+        entityId: itemId,
+        description: `projectId=${item.iteration.projectId} checklist item ${itemId} set to ${normalized}`,
+        metadata: {
+          projectId: item.iteration.projectId,
+          iterationId: item.projectIterationId,
+          stageId: item.stageId,
+          documentTypeId: item.documentTypeId,
+          status: normalized
+        }
+      }
+    })
+
+    return updated
+  })
+}
 
 exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
   return prisma.$transaction(async (tx) => {
@@ -1145,6 +1283,8 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
   const current = enabledStages[idx]
   const next = enabledStages[idx + 1]
   if (!next) throw new ValidationError('Already at the last stage')
+
+  await syncChecklistItemsFromRequirements(iteration.project.id, iterationId, prisma)
 
   const pendingItems = await prisma.projectIterationDocumentItem.findMany({
     where: {

@@ -42,6 +42,7 @@ router.delete('/change-requests/:changeRequestId', requireAnyPermission('project
 
 router.get('/iterations/:iterationId/items', requirePermission('projectTracking', 'view'), projectTrackingController.listIterationItems);
 router.get('/iterations/:iterationId/stage-documents', requirePermission('projectTracking', 'view'), projectTrackingController.listIterationStageDocuments);
+router.put('/items/:itemId/status', requirePermission('projectTracking', 'edit'), projectTrackingController.updateIterationItemStatus);
 router.post('/items/:itemId/link-document', requirePermission('projectTracking', 'linkDocument'), projectTrackingController.linkDocumentToItem);
 router.delete('/items/:itemId/links/:linkId', requirePermission('projectTracking', 'linkDocument'), projectTrackingController.unlinkDocumentFromItem);
 router.post('/items/:itemId/create-document', requirePermission('projectTracking', 'create'), projectTrackingController.createDocumentFromItem);

@@ -301,6 +301,19 @@ exports.listIterationItems = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { items }, 'Iteration items retrieved successfully');
 });
 
+exports.updateIterationItemStatus = asyncHandler(async (req, res) => {
+  const itemId = Number(req.params.itemId)
+  if (!itemId) throw new ValidationError('Invalid itemId')
+
+  const { status } = req.body || {}
+  const item = await projectTrackingService.updateIterationItemStatus(itemId, {
+    status,
+    updatedById: req.user.id
+  })
+
+  return ResponseFormatter.success(res, { item }, 'Checklist item updated successfully')
+})
+
 exports.listIterationStageDocuments = asyncHandler(async (req, res) => {
   const iterationId = Number(req.params.iterationId);
   if (!iterationId) throw new ValidationError('Invalid iterationId');
