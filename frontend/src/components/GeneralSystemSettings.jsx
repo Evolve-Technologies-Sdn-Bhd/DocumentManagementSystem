@@ -3521,6 +3521,7 @@ function DocumentSettings() {
     rfidEpcRegistryEnabled: false
   })
   const [saving, setSaving] = useState(false)
+  const [applyingExpirySettings, setApplyingExpirySettings] = useState(false)
 
   const allowedTypeKeys = Object.keys(settings.allowedTypes)
   const allowedTypeColumns = allowedTypeKeys.reduce((cols, key, idx) => {
@@ -3756,6 +3757,26 @@ function DocumentSettings() {
       alert('Failed to save settings. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleApplyExpirySettingsToExistingProfiles = async () => {
+    const confirmed = window.confirm(
+      'Apply the current expiry reminder settings to all existing expiry profiles?\n\nThis will recalculate Expiring Soon status and reset reminder checkpoints so the new schedule can take effect.'
+    )
+
+    if (!confirmed) return
+
+    setApplyingExpirySettings(true)
+    try {
+      const res = await api.post('/system/config/expiry-tracking/apply-existing')
+      const updatedCount = res.data?.data?.updatedCount || 0
+      alert(`Expiry settings applied to ${updatedCount} existing profile(s) successfully.`)
+    } catch (error) {
+      console.error('Failed to apply expiry settings to existing profiles:', error)
+      alert(error.response?.data?.message || 'Failed to apply expiry settings to existing profiles')
+    } finally {
+      setApplyingExpirySettings(false)
     }
   }
 
@@ -4153,6 +4174,19 @@ function DocumentSettings() {
           </div>
         </div>
         <p className="text-xs text-ink-soft">Status logic uses `Expiring Soon Days`, while reminders are sent on the configured day thresholds before expiry.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted/60 p-4">
+          <p className="text-sm text-ink-muted">
+            Existing tracked documents keep their saved reminder rules until you apply the current global settings to them.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleApplyExpirySettingsToExistingProfiles}
+            disabled={saving || applyingExpirySettings}
+          >
+            {applyingExpirySettings ? 'Applying...' : 'Apply to Existing Profiles'}
+          </Button>
+        </div>
       </AppSurface>
 
       <div className="border border-border rounded-lg overflow-hidden bg-surface">

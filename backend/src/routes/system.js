@@ -201,6 +201,7 @@ router.put('/config/retention-policy', authenticate, configController.updateRete
 // Expiry Tracking Settings
 router.get('/config/expiry-tracking', authenticate, configController.getExpiryTrackingSettings);
 router.put('/config/expiry-tracking', authenticate, configController.updateExpiryTrackingSettings);
+router.post('/config/expiry-tracking/apply-existing', authenticate, configController.applyExpiryTrackingSettingsToExistingProfiles);
 
 // Notification Settings
 router.get('/config/notification-settings', authenticate, configController.getNotificationSettings);

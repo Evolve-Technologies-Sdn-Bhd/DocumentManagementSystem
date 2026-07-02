@@ -52,13 +52,19 @@ class ExpiryTrackingService {
     return `${major + 1}.${Number.isFinite(minor) ? minor : 0}`
   }
 
-  async getSettingsSnapshot(overrides = {}) {
+  async getSettingsSnapshot(overrides = {}, fallback = null) {
     const settings = await configService.getExpiryTrackingSettings()
+    const base = (fallback && typeof fallback === 'object') ? fallback : settings
     const pick = (key) => {
       const value = overrides?.[key]
-      if (value === undefined || value === null || value === '') return settings[key]
+      const fallbackValue = base?.[key]
+      const parsedFallback = parseInt(fallbackValue, 10)
+      if (value === undefined || value === null || value === '') {
+        return Number.isFinite(parsedFallback) ? parsedFallback : settings[key]
+      }
       const parsed = parseInt(value, 10)
-      return Number.isFinite(parsed) ? parsed : settings[key]
+      if (Number.isFinite(parsed) && parsed >= 0) return parsed
+      return Number.isFinite(parsedFallback) ? parsedFallback : settings[key]
     }
 
     return {
@@ -119,7 +125,7 @@ class ExpiryTrackingService {
       ? Boolean(input.trackingEnabled)
       : existingProfile?.trackingEnabled ?? Boolean(document.documentType?.requiresExpiryTracking)
 
-    const settings = await this.getSettingsSnapshot(existingProfile || input)
+    const settings = await this.getSettingsSnapshot(input, existingProfile)
     const startDate = input.startDate !== undefined
       ? this.normalizeDate(input.startDate)
       : existingProfile?.startDate || this.normalizeDate(document.publishedAt || new Date())
@@ -521,6 +527,54 @@ class ExpiryTrackingService {
     }
 
     return this.syncProfileFromDocument(documentId, input, userId)
+  }
+
+  async applyGlobalSettingsToExistingProfiles(userId) {
+    const settings = await configService.getExpiryTrackingSettings()
+    const profiles = await prisma.documentExpiryProfile.findMany({
+      select: {
+        id: true,
+        documentId: true,
+        trackingEnabled: true,
+        expiryDate: true,
+        expiryStatus: true,
+        updatedBy: true
+      }
+    })
+
+    if (profiles.length === 0) {
+      return {
+        updatedCount: 0,
+        settings
+      }
+    }
+
+    await prisma.$transaction(
+      profiles.map((profile) => prisma.documentExpiryProfile.update({
+        where: { id: profile.id },
+        data: {
+          expiringSoonDays: settings.expiringSoonDays,
+          reminder1Days: settings.reminder1Days,
+          reminder2Days: settings.reminder2Days,
+          reminder3Days: settings.reminder3Days,
+          reminder4Days: settings.reminder4Days,
+          expiryStatus: profile.trackingEnabled
+            ? this.calculateExpiryStatus(profile.expiryDate, settings.expiringSoonDays)
+            : profile.expiryStatus,
+          // Reset reminder checkpoints because each reminder slot now represents a new schedule.
+          lastReminder1SentAt: null,
+          lastReminder2SentAt: null,
+          lastReminder3SentAt: null,
+          lastReminder4SentAt: null,
+          updatedBy: userId || profile.updatedBy || null
+        }
+      }))
+    )
+
+    return {
+      updatedCount: profiles.length,
+      settings
+    }
   }
 
   async setTrackingEnabled(documentId, enabled, input = {}, userId) {
