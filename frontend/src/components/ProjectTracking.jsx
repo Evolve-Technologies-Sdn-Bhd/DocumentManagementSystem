@@ -845,71 +845,89 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
   }
 
   return (
-    <ModalShell title="Key In Change Request" onClose={onClose} maxWidthClass="max-w-6xl">
+    <ModalShell title="Key In Change Request" onClose={onClose} maxWidthClass="w-[98vw] max-w-[1700px]">
       <div className="space-y-4">
         <div className="text-sm text-ink-muted">
           Add approved changes for the selected project phase. Each row can be saved individually.
         </div>
-        <TableContainer>
-          <Table>
+        <TableContainer className="max-h-[60vh] overflow-y-auto">
+          <Table className="table-fixed">
             <thead>
               <Tr>
-                <Th>Change ID</Th>
-                <Th>Phase Ref</Th>
-                <Th>Description of Amendment</Th>
-                <Th>Impact (Cost / Schedule / Scope)</Th>
-                <Th>Authorized By</Th>
-                <Th>Compliance Sign-Off</Th>
-                <Th>Date Approved</Th>
-                <Th className="w-[140px]">Actions</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[110px] !px-3">Change ID *</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[120px] !px-3">Phase Ref</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[260px] !px-3">Description of Amendment *</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[220px] !px-3">Impact (Cost / Schedule / Scope)</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Authorized By</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[170px] !px-3">Compliance Sign-Off</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Date Approved</Th>
+                <Th className="sticky top-0 z-10 bg-surface w-[140px] !px-3">Actions</Th>
               </Tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <React.Fragment key={r.key}>
-                  <Tr>
-                    <Td>
-                      <TextInput value={r.changeId} onChange={(e) => updateRow(r.key, { changeId: e.target.value })} placeholder="CR-01" />
-                    </Td>
-                    <Td>
-                      <TextInput value={r.phaseRef} onChange={(e) => updateRow(r.key, { phaseRef: e.target.value })} placeholder="Phase 2" />
-                    </Td>
-                    <Td>
-                      <TextArea value={r.description} onChange={(e) => updateRow(r.key, { description: e.target.value })} rows={2} placeholder="Describe amendment..." />
-                    </Td>
-                    <Td>
-                      <TextArea value={r.impact} onChange={(e) => updateRow(r.key, { impact: e.target.value })} rows={2} placeholder="Impact..." />
-                    </Td>
-                    <Td>
-                      <TextInput value={r.authorizedBy} onChange={(e) => updateRow(r.key, { authorizedBy: e.target.value })} placeholder="Name" />
-                    </Td>
-                    <Td>
-                      <TextInput value={r.complianceSignOff} onChange={(e) => updateRow(r.key, { complianceSignOff: e.target.value })} placeholder="Signature / Ref" />
-                    </Td>
-                    <Td>
-                      <TextInput type="date" value={r.dateApproved} onChange={(e) => updateRow(r.key, { dateApproved: e.target.value })} />
-                    </Td>
-                    <Td>
-                      <div className="flex items-center gap-2">
-                        <Button type="button" disabled={r.saving} onClick={() => saveRow(r)}>
-                          {r.saving && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-                          {r.mode === 'edit' ? 'Update' : 'Save'}
-                        </Button>
-                        {r.mode === 'create' && (
-                          <Button type="button" variant="secondary" onClick={() => removeRow(r.key)} disabled={r.saving}>
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </Td>
-                  </Tr>
-                  {r.error && (
+              {rows.map((r) => {
+                const changeIdTrim = String(r.changeId || '').trim()
+                const descriptionTrim = String(r.description || '').trim()
+                const showRequired = Boolean(r.error) && /required/i.test(String(r.error))
+                const canSave = Boolean(changeIdTrim && descriptionTrim)
+
+                return (
+                  <React.Fragment key={r.key}>
                     <Tr>
-                      <Td colSpan={8} className="text-sm text-[var(--dms-color-danger-ink)]">{r.error}</Td>
+                      <Td className="!px-3">
+                        <TextInput
+                          value={r.changeId}
+                          onChange={(e) => updateRow(r.key, { changeId: e.target.value })}
+                          placeholder="CR-01"
+                          invalid={showRequired && !changeIdTrim}
+                        />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextInput value={r.phaseRef} onChange={(e) => updateRow(r.key, { phaseRef: e.target.value })} placeholder="Phase 2" />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextArea
+                          value={r.description}
+                          onChange={(e) => updateRow(r.key, { description: e.target.value })}
+                          rows={3}
+                          placeholder="Describe amendment..."
+                          invalid={showRequired && !descriptionTrim}
+                        />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextArea value={r.impact} onChange={(e) => updateRow(r.key, { impact: e.target.value })} rows={3} placeholder="Impact..." />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextInput value={r.authorizedBy} onChange={(e) => updateRow(r.key, { authorizedBy: e.target.value })} placeholder="Name" />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextInput value={r.complianceSignOff} onChange={(e) => updateRow(r.key, { complianceSignOff: e.target.value })} placeholder="Signature / Ref" />
+                      </Td>
+                      <Td className="!px-3">
+                        <TextInput type="date" value={r.dateApproved} onChange={(e) => updateRow(r.key, { dateApproved: e.target.value })} />
+                      </Td>
+                      <Td className="!px-3">
+                        <div className="flex items-center gap-2">
+                          <Button type="button" disabled={r.saving || !canSave} onClick={() => saveRow(r)}>
+                            {r.saving && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+                            {r.mode === 'edit' ? 'Update' : 'Save'}
+                          </Button>
+                          {r.mode === 'create' && (
+                            <Button type="button" variant="secondary" onClick={() => removeRow(r.key)} disabled={r.saving}>
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      </Td>
                     </Tr>
-                  )}
-                </React.Fragment>
-              ))}
+                    {r.error && (
+                      <Tr>
+                        <Td colSpan={8} className="text-sm text-[var(--dms-color-danger-ink)]">{r.error}</Td>
+                      </Tr>
+                    )}
+                  </React.Fragment>
+                )
+              })}
             </tbody>
           </Table>
         </TableContainer>
