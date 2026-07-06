@@ -1332,12 +1332,12 @@ export default function PublishedDocuments() {
           <AppSurface padding="lg" className="mb-6" data-tour-id="pub-actions-card">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               {/* Breadcrumbs */}
-              <div className="flex items-center gap-2 text-sm text-ink-muted">
+              <div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-ink-muted min-w-0">
                 {breadcrumbs.map((crumb, index) => (
                   <React.Fragment key={index}>
                     {index > 0 && <span>›</span>}
                     {index === breadcrumbs.length - 1 ? (
-                      <span className="font-medium text-ink">{crumb.name}</span>
+                      <span className="font-medium text-ink truncate max-w-[280px]">{crumb.name}</span>
                     ) : (
                       <button
                         type="button"
@@ -1347,7 +1347,7 @@ export default function PublishedDocuments() {
                           setBreadcrumbs(buildBreadcrumbs(id))
                           setCurrentPage(1)
                         }}
-                        className="hover:text-ink hover:underline"
+                        className="hover:text-ink hover:underline truncate max-w-[240px]"
                       >
                         {crumb.name}
                       </button>
@@ -1357,7 +1357,7 @@ export default function PublishedDocuments() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 justify-end">
                 <PermissionGate module="documents.published" action="create">
                   <Button
                     onClick={async () => {
@@ -1416,15 +1416,6 @@ export default function PublishedDocuments() {
                     className="border-brand text-brand hover:text-brand-hover"
                   >
                     {t('download_folder')}
-                  </Button>
-                )}
-                {canUpdatePublished && selectedCount > 0 && (
-                  <Button
-                    type="button"
-                    onClick={openMoveSelectedModal}
-                    variant="secondary"
-                  >
-                    Move Selected
                   </Button>
                 )}
               </div>
