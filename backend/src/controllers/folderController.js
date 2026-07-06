@@ -153,6 +153,50 @@ class FolderController {
     );
   });
 
+  bulkMoveFolders = asyncHandler(async (req, res) => {
+    const folderIds = Array.isArray(req.body?.folderIds) ? req.body.folderIds : [];
+    const destinationParentIdRaw = req.body?.destinationParentId;
+    const destinationParentId = destinationParentIdRaw ? parseInt(destinationParentIdRaw, 10) : null;
+
+    if (folderIds.length === 0) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'folderIds', message: 'At least one folder is required' }
+      ]);
+    }
+
+    if (!destinationParentId) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'destinationParentId', message: 'Destination folder is required' }
+      ]);
+    }
+
+    await folderPermissionService.assertCan(destinationParentId, req.user, 'create')
+
+    for (const folderIdRaw of folderIds) {
+      const folderId = parseInt(folderIdRaw, 10)
+      if (!Number.isFinite(folderId)) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'folderIds', message: 'Invalid folder id provided' }
+        ]);
+      }
+      await folderPermissionService.assertCan(folderId, req.user, 'edit')
+    }
+
+    const result = await folderService.bulkMoveFolders(folderIds, destinationParentId, req.user.id);
+
+    await auditLogService.logSystem(req.user.id, 'FOLDER_BULK_MOVE', 'Folder', req, {
+      folderIds: result.movedIds,
+      destinationParentId,
+      skippedNestedIds: result.skippedNestedIds
+    });
+
+    return ResponseFormatter.success(
+      res,
+      result,
+      'Folders moved successfully'
+    );
+  });
+
   /**
    * Update folder
    * PUT /api/folders/:id

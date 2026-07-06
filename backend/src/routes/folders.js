@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/', folderController.listFolders);
 router.get('/access/subjects', folderController.listAccessSubjects);
 router.post('/', folderController.createFolder);
+router.post('/bulk-move', folderController.bulkMoveFolders);
 router.put('/:id', folderController.updateFolder);
 router.delete('/:id/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), folderController.purgeFolder);
 router.delete('/:id', folderController.deleteFolder);

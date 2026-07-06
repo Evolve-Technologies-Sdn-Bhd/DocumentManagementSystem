@@ -120,12 +120,17 @@ class FolderService {
       }
     }
 
-    // Check for duplicate name if renaming
-    if (data.name && data.name !== folder.name) {
+    const nextName = data.name !== undefined ? data.name : folder.name
+    const nextParentId = data.parentId !== undefined ? data.parentId : folder.parentId
+    const nameChanged = nextName !== folder.name
+    const parentChanged = nextParentId !== folder.parentId
+
+    // Check for duplicate folder name when renaming or moving to another parent
+    if (nameChanged || parentChanged) {
       const existingFolder = await prisma.folder.findFirst({
         where: {
-          name: data.name,
-          parentId: data.parentId !== undefined ? data.parentId : folder.parentId,
+          name: nextName,
+          parentId: nextParentId,
           id: { not: folderId }
         }
       });
@@ -150,6 +155,61 @@ class FolderService {
     });
 
     return updatedFolder;
+  }
+
+  async bulkMoveFolders(folderIds, destinationParentId, userId) {
+    const normalizedIds = Array.isArray(folderIds)
+      ? Array.from(new Set(folderIds.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id))))
+      : []
+
+    if (normalizedIds.length === 0) {
+      throw new Error('At least one folder is required')
+    }
+
+    const selectedFolders = await prisma.folder.findMany({
+      where: { id: { in: normalizedIds } },
+      select: { id: true, parentId: true }
+    })
+
+    if (selectedFolders.length !== normalizedIds.length) {
+      throw new Error('One or more folders were not found')
+    }
+
+    const topLevelFolderIds = []
+    for (const folder of selectedFolders) {
+      let nestedInSelection = false
+      let currentParentId = folder.parentId
+      while (currentParentId) {
+        if (normalizedIds.includes(currentParentId)) {
+          nestedInSelection = true
+          break
+        }
+        const parent = await prisma.folder.findUnique({
+          where: { id: currentParentId },
+          select: { parentId: true }
+        })
+        currentParentId = parent?.parentId || null
+      }
+      if (!nestedInSelection) {
+        topLevelFolderIds.push(folder.id)
+      }
+    }
+
+    const moved = []
+    for (const folderId of topLevelFolderIds) {
+      const updated = await this.updateFolder(
+        folderId,
+        { parentId: destinationParentId },
+        userId
+      )
+      moved.push(updated)
+    }
+
+    return {
+      moved,
+      movedIds: moved.map((folder) => folder.id),
+      skippedNestedIds: normalizedIds.filter((id) => !topLevelFolderIds.includes(id))
+    }
   }
 
   /**

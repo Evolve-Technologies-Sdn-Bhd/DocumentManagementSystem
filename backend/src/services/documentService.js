@@ -1469,6 +1469,35 @@ class DocumentService {
     return updated;
   }
 
+  async bulkMoveDocuments(documentIds, destinationFolderId) {
+    const normalizedIds = Array.isArray(documentIds)
+      ? Array.from(new Set(documentIds.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id))))
+      : []
+
+    if (normalizedIds.length === 0) {
+      throw new BadRequestError('At least one document is required')
+    }
+
+    const documents = await prisma.document.findMany({
+      where: { id: { in: normalizedIds } },
+      select: { id: true, folderId: true, title: true, fileCode: true, status: true }
+    })
+
+    if (documents.length !== normalizedIds.length) {
+      throw new NotFoundError('One or more documents were not found')
+    }
+
+    await prisma.document.updateMany({
+      where: { id: { in: normalizedIds } },
+      data: { folderId: destinationFolderId }
+    })
+
+    return {
+      movedIds: normalizedIds,
+      documents
+    }
+  }
+
   /**
    * Delete document (soft delete by moving to archived)
    * @param {number} documentId - Document ID to delete
