@@ -42,6 +42,7 @@ router.post('/version-requests/:id/reject', versionRequestController.rejectReque
 router.delete('/version-requests/:id', versionRequestController.deleteRequest);
 
 router.post('/bulk-import', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), uploadDocument.array('files'), documentController.bulkImportPublished);
+router.post('/bulk-move', documentController.bulkMoveDocuments);
 
 // Document CRUD operations
 router.post('/', documentController.createDocument);

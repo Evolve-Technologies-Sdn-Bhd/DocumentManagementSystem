@@ -1283,6 +1283,66 @@ class DocumentController {
     );
   });
 
+  bulkMoveDocuments = asyncHandler(async (req, res) => {
+    const documentIds = Array.isArray(req.body?.documentIds) ? req.body.documentIds : [];
+    const destinationFolderIdRaw = req.body?.destinationFolderId;
+    const destinationFolderId = destinationFolderIdRaw ? parseInt(destinationFolderIdRaw, 10) : null;
+
+    if (documentIds.length === 0) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'documentIds', message: 'At least one document is required' }
+      ]);
+    }
+
+    if (!destinationFolderId) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'destinationFolderId', message: 'Destination folder is required' }
+      ]);
+    }
+
+    await folderPermissionService.assertCan(destinationFolderId, req.user, 'create')
+
+    const normalizedIds = Array.from(new Set(documentIds.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id))))
+    if (normalizedIds.length !== documentIds.length) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'documentIds', message: 'Invalid document id provided' }
+      ]);
+    }
+
+    const documents = await prisma.document.findMany({
+      where: { id: { in: normalizedIds } },
+      select: { id: true, folderId: true, title: true, fileCode: true }
+    })
+
+    if (documents.length !== normalizedIds.length) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'documentIds', message: 'One or more documents were not found' }
+      ]);
+    }
+
+    const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || [])
+    for (const document of documents) {
+      if (document.folderId) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'edit')
+      } else if (!isAdmin) {
+        return ResponseFormatter.error(res, 'Permission denied', 403)
+      }
+    }
+
+    const result = await documentService.bulkMoveDocuments(normalizedIds, destinationFolderId)
+
+    await auditLogService.logSystem(req.user.id, 'DOCUMENT_BULK_MOVE', 'Document', req, {
+      documentIds: result.movedIds,
+      destinationFolderId
+    })
+
+    return ResponseFormatter.success(
+      res,
+      result,
+      'Documents moved successfully'
+    );
+  });
+
   getConfidentialAccess = asyncHandler(async (req, res) => {
     const documentId = parseInt(req.params.id)
     const data = await confidentialAccessService.getDocumentAccess(documentId, req.user)

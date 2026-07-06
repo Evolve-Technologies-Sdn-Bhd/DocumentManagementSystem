@@ -72,6 +72,11 @@ export default function PublishedDocuments() {
 
   // Folder structure
   const [folders, setFolders] = useState([])
+  const [selectedItems, setSelectedItems] = useState({ folders: [], documents: [] })
+  const [showMoveModal, setShowMoveModal] = useState(false)
+  const [moveDestinationFolderId, setMoveDestinationFolderId] = useState('')
+  const [moveLoading, setMoveLoading] = useState(false)
+  const [moveError, setMoveError] = useState('')
 
   // Helper function to flatten folder hierarchy for display
   const flattenFolders = (folderList, level = 0, parentPath = []) => {
@@ -139,6 +144,7 @@ export default function PublishedDocuments() {
   const canCreateInSelected = Boolean(selectedFolderMeta?.canCreate)
   const canDownloadSelected = Boolean(selectedFolderMeta?.canDownload)
   const hasAnyCreatableFolder = useMemo(() => flatFolders.some((f) => Boolean(f.canCreate)), [flatFolders])
+  const canUpdatePublished = hasPermission('documents.published', 'update')
 
   useEffect(() => {
     loadFolders()
@@ -160,6 +166,10 @@ export default function PublishedDocuments() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedFolder])
+
+  useEffect(() => {
+    setSelectedItems({ folders: [], documents: [] })
+  }, [selectedFolder, searchQuery, currentPage, pageSize])
 
   const loadUserRole = () => {
     // Get user role from localStorage
@@ -293,6 +303,35 @@ export default function PublishedDocuments() {
     return findChildren(folders) || []
   }
 
+  const findFolderNode = (folderList, folderId) => {
+    const fid = toFolderId(folderId)
+    if (!fid) return null
+    for (const folder of folderList || []) {
+      if (toFolderId(folder.id) === fid) return folder
+      if (folder.children && folder.children.length > 0) {
+        const found = findFolderNode(folder.children, fid)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  const getDescendantFolderIds = (folderId) => {
+    const node = findFolderNode(folders, folderId)
+    if (!node) return []
+
+    const ids = []
+    const walk = (children) => {
+      for (const child of children || []) {
+        ids.push(child.id)
+        walk(child.children)
+      }
+    }
+
+    walk(node.children)
+    return ids
+  }
+
   const loadDocuments = async () => {
     try {
       setLoading(true)
@@ -307,7 +346,9 @@ export default function PublishedDocuments() {
         type: 'File folder',
         size: '-',
         lastModified: folder.createdAt ? formatDate(folder.createdAt) : '-',
-        status: '-'
+        status: '-',
+        canEdit: Boolean(folder.canEdit),
+        canManage: Boolean(folder.canManage)
       }))
 
       if (!selectedFolder && !hasSearch) {
@@ -686,9 +727,135 @@ export default function PublishedDocuments() {
     }
   }
 
+  const clearSelectedItems = () => {
+    setSelectedItems({ folders: [], documents: [] })
+  }
+
+  const toggleSelectedItem = (item, checked) => {
+    setSelectedItems((prev) => {
+      if (item.isFolder) {
+        const foldersSet = new Set(prev.folders)
+        if (checked) {
+          foldersSet.add(item.folderId)
+        } else {
+          foldersSet.delete(item.folderId)
+        }
+        return { ...prev, folders: Array.from(foldersSet) }
+      }
+
+      const documentsSet = new Set(prev.documents)
+      if (checked) {
+        documentsSet.add(item.id)
+      } else {
+        documentsSet.delete(item.id)
+      }
+      return { ...prev, documents: Array.from(documentsSet) }
+    })
+  }
+
   // Pagination
   const totalPages = Math.ceil(totalDocuments / pageSize)
   const currentDocuments = documents
+  const selectedFolderIds = selectedItems.folders
+  const selectedDocumentIds = selectedItems.documents
+  const selectedCount = selectedFolderIds.length + selectedDocumentIds.length
+  const allVisibleSelected = currentDocuments.length > 0 && currentDocuments.every((item) => (
+    item.isFolder
+      ? selectedFolderIds.includes(item.folderId)
+      : selectedDocumentIds.includes(item.id)
+  ))
+  const disallowedMoveDestinationIds = useMemo(() => {
+    const ids = new Set()
+    selectedFolderIds.forEach((folderId) => {
+      ids.add(folderId)
+      getDescendantFolderIds(folderId).forEach((childId) => ids.add(childId))
+    })
+    return ids
+  }, [selectedFolderIds, folders])
+  const moveDestinationOptions = useMemo(() => (
+    flatFolders.filter((folder) => folder.canCreate && !disallowedMoveDestinationIds.has(folder.id))
+  ), [flatFolders, disallowedMoveDestinationIds])
+  const selectionSummary = [
+    selectedFolderIds.length > 0 ? `${selectedFolderIds.length} folder${selectedFolderIds.length > 1 ? 's' : ''}` : null,
+    selectedDocumentIds.length > 0 ? `${selectedDocumentIds.length} document${selectedDocumentIds.length > 1 ? 's' : ''}` : null
+  ].filter(Boolean).join(' and ')
+
+  const handleToggleSelectAll = (checked) => {
+    if (!checked) {
+      clearSelectedItems()
+      return
+    }
+
+    setSelectedItems({
+      folders: currentDocuments.filter((item) => item.isFolder).map((item) => item.folderId),
+      documents: currentDocuments.filter((item) => !item.isFolder).map((item) => item.id)
+    })
+  }
+
+  const openMoveSelectedModal = () => {
+    if (selectedCount === 0) return
+    setMoveError('')
+    setMoveDestinationFolderId(moveDestinationOptions[0]?.id ? String(moveDestinationOptions[0].id) : '')
+    setShowMoveModal(true)
+  }
+
+  const closeMoveSelectedModal = () => {
+    setShowMoveModal(false)
+    setMoveDestinationFolderId('')
+    setMoveError('')
+  }
+
+  const handleMoveSelected = async () => {
+    const destinationFolderId = toFolderId(moveDestinationFolderId)
+    if (!destinationFolderId) {
+      setMoveError('Please select a destination folder')
+      return
+    }
+
+    if (selectedCount === 0) {
+      setMoveError('Please select at least one item to move')
+      return
+    }
+
+    setMoveLoading(true)
+    setMoveError('')
+
+    try {
+      if (selectedFolderIds.length > 0) {
+        await api.post('/folders/bulk-move', {
+          folderIds: selectedFolderIds,
+          destinationParentId: destinationFolderId
+        })
+      }
+
+      if (selectedDocumentIds.length > 0) {
+        await api.post('/documents/bulk-move', {
+          documentIds: selectedDocumentIds,
+          destinationFolderId
+        })
+      }
+
+      const list = await loadFolders()
+      if (selectedFolder) {
+        setBreadcrumbs(buildBreadcrumbsFrom(list || [], selectedFolder))
+        expandPathToFolder(selectedFolder)
+      }
+      await loadDocuments()
+      clearSelectedItems()
+      closeMoveSelectedModal()
+      setAlertModal({
+        show: true,
+        title: 'Success',
+        message: `${selectionSummary || 'Selected items'} moved successfully`,
+        type: 'success'
+      })
+    } catch (error) {
+      console.error('Failed to move selected items:', error)
+      setMoveError(error?.response?.data?.message || 'Failed to move selected items')
+    } finally {
+      setMoveLoading(false)
+    }
+  }
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
@@ -1251,6 +1418,15 @@ export default function PublishedDocuments() {
                     {t('download_folder')}
                   </Button>
                 )}
+                {canUpdatePublished && selectedCount > 0 && (
+                  <Button
+                    type="button"
+                    onClick={openMoveSelectedModal}
+                    variant="secondary"
+                  >
+                    Move Selected
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1269,12 +1445,41 @@ export default function PublishedDocuments() {
             </div>
           </AppSurface>
 
+          {canUpdatePublished && selectedCount > 0 && (
+            <AppSurface padding="md" className="mb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-ink-secondary">
+                  {selectionSummary || `${selectedCount} item${selectedCount > 1 ? 's' : ''}`} selected
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="secondary" onClick={clearSelectedItems}>
+                    Clear Selection
+                  </Button>
+                  <Button type="button" onClick={openMoveSelectedModal}>
+                    Move Selected
+                  </Button>
+                </div>
+              </div>
+            </AppSurface>
+          )}
+
           {/* Documents Table */}
           <AppSurface padding="none" className="overflow-hidden" data-tour-id="pub-docs-table">
             <TableContainer className="rounded-none border-0">
               <Table>
                 <thead className="bg-surface-muted">
                   <tr>
+                    {canUpdatePublished && (
+                      <Th className="w-12">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                          className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                          aria-label="Select all visible items"
+                        />
+                      </Th>
+                    )}
                     <Th>{t('file_code')}</Th>
                     <Th>{t('file_name')}</Th>
                     <Th>{t('type')}</Th>
@@ -1287,7 +1492,7 @@ export default function PublishedDocuments() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="py-10">
+                      <td colSpan={canUpdatePublished ? 8 : 7} className="py-10">
                         <div className="flex flex-col items-center gap-2">
                           <InlineSpinner className="h-8 w-8 border-2" />
                           <span className="text-sm text-ink-muted">{t('loading_documents')}</span>
@@ -1296,7 +1501,7 @@ export default function PublishedDocuments() {
                     </tr>
                   ) : currentDocuments.length === 0 ? (
                     <tr>
-                      <td colSpan="7">
+                      <td colSpan={canUpdatePublished ? 8 : 7}>
                         <EmptyState
                           message={searchQuery ? t('no_documents') : selectedFolder ? t('no_documents') : t('select_folder_view')}
                           description={searchQuery ? t('adjust_search') : selectedFolder ? t('no_published_in_folder') : t('click_folder_view')}
@@ -1333,6 +1538,17 @@ export default function PublishedDocuments() {
                           }
                         }}
                       >
+                        {canUpdatePublished && (
+                          <Td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={doc.isFolder ? selectedFolderIds.includes(doc.folderId) : selectedDocumentIds.includes(doc.id)}
+                              onChange={(e) => toggleSelectedItem(doc, e.target.checked)}
+                              className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                              aria-label={`Select ${doc.fileName}`}
+                            />
+                          </Td>
+                        )}
                         <Td>
                           <span className="font-medium text-ink">{doc.fileCode || '-'}</span>
                         </Td>
@@ -1810,6 +2026,62 @@ export default function PublishedDocuments() {
               disabled={createAccessLoading || parentFolderForSub === null || !String(newFolderName || '').trim()}
             >
               {createAccessLoading ? <><InlineSpinner className="h-4 w-4 border-2 border-white/40 border-t-white" /><span>Creating...</span></> : t('create')}
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {showMoveModal && (
+        <Modal onClose={closeMoveSelectedModal} closeOnBackdrop={!moveLoading} size="md">
+          <ModalHeader
+            title="Move Selected Items"
+            subtitle={selectionSummary || `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected`}
+            onClose={closeMoveSelectedModal}
+          />
+          <ModalBody className="space-y-4">
+            {moveError ? (
+              <AppSurface variant="muted" padding="md" className="border border-red-200 bg-red-50 text-sm text-red-700">
+                {moveError}
+              </AppSurface>
+            ) : null}
+
+            <AppSurface variant="muted" padding="md" className="text-sm text-ink-secondary">
+              Select the destination folder for the chosen folders and documents.
+            </AppSurface>
+
+            <div>
+              <label className="block text-sm font-medium text-ink-secondary mb-2">
+                Destination folder
+              </label>
+              <SelectField
+                value={moveDestinationFolderId}
+                onChange={(e) => setMoveDestinationFolderId(e.target.value)}
+                disabled={moveLoading || moveDestinationOptions.length === 0}
+              >
+                <option value="">Select a folder</option>
+                {moveDestinationOptions.map((folder) => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.path}
+                  </option>
+                ))}
+              </SelectField>
+              {moveDestinationOptions.length === 0 ? (
+                <p className="mt-2 text-sm text-amber-700">
+                  No valid destination folder is available for the selected items.
+                </p>
+              ) : null}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button type="button" variant="secondary" onClick={closeMoveSelectedModal} disabled={moveLoading}>
+              {t('cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleMoveSelected}
+              disabled={moveLoading || moveDestinationOptions.length === 0}
+            >
+              {moveLoading ? 'Moving...' : 'Move'}
             </Button>
           </ModalFooter>
         </Modal>
