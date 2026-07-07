@@ -1176,6 +1176,7 @@ const ThemeBranding = () => {
     textPrimary: '#111827',
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
+    textSoft: '#64748B',
     textDisabled: '#D1D5DB',
     borderLight: '#E5E7EB',
     borderMedium: '#D1D5DB',
@@ -1302,12 +1303,13 @@ const ThemeBranding = () => {
     let mounted = true
 
     const applyLoadedTheme = (savedTheme) => {
-      setTheme(savedTheme)
-      setOriginalTheme(savedTheme)
-      applyTheme(savedTheme)
-      if (savedTheme.mainLogo) setLogoPreview(savedTheme.mainLogo)
-      if (savedTheme.favicon) setFaviconPreview(savedTheme.favicon)
-      if (savedTheme.bgImage) setBgImagePreview(savedTheme.bgImage)
+      const mergedTheme = { ...theme, ...(savedTheme && typeof savedTheme === 'object' ? savedTheme : {}) }
+      setTheme(mergedTheme)
+      setOriginalTheme(mergedTheme)
+      applyTheme(mergedTheme)
+      if (mergedTheme.mainLogo) setLogoPreview(mergedTheme.mainLogo)
+      if (mergedTheme.favicon) setFaviconPreview(mergedTheme.favicon)
+      if (mergedTheme.bgImage) setBgImagePreview(mergedTheme.bgImage)
     }
 
     const load = async () => {
@@ -1504,6 +1506,7 @@ const ThemeBranding = () => {
       textPrimary: '#111827',
       textSecondary: '#6B7280',
       textMuted: '#9CA3AF',
+      textSoft: '#64748B',
       textDisabled: '#D1D5DB',
       borderLight: '#E5E7EB',
       borderMedium: '#D1D5DB',
@@ -2686,6 +2689,7 @@ const ThemeBranding = () => {
                 { key: 'textPrimary', label: 'Primary Text' },
                 { key: 'textSecondary', label: 'Secondary Text' },
                 { key: 'textMuted', label: 'Muted Text' },
+                { key: 'textSoft', label: 'Soft Text' },
                 { key: 'textDisabled', label: 'Disabled Text' }
               ].map(({ key, label }) => (
                 <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />

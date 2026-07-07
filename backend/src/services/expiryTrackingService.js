@@ -27,6 +27,55 @@ class ExpiryTrackingService {
     return Math.round((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
   }
 
+  getReminderWindowStart(expiryDate, thresholdDays) {
+    const target = this.startOfDay(expiryDate)
+    const threshold = Math.max(0, parseInt(thresholdDays, 10) || 0)
+    const start = new Date(target)
+    start.setDate(start.getDate() - threshold)
+    return this.startOfDay(start)
+  }
+
+  async processStatusAndRemindersForDocument(documentId) {
+    const profile = await prisma.documentExpiryProfile.findUnique({
+      where: { documentId: parseInt(documentId, 10) },
+      include: {
+        document: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                status: true
+              }
+            }
+          }
+        },
+        watchers: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                status: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!profile || !profile.trackingEnabled || !profile.expiryDate) return
+    await this.processProfileStatusAndReminders(profile)
+  }
+
+  queueImmediateReminderProcessing(documentId) {
+    setImmediate(async () => {
+      try {
+        await this.processStatusAndRemindersForDocument(documentId)
+      } catch (error) {
+        console.error('Expiry tracking immediate processor failed:', error)
+      }
+    })
+  }
+
   calculateExpiryStatus(expiryDate, expiringSoonDays) {
     if (!expiryDate) return 'ACTIVE'
     const today = this.startOfDay(new Date())
@@ -184,6 +233,14 @@ class ExpiryTrackingService {
       return null
     }
 
+    const shouldResetReminders = (() => {
+      if (!existingProfile) return false
+      if (!existingProfile.trackingEnabled && profileData.trackingEnabled) return true
+      const prevExpiry = existingProfile.expiryDate ? this.startOfDay(existingProfile.expiryDate).getTime() : null
+      const nextExpiry = profileData.expiryDate ? this.startOfDay(profileData.expiryDate).getTime() : null
+      return prevExpiry !== nextExpiry
+    })()
+
     const saved = existingProfile
       ? await prisma.documentExpiryProfile.update({
           where: { documentId: document.id },
@@ -206,6 +263,12 @@ class ExpiryTrackingService {
             trackingDisabledAt: profileData.trackingDisabledAt,
             trackingDisabledBy: profileData.trackingDisabledBy,
             trackingDisabledReason: profileData.trackingDisabledReason,
+            ...(shouldResetReminders ? {
+              lastReminder1SentAt: null,
+              lastReminder2SentAt: null,
+              lastReminder3SentAt: null,
+              lastReminder4SentAt: null
+            } : {}),
             updatedBy: profileData.updatedBy
           }
         })
@@ -231,6 +294,10 @@ class ExpiryTrackingService {
             updatedBy: profileData.updatedBy
           }
         })
+
+    if (profileData.trackingEnabled && profileData.expiryDate) {
+      this.queueImmediateReminderProcessing(saved.documentId)
+    }
 
     return this.getProfile(saved.documentId)
   }
@@ -929,6 +996,99 @@ class ExpiryTrackingService {
     return result.records
   }
 
+  async processProfileStatusAndReminders(profile) {
+    const computedStatus = this.calculateExpiryStatus(profile.expiryDate, profile.expiringSoonDays)
+    const daysLeft = this.getDaysLeft(profile.expiryDate)
+    const updateData = {}
+    const recipients = new Set()
+    if (profile.document?.ownerId && profile.document?.owner?.status === 'ACTIVE') {
+      recipients.add(profile.document.ownerId)
+    }
+    if (Array.isArray(profile.watchers)) {
+      for (const w of profile.watchers) {
+        if (w?.userId && w.user?.status === 'ACTIVE') {
+          recipients.add(w.userId)
+        }
+      }
+    }
+
+    if (computedStatus !== profile.expiryStatus) {
+      updateData.expiryStatus = computedStatus
+    }
+
+    const reminderMap = [
+      { field: 'lastReminder1SentAt', threshold: profile.reminder1Days },
+      { field: 'lastReminder2SentAt', threshold: profile.reminder2Days },
+      { field: 'lastReminder3SentAt', threshold: profile.reminder3Days },
+      { field: 'lastReminder4SentAt', threshold: profile.reminder4Days }
+    ]
+
+    for (const reminder of reminderMap) {
+      if (!Number.isFinite(reminder.threshold)) continue
+      if (!Number.isFinite(daysLeft)) continue
+      if (daysLeft < 0) continue
+      if (daysLeft > reminder.threshold) continue
+
+      const windowStart = this.getReminderWindowStart(profile.expiryDate, reminder.threshold)
+      const sentAt = profile[reminder.field]
+      const alreadySentForWindow = sentAt
+        ? this.startOfDay(sentAt).getTime() >= windowStart.getTime()
+        : false
+
+      if (!alreadySentForWindow) {
+        updateData[reminder.field] = new Date()
+        for (const recipientId of recipients) {
+          await notificationService.sendNotification(
+            recipientId,
+            'documentExpiring',
+            'Document Expiry Reminder',
+            `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) is due to expire in ${daysLeft} day(s).`,
+            '/expiry-tracking',
+            {
+              subject: `Document Expiry Reminder - ${profile.document?.fileCode || 'DMS'}`,
+              title: profile.document?.title || 'Document Expiry Reminder',
+              fileCode: profile.document?.fileCode || '',
+              daysLeft,
+              expiryDate: profile.expiryDate,
+              link: notificationService.buildAbsoluteLink('/expiry-tracking')
+            }
+          )
+        }
+      }
+    }
+
+    const expiredAlreadySentToday = profile.lastReminder4SentAt
+      ? this.startOfDay(profile.lastReminder4SentAt).getTime() === this.startOfDay(new Date()).getTime()
+      : false
+    if (Number.isFinite(daysLeft) && daysLeft < 0 && !expiredAlreadySentToday) {
+      updateData.lastReminder4SentAt = new Date()
+      for (const recipientId of recipients) {
+        await notificationService.sendNotification(
+          recipientId,
+          'documentExpired',
+          'Document Expired',
+          `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) has already expired.`,
+          '/expiry-tracking',
+          {
+            subject: `Document Expired - ${profile.document?.fileCode || 'DMS'}`,
+            title: profile.document?.title || 'Document Expired',
+            fileCode: profile.document?.fileCode || '',
+            daysLeft,
+            expiryDate: profile.expiryDate,
+            link: notificationService.buildAbsoluteLink('/expiry-tracking')
+          }
+        )
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.documentExpiryProfile.update({
+        where: { id: profile.id },
+        data: updateData
+      })
+    }
+  }
+
   async processDailyStatusAndReminders() {
     const profiles = await prisma.documentExpiryProfile.findMany({
       where: {
@@ -960,83 +1120,7 @@ class ExpiryTrackingService {
     })
 
     for (const profile of profiles) {
-      const computedStatus = this.calculateExpiryStatus(profile.expiryDate, profile.expiringSoonDays)
-      const daysLeft = this.getDaysLeft(profile.expiryDate)
-      const updateData = {}
-      const recipients = new Set()
-      if (profile.document?.ownerId && profile.document?.owner?.status === 'ACTIVE') {
-        recipients.add(profile.document.ownerId)
-      }
-      if (Array.isArray(profile.watchers)) {
-        for (const w of profile.watchers) {
-          if (w?.userId && w.user?.status === 'ACTIVE') {
-            recipients.add(w.userId)
-          }
-        }
-      }
-
-      if (computedStatus !== profile.expiryStatus) {
-        updateData.expiryStatus = computedStatus
-      }
-
-      const reminderMap = [
-        { field: 'lastReminder1SentAt', threshold: profile.reminder1Days },
-        { field: 'lastReminder2SentAt', threshold: profile.reminder2Days },
-        { field: 'lastReminder3SentAt', threshold: profile.reminder3Days },
-        { field: 'lastReminder4SentAt', threshold: profile.reminder4Days }
-      ]
-
-      for (const reminder of reminderMap) {
-        if (!Number.isFinite(reminder.threshold)) continue
-        const alreadySent = profile[reminder.field] ? this.startOfDay(profile[reminder.field]).getTime() === this.startOfDay(new Date()).getTime() : false
-        if (!alreadySent && daysLeft === reminder.threshold) {
-          updateData[reminder.field] = new Date()
-          for (const recipientId of recipients) {
-            await notificationService.sendNotification(
-              recipientId,
-              'documentExpiring',
-              'Document Expiry Reminder',
-              `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) is due to expire in ${daysLeft} day(s).`,
-              '/expiry-tracking',
-              {
-                subject: `Document Expiry Reminder - ${profile.document?.fileCode || 'DMS'}`,
-                title: profile.document?.title || 'Document Expiry Reminder',
-                fileCode: profile.document?.fileCode || '',
-                daysLeft,
-                expiryDate: profile.expiryDate,
-                link: notificationService.buildAbsoluteLink('/expiry-tracking')
-              }
-            )
-          }
-        }
-      }
-
-      if (daysLeft < 0 && (!profile.lastReminder4SentAt || this.startOfDay(profile.lastReminder4SentAt).getTime() !== this.startOfDay(new Date()).getTime())) {
-        for (const recipientId of recipients) {
-          await notificationService.sendNotification(
-            recipientId,
-            'documentExpired',
-            'Document Expired',
-            `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) has already expired.`,
-            '/expiry-tracking',
-            {
-              subject: `Document Expired - ${profile.document?.fileCode || 'DMS'}`,
-              title: profile.document?.title || 'Document Expired',
-              fileCode: profile.document?.fileCode || '',
-              daysLeft,
-              expiryDate: profile.expiryDate,
-              link: notificationService.buildAbsoluteLink('/expiry-tracking')
-            }
-          )
-        }
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await prisma.documentExpiryProfile.update({
-          where: { id: profile.id },
-          data: updateData
-        })
-      }
+      await this.processProfileStatusAndReminders(profile)
     }
   }
 }

@@ -182,6 +182,9 @@ export function applyTheme(themeObj) {
     root.style.setProperty('--dms-text-muted', themeObj.textMuted)
     root.style.setProperty('--dms-color-text-muted', themeObj.textMuted)
   }
+  if (!isDark && themeObj.textSoft) {
+    root.style.setProperty('--dms-color-text-soft', themeObj.textSoft)
+  }
   if (!isDark && themeObj.textDisabled) {
     root.style.setProperty('--dms-text-disabled', themeObj.textDisabled)
   }
