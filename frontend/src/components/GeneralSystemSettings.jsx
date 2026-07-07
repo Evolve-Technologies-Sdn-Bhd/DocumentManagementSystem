@@ -1524,12 +1524,11 @@ const ThemeBranding = () => {
       setOriginalTheme(savedTheme)
       setShowConfirmModal(false)
       setHasChanges(false)
+      alert('Theme changes saved successfully')
       return
-    } catch {}
-    persistBranding({ theme })
-    setOriginalTheme(theme)
-    setShowConfirmModal(false)
-    setHasChanges(false)
+    } catch (error) {
+      alert(error?.response?.data?.message || error?.message || 'Failed to save theme changes')
+    }
   }
 
   const handleRevertChanges = () => {
@@ -2437,11 +2436,11 @@ const ThemeBranding = () => {
     <div className="space-y-6">
       {/* Confirmation Modal */}
       {showConfirmModal && hasChanges && (
-        <Modal onClose={handleKeepChanges} size="sm">
+        <Modal onClose={handleRevertChanges} size="sm">
           <ModalHeader
             title="Keep Theme Changes?"
             subtitle="You've made changes to the theme. Would you like to keep these changes or revert to the previous theme?"
-            onClose={handleKeepChanges}
+            onClose={handleRevertChanges}
           />
           <ModalBody>
             <div className="flex items-start gap-4">
