@@ -11,6 +11,7 @@ import Pagination from './Pagination'
 import { PermissionGate } from './PermissionGate'
 import { hasPermission } from '../utils/permissions'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
+import ShareDocumentModal from './ShareDocumentModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
@@ -63,6 +64,7 @@ export default function PublishedDocuments() {
   const [inheritPermissions, setInheritPermissions] = useState(true)
   const [accessEntries, setAccessEntries] = useState([])
   const [subjects, setSubjects] = useState({ users: [], roles: [] })
+  const [showShareDocument, setShowShareDocument] = useState(null)
 
   const [createAccessMode, setCreateAccessMode] = useState('PUBLIC')
   const [createInheritPermissions, setCreateInheritPermissions] = useState(true)
@@ -1563,7 +1565,8 @@ export default function PublishedDocuments() {
                                 ...(hasPermission('documents.published', 'read')
                                   ? [
                                       ...(doc.canDownload ? [{ label: t('download'), onClick: () => handleDownload(doc) }] : []),
-                                      { label: t('view'), onClick: () => handleView(doc) }
+                                      { label: t('view'), onClick: () => handleView(doc) },
+                                      { label: 'Share', onClick: () => setShowShareDocument(doc) }
                                     ]
                                   : []
                                 ),
@@ -2090,6 +2093,12 @@ export default function PublishedDocuments() {
       )}
       
       {/* Supersede/Obsolete Modal */}
+      <ShareDocumentModal
+        open={Boolean(showShareDocument)}
+        document={showShareDocument}
+        onClose={() => setShowShareDocument(null)}
+      />
+
       {showSupersedeObsoleteModal && selectedDocument && (
         <SupersedeObsoleteModal
           isOpen={showSupersedeObsoleteModal}

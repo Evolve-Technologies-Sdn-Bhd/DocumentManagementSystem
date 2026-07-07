@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import Timeline from '@mui/lab/Timeline'
+import TimelineConnector from '@mui/lab/TimelineConnector'
+import TimelineContent from '@mui/lab/TimelineContent'
+import TimelineDot from '@mui/lab/TimelineDot'
+import TimelineItem, { timelineItemClasses } from '@mui/lab/TimelineItem'
+import TimelineSeparator from '@mui/lab/TimelineSeparator'
 import api from '../api/axios'
 import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
+import ShareDocumentModal from './ShareDocumentModal'
 import { hasPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
@@ -1643,7 +1650,16 @@ function ProjectStageBulletTimeline({
   }
 
   return (
-    <div className="space-y-0">
+    <Timeline
+      sx={{
+        p: 0,
+        m: 0,
+        [`& .${timelineItemClasses.root}:before`]: {
+          flex: 0,
+          padding: 0
+        }
+      }}
+    >
       {ordered.map((stage, index) => {
         const state =
           currentIndex >= 0
@@ -1654,19 +1670,12 @@ function ProjectStageBulletTimeline({
                 : 'upcoming'
             : 'upcoming'
 
-        const bulletTone =
-          state === 'done'
-            ? 'border-[var(--dms-color-success-ink)] bg-[var(--dms-color-success-ink)]'
-            : state === 'current'
-              ? 'border-brand bg-brand'
-              : 'border-border-strong bg-surface'
-
         const lineTone =
           state === 'done'
-            ? 'bg-[var(--dms-color-success-ink)]/30'
+            ? 'var(--dms-color-success-ink)'
             : state === 'current'
-              ? 'bg-brand/25'
-              : 'bg-border'
+              ? 'var(--dms-color-brand)'
+              : 'var(--dms-color-border)'
 
         const cardTone =
           state === 'done'
@@ -1685,18 +1694,62 @@ function ProjectStageBulletTimeline({
         const badgeLabel = state === 'done' ? 'Completed' : state === 'current' ? 'Current' : 'Upcoming'
         const stageDocuments = documentsByStage.get(stage.id) || []
         const isExpanded = expandedStageIds.includes(String(stage.id))
+        const dotVariant = state === 'upcoming' ? 'outlined' : 'filled'
+        const dotSx =
+          state === 'done'
+            ? {
+                borderColor: 'var(--dms-color-success-ink)',
+                backgroundColor: 'var(--dms-color-success-ink)',
+                boxShadow: 'none'
+              }
+            : state === 'current'
+              ? {
+                  borderColor: 'var(--dms-color-brand)',
+                  backgroundColor: 'var(--dms-color-brand)',
+                  boxShadow: '0 0 0 6px rgba(59,130,246,0.12)'
+                }
+              : {
+                  borderColor: 'var(--dms-color-border-strong)',
+                  backgroundColor: 'var(--dms-color-surface)',
+                  boxShadow: 'none'
+                }
 
         return (
-          <div key={stage.id} className={`relative grid grid-cols-[20px_minmax(0,1fr)] gap-4 ${index === ordered.length - 1 ? '' : 'pb-4'}`}>
-            <div className="relative flex justify-center">
-              {index < ordered.length - 1 && <div className={`absolute left-1/2 top-4 bottom-[-1rem] w-0.5 -translate-x-1/2 ${lineTone}`} />}
-              <div
-                className={`relative z-[1] mt-1 h-3.5 w-3.5 rounded-full border-2 ${bulletTone} ${
-                  state === 'current' ? 'ring-4 ring-brand/15' : ''
-                }`}
+          <TimelineItem
+            key={stage.id}
+            sx={{
+              alignItems: 'stretch',
+              minHeight: 'unset',
+              '&:not(:last-child)': {
+                pb: 2
+              }
+            }}
+          >
+            <TimelineSeparator sx={{ mr: 2, minWidth: '20px' }}>
+              <TimelineDot
+                variant={dotVariant}
+                sx={{
+                  my: 0.5,
+                  mx: 0,
+                  p: 0,
+                  width: '14px',
+                  height: '14px',
+                  borderWidth: '2px',
+                  ...dotSx
+                }}
               />
-            </div>
-            <div>
+              {index < ordered.length - 1 ? (
+                <TimelineConnector
+                  sx={{
+                    width: '2px',
+                    borderRadius: '9999px',
+                    backgroundColor: lineTone,
+                    opacity: state === 'upcoming' ? 0.6 : 0.28
+                  }}
+                />
+              ) : null}
+            </TimelineSeparator>
+            <TimelineContent sx={{ py: 0, px: 0, minWidth: 0 }}>
               <div className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${cardTone}`}>
                 <div>
                   <div className="text-sm font-semibold text-ink">{stage.label}</div>
@@ -1775,11 +1828,11 @@ function ProjectStageBulletTimeline({
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </TimelineContent>
+          </TimelineItem>
         )
       })}
-    </div>
+    </Timeline>
   )
 }
 
@@ -2308,6 +2361,7 @@ function ProjectDetail({ projectId }) {
   const [showActivity, setShowActivity] = useState(false)
   const [showEditProject, setShowEditProject] = useState(false)
   const [showProjectControls, setShowProjectControls] = useState(false)
+  const [showShareDocument, setShowShareDocument] = useState(null)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [advancing, setAdvancing] = useState(false)
@@ -3378,9 +3432,18 @@ function ProjectDetail({ projectId }) {
                       </Td>
                       <Td align="right">
                         {canInteractWithDocument(entry.document) ? (
-                          <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
-                            {getDocumentDirectoryLabel(entry.document)}
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-3">
+                            <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
+                              {getDocumentDirectoryLabel(entry.document)}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowShareDocument(entry.document)}
+                              className="text-ink-secondary hover:text-ink hover:underline"
+                            >
+                              Share
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
                         )}
@@ -3719,6 +3782,13 @@ function ProjectDetail({ projectId }) {
                                       >
                                         {getDocumentDirectoryLabel(l.document)}
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowShareDocument(l.document)}
+                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                      >
+                                        Share
+                                      </button>
                                     </>
                                   ) : (
                                     <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
@@ -3970,6 +4040,12 @@ function ProjectDetail({ projectId }) {
           }}
         />
       )}
+
+      <ShareDocumentModal
+        open={Boolean(showShareDocument)}
+        document={showShareDocument}
+        onClose={() => setShowShareDocument(null)}
+      />
 
       <ConfirmModal
         show={confirmModal.show}

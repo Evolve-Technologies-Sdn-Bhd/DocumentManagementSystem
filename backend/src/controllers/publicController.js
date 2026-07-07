@@ -215,6 +215,10 @@ exports.getLandingPageSettings = asyncHandler(async (req, res) => {
 });
 
 exports.getBranding = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   const [companyConfig, themeConfig] = await Promise.all([
     prisma.configuration.findUnique({ where: { key: 'company_info' } }),
     prisma.configuration.findUnique({ where: { key: 'theme_settings' } })

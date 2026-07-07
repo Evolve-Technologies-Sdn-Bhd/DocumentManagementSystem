@@ -12,6 +12,7 @@ const prisma = require('../config/database');
 const documentAssignmentService = require('../services/documentAssignmentService');
 const confidentialAccessService = require('../services/confidentialAccessService')
 const folderService = require('../services/folderService')
+const documentShareLinkService = require('../services/documentShareLinkService')
 
 const resolveExistingFilePath = (storedPath) => {
   const raw = String(storedPath || '').trim()
@@ -1628,6 +1629,96 @@ class DocumentController {
 
     return res.sendFile(absolutePath);
   });
+
+  createShareLink = asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.id)
+    if (!Number.isFinite(documentId)) {
+      return ResponseFormatter.validationError(res, [{ field: 'id', message: 'Invalid document id' }])
+    }
+
+    const document = await documentService.getDocumentById(documentId, req.user)
+    if (document?.folderId) {
+      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+    }
+
+    const status = String(document?.status || '').toUpperCase()
+    const stage = String(document?.stage || '').toUpperCase()
+    if (status !== 'PUBLISHED' && stage !== 'PUBLISHED') {
+      return ResponseFormatter.error(res, 'Only published documents can be shared publicly', 400)
+    }
+    if (document?.isConfidential) {
+      return ResponseFormatter.error(res, 'Confidential documents cannot be shared publicly', 400)
+    }
+
+    const { expiresAt } = req.body || {}
+    const { link, token } = await documentShareLinkService.createLink({
+      documentId,
+      createdById: req.user.id,
+      expiresAt
+    })
+
+    const origin = `${req.protocol}://${req.get('host')}`
+    const publicPreviewUrl = `${origin}/api/public/share/${encodeURIComponent(token)}/preview`
+
+    await auditLogService.logDocument(req.user.id, 'SHARE_LINK_CREATE', document, req, {
+      shareLinkId: link.id,
+      expiresAt: link.expiresAt
+    })
+
+    return ResponseFormatter.success(
+      res,
+      {
+        link: {
+          id: link.id,
+          documentId: link.documentId,
+          createdById: link.createdById,
+          expiresAt: link.expiresAt,
+          revokedAt: link.revokedAt,
+          createdAt: link.createdAt
+        },
+        token,
+        publicPreviewUrl
+      },
+      'Share link created successfully',
+      201
+    )
+  })
+
+  listShareLinks = asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.id)
+    if (!Number.isFinite(documentId)) {
+      return ResponseFormatter.validationError(res, [{ field: 'id', message: 'Invalid document id' }])
+    }
+
+    const document = await documentService.getDocumentById(documentId, req.user)
+    if (document?.folderId) {
+      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+    }
+
+    const links = await documentShareLinkService.listLinks({ documentId })
+    return ResponseFormatter.success(res, { links }, 'Share links retrieved successfully')
+  })
+
+  revokeShareLink = asyncHandler(async (req, res) => {
+    const documentId = parseInt(req.params.id)
+    if (!Number.isFinite(documentId)) {
+      return ResponseFormatter.validationError(res, [{ field: 'id', message: 'Invalid document id' }])
+    }
+
+    const document = await documentService.getDocumentById(documentId, req.user)
+    if (document?.folderId) {
+      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+    }
+
+    const linkId = req.params.linkId
+    const link = await documentShareLinkService.revokeLink({ documentId, linkId })
+
+    await auditLogService.logDocument(req.user.id, 'SHARE_LINK_REVOKE', document, req, {
+      shareLinkId: link.id
+    })
+
+    return ResponseFormatter.success(res, { link }, 'Share link revoked successfully')
+  })
 
   /**
    * Add comment to document
