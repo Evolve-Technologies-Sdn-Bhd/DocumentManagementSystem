@@ -5,6 +5,11 @@ const notificationService = require('./notificationService')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
 
 class ExpiryTrackingService {
+  formatUserDisplay(user) {
+    if (!user) return ''
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
+  }
+
   startOfDay(value = new Date()) {
     const date = new Date(value)
     date.setHours(0, 0, 0, 0)
@@ -44,8 +49,19 @@ class ExpiryTrackingService {
             owner: {
               select: {
                 id: true,
-                status: true
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true
               }
+            },
+            versions: {
+              select: {
+                fileName: true,
+                uploadedAt: true
+              },
+              orderBy: { uploadedAt: 'desc' },
+              take: 1
             }
           }
         },
@@ -54,7 +70,10 @@ class ExpiryTrackingService {
             user: {
               select: {
                 id: true,
-                status: true
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true
               }
             }
           }
@@ -1000,17 +1019,28 @@ class ExpiryTrackingService {
     const computedStatus = this.calculateExpiryStatus(profile.expiryDate, profile.expiringSoonDays)
     const daysLeft = this.getDaysLeft(profile.expiryDate)
     const updateData = {}
+    const fileName = profile.document?.versions?.[0]?.fileName || null
+    const subjectLabel = fileName || profile.document?.title || profile.document?.fileCode || 'DMS'
+    const ownerName = this.formatUserDisplay(profile.document?.owner) || 'Unknown'
+    const lastUploadAt = profile.document?.versions?.[0]?.uploadedAt || null
     const recipients = new Set()
+    const recipientUsers = new Map()
     if (profile.document?.ownerId && profile.document?.owner?.status === 'ACTIVE') {
       recipients.add(profile.document.ownerId)
+      recipientUsers.set(profile.document.ownerId, profile.document.owner)
     }
     if (Array.isArray(profile.watchers)) {
       for (const w of profile.watchers) {
         if (w?.userId && w.user?.status === 'ACTIVE') {
           recipients.add(w.userId)
+          recipientUsers.set(w.userId, w.user)
         }
       }
     }
+    const allRecipientNames = Array.from(recipients)
+      .map((recipientId) => this.formatUserDisplay(recipientUsers.get(recipientId)))
+      .filter(Boolean)
+    const documentLink = `/documents/${profile.document?.id || profile.documentId}`
 
     if (computedStatus !== profile.expiryStatus) {
       updateData.expiryStatus = computedStatus
@@ -1023,36 +1053,36 @@ class ExpiryTrackingService {
       { field: 'lastReminder4SentAt', threshold: profile.reminder4Days }
     ]
 
-    for (const reminder of reminderMap) {
-      if (!Number.isFinite(reminder.threshold)) continue
-      if (!Number.isFinite(daysLeft)) continue
-      if (daysLeft < 0) continue
-      if (daysLeft > reminder.threshold) continue
-
-      const windowStart = this.getReminderWindowStart(profile.expiryDate, reminder.threshold)
-      const sentAt = profile[reminder.field]
-      const alreadySentForWindow = sentAt
-        ? this.startOfDay(sentAt).getTime() >= windowStart.getTime()
-        : false
-
-      if (!alreadySentForWindow) {
-        updateData[reminder.field] = new Date()
-        for (const recipientId of recipients) {
-          await notificationService.sendNotification(
-            recipientId,
-            'documentExpiring',
-            'Document Expiry Reminder',
-            `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) is due to expire in ${daysLeft} day(s).`,
-            '/expiry-tracking',
-            {
-              subject: `Document Expiry Reminder - ${profile.document?.fileCode || 'DMS'}`,
-              title: profile.document?.title || 'Document Expiry Reminder',
-              fileCode: profile.document?.fileCode || '',
-              daysLeft,
-              expiryDate: profile.expiryDate,
-              link: notificationService.buildAbsoluteLink('/expiry-tracking')
-            }
-          )
+    if (Number.isFinite(daysLeft) && daysLeft >= 0) {
+      const eligible = reminderMap
+        .filter((r) => Number.isFinite(r.threshold))
+        .sort((a, b) => a.threshold - b.threshold)
+      const selected = eligible.find((r) => daysLeft <= r.threshold) || null
+      if (selected) {
+        const windowStart = this.getReminderWindowStart(profile.expiryDate, selected.threshold)
+        const sentAt = profile[selected.field]
+        const alreadySentForWindow = sentAt
+          ? this.startOfDay(sentAt).getTime() >= windowStart.getTime()
+          : false
+        if (!alreadySentForWindow) {
+          updateData[selected.field] = new Date()
+          for (const recipientId of recipients) {
+            await notificationService.sendNotification(
+              recipientId,
+              'documentExpiring',
+              'Document Expiry Reminder',
+              `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) is due to expire in ${daysLeft} day(s).`,
+              documentLink,
+              {
+                subject: `Document Expiry Reminder - ${subjectLabel}`,
+                title: profile.document?.title || 'Document Expiry Reminder',
+                fileCode: profile.document?.fileCode || '',
+                daysLeft,
+                expiryDate: profile.expiryDate,
+                link: notificationService.buildAbsoluteLink(documentLink)
+              }
+            )
+          }
         }
       }
     }
@@ -1063,19 +1093,28 @@ class ExpiryTrackingService {
     if (Number.isFinite(daysLeft) && daysLeft < 0 && !expiredAlreadySentToday) {
       updateData.lastReminder4SentAt = new Date()
       for (const recipientId of recipients) {
+        const recipientUser = recipientUsers.get(recipientId)
         await notificationService.sendNotification(
           recipientId,
           'documentExpired',
           'Document Expired',
           `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) has already expired.`,
-          '/expiry-tracking',
+          documentLink,
           {
-            subject: `Document Expired - ${profile.document?.fileCode || 'DMS'}`,
+            subject: `Document Expired - ${subjectLabel}`,
             title: profile.document?.title || 'Document Expired',
+            documentId: profile.document?.id || profile.documentId,
             fileCode: profile.document?.fileCode || '',
+            fileName: fileName || '',
+            ownerName,
             daysLeft,
+            expiredDays: Math.abs(daysLeft),
             expiryDate: profile.expiryDate,
-            link: notificationService.buildAbsoluteLink('/expiry-tracking')
+            lastUploadAt,
+            recipientName: this.formatUserDisplay(recipientUser) || '',
+            recipientEmail: recipientUser?.email || '',
+            notifiedRecipients: allRecipientNames,
+            link: notificationService.buildAbsoluteLink(documentLink)
           }
         )
       }
@@ -1101,8 +1140,19 @@ class ExpiryTrackingService {
             owner: {
               select: {
                 id: true,
-                status: true
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true
               }
+            },
+            versions: {
+              select: {
+                fileName: true,
+                uploadedAt: true
+              },
+              orderBy: { uploadedAt: 'desc' },
+              take: 1
             }
           }
         },
@@ -1111,7 +1161,10 @@ class ExpiryTrackingService {
             user: {
               select: {
                 id: true,
-                status: true
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true
               }
             }
           }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import mammoth from 'mammoth'
 import useDocxFitToWidth from '../hooks/useDocxFitToWidth'
 
@@ -142,7 +143,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
     }
   }
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -268,4 +269,6 @@ export default function TemplatePreviewModal({ template, onClose }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

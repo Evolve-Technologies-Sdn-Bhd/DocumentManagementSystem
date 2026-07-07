@@ -13,6 +13,10 @@ module.exports = {
           muted: 'var(--dms-color-bg-surface-muted)',
           strong: 'var(--dms-color-bg-surface-strong)'
         },
+        tab: {
+          text: 'var(--dms-tab-text)',
+          active: 'var(--dms-tab-active)'
+        },
         sidebar: {
           DEFAULT: 'var(--dms-color-bg-sidebar)',
           hover: 'var(--dms-color-bg-sidebar-hover)',
@@ -39,6 +43,7 @@ module.exports = {
           secondary: 'var(--dms-color-text-secondary)',
           muted: 'var(--dms-color-text-muted)',
           soft: 'var(--dms-color-text-soft)',
+          meta: 'var(--dms-color-text-meta)',
           inverse: 'var(--dms-color-text-inverse)',
           onBrand: 'var(--dms-color-text-on-brand)',
           onDanger: 'var(--dms-color-text-on-danger)'

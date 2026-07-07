@@ -37,7 +37,7 @@ export default function AppUserMenu({
         </div>
         <div className="hidden text-left lg:block">
           <div className="max-w-[160px] truncate text-sm font-medium leading-tight">{currentUser.name}</div>
-          <div className="max-w-[160px] truncate text-xs text-ink-soft">{currentUser.department || currentUser.role}</div>
+          <div className="max-w-[160px] truncate text-xs text-ink-meta">{currentUser.department || currentUser.role}</div>
         </div>
         <svg className={['h-4 w-4 transition-transform', open ? 'rotate-180' : ''].filter(Boolean).join(' ')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

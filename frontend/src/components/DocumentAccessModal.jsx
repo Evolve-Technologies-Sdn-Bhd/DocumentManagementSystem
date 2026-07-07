@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 
 function ModalShell({ title, children, onClose }) {
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -13,6 +14,8 @@ function ModalShell({ title, children, onClose }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }
 
 function DocumentStatusBadge({ status }) {

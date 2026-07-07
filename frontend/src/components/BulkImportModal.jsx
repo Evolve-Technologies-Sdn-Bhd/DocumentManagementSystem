@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -445,7 +446,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
   if (!isOpen) return null
 
-  return (
+  const modal = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <ConfirmModal
         show={folderPickerConfirm.show}
@@ -991,4 +992,6 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

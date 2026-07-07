@@ -31,7 +31,7 @@ export default function AppTopbarBrand({
       {!compact && (
         <div className="hidden min-w-0 md:flex md:flex-col">
           <span className="truncate text-sm font-semibold text-ink-inverse">{companyName}</span>
-          <span className="text-xs text-ink-soft">{appLabel}</span>
+          <span className="text-xs text-ink-meta">{appLabel}</span>
         </div>
       )}
     </Link>

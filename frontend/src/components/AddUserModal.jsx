@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 
 export default function AddUserModal({ onClose, onSubmit, initialData, availableRoles }) {
@@ -71,7 +72,7 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
     onSubmit(userData)
   }
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -235,4 +236,6 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

@@ -131,6 +131,7 @@ export function applyTheme(themeObj) {
     root.style.removeProperty('--dms-text-muted')
     root.style.removeProperty('--dms-color-text-muted')
     root.style.removeProperty('--dms-color-text-soft')
+    root.style.removeProperty('--dms-color-text-meta')
   }
   const lightOnlyVars = [
     '--dms-sidebar-bg',
@@ -145,6 +146,7 @@ export function applyTheme(themeObj) {
     '--dms-color-text-muted',
     '--dms-text-disabled',
     '--dms-color-text-soft',
+    '--dms-color-text-meta',
     '--dms-border-light',
     '--dms-border-medium',
     '--dms-border-dark',
@@ -184,6 +186,9 @@ export function applyTheme(themeObj) {
   }
   if (!isDark && themeObj.textSoft) {
     root.style.setProperty('--dms-color-text-soft', themeObj.textSoft)
+  }
+  if (!isDark && themeObj.textMeta) {
+    root.style.setProperty('--dms-color-text-meta', themeObj.textMeta)
   }
   if (!isDark && themeObj.textDisabled) {
     root.style.setProperty('--dms-text-disabled', themeObj.textDisabled)
@@ -288,6 +293,7 @@ export function applyThemeMode(mode = 'light') {
       '--dms-color-text-muted',
       '--dms-text-disabled',
       '--dms-color-text-soft',
+      '--dms-color-text-meta',
       '--dms-border-light',
       '--dms-border-medium',
       '--dms-border-dark',

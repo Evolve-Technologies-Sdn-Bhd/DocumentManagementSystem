@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function AddRoleModal({ onClose, onSubmit, initialData }) {
   const [formData, setFormData] = useState({
@@ -312,7 +313,7 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
     setCurrentStep(2)
   }
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
       <div className="bg-surface border border-border rounded-2xl shadow-dms-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
@@ -680,4 +681,6 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }
