@@ -420,7 +420,7 @@ class DocumentController {
         }
 
         const expiryRaw = parsedMetaExpiryInfo && typeof parsedMetaExpiryInfo === 'object'
-          ? parsedMetaExpiryInfo
+          ? { ...normalizedExpiryInfo, ...parsedMetaExpiryInfo }
           : normalizedExpiryInfo
 
         const expiryToUse = (() => {
@@ -430,7 +430,17 @@ class DocumentController {
           const remarks = expiryRaw?.remarks
           if (!enabled) return { trackingEnabled: false }
           if (!startDate || !expiryDate) return { trackingEnabled: false }
-          return { trackingEnabled: true, startDate, expiryDate, remarks }
+          return {
+            trackingEnabled: true,
+            startDate,
+            expiryDate,
+            remarks,
+            expiringSoonDays: expiryRaw?.expiringSoonDays,
+            reminder1Days: expiryRaw?.reminder1Days,
+            reminder2Days: expiryRaw?.reminder2Days,
+            reminder3Days: expiryRaw?.reminder3Days,
+            reminder4Days: expiryRaw?.reminder4Days
+          }
         })()
 
         let documentTypeIdToUse = null
@@ -1659,6 +1669,7 @@ class DocumentController {
 
     const origin = `${req.protocol}://${req.get('host')}`
     const publicPreviewUrl = `${origin}/api/public/share/${encodeURIComponent(token)}/preview`
+    const publicViewUrl = `${origin}/share/${encodeURIComponent(token)}`
 
     await auditLogService.logDocument(req.user.id, 'SHARE_LINK_CREATE', document, req, {
       shareLinkId: link.id,
@@ -1677,7 +1688,8 @@ class DocumentController {
           createdAt: link.createdAt
         },
         token,
-        publicPreviewUrl
+        publicPreviewUrl,
+        publicViewUrl
       },
       'Share link created successfully',
       201

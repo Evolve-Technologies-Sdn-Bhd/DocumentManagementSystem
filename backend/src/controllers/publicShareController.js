@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler')
 const documentShareLinkService = require('../services/documentShareLinkService')
 const auditLogService = require('../services/auditLogService')
+const publicSharePreviewService = require('../services/publicSharePreviewService')
 const path = require('path')
 const fs = require('fs')
 const config = require('../config/app')
@@ -52,9 +53,39 @@ const resolveExistingFilePath = (storedPath) => {
 }
 
 class PublicShareController {
+  getSharedDocumentMeta = asyncHandler(async (req, res) => {
+    const token = String(req.params.token || '').trim()
+    const { link, document, version } = await documentShareLinkService.resolvePublicToken({ token, trackAccess: false })
+
+    return res.json({
+      success: true,
+      message: 'Share link resolved successfully',
+      data: {
+        link: {
+          id: link.id,
+          documentId: link.documentId,
+          expiresAt: link.expiresAt,
+          revokedAt: link.revokedAt,
+          lastAccessedAt: link.lastAccessedAt,
+          accessCount: link.accessCount
+        },
+        document: {
+          id: document.id,
+          fileCode: document.fileCode,
+          title: document.title
+        },
+        version: {
+          id: version.id,
+          fileName: version.fileName,
+          mimeType: version.mimeType
+        }
+      }
+    })
+  })
+
   previewSharedDocument = asyncHandler(async (req, res) => {
     const token = String(req.params.token || '').trim()
-    const { link, document, version } = await documentShareLinkService.resolvePublicToken({ token })
+    const { link, document, version } = await documentShareLinkService.resolvePublicToken({ token, trackAccess: true })
 
     const absolutePath = resolveExistingFilePath(version.filePath)
     if (!absolutePath) {
@@ -76,21 +107,27 @@ class PublicShareController {
       userAgent: req?.headers?.['user-agent']
     })
 
-    res.setHeader('Content-Type', version.mimeType)
-    const rawFileName = String(version.fileName || 'document')
+    res.setHeader('Cache-Control', 'no-store')
+    const resolved = await publicSharePreviewService.getPreview({
+      documentId: document.id,
+      version,
+      absolutePath
+    })
+
+    res.setHeader('Content-Type', resolved.mimeType)
+    const rawFileName = resolved.mimeType === 'application/pdf'
+      ? `${String(version.fileName || 'document').replace(/\.[^/.]+$/, '') || 'document'}.pdf`
+      : String(version.fileName || 'document')
     const asciiFileName = rawFileName.replace(/[^A-Za-z0-9._-]/g, '_') || 'document'
     const encodedFileName = encodeURIComponent(rawFileName)
     res.setHeader('Content-Disposition', `inline; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`)
 
-    if (version.isEncrypted) {
-      const encryptionService = require('../services/encryptionService')
-      const decryptedBuffer = await encryptionService.getDecryptedBuffer(absolutePath)
-      return res.send(decryptedBuffer)
+    if (resolved?.buffer) {
+      return res.send(resolved.buffer)
     }
 
-    return res.sendFile(absolutePath)
+    return res.sendFile(resolved.absolutePath)
   })
 }
 
 module.exports = new PublicShareController()
-

@@ -19,11 +19,24 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const [projectCategoryId, setProjectCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const getToday = () => new Date().toISOString().slice(0, 10)
+  const [expirySettings, setExpirySettings] = useState({
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
+  })
   const [expiryInfo, setExpiryInfo] = useState({
     trackingEnabled: false,
+    useGlobalRule: true,
     startDate: getToday(),
     expiryDate: '',
-    remarks: ''
+    remarks: '',
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
   })
   const [fileItems, setFileItems] = useState([])
   const [isDragging, setIsDragging] = useState(false)
@@ -66,6 +79,36 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   useEffect(() => {
     if (!isOpen) return
     setProjectCategoryId('')
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const response = await api.get('/system/config/expiry-tracking')
+        const nextSettings = response.data?.data?.settings
+        if (cancelled) return
+        if (nextSettings && typeof nextSettings === 'object') {
+          setExpirySettings(nextSettings)
+          setExpiryInfo((prev) => {
+            if (!prev.useGlobalRule) return prev
+            return {
+              ...prev,
+              expiringSoonDays: nextSettings.expiringSoonDays,
+              reminder1Days: nextSettings.reminder1Days,
+              reminder2Days: nextSettings.reminder2Days,
+              reminder3Days: nextSettings.reminder3Days,
+              reminder4Days: nextSettings.reminder4Days
+            }
+          })
+        }
+      } catch (_) {}
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
   }, [isOpen])
 
   useEffect(() => {
@@ -134,9 +177,15 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     setProjectCategoryId('')
     setExpiryInfo({
       trackingEnabled: false,
+      useGlobalRule: true,
       startDate: getToday(),
       expiryDate: '',
-      remarks: ''
+      remarks: '',
+      expiringSoonDays: expirySettings.expiringSoonDays,
+      reminder1Days: expirySettings.reminder1Days,
+      reminder2Days: expirySettings.reminder2Days,
+      reminder3Days: expirySettings.reminder3Days,
+      reminder4Days: expirySettings.reminder4Days
     })
     setFormError('')
     setDocumentTypes([])
@@ -405,7 +454,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               trackingEnabled: true,
               startDate: expiryInfo.startDate,
               expiryDate: expiryInfo.expiryDate,
-              remarks: expiryInfo.remarks
+              remarks: expiryInfo.remarks,
+              expiringSoonDays: expiryInfo.expiringSoonDays,
+              reminder1Days: expiryInfo.reminder1Days,
+              reminder2Days: expiryInfo.reminder2Days,
+              reminder3Days: expiryInfo.reminder3Days,
+              reminder4Days: expiryInfo.reminder4Days
             }
           : { trackingEnabled: false },
         files: fileItems.map((it) => it.file),
@@ -421,7 +475,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 trackingEnabled: Boolean(it.expiryOverride?.trackingEnabled),
                 startDate: it.expiryOverride?.startDate || '',
                 expiryDate: it.expiryOverride?.expiryDate || '',
-                remarks: it.expiryOverride?.remarks || ''
+                remarks: it.expiryOverride?.remarks || '',
+                expiringSoonDays: it.expiryOverride?.expiringSoonDays,
+                reminder1Days: it.expiryOverride?.reminder1Days,
+                reminder2Days: it.expiryOverride?.reminder2Days,
+                reminder3Days: it.expiryOverride?.reminder3Days,
+                reminder4Days: it.expiryOverride?.reminder4Days
               }
             : null
         }))
@@ -568,43 +627,142 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   onChange={(e) => setExpiryInfo((prev) => ({
                     ...prev,
                     trackingEnabled: e.target.checked,
-                    startDate: prev.startDate || getToday()
+                    startDate: prev.startDate || getToday(),
+                    ...(e.target.checked && prev.useGlobalRule
+                      ? {
+                          expiringSoonDays: expirySettings.expiringSoonDays,
+                          reminder1Days: expirySettings.reminder1Days,
+                          reminder2Days: expirySettings.reminder2Days,
+                          reminder3Days: expirySettings.reminder3Days,
+                          reminder4Days: expirySettings.reminder4Days
+                        }
+                      : {})
                   }))}
                   className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                 />
                 Track Expiry (apply to all imported documents)
               </label>
               {expiryInfo.trackingEnabled ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
-                    <input
-                      type="date"
-                      value={expiryInfo.startDate}
-                      onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                      required
-                    />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
+                      <input
+                        type="date"
+                        value={expiryInfo.startDate}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
+                      <input
+                        type="date"
+                        value={expiryInfo.expiryDate}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Remarks</label>
+                      <textarea
+                        value={expiryInfo.remarks}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, remarks: e.target.value }))}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        placeholder="Optional expiry remarks"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
-                    <input
-                      type="date"
-                      value={expiryInfo.expiryDate}
-                      onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                      required
-                    />
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-ink-muted">
+                      Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
+                    </p>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={expiryInfo.useGlobalRule}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setExpiryInfo((prev) => ({
+                            ...prev,
+                            useGlobalRule: checked,
+                            ...(checked
+                              ? {
+                                  expiringSoonDays: expirySettings.expiringSoonDays,
+                                  reminder1Days: expirySettings.reminder1Days,
+                                  reminder2Days: expirySettings.reminder2Days,
+                                  reminder3Days: expirySettings.reminder3Days,
+                                  reminder4Days: expirySettings.reminder4Days
+                                }
+                              : {})
+                          }))
+                        }}
+                        className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                      />
+                      Use Global Defaults
+                    </label>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Remarks</label>
-                    <textarea
-                      value={expiryInfo.remarks}
-                      onChange={(e) => setExpiryInfo((prev) => ({ ...prev, remarks: e.target.value }))}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                      placeholder="Optional expiry remarks"
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.expiringSoonDays}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder1Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder2Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder3Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder4Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -848,7 +1006,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                               trackingEnabled: Boolean(expiryInfo.trackingEnabled),
                                               startDate: expiryInfo.startDate || getToday(),
                                               expiryDate: expiryInfo.expiryDate || '',
-                                              remarks: expiryInfo.remarks || ''
+                                              remarks: expiryInfo.remarks || '',
+                                              expiringSoonDays: expiryInfo.expiringSoonDays,
+                                              reminder1Days: expiryInfo.reminder1Days,
+                                              reminder2Days: expiryInfo.reminder2Days,
+                                              reminder3Days: expiryInfo.reminder3Days,
+                                              reminder4Days: expiryInfo.reminder4Days
                                             }
                                           : x.expiryOverride
                                       }

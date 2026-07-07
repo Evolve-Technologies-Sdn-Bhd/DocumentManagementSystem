@@ -69,7 +69,7 @@ class DocumentShareLinkService {
     })
   }
 
-  async resolvePublicToken({ token }) {
+  async resolvePublicToken({ token, trackAccess = true }) {
     const tokenHash = this.hashToken(token)
     const now = new Date()
 
@@ -108,17 +108,18 @@ class DocumentShareLinkService {
     })
     if (!version) throw new NotFoundError('Document version')
 
-    await prisma.documentShareLink.update({
-      where: { id: link.id },
-      data: {
-        accessCount: { increment: 1 },
-        lastAccessedAt: now
-      }
-    })
+    if (trackAccess) {
+      await prisma.documentShareLink.update({
+        where: { id: link.id },
+        data: {
+          accessCount: { increment: 1 },
+          lastAccessedAt: now
+        }
+      })
+    }
 
     return { link, document: link.document, version }
   }
 }
 
 module.exports = new DocumentShareLinkService()
-

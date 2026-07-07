@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 import Button from './ui/Button'
 import IconButton from './ui/IconButton'
@@ -76,15 +77,21 @@ export default function ShareDocumentModal({ open, document, onClose }) {
     return `${origin}/api/public/share/${encodeURIComponent(activePublicLink.token)}/preview`
   }, [activePublicLink?.publicPreviewUrl, activePublicLink?.token])
 
-  const canRevealPublicUrl = Boolean(publicPreviewUrl)
+  const publicViewUrl = useMemo(() => {
+    if (!activePublicLink?.token) return activePublicLink?.publicViewUrl || ''
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/share/${encodeURIComponent(activePublicLink.token)}`
+  }, [activePublicLink?.publicViewUrl, activePublicLink?.token])
+
+  const canRevealPublicUrl = Boolean(publicViewUrl)
 
   const shareText = useMemo(() => {
     return [docLabel, internalLink].filter(Boolean).join('\n')
   }, [docLabel, internalLink])
 
   const publicShareText = useMemo(() => {
-    return [docLabel, publicPreviewUrl].filter(Boolean).join('\n')
-  }, [docLabel, publicPreviewUrl])
+    return [docLabel, publicViewUrl].filter(Boolean).join('\n')
+  }, [docLabel, publicViewUrl])
 
   const loadLinks = async () => {
     if (!docId) return
@@ -132,7 +139,7 @@ export default function ShareDocumentModal({ open, document, onClose }) {
       await navigator.clipboard.writeText(text)
       showFlash('Copied')
     } catch {
-      showFlash('Copy failed')
+      showFlash('Failed to copy')
     }
   }
 
@@ -167,10 +174,11 @@ export default function ShareDocumentModal({ open, document, onClose }) {
       const link = data?.link || null
       const token = data?.token || null
       const url = data?.publicPreviewUrl || null
+      const viewUrl = data?.publicViewUrl || null
 
       if (link && token && url) {
         setLinks((prev) => [
-          { ...link, token, publicPreviewUrl: url },
+          { ...link, token, publicPreviewUrl: url, publicViewUrl: viewUrl },
           ...(Array.isArray(prev) ? prev : [])
         ])
         showFlash('Public link created')
@@ -206,7 +214,7 @@ export default function ShareDocumentModal({ open, document, onClose }) {
 
   if (!open) return null
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
       <div className="w-full max-w-2xl rounded-dms-lg border border-border bg-surface shadow-dms-lg">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -233,7 +241,10 @@ export default function ShareDocumentModal({ open, document, onClose }) {
           ) : null}
 
           <div className="space-y-3">
-            <SectionHeader title="Internal (Login Required)" subtitle="Penerima perlu login. Permission & confidential rules masih terpakai." />
+            <SectionHeader
+              title="Internal (Login Required)"
+              subtitle="Recipients must sign in. Permissions and confidential access rules still apply."
+            />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex-1 min-w-0">
                 <TextInput value={internalLink} readOnly />
@@ -260,11 +271,14 @@ export default function ShareDocumentModal({ open, document, onClose }) {
           </div>
 
           <div className="space-y-3">
-            <SectionHeader title="Public (Expiring)" subtitle="Preview sahaja. Default expiry 7 hari. Dokumen mesti Published dan bukan Confidential." />
+            <SectionHeader
+              title="Public (Expiring)"
+              subtitle="Preview only. Default expiry is 7 days. Document must be Published and non-confidential."
+            />
 
             {!canUsePublicShare ? (
               <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-ink-muted">
-                Public share hanya tersedia untuk dokumen Published yang bukan Confidential.
+                Public sharing is only available for Published documents that are not Confidential.
               </div>
             ) : null}
 
@@ -299,15 +313,15 @@ export default function ShareDocumentModal({ open, document, onClose }) {
                 {canRevealPublicUrl ? (
                   <>
                     <div className="flex items-center justify-end">
-                      <Button variant="secondary" size="sm" onClick={() => copyText(publicPreviewUrl)}>
+                      <Button variant="secondary" size="sm" onClick={() => copyText(publicViewUrl)}>
                         Copy Link
                       </Button>
                     </div>
-                    <TextInput value={publicPreviewUrl} readOnly />
+                    <TextInput value={publicViewUrl} readOnly />
                   </>
                 ) : (
                   <div className="text-sm text-ink-muted">
-                    Link value hanya dipaparkan semasa create. Jika anda perlukan semula, generate link baru.
+                    The public link is only shown at creation time. If you need it again, generate a new link.
                   </div>
                 )}
 
@@ -322,7 +336,7 @@ export default function ShareDocumentModal({ open, document, onClose }) {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => openUrl(buildTelegramUrl({ url: publicPreviewUrl, text: docLabel }))}
+                      onClick={() => openUrl(buildTelegramUrl({ url: publicViewUrl, text: docLabel }))}
                     >
                       Telegram
                     </Button>
@@ -360,4 +374,6 @@ export default function ShareDocumentModal({ open, document, onClose }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }
