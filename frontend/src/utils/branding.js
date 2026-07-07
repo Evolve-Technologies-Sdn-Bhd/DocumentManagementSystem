@@ -6,10 +6,21 @@ const inMemoryBranding = {
   companyInfo: null
 }
 
+const HEAVY_THEME_ASSET_KEYS = ['mainLogo', 'favicon', 'bgImage']
+
 function cloneValue(value) {
   if (!value || typeof value !== 'object') return value ?? null
   if (Array.isArray(value)) return value.map((item) => cloneValue(item))
   return { ...value }
+}
+
+function sanitizeThemeForStorage(theme) {
+  if (!theme || typeof theme !== 'object') return theme ?? null
+  const sanitizedTheme = { ...theme }
+  for (const key of HEAVY_THEME_ASSET_KEYS) {
+    delete sanitizedTheme[key]
+  }
+  return sanitizedTheme
 }
 
 function parseColorToRgb(input) {
@@ -339,8 +350,9 @@ export function persistBranding({ companyInfo, theme }) {
   }
   if (theme && typeof theme === 'object') {
     inMemoryBranding.theme = cloneValue(theme)
+    const sanitizedTheme = sanitizeThemeForStorage(theme)
     try {
-      localStorage.setItem('dms_theme_settings', JSON.stringify(theme))
+      localStorage.setItem('dms_theme_settings', JSON.stringify(sanitizedTheme))
     } catch (error) {
       console.warn('Failed to persist theme branding to localStorage; using in-memory fallback.', error)
     }
