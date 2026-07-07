@@ -426,7 +426,10 @@ class EmailService {
               ])}
             </table>
 
-            <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+              ${d.renewLink ? `<a href="${d.renewLink}" style="display: inline-block; padding: 11px 22px; background: #10B981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Renew Expiry</a>` : ''}
+            </div>
 
             <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">
               Open the document link to review the file details and take the next action.
@@ -458,7 +461,10 @@ class EmailService {
               ])}
             </table>
 
-            <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+              ${d.renewLink ? `<a href="${d.renewLink}" style="display: inline-block; padding: 11px 22px; background: #10B981; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Renew Expiry</a>` : ''}
+            </div>
 
             <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">
               Open the document link to review the expired file details and take the next action.

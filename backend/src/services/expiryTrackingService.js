@@ -1068,6 +1068,7 @@ class ExpiryTrackingService {
           updateData[selected.field] = new Date()
           for (const recipientId of recipients) {
             const recipientUser = recipientUsers.get(recipientId)
+            const docId = profile.document?.id || profile.documentId
             await notificationService.sendNotification(
               recipientId,
               'documentExpiring',
@@ -1077,7 +1078,7 @@ class ExpiryTrackingService {
               {
                 subject: `Document Expiry Reminder - ${subjectLabel}`,
                 title: profile.document?.title || 'Document Expiry Reminder',
-                documentId: profile.document?.id || profile.documentId,
+                documentId: docId,
                 fileCode: profile.document?.fileCode || '',
                 fileName: fileName || '',
                 ownerName,
@@ -1087,6 +1088,7 @@ class ExpiryTrackingService {
                 recipientName: this.formatUserDisplay(recipientUser) || '',
                 recipientEmail: recipientUser?.email || '',
                 notifiedRecipients: allRecipientNames,
+                renewLink: notificationService.buildAbsoluteLink(`/expiry-tracking?renew=1&docId=${docId}`),
                 link: notificationService.buildAbsoluteLink(documentLink)
               }
             )
@@ -1102,6 +1104,7 @@ class ExpiryTrackingService {
       updateData.lastReminder4SentAt = new Date()
       for (const recipientId of recipients) {
         const recipientUser = recipientUsers.get(recipientId)
+        const docId = profile.document?.id || profile.documentId
         await notificationService.sendNotification(
           recipientId,
           'documentExpired',
@@ -1111,7 +1114,7 @@ class ExpiryTrackingService {
           {
             subject: `Document Expired - ${subjectLabel}`,
             title: profile.document?.title || 'Document Expired',
-            documentId: profile.document?.id || profile.documentId,
+            documentId: docId,
             fileCode: profile.document?.fileCode || '',
             fileName: fileName || '',
             ownerName,
@@ -1122,6 +1125,7 @@ class ExpiryTrackingService {
             recipientName: this.formatUserDisplay(recipientUser) || '',
             recipientEmail: recipientUser?.email || '',
             notifiedRecipients: allRecipientNames,
+            renewLink: notificationService.buildAbsoluteLink(`/expiry-tracking?renew=1&docId=${docId}`),
             link: notificationService.buildAbsoluteLink(documentLink)
           }
         )
