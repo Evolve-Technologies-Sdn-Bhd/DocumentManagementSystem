@@ -22,6 +22,7 @@ router.get('/landing-page-settings', publicController.getLandingPageSettings);
 // GET /api/public/branding - Get global branding (company info + theme)
 router.get('/branding', publicController.getBranding);
 
+router.get('/share/:token/meta', publicShareController.getSharedDocumentMeta)
 router.get('/share/:token/preview', publicShareController.previewSharedDocument)
 
 module.exports = router;
