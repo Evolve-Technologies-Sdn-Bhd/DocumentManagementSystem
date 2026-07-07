@@ -1369,7 +1369,64 @@ const ThemeBranding = () => {
     link.href = faviconData
   }
 
-  const handleLogoUpload = (e, type) => {
+  const readFileAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+      reader.readAsDataURL(file)
+    })
+
+  const loadImageElement = (src) =>
+    new Promise((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = () => reject(new Error('Failed to load image'))
+      image.src = src
+    })
+
+  const optimizeBackgroundImage = async (file) => {
+    const originalDataUrl = await readFileAsDataUrl(file)
+    const image = await loadImageElement(originalDataUrl)
+    const maxWidth = 1920
+    const maxHeight = 1080
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight)
+    const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale))
+    const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+
+    const context = canvas.getContext('2d')
+    if (!context) {
+      return originalDataUrl
+    }
+
+    context.drawImage(image, 0, 0, targetWidth, targetHeight)
+
+    const candidateFormats = [
+      ['image/webp', 0.82],
+      ['image/jpeg', 0.8],
+      ['image/jpeg', 0.7]
+    ]
+
+    let optimizedDataUrl = originalDataUrl
+    for (const [mimeType, quality] of candidateFormats) {
+      const candidate = canvas.toDataURL(mimeType, quality)
+      if (candidate.length < optimizedDataUrl.length) {
+        optimizedDataUrl = candidate
+      }
+    }
+
+    if (optimizedDataUrl.length > 2_500_000) {
+      throw new Error('Background image is still too large after optimization. Please use a smaller JPG or WebP image.')
+    }
+
+    return optimizedDataUrl
+  }
+
+  const handleLogoUpload = async (e, type) => {
     const file = e.target.files[0]
     if (!file) return
 
@@ -1379,10 +1436,11 @@ const ThemeBranding = () => {
       alert(`File size must be less than ${type === 'bgImage' ? '5MB' : '2MB'}`)
       return
     }
-    
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const base64String = reader.result
+
+    try {
+      const base64String = type === 'bgImage'
+        ? await optimizeBackgroundImage(file)
+        : await readFileAsDataUrl(file)
 
       if (type === 'logo') {
         setLogoPreview(base64String)
@@ -1395,12 +1453,10 @@ const ThemeBranding = () => {
         setBgImagePreview(base64String)
         handleThemeChange('bgImage', base64String)
       }
-    }
-    reader.onerror = (error) => {
+    } catch (error) {
       console.error(`Failed to read ${type}:`, error)
-      alert(`Failed to upload ${type}. Please try again.`)
+      alert(error?.message || `Failed to upload ${type}. Please try again.`)
     }
-    reader.readAsDataURL(file)
   }
 
   const handleRemoveLogo = async (type) => {
@@ -2625,7 +2681,7 @@ const ThemeBranding = () => {
           inputRef={bgImageInputRef}
           accept="image/*"
           onChange={(e) => handleLogoUpload(e, 'bgImage')}
-          hint="Recommended: 1920x1080px, JPG/PNG (Max 5MB). Will be overlaid with background color."
+          hint="Recommended: 1920x1080px, JPG/PNG (Max 5MB). Image is optimized automatically before saving."
           preview={bgImagePreview || theme.bgImage}
           previewAlt="Background Preview"
           previewBoxClassName="h-20 w-32"

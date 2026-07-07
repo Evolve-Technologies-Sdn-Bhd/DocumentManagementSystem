@@ -1,6 +1,17 @@
 export const BRANDING_UPDATED_EVENT = 'brandingUpdated'
 export const LANDING_SETTINGS_UPDATED_EVENT = 'landingPageSettingsUpdated'
 
+const inMemoryBranding = {
+  theme: null,
+  companyInfo: null
+}
+
+function cloneValue(value) {
+  if (!value || typeof value !== 'object') return value ?? null
+  if (Array.isArray(value)) return value.map((item) => cloneValue(item))
+  return { ...value }
+}
+
 function parseColorToRgb(input) {
   if (!input || typeof input !== 'string') return null
   const s = input.trim()
@@ -63,7 +74,7 @@ export function readStoredJson(key) {
 }
 
 export function readThemeSettings() {
-  return readStoredJson('dms_theme_settings')
+  return readStoredJson('dms_theme_settings') || cloneValue(inMemoryBranding.theme)
 }
 
 export function readThemeMode() {
@@ -72,7 +83,7 @@ export function readThemeMode() {
 }
 
 export function readCompanyInfo() {
-  return readStoredJson('dms_company_info')
+  return readStoredJson('dms_company_info') || cloneValue(inMemoryBranding.companyInfo)
 }
 
 export function readBranding() {
@@ -123,6 +134,7 @@ export function persistLandingPageSettings(settings) {
 
 export function applyTheme(themeObj) {
   if (!themeObj || typeof themeObj !== 'object') return
+  inMemoryBranding.theme = cloneValue(themeObj)
   const root = document.documentElement
   const isDark = root.dataset.theme === 'dark'
   const computed = getComputedStyle(root)
@@ -310,6 +322,7 @@ export function applyThemeMode(mode = 'light') {
 
 export function applyCompanyInfo(companyInfo) {
   if (!companyInfo || typeof companyInfo !== 'object') return
+  inMemoryBranding.companyInfo = cloneValue(companyInfo)
   if (companyInfo.companyName) {
     document.title = `${companyInfo.companyName} DMS`
   }
@@ -317,14 +330,20 @@ export function applyCompanyInfo(companyInfo) {
 
 export function persistBranding({ companyInfo, theme }) {
   if (companyInfo && typeof companyInfo === 'object') {
+    inMemoryBranding.companyInfo = cloneValue(companyInfo)
     try {
       localStorage.setItem('dms_company_info', JSON.stringify(companyInfo))
-    } catch {}
+    } catch (error) {
+      console.warn('Failed to persist company branding to localStorage; using in-memory fallback.', error)
+    }
   }
   if (theme && typeof theme === 'object') {
+    inMemoryBranding.theme = cloneValue(theme)
     try {
       localStorage.setItem('dms_theme_settings', JSON.stringify(theme))
-    } catch {}
+    } catch (error) {
+      console.warn('Failed to persist theme branding to localStorage; using in-memory fallback.', error)
+    }
   }
   window.dispatchEvent(new Event(BRANDING_UPDATED_EVENT))
 }
