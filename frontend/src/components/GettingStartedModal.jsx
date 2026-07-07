@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 
 export default function GettingStartedModal({ open, onClose, showAdminGuide, onStartTour }) {
@@ -7,7 +8,7 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
 
   if (!open) return null
 
-  return (
+  const modal = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -83,4 +84,6 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

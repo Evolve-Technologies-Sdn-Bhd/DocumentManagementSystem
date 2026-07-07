@@ -31,8 +31,8 @@ function SubTabNavigation({ activeTab, onTabChange }) {
             data-tour-id={`gss-tab-${tab.id}`}
             className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.id
-                ? 'border-brand text-ink'
-                : 'border-transparent text-ink-soft hover:border-border hover:text-ink-secondary'
+                ? 'border-tab-active text-tab-active'
+                : 'border-transparent text-tab-text hover:border-border hover:text-tab-active'
             }`}
           >
             {tab.label}
@@ -1177,6 +1177,7 @@ const ThemeBranding = () => {
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
     textSoft: '#64748B',
+    textMeta: '#64748B',
     textDisabled: '#D1D5DB',
     borderLight: '#E5E7EB',
     borderMedium: '#D1D5DB',
@@ -1507,6 +1508,7 @@ const ThemeBranding = () => {
       textSecondary: '#6B7280',
       textMuted: '#9CA3AF',
       textSoft: '#64748B',
+      textMeta: '#64748B',
       textDisabled: '#D1D5DB',
       borderLight: '#E5E7EB',
       borderMedium: '#D1D5DB',
@@ -2690,6 +2692,7 @@ const ThemeBranding = () => {
                 { key: 'textSecondary', label: 'Secondary Text' },
                 { key: 'textMuted', label: 'Muted Text' },
                 { key: 'textSoft', label: 'Soft Text' },
+                { key: 'textMeta', label: 'Meta Label Text' },
                 { key: 'textDisabled', label: 'Disabled Text' }
               ].map(({ key, label }) => (
                 <ThemeColorField key={key} label={label} value={theme[key]} onChange={(e) => handleThemeChange(key, e.target.value)} />

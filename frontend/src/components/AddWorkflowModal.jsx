@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 
 export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
@@ -131,7 +132,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
     onSubmit(workflowData)
   }
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full my-8">
         {/* Header */}
@@ -369,4 +370,6 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

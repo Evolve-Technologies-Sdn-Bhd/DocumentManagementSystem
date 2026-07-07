@@ -61,6 +61,7 @@ body {
   --dms-color-text-secondary: #334155;
   --dms-color-text-muted: #475569;
   --dms-color-text-soft: #64748b;
+  --dms-color-text-meta: #64748b;
   --dms-color-text-inverse: #ffffff;
   --dms-color-text-on-brand: #ffffff;
   --dms-color-text-on-danger: #ffffff;
@@ -113,6 +114,8 @@ body {
   --dms-main-bg: #0b1220;
   --dms-card-bg: #111827;
   --dms-panel-bg: #0f172a;
+  --dms-tab-text: #94a3b8;
+  --dms-tab-active: #3b82f6;
   --dms-color-bg-canvas: #0b1220;
   --dms-color-bg-surface: rgba(15, 23, 42, 0.96);
   --dms-color-bg-surface-muted: #111827;
@@ -133,6 +136,7 @@ body {
   --dms-color-text-secondary: #e2e8f0;
   --dms-color-text-muted: #cbd5e1;
   --dms-color-text-soft: #94a3b8;
+  --dms-color-text-meta: #94a3b8;
   --dms-color-text-inverse: #ffffff;
   --dms-color-text-on-brand: #0b1220;
   --dms-color-text-on-danger: #0b1220;

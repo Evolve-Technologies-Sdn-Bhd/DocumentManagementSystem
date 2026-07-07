@@ -9,6 +9,31 @@ class EmailService {
     this.transporter = null;
   }
 
+  formatDateTime(value) {
+    if (!value) return 'N/A'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return 'N/A'
+    return date.toLocaleString('en-MY', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  renderDetailRows(rows = []) {
+    return rows
+      .filter((row) => row && row.value !== undefined && row.value !== null && row.value !== '')
+      .map((row) => `
+        <tr>
+          <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; width: 38%; color: #4b5563; font-weight: 600;">${row.label}</td>
+          <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; color: #111827;">${row.value}</td>
+        </tr>
+      `)
+      .join('')
+  }
+
   /**
    * Get notification settings from database
    */
@@ -372,6 +397,38 @@ class EmailService {
             <a href="${d.link}" style="display: inline-block; padding: 10px 20px; background: #EF4444; color: white; text-decoration: none; border-radius: 5px;">View Document</a>
           </div>
         `
+      },
+      DOCUMENT_EXPIRED: {
+        subject: (d) => d.subject || 'Document Expired',
+        html: (d) => `
+          <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; color: #111827;">
+            <h2 style="color: #DC2626; margin-bottom: 8px;">Document Expired</h2>
+            <p style="margin-top: 0; color: #4b5563;">This document has expired and requires attention.</p>
+
+            <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 16px; border-radius: 10px; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0;"><strong>${d.title || d.fileName || 'Document'}</strong></p>
+              ${d.fileCode ? `<p style="margin: 0; color: #6b7280;"><strong>File Code:</strong> ${d.fileCode}</p>` : ''}
+              ${d.fileName ? `<p style="margin: 6px 0 0 0; color: #6b7280;"><strong>File Name:</strong> ${d.fileName}</p>` : ''}
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin: 20px 0;">
+              ${this.renderDetailRows([
+                { label: 'Owner', value: d.ownerName || 'N/A' },
+                { label: 'Notification Recipient', value: d.recipientName || d.recipientEmail || 'N/A' },
+                { label: 'Recipients Notified', value: Array.isArray(d.notifiedRecipients) ? d.notifiedRecipients.join(', ') : '' },
+                { label: 'Expired For', value: Number.isFinite(d.expiredDays) ? `${d.expiredDays} day(s)` : '' },
+                { label: 'Expiry Date', value: this.formatDateTime(d.expiryDate) },
+                { label: 'Last Upload', value: this.formatDateTime(d.lastUploadAt) }
+              ])}
+            </table>
+
+            <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+
+            <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">
+              Open the document link to review the expired file details and take the next action.
+            </p>
+          </div>
+        `
       }
     };
 
@@ -399,7 +456,7 @@ class EmailService {
     try {
       await this.sendEmail({
         to,
-        subject: template.subject,
+        subject: typeof template.subject === 'function' ? template.subject(data) : (data?.subject || template.subject),
         html: template.html(data)
       });
     } catch (error) {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import AppSurface from './AppSurface'
 import IconButton from './IconButton'
 
@@ -43,7 +44,7 @@ export default function Modal({
   className = '',
   ...props
 }) {
-  return (
+  const modal = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="fixed inset-0" onClick={closeOnBackdrop ? onClose : undefined} />
       <AppSurface
@@ -55,4 +56,6 @@ export default function Modal({
       </AppSurface>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

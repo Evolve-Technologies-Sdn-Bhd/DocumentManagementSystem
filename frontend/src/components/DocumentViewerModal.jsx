@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import api from '../api/axios'
 import mammoth from 'mammoth'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -206,7 +207,7 @@ export default function DocumentViewerModal({ document, onClose }) {
     }
   }
 
-  return (
+  const modal = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <AppSurface padding="none" className="w-[95vw] max-w-[1400px] h-[95vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -351,4 +352,6 @@ export default function DocumentViewerModal({ document, onClose }) {
       </AppSurface>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

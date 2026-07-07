@@ -929,13 +929,20 @@ class NotificationService {
 
     if (eventPreference.email) {
       try {
-        // Get user email
         const user = await prisma.user.findUnique({
           where: { id: userId },
-          select: { email: true }
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true
+          }
         });
 
         if (user && user.email) {
+          effectiveEmailData.recipientEmail = effectiveEmailData.recipientEmail || user.email
+          effectiveEmailData.recipientName = effectiveEmailData.recipientName
+            || `${user.firstName || ''} ${user.lastName || ''}`.trim()
+            || user.email
           await emailService.sendNotificationEmail(user.email, type, effectiveEmailData);
         }
       } catch (error) {
