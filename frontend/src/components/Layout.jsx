@@ -51,57 +51,7 @@ export default function Layout({ children }) {
           console.error('Failed to parse theme settings', e)
         }
       } else {
-        // Apply Corporate theme as default if no theme is saved
-        const defaultCorporateTheme = {
-          primaryColor: '#003366',
-          secondaryColor: '#0066CC',
-          accentColor: '#FF9900',
-          successColor: '#28A745',
-          warningColor: '#FFC107',
-          errorColor: '#DC3545',
-          infoColor: '#0066CC',
-          sidebarBgColor: '#003366',
-          sidebarTextColor: '#E3F2FD',
-          mainBgColor: '#F5F7FA',
-          tabTextColor: '#64748B',
-          tabActiveColor: '#0066CC',
-          btnPrimaryBg: '#003366',
-          btnPrimaryText: '#FFFFFF',
-          btnPrimaryHover: '#002244',
-          btnSecondaryBg: '#E3F2FD',
-          btnSecondaryText: '#003366',
-          btnSecondaryHover: '#BBDEFB',
-          landingNavBg: '#003366',
-          landingNavText: '#FFFFFF',
-          landingHeroGradientStart: '#003366',
-          landingHeroGradientMid: '#0066CC',
-          landingHeroGradientEnd: '#0099FF',
-          landingHeroText: '#FFFFFF',
-          landingButtonPrimary: '#FF9900',
-          landingButtonPrimaryText: '#FFFFFF',
-          landingButtonSecondary: 'transparent',
-          landingButtonSecondaryText: '#FFFFFF',
-          landingAboutBg: '#F5F7FA',
-          landingCoreFeaturesBg: '#F5F7FA',
-          landingSystemFeaturesBg: 'linear-gradient(to bottom right, #E3F2FD, #F5F7FA)',
-          landingRolesBg: 'linear-gradient(to bottom right, #BBDEFB, #E3F2FD, #F5F7FA)',
-          landingWorkflowBg: 'linear-gradient(to bottom right, #F5F7FA, #E3F2FD)',
-          landingContactBg: '#E3F2FD',
-          loginBgGradientStart: '#F5F7FA',
-          loginBgGradientEnd: '#E3F2FD',
-          loginCardBg: '#FFFFFF',
-          loginButtonBg: '#003366',
-          loginButtonText: '#FFFFFF',
-          loginButtonHover: '#002244',
-          loginAccentBg: '#E3F2FD',
-          loginAccentIcon: '#0066CC',
-          fontFamily: 'Roboto',
-          borderRadiusMedium: '0.25rem',
-          spacingScale: 'normal',
-          sidebarPosition: 'left'
-        }
         setSidebarPosition('left')
-        applyTheme(defaultCorporateTheme)
       }
     }
 
