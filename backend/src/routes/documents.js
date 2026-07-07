@@ -67,6 +67,10 @@ router.put('/:id/rename', documentController.renameDocument);
 router.delete('/:id/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), documentController.purgeDocument);
 router.delete('/:id', documentController.deleteDocument);
 
+router.get('/:id/share-links', documentController.listShareLinks)
+router.post('/:id/share-links', documentController.createShareLink)
+router.post('/:id/share-links/:linkId/revoke', documentController.revokeShareLink)
+
 // Document file operations
 router.post('/:id/upload', uploadDocument.single('file'), documentController.uploadDocument);
 router.get('/:id/download', documentController.downloadDocument);

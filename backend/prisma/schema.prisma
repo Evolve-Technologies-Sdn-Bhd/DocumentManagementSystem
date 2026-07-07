@@ -81,6 +81,7 @@ model User {
   projectSetupRequirementOverrideAccessEntries ProjectSetupDocumentRequirementOverrideConfidentialAccess[]
   createdProjectChangeRequests ProjectChangeRequest[] @relation("ProjectChangeRequestCreator")
   expiryWatchers            DocumentExpiryWatcher[]
+  createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
 
   @@index([email])
   @@index([employeeId])
@@ -365,6 +366,7 @@ model Document {
   epcRegistryRecords     DocumentEpcRegistryRecord[]
   projectLinks           ProjectDocumentLink[]
   confidentialAccess     DocumentConfidentialAccess[]
+  shareLinks             DocumentShareLink[]
   expiryProfile          DocumentExpiryProfile?
   expiryRenewalHistory   DocumentExpiryRenewalHistory[]
 
@@ -405,6 +407,27 @@ model DocumentConfidentialAccess {
   @@index([userId])
   @@index([roleId])
   @@index([subjectType])
+}
+
+model DocumentShareLink {
+  id             Int      @id @default(autoincrement())
+  documentId     Int
+  createdById    Int
+  tokenHash      String   @unique @db.VarChar(128)
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastAccessedAt DateTime?
+  accessCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("DocumentShareLinkCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([documentId])
+  @@index([createdById])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 enum DocStatus {
