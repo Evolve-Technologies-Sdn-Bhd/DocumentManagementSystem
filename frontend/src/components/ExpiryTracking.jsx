@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../api/axios'
@@ -474,6 +475,8 @@ function WatchersModal({ open, profile, users, onClose, onSave, saving }) {
 }
 
 export default function ExpiryTracking() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [records, setRecords] = useState([])
   const [dashboard, setDashboard] = useState({
     totalTrackedDocuments: 0,
@@ -573,6 +576,16 @@ export default function ExpiryTracking() {
     loadData()
   }, [filters, pagination.page, pagination.limit, refreshKey])
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '')
+    const docId = params.get('docId')
+    const renew = params.get('renew')
+    if (!docId || renew !== '1') return
+    if (!canRenew) return
+    openRenewalByDocumentId(docId)
+    navigate('/expiry-tracking', { replace: true })
+  }, [location.search, canRenew, navigate])
+
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil((pagination.total || 0) / (pagination.limit || 15)))
   }, [pagination.limit, pagination.total])
@@ -603,6 +616,18 @@ export default function ExpiryTracking() {
   const openRenewal = async (record) => {
     try {
       const res = await api.get(`/expiry-tracking/${record.documentId}`)
+      setSelectedProfile(res.data?.data?.profile || null)
+      setRenewalOpen(true)
+    } catch (error) {
+      console.error('Failed to load renewal profile:', error)
+    }
+  }
+
+  const openRenewalByDocumentId = async (documentId) => {
+    const id = parseInt(documentId, 10)
+    if (!Number.isFinite(id) || id <= 0) return
+    try {
+      const res = await api.get(`/expiry-tracking/${id}`)
       setSelectedProfile(res.data?.data?.profile || null)
       setRenewalOpen(true)
     } catch (error) {
