@@ -42,7 +42,7 @@ const getActiveLink = (links) => {
   })
 }
 
-export default function ShareDocumentModal({ open, document, onClose }) {
+export default function ShareDocumentModal({ open, document: selectedDocument, onClose }) {
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [revokingId, setRevokingId] = useState(null)
@@ -51,10 +51,10 @@ export default function ShareDocumentModal({ open, document, onClose }) {
   const [flash, setFlash] = useState(null)
   const [error, setError] = useState('')
 
-  const docId = document?.id
-  const isConfidential = Boolean(document?.isConfidential)
-  const statusUpper = String(document?.status || '').toUpperCase()
-  const stageUpper = String(document?.stage || '').toUpperCase()
+  const docId = selectedDocument?.id
+  const isConfidential = Boolean(selectedDocument?.isConfidential)
+  const statusUpper = String(selectedDocument?.status || '').toUpperCase()
+  const stageUpper = String(selectedDocument?.stage || '').toUpperCase()
   const canUsePublicShare = (statusUpper === 'PUBLISHED' || stageUpper === 'PUBLISHED') && !isConfidential
 
   const internalLink = useMemo(() => {
@@ -64,10 +64,10 @@ export default function ShareDocumentModal({ open, document, onClose }) {
   }, [docId])
 
   const docLabel = useMemo(() => {
-    const code = String(document?.fileCode || '').trim()
-    const title = String(document?.title || '').trim()
+    const code = String(selectedDocument?.fileCode || '').trim()
+    const title = String(selectedDocument?.title || '').trim()
     return [code, title].filter(Boolean).join(' - ')
-  }, [document?.fileCode, document?.title])
+  }, [selectedDocument?.fileCode, selectedDocument?.title])
 
   const activePublicLink = useMemo(() => getActiveLink(links), [links])
 
@@ -375,5 +375,5 @@ export default function ShareDocumentModal({ open, document, onClose }) {
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  return typeof window !== 'undefined' ? createPortal(modal, window.document.body) : modal
 }
