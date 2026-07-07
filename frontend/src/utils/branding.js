@@ -85,7 +85,15 @@ export function readStoredJson(key) {
 }
 
 export function readThemeSettings() {
-  return readStoredJson('dms_theme_settings') || cloneValue(inMemoryBranding.theme)
+  const storedTheme = readStoredJson('dms_theme_settings')
+  const inMemoryTheme = inMemoryBranding.theme
+  if (!storedTheme) return cloneValue(inMemoryTheme)
+  if (!inMemoryTheme) return storedTheme
+  const merged = { ...storedTheme }
+  for (const key of HEAVY_THEME_ASSET_KEYS) {
+    if (inMemoryTheme[key]) merged[key] = inMemoryTheme[key]
+  }
+  return merged
 }
 
 export function readThemeMode() {
