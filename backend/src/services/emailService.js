@@ -398,6 +398,42 @@ class EmailService {
           </div>
         `
       },
+      DOCUMENT_EXPIRING: {
+        subject: (d) => d.subject || 'Document Expiry Reminder',
+        html: (d) => `
+          <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; color: #111827;">
+            <h2 style="color: #0f6fcf; margin-bottom: 8px;">Document Expiry Reminder</h2>
+            <p style="margin-top: 0; color: #4b5563;">
+              ${Number.isFinite(d.daysLeft)
+                ? (d.daysLeft === 0 ? 'This document expires today.' : `This document will expire in ${d.daysLeft} day(s).`)
+                : 'This document is approaching expiry.'}
+            </p>
+
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 10px; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0;"><strong>${d.title || d.fileName || 'Document'}</strong></p>
+              ${d.fileCode ? `<p style="margin: 0; color: #6b7280;"><strong>File Code:</strong> ${d.fileCode}</p>` : ''}
+              ${d.fileName ? `<p style="margin: 6px 0 0 0; color: #6b7280;"><strong>File Name:</strong> ${d.fileName}</p>` : ''}
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin: 20px 0;">
+              ${this.renderDetailRows([
+                { label: 'Owner', value: d.ownerName || 'N/A' },
+                { label: 'Notification Recipient', value: d.recipientName || d.recipientEmail || 'N/A' },
+                { label: 'Recipients Notified', value: Array.isArray(d.notifiedRecipients) ? d.notifiedRecipients.join(', ') : '' },
+                { label: 'Days Left', value: Number.isFinite(d.daysLeft) ? `${d.daysLeft} day(s)` : '' },
+                { label: 'Expiry Date', value: this.formatDateTime(d.expiryDate) },
+                { label: 'Last Upload', value: this.formatDateTime(d.lastUploadAt) }
+              ])}
+            </table>
+
+            <a href="${d.link}" style="display: inline-block; padding: 11px 22px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">View Document</a>
+
+            <p style="margin-top: 24px; color: #6b7280; font-size: 12px;">
+              Open the document link to review the file details and take the next action.
+            </p>
+          </div>
+        `
+      },
       DOCUMENT_EXPIRED: {
         subject: (d) => d.subject || 'Document Expired',
         html: (d) => `

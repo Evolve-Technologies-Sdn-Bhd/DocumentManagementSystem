@@ -549,7 +549,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-surface border border-border rounded-2xl shadow-dms-lg max-w-2xl w-full max-h-[90vh] overflow-hidden" data-tour-id="bulk-import-modal">
+        <div className="relative bg-surface border border-border rounded-2xl shadow-dms-lg max-w-2xl lg:max-w-4xl w-full max-h-[90vh] overflow-hidden" data-tour-id="bulk-import-modal">
           <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-surface">
             <div>
               <h2 className="text-lg font-bold text-ink">{t('bulk_import_title')}</h2>

@@ -1067,6 +1067,7 @@ class ExpiryTrackingService {
         if (!alreadySentForWindow) {
           updateData[selected.field] = new Date()
           for (const recipientId of recipients) {
+            const recipientUser = recipientUsers.get(recipientId)
             await notificationService.sendNotification(
               recipientId,
               'documentExpiring',
@@ -1076,9 +1077,16 @@ class ExpiryTrackingService {
               {
                 subject: `Document Expiry Reminder - ${subjectLabel}`,
                 title: profile.document?.title || 'Document Expiry Reminder',
+                documentId: profile.document?.id || profile.documentId,
                 fileCode: profile.document?.fileCode || '',
+                fileName: fileName || '',
+                ownerName,
                 daysLeft,
                 expiryDate: profile.expiryDate,
+                lastUploadAt,
+                recipientName: this.formatUserDisplay(recipientUser) || '',
+                recipientEmail: recipientUser?.email || '',
+                notifiedRecipients: allRecipientNames,
                 link: notificationService.buildAbsoluteLink(documentLink)
               }
             )
