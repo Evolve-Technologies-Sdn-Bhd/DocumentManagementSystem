@@ -1,6 +1,9 @@
 const prisma = require('../config/database');
 const { NotFoundError, ConflictError } = require('../utils/errors');
 const { createDefaultAdminNotificationChannels, LEGACY_NOTIFICATION_EVENT_ALIASES } = require('../constants/notificationEvents');
+const fs = require('fs/promises');
+const path = require('path');
+const appConfig = require('../config/app');
 
 class ConfigService {
   getDefaultDocumentNumberingSettings() {
@@ -897,7 +900,77 @@ class ConfigService {
   }
 
   async updateThemeSettings(themeSettings) {
-    const value = JSON.stringify(themeSettings);
+    const nextTheme = (themeSettings && typeof themeSettings === 'object') ? { ...themeSettings } : {};
+
+    const existingConfig = await prisma.configuration.findUnique({
+      where: { key: 'theme_settings' }
+    });
+
+    let previousTheme = null;
+    if (existingConfig?.value) {
+      try {
+        previousTheme = JSON.parse(existingConfig.value);
+      } catch {
+        previousTheme = null;
+      }
+    }
+
+    const previousLogo = typeof previousTheme?.mainLogo === 'string' ? previousTheme.mainLogo : null;
+
+    const maybeDeletePreviousLogo = async () => {
+      if (!previousLogo || typeof previousLogo !== 'string') return;
+      const match = previousLogo.match(/^\/uploads\/branding\/([^?]+)(?:\?.*)?$/i);
+      if (!match) return;
+      const fileName = match[1];
+      const filePath = path.join(appConfig.uploadDir, 'branding', fileName);
+      try {
+        await fs.unlink(filePath);
+      } catch {}
+    };
+
+    const persistDataUrlAsFile = async (dataUrl) => {
+      const match = String(dataUrl).match(/^data:([^;,]+)(;base64)?,(.*)$/i);
+      if (!match) return null;
+      const mime = match[1]?.toLowerCase() || '';
+      const isBase64 = Boolean(match[2]);
+      const payload = match[3] || '';
+
+      const extMap = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg'
+      };
+      const ext = extMap[mime];
+      if (!ext) return null;
+
+      const brandingDir = path.join(appConfig.uploadDir, 'branding');
+      await fs.mkdir(brandingDir, { recursive: true });
+
+      const stamp = Date.now();
+      const fileName = `main-logo-${stamp}.${ext}`;
+      const filePath = path.join(brandingDir, fileName);
+
+      const buffer = isBase64 ? Buffer.from(payload, 'base64') : Buffer.from(decodeURIComponent(payload), 'utf8');
+      await fs.writeFile(filePath, buffer);
+
+      return `/uploads/branding/${fileName}`;
+    };
+
+    const incomingLogo = nextTheme.mainLogo;
+    if (typeof incomingLogo === 'string' && incomingLogo.startsWith('data:')) {
+      const url = await persistDataUrlAsFile(incomingLogo);
+      if (url) {
+        await maybeDeletePreviousLogo();
+        nextTheme.mainLogo = url;
+      }
+    } else if (!incomingLogo) {
+      await maybeDeletePreviousLogo();
+      nextTheme.mainLogo = null;
+    }
+
+    const value = JSON.stringify(nextTheme);
 
     const config = await prisma.configuration.upsert({
       where: { key: 'theme_settings' },

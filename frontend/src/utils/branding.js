@@ -7,7 +7,7 @@ const inMemoryBranding = {
   companyInfo: null
 }
 
-const HEAVY_THEME_ASSET_KEYS = ['mainLogo', 'favicon', 'bgImage']
+const HEAVY_THEME_ASSET_KEYS = ['favicon', 'bgImage']
 const BASE_DOCUMENT_TITLE = 'Document Management System'
 
 function cloneValue(value) {
@@ -21,6 +21,9 @@ function sanitizeThemeForStorage(theme) {
   const sanitizedTheme = { ...theme }
   for (const key of HEAVY_THEME_ASSET_KEYS) {
     delete sanitizedTheme[key]
+  }
+  if (typeof sanitizedTheme.mainLogo === 'string' && sanitizedTheme.mainLogo.startsWith('data:')) {
+    delete sanitizedTheme.mainLogo
   }
   return sanitizedTheme
 }
@@ -100,7 +103,15 @@ export function readStoredJson(key) {
 }
 
 export function readThemeSettings() {
-  const storedTheme = readStoredJson('dms_theme_settings')
+  let storedTheme = readStoredJson('dms_theme_settings')
+  if (storedTheme && typeof storedTheme === 'object' && typeof storedTheme.mainLogo === 'string' && storedTheme.mainLogo.startsWith('data:')) {
+    const cleaned = { ...storedTheme }
+    delete cleaned.mainLogo
+    storedTheme = cleaned
+    try {
+      localStorage.setItem('dms_theme_settings', JSON.stringify(cleaned))
+    } catch {}
+  }
   const inMemoryTheme = inMemoryBranding.theme
   if (!storedTheme) return cloneValue(inMemoryTheme)
   if (!inMemoryTheme) return storedTheme
