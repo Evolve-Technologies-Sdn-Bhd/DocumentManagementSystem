@@ -630,6 +630,42 @@ exports.updateLandingPageSettings = asyncHandler(async (req, res) => {
   );
 });
 
+/**
+ * @desc    Get login page settings (global)
+ * @route   GET /api/system/config/login-page-settings
+ * @access  Private (Admin)
+ */
+exports.getLoginPageSettings = asyncHandler(async (req, res) => {
+  const settings = await configService.getLoginPageSettings();
+
+  return ResponseFormatter.success(
+    res,
+    { settings },
+    'Login page settings retrieved successfully'
+  );
+});
+
+/**
+ * @desc    Update login page settings (global)
+ * @route   PUT /api/system/config/login-page-settings
+ * @access  Private (Admin)
+ */
+exports.updateLoginPageSettings = asyncHandler(async (req, res) => {
+  const settings = req.body;
+
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid login page settings data');
+  }
+
+  const updatedSettings = await configService.updateLoginPageSettings(settings);
+
+  return ResponseFormatter.success(
+    res,
+    { settings: updatedSettings },
+    'Login page settings updated successfully'
+  );
+});
+
 exports.uploadLandingFooterPdf = asyncHandler(async (req, res) => {
   const file = req.file;
   if (!file) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect } from 'react'
+import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import HomePage from './components/HomePage'
 import DiagnosticPage from './components/DiagnosticPage'
@@ -21,11 +21,12 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import SessionProvider from './components/SessionProvider'
 import RfidEpcRegistry from './components/RfidEpcRegistry'
-import ProjectTracking from './components/ProjectTracking'
 import ExpiryTracking from './components/ExpiryTracking'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
+
+const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
 
 export default function App() {
   useLayoutEffect(() => {
@@ -103,9 +104,11 @@ export default function App() {
           path="/project-tracking"
           element={
             <ProtectedRoute module="projectTracking" action="view">
-              <Layout>
-                <ProjectTracking />
-              </Layout>
+              <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading project tracking...</div>}>
+                <Layout>
+                  <ProjectTracking />
+                </Layout>
+              </Suspense>
             </ProtectedRoute>
           }
         />

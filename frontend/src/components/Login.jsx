@@ -5,7 +5,8 @@ import api from '../api/axios'
 import { getDefaultRoute } from '../utils/defaultRoute'
 import { updateUserData } from '../utils/userDataEvents'
 import { usePreferences } from '../contexts/PreferencesContext'
-import { readBranding, subscribeBranding } from '../utils/branding'
+import { persistLoginPageSettings, readBranding, readLoginPageSettings, subscribeBranding, subscribeLoginPageSettings } from '../utils/branding'
+import { normalizeLoginPageSettings } from '../utils/loginPageSettings'
 import PublicTopbar from './PublicTopbar'
 import PublicFooter from './PublicFooter'
 
@@ -28,6 +29,7 @@ export default function Login() {
   const [trustDevice, setTrustDevice] = useState(true)
 
   const [branding, setBranding] = useState(() => readBranding())
+  const [loginPageSettings, setLoginPageSettings] = useState(() => normalizeLoginPageSettings(readLoginPageSettings()))
   const [showPassword, setShowPassword] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [changePasswordData, setChangePasswordData] = useState({
@@ -65,6 +67,37 @@ export default function Login() {
   useEffect(() => {
     setBranding(readBranding())
     return subscribeBranding((next) => setBranding(next))
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadSettings = async () => {
+      try {
+        const res = await api.get('/public/login-page-settings')
+        const serverSettings = res.data?.data?.settings
+        if (serverSettings && typeof serverSettings === 'object') {
+          const normalized = normalizeLoginPageSettings(serverSettings)
+          if (!mounted) return
+          setLoginPageSettings(normalized)
+          persistLoginPageSettings(normalized)
+          return
+        }
+      } catch {}
+
+      if (!mounted) return
+      setLoginPageSettings(normalizeLoginPageSettings(readLoginPageSettings()))
+    }
+
+    loadSettings()
+    const unsubscribe = subscribeLoginPageSettings((next) => {
+      setLoginPageSettings(normalizeLoginPageSettings(next))
+    })
+
+    return () => {
+      mounted = false
+      unsubscribe?.()
+    }
   }, [])
 
   async function submit(e) {
@@ -322,64 +355,129 @@ export default function Login() {
     }
   }
 
-  return (
-    <div className="min-h-screen pt-16 pb-14" style={{ background: `linear-gradient(to bottom right, var(--dms-login-bg-start, #F9FAFB), var(--dms-login-bg-end, #EFF6FF))` }}>
-      <PublicTopbar />
-      <PublicFooter />
+  const hero = loginPageSettings.heroSection
+  const formCopy = loginPageSettings.formSection
+  const brandLogo = loginPageSettings.brandLogoOverride || branding.logo
+  const contentOffsetClass = loginPageSettings.showTopbar ? 'pt-16' : ''
+  const contentBottomClass = loginPageSettings.showFooter ? 'pb-14' : ''
+  const pageShellClass = [contentOffsetClass, contentBottomClass].filter(Boolean).join(' ')
+  const showRequiredAsterisk = formCopy.showRequiredAsterisk !== false
+  const inputClass = 'w-full rounded-[10px] border border-[#D9DEE8] bg-white px-4 py-[10px] text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+  const passwordInputClass = `${inputClass} pr-12`
+  const heroBackgroundStyle = hero.heroImage
+    ? `linear-gradient(90deg, ${hero.overlayStart}, ${hero.overlayEnd}), url('${hero.heroImage}')`
+    : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
 
-      {/* Login Section */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] py-12 px-4">
-        <div className="grid md:grid-cols-2 gap-16 items-center max-w-7xl w-full">
-          {/* Left Side - Illustration */}
-          <div className="hidden md:flex justify-center">
-            <div className="text-center">
-              <div className="mb-6">
-                {branding.logo ? (
-                  <div className="inline-block p-8 bg-white rounded-3xl shadow-sm">
-                    <img src={branding.logo} alt="Company Logo" className="h-48 w-auto object-contain" />
-                  </div>
-                ) : (
-                  <div className="inline-block p-8 rounded-3xl" style={{ backgroundColor: `var(--dms-login-accent-bg, #DBEAFE)` }}>
-                    <DocumentTextIcon className="h-48 w-48" style={{ color: `var(--dms-login-accent-icon, #2563EB)` }} />
-                  </div>
-                )}
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground }}>
+      {loginPageSettings.showTopbar ? <PublicTopbar /> : null}
+      {loginPageSettings.showFooter ? <PublicFooter /> : null}
+
+      <div className={`min-h-screen ${pageShellClass}`}>
+        <div className="grid min-h-screen lg:grid-cols-2">
+          <div
+            className="relative hidden overflow-hidden lg:flex"
+            style={{
+              backgroundImage: heroBackgroundStyle,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(31,41,55,0.22),rgba(17,24,39,0.18))]" />
+            <div className="relative z-10 flex min-h-full w-full flex-col justify-between px-7 py-7 text-white xl:px-8 xl:py-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white/10 p-1.5 backdrop-blur-sm">
+                  {brandLogo ? (
+                    <img src={brandLogo} alt="Brand Logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <DocumentTextIcon className="h-6 w-6 text-white" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-[22px] font-semibold tracking-tight text-white/95">
+                    {hero.brandName || branding.companyName}
+                  </p>
+                  {hero.platformLabel ? (
+                    <p className="text-xs text-white/60">{hero.platformLabel}</p>
+                  ) : null}
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{branding.welcomeMessage.replace('{companyName}', branding.companyName)}</h3>
-              <p className="text-gray-600">{t('secure_dms')}</p>
+
+              <div className="max-w-[420px] pb-4">
+                <h1 className="text-[50px] font-bold leading-[1.02] tracking-[-0.03em]">
+                  <span className="block">{hero.headline}</span>
+                  <span className="mt-1 block text-[#F6AA3B]">{hero.highlightedHeadline}</span>
+                </h1>
+                <p className="mt-5 max-w-[360px] text-[15px] leading-7 text-white/78">
+                  {hero.description}
+                </p>
+                <div className="mt-7 flex max-w-[470px] flex-wrap gap-2">
+                  {hero.featurePills.filter(Boolean).map((item) => (
+                    <span key={item} className="inline-flex h-6 items-center rounded-full border border-white/12 bg-white/12 px-3 text-[10px] font-medium text-white/90 backdrop-blur-sm">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-white/65">{hero.footerNote}</p>
             </div>
           </div>
 
-          {/* Right Side - Login Form */}
-          <div className="w-full max-w-lg mx-auto">
-            <div className="rounded-2xl p-10" style={{ backgroundColor: `var(--dms-login-card-bg, #FFFFFF)`, boxShadow: `var(--dms-login-card-shadow, 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04))` }}>
-              {/* Logo & Title */}
-              <div className="text-center mb-10">
-                <div className="flex items-center justify-center mb-5">
-                  {branding.logo ? (
-                    <div className="h-20 flex items-center bg-white rounded-xl px-4 shadow-sm">
-                      <img src={branding.logo} alt="Company Logo" className="max-h-16 max-w-[240px] object-contain" />
-                    </div>
+          <div
+            className="flex min-h-screen items-center justify-center px-6 py-10 sm:px-8 lg:px-20 lg:py-10"
+            style={{ backgroundColor: loginPageSettings.formCardBackground }}
+          >
+            <div
+              className="w-full max-w-[400px]"
+              style={{
+                backgroundColor: 'transparent',
+                borderColor: loginPageSettings.formCardBorderColor
+              }}
+            >
+              <div className="mb-7 text-left">
+                <div className="mb-5 flex items-center justify-center gap-3 lg:hidden">
+                  {brandLogo ? (
+                    <img src={brandLogo} alt="Brand Logo" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
                   ) : (
-                    <div className="flex items-center px-5 py-3 rounded-lg" style={{ backgroundColor: `var(--dms-login-btn-bg, #2563EB)` }}>
-                      <DocumentTextIcon className="h-10 w-10" style={{ color: `var(--dms-login-btn-text, #FFFFFF)` }} />
-                      <span className="ml-3 text-3xl font-bold" style={{ color: `var(--dms-login-btn-text, #FFFFFF)` }}>{branding.companyName}</span>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--dms-login-btn-bg,#2563EB)]">
+                      <DocumentTextIcon className="h-6 w-6 text-white" />
                     </div>
                   )}
+                  <span className="text-lg font-semibold text-gray-800">{hero.brandName || branding.companyName}</span>
                 </div>
-                <p className="text-gray-600 text-base">{t('sign_in_desc')}</p>
+                <h2 className="text-[40px] font-bold tracking-[-0.03em] text-gray-900">{formCopy.title}</h2>
+                <p className="mt-1.5 text-[13px] text-gray-500">{formCopy.subtitle}</p>
               </div>
+
+              {formCopy.showcaseImage ? (
+                <div className="relative mb-7 overflow-hidden rounded-[14px] border border-[#D8DDE7] bg-slate-900 shadow-sm">
+                  {formCopy.showcaseBadge ? (
+                    <span className="absolute left-3 top-3 z-10 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                      {formCopy.showcaseBadge}
+                    </span>
+                  ) : null}
+                  <img src={formCopy.showcaseImage} alt={formCopy.title} className="h-[178px] w-full object-cover" />
+                </div>
+              ) : brandLogo ? (
+                <div className="mb-7 flex justify-start">
+                  <div className="rounded-[14px] border border-[#D8DDE7] bg-white px-5 py-4 shadow-sm">
+                    <img src={brandLogo} alt="Company Logo" className="max-h-[150px] max-w-full object-contain" />
+                  </div>
+                </div>
+              ) : null}
 
               {/* Error Message */}
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-800 text-base">{error}</p>
+                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               {/* 2FA Verification Form */}
               {show2FA ? (
                 <form onSubmit={handleVerify2FA} className="space-y-6">
-                  <div className="text-center mb-6">
+                  <div className="mb-6 text-center lg:text-left">
                     <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-4">
                       <ShieldCheckIcon className="h-10 w-10 text-blue-600" />
                     </div>
@@ -419,7 +517,7 @@ export default function Login() {
                   )}
 
                   <div>
-                    <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="code" className="mb-2 block text-sm font-semibold text-gray-700">
                       {t('verification_code')}
                     </label>
                     <input
@@ -428,7 +526,7 @@ export default function Login() {
                       value={verificationCode}
                       onChange={e => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       required
-                      className="w-full px-5 py-4 text-center text-2xl tracking-[0.5em] font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-5 py-4 text-center font-mono text-2xl tracking-[0.5em] text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
                       placeholder="000000"
                       autoFocus
                     />
@@ -446,7 +544,8 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading || verificationCode.length !== 6}
-                    className="w-full py-4 text-lg rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full rounded-2xl py-4 text-lg font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ backgroundColor: 'var(--dms-login-btn-bg, #2563EB)' }}
                   >
                     {loading ? t('verifying') : t('verify_code')}
                   </button>
@@ -482,12 +581,12 @@ export default function Login() {
                   </div>
                 </form>
               ) : !showChangePassword ? (
-              <form onSubmit={submit} className="space-y-6">
+              <form onSubmit={submit} className="space-y-5">
                 {/* Email/Username Input */}
                 <div>
-                  <label htmlFor="email" className="block text-base font-medium text-gray-700 mb-2">
-                    <UserIcon className="inline h-5 w-5 mr-1" />
-                    {t('enter_username')}
+                  <label htmlFor="email" className="mb-1.5 block text-[11px] font-semibold text-gray-700">
+                    {formCopy.usernameLabel}
+                    {showRequiredAsterisk ? <span className="ml-0.5 text-red-500">*</span> : null}
                   </label>
                   <input
                     type="text"
@@ -495,16 +594,16 @@ export default function Login() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    className="w-full px-5 py-4 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="username or email"
+                    className={inputClass}
+                    placeholder={formCopy.usernamePlaceholder || 'username or email'}
                   />
                 </div>
 
                 {/* Password Input */}
                 <div>
-                  <label htmlFor="password" className="block text-base font-medium text-gray-700 mb-2">
-                    <LockClosedIcon className="inline h-5 w-5 mr-1" />
-                    {t('enter_password')}
+                  <label htmlFor="password" className="mb-1.5 block text-[11px] font-semibold text-gray-700">
+                    {formCopy.passwordLabel}
+                    {showRequiredAsterisk ? <span className="ml-0.5 text-red-500">*</span> : null}
                   </label>
                   <div className="relative">
                     <input
@@ -513,48 +612,57 @@ export default function Login() {
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       required
-                      className="w-full px-5 py-4 pr-12 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      placeholder="••••••••"
+                      className={passwordInputClass}
+                      placeholder={formCopy.passwordPlaceholder || '••••••••'}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                     >
                       {showPassword ? (
-                        <EyeSlashIcon className="h-6 w-6" />
+                        <EyeSlashIcon className="h-4.5 w-4.5" />
                       ) : (
-                        <EyeIcon className="h-6 w-6" />
+                        <EyeIcon className="h-4.5 w-4.5" />
                       )}
                     </button>
                   </div>
                 </div>
 
                 {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center cursor-pointer">
+                <div className="flex items-center justify-between gap-4 pt-0.5">
+                  <label className="flex min-w-0 items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={e => setRememberMe(e.target.checked)}
-                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="peer sr-only"
                     />
-                    <span className="ml-2 text-base text-gray-700">{t('remember_me')}</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md border border-gray-300 bg-white text-transparent transition peer-checked:border-blue-600 peer-checked:bg-blue-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-blue-200">
+                      <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5">
+                        <path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span className="min-w-0 truncate text-sm text-gray-700">{formCopy.rememberMeLabel}</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowChangePassword(true)}
-                    className="text-base text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                  >
-                    {t('forgot_password_q')}
-                  </button>
+                  {formCopy.showForgotPassword ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowChangePassword(true)}
+                      className="whitespace-nowrap text-sm font-medium text-blue-600 transition-colors hover:text-blue-800"
+                    >
+                      {formCopy.forgotPasswordText || t('forgot_password_q')}
+                    </button>
+                  ) : (
+                    <span className="w-4" aria-hidden="true" />
+                  )}
                 </div>
 
                 {/* Login Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 text-lg rounded-lg font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="mt-1 w-full rounded-[10px] py-3 text-sm font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
                     backgroundColor: loading ? 'var(--dms-login-btn-bg, #2563EB)' : `var(--dms-login-btn-bg, #2563EB)`,
                     color: `var(--dms-login-btn-text, #FFFFFF)`,
@@ -570,7 +678,7 @@ export default function Login() {
                     }
                   }}
                 >
-                  {loading ? t('logging_in') : t('login_btn')}
+                  {loading ? t('logging_in') : formCopy.loginButtonLabel}
                 </button>
               </form>
               ) : (
@@ -599,7 +707,7 @@ export default function Login() {
                       value={changePasswordData.username}
                       onChange={e => setChangePasswordData(prev => ({ ...prev, username: e.target.value }))}
                       required
-                      className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
                       placeholder="username or email"
                     />
                   </div>
@@ -617,7 +725,7 @@ export default function Login() {
                         value={changePasswordData.currentPassword}
                         onChange={e => setChangePasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                         required
-                        className="w-full px-4 py-3 pr-11 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
                         placeholder="••••••••"
                       />
                       <button
@@ -643,7 +751,7 @@ export default function Login() {
                         value={changePasswordData.newPassword}
                         onChange={e => handleNewPasswordChange(e.target.value)}
                         required
-                        className="w-full px-4 py-3 pr-11 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
                         placeholder="••••••••"
                       />
                       <button
@@ -744,7 +852,7 @@ export default function Login() {
                         value={changePasswordData.confirmPassword}
                         onChange={e => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                         required
-                        className="w-full px-4 py-3 pr-11 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
                         placeholder="••••••••"
                       />
                       <button
@@ -773,7 +881,7 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={changePasswordLoading}
-                      className="w-full py-3.5 text-base rounded-lg font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                       style={{
                         backgroundColor: changePasswordLoading ? 'var(--dms-login-btn-bg, #2563EB)' : `var(--dms-login-btn-bg, #2563EB)`,
                         color: `var(--dms-login-btn-text, #FFFFFF)`,
@@ -812,18 +920,27 @@ export default function Login() {
                         })
                         setChangePasswordMessage('')
                       }}
-                      className="w-full py-3.5 text-base rounded-lg font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                     >
                       {t('back_to_login')}
                     </button>
                   </div>
                 </form>
               )}
+
+              <div className="mt-5 text-center">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="text-[12px] text-gray-400 transition-colors hover:text-gray-600"
+                >
+                  {`← ${formCopy.backToHomeText}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+        </div>
       </div>
-
-    </div>
   )
 }

@@ -1,5 +1,6 @@
 export const BRANDING_UPDATED_EVENT = 'brandingUpdated'
 export const LANDING_SETTINGS_UPDATED_EVENT = 'landingPageSettingsUpdated'
+export const LOGIN_SETTINGS_UPDATED_EVENT = 'loginPageSettingsUpdated'
 
 const inMemoryBranding = {
   theme: null,
@@ -122,6 +123,10 @@ export function readLandingPageSettings() {
   return readStoredJson('dms_landing_page_settings')
 }
 
+export function readLoginPageSettings() {
+  return readStoredJson('dms_login_page_settings')
+}
+
 export function subscribeBranding(callback) {
   const handler = () => callback?.(readBranding())
   window.addEventListener('storage', handler)
@@ -142,6 +147,16 @@ export function subscribeLandingPageSettings(callback) {
   }
 }
 
+export function subscribeLoginPageSettings(callback) {
+  const handler = () => callback?.(readLoginPageSettings())
+  window.addEventListener('storage', handler)
+  window.addEventListener(LOGIN_SETTINGS_UPDATED_EVENT, handler)
+  return () => {
+    window.removeEventListener('storage', handler)
+    window.removeEventListener(LOGIN_SETTINGS_UPDATED_EVENT, handler)
+  }
+}
+
 export function persistLandingPageSettings(settings) {
   if (settings && typeof settings === 'object') {
     try {
@@ -149,6 +164,15 @@ export function persistLandingPageSettings(settings) {
     } catch {}
   }
   window.dispatchEvent(new Event(LANDING_SETTINGS_UPDATED_EVENT))
+}
+
+export function persistLoginPageSettings(settings) {
+  if (settings && typeof settings === 'object') {
+    try {
+      localStorage.setItem('dms_login_page_settings', JSON.stringify(settings))
+    } catch {}
+  }
+  window.dispatchEvent(new Event(LOGIN_SETTINGS_UPDATED_EVENT))
 }
 
 export function applyTheme(themeObj) {

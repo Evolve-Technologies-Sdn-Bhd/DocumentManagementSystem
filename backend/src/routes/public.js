@@ -19,6 +19,9 @@ router.get('/statistics', publicController.getStatistics);
 // GET /api/public/landing-page-settings - Get landing page settings (global)
 router.get('/landing-page-settings', publicController.getLandingPageSettings);
 
+// GET /api/public/login-page-settings - Get login page settings (global)
+router.get('/login-page-settings', publicController.getLoginPageSettings);
+
 // GET /api/public/branding - Get global branding (company info + theme)
 router.get('/branding', publicController.getBranding);
 
