@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FileNix DMS</title>
+    <title>Document Management System</title>
     <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📄</text></svg>" id="favicon" />
     <script>
       (function() {
@@ -69,12 +69,22 @@
               document.body.style.fontFamily = "'" + theme.fontFamily + "', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
             }
           }
+          const baseTitle = 'Document Management System'
+          const cleanCompanyName = (name) => {
+            if (!name || typeof name !== 'string') return ''
+            return name
+              .replace(/\b(SDN\.?\s*BHD\.?|BHD\.?|BERHAD|LTD\.?|LIMITED|INC\.?|CORP\.?|CORPORATION)\b/gi, '')
+              .replace(/\s{2,}/g, ' ')
+              .trim()
+          }
+
           // Load custom title from company info
           const savedCompanyInfo = localStorage.getItem('dms_company_info');
           if (savedCompanyInfo) {
             const companyInfo = JSON.parse(savedCompanyInfo);
             if (companyInfo.companyName) {
-              document.title = companyInfo.companyName + ' DMS';
+              const companyName = cleanCompanyName(companyInfo.companyName)
+              document.title = companyName ? `${baseTitle} by ${companyName}` : baseTitle
             }
           }
         } catch (e) {

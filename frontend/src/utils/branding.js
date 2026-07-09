@@ -8,6 +8,7 @@ const inMemoryBranding = {
 }
 
 const HEAVY_THEME_ASSET_KEYS = ['mainLogo', 'favicon', 'bgImage']
+const BASE_DOCUMENT_TITLE = 'Document Management System'
 
 function cloneValue(value) {
   if (!value || typeof value !== 'object') return value ?? null
@@ -74,6 +75,19 @@ function isAccessibleTextColor(textColor, backgroundColor, threshold = 4.5) {
   const bg = parseColorToRgb(backgroundColor)
   if (!fg || !bg) return false
   return contrastRatio(fg, bg) >= threshold
+}
+
+function cleanCompanyName(name) {
+  if (!name || typeof name !== 'string') return ''
+  return name
+    .replace(/\b(SDN\.?\s*BHD\.?|BHD\.?|BERHAD|LTD\.?|LIMITED|INC\.?|CORP\.?|CORPORATION)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function buildDocumentTitle(companyName) {
+  const cleaned = cleanCompanyName(companyName)
+  return cleaned ? `${BASE_DOCUMENT_TITLE} by ${cleaned}` : BASE_DOCUMENT_TITLE
 }
 
 export function readStoredJson(key) {
@@ -367,7 +381,7 @@ export function applyCompanyInfo(companyInfo) {
   if (!companyInfo || typeof companyInfo !== 'object') return
   inMemoryBranding.companyInfo = cloneValue(companyInfo)
   if (companyInfo.companyName) {
-    document.title = `${companyInfo.companyName} DMS`
+    document.title = buildDocumentTitle(companyInfo.companyName)
   }
 }
 
