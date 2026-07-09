@@ -129,13 +129,6 @@ export default function LoginPageSettings() {
     }))
   }
 
-  const updateForm = (key, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      formSection: { ...prev.formSection, [key]: value }
-    }))
-  }
-
   const updateFeaturePill = (index, value) => {
     const next = [...featurePills]
     next[index] = value
@@ -259,13 +252,57 @@ export default function LoginPageSettings() {
               />
             </Field>
           </div>
-          <Field label="Overlay start color" hint="Supports rgba(...) or hex values.">
-            <TextInput value={settings.heroSection.overlayStart} onChange={(e) => updateHero('overlayStart', e.target.value)} />
-          </Field>
-          <Field label="Overlay end color" hint="Supports rgba(...) or hex values.">
-            <TextInput value={settings.heroSection.overlayEnd} onChange={(e) => updateHero('overlayEnd', e.target.value)} />
-          </Field>
         </div>
+
+        <AppSurface padding="md" variant="panel" className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">Hero image crop</div>
+            <div className="mt-1 text-xs text-ink-muted">Adjust which part of the hero image stays visible (uses CSS background-position).</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Crop X (%)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalX ?? 50}
+                  onChange={(e) => updateHero('heroFocalX', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalX ?? 50}
+                  onChange={(e) => updateHero('heroFocalX', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+            <Field label="Crop Y (%)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalY ?? 50}
+                  onChange={(e) => updateHero('heroFocalY', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalY ?? 50}
+                  onChange={(e) => updateHero('heroFocalY', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+          </div>
+        </AppSurface>
 
         <ImagePicker
           label="Hero background image"
@@ -288,86 +325,6 @@ export default function LoginPageSettings() {
             ))}
           </div>
         </div>
-      </AppSurface>
-
-      <AppSurface padding="lg" variant="panel" className="space-y-5">
-        <SectionTitle
-          title="Right Form Panel"
-          description="Manage the login card text and image shown beside the form."
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Form title">
-            <TextInput value={settings.formSection.title} onChange={(e) => updateForm('title', e.target.value)} />
-          </Field>
-          <Field label="Form subtitle">
-            <TextInput value={settings.formSection.subtitle} onChange={(e) => updateForm('subtitle', e.target.value)} />
-          </Field>
-          <Field label="Username label">
-            <TextInput value={settings.formSection.usernameLabel} onChange={(e) => updateForm('usernameLabel', e.target.value)} />
-          </Field>
-          <Field label="Username placeholder">
-            <TextInput value={settings.formSection.usernamePlaceholder || ''} onChange={(e) => updateForm('usernamePlaceholder', e.target.value)} />
-          </Field>
-          <Field label="Password label">
-            <TextInput value={settings.formSection.passwordLabel} onChange={(e) => updateForm('passwordLabel', e.target.value)} />
-          </Field>
-          <Field label="Password placeholder">
-            <TextInput value={settings.formSection.passwordPlaceholder || ''} onChange={(e) => updateForm('passwordPlaceholder', e.target.value)} />
-          </Field>
-          <Field label="Remember me label">
-            <TextInput value={settings.formSection.rememberMeLabel} onChange={(e) => updateForm('rememberMeLabel', e.target.value)} />
-          </Field>
-          <Field label="Forgot password text">
-            <TextInput value={settings.formSection.forgotPasswordText || ''} onChange={(e) => updateForm('forgotPasswordText', e.target.value)} />
-          </Field>
-          <Field label="Login button label">
-            <TextInput value={settings.formSection.loginButtonLabel} onChange={(e) => updateForm('loginButtonLabel', e.target.value)} />
-          </Field>
-          <Field label="Back to home text">
-            <TextInput value={settings.formSection.backToHomeText} onChange={(e) => updateForm('backToHomeText', e.target.value)} />
-          </Field>
-          <Field label="Showcase badge">
-            <TextInput value={settings.formSection.showcaseBadge} onChange={(e) => updateForm('showcaseBadge', e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
-            <span className="text-sm font-medium text-ink">Show forgot password</span>
-            <input
-              type="checkbox"
-              checked={!!settings.formSection.showForgotPassword}
-              onChange={(e) => updateForm('showForgotPassword', e.target.checked)}
-              className="h-4 w-4"
-            />
-          </label>
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
-            <span className="text-sm font-medium text-ink">Show required asterisk</span>
-            <input
-              type="checkbox"
-              checked={settings.formSection.showRequiredAsterisk !== false}
-              onChange={(e) => updateForm('showRequiredAsterisk', e.target.checked)}
-              className="h-4 w-4"
-            />
-          </label>
-        </div>
-
-        <ImagePicker
-          label="Showcase image"
-          hint="Shown above the form fields inside the login card."
-          value={settings.formSection.showcaseImage}
-          onChange={(value) => updateForm('showcaseImage', value)}
-          onRemove={() => updateForm('showcaseImage', null)}
-        />
-
-        <ImagePicker
-          label="Brand logo override"
-          hint="Optional. If empty, the main branding logo is used."
-          value={settings.brandLogoOverride}
-          onChange={(value) => updateRoot('brandLogoOverride', value)}
-          onRemove={() => updateRoot('brandLogoOverride', null)}
-        />
       </AppSurface>
 
       <div className="flex flex-wrap justify-end gap-3">

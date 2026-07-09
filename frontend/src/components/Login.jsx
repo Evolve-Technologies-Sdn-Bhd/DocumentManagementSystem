@@ -6,7 +6,7 @@ import { getDefaultRoute } from '../utils/defaultRoute'
 import { updateUserData } from '../utils/userDataEvents'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { persistLoginPageSettings, readBranding, readLoginPageSettings, subscribeBranding, subscribeLoginPageSettings } from '../utils/branding'
-import { normalizeLoginPageSettings } from '../utils/loginPageSettings'
+import { DEFAULT_LOGIN_FORM_COPY, normalizeLoginPageSettings } from '../utils/loginPageSettings'
 import PublicTopbar from './PublicTopbar'
 import PublicFooter from './PublicFooter'
 
@@ -356,8 +356,8 @@ export default function Login() {
   }
 
   const hero = loginPageSettings.heroSection
-  const formCopy = loginPageSettings.formSection
-  const brandLogo = loginPageSettings.brandLogoOverride || branding.logo
+  const formCopy = DEFAULT_LOGIN_FORM_COPY
+  const brandLogo = branding.logo
   const contentOffsetClass = loginPageSettings.showTopbar ? 'pt-16' : ''
   const contentBottomClass = loginPageSettings.showFooter ? 'pb-14' : ''
   const pageShellClass = [contentOffsetClass, contentBottomClass].filter(Boolean).join(' ')
@@ -365,7 +365,7 @@ export default function Login() {
   const inputClass = 'w-full rounded-[10px] border border-[#D9DEE8] bg-white px-4 py-[10px] text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
   const passwordInputClass = `${inputClass} pr-12`
   const heroBackgroundStyle = hero.heroImage
-    ? `linear-gradient(90deg, ${hero.overlayStart}, ${hero.overlayEnd}), url('${hero.heroImage}')`
+    ? `linear-gradient(90deg, rgba(23, 23, 35, 0.58), rgba(12, 25, 58, 0.32)), url('${hero.heroImage}')`
     : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
 
   return (
@@ -380,19 +380,17 @@ export default function Login() {
             style={{
               backgroundImage: heroBackgroundStyle,
               backgroundSize: 'cover',
-              backgroundPosition: 'center'
+              backgroundPosition: `${hero.heroFocalX ?? 50}% ${hero.heroFocalY ?? 50}%`
             }}
           >
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(31,41,55,0.22),rgba(17,24,39,0.18))]" />
             <div className="relative z-10 flex min-h-full w-full flex-col justify-between px-7 py-7 text-white xl:px-8 xl:py-8">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white/10 p-1.5 backdrop-blur-sm">
-                  {brandLogo ? (
-                    <img src={brandLogo} alt="Brand Logo" className="h-full w-full object-contain" />
-                  ) : (
-                    <DocumentTextIcon className="h-6 w-6 text-white" />
-                  )}
-                </div>
+                {brandLogo ? (
+                  <img src={brandLogo} alt="Brand Logo" className="h-9 w-auto object-contain" />
+                ) : (
+                  <DocumentTextIcon className="h-6 w-6 text-white" />
+                )}
                 <div>
                   <p className="text-[22px] font-semibold tracking-tight text-white/95">
                     {hero.brandName || branding.companyName}
@@ -450,20 +448,9 @@ export default function Login() {
                 <p className="mt-1.5 text-[13px] text-gray-500">{formCopy.subtitle}</p>
               </div>
 
-              {formCopy.showcaseImage ? (
-                <div className="relative mb-7 overflow-hidden rounded-[14px] border border-[#D8DDE7] bg-slate-900 shadow-sm">
-                  {formCopy.showcaseBadge ? (
-                    <span className="absolute left-3 top-3 z-10 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
-                      {formCopy.showcaseBadge}
-                    </span>
-                  ) : null}
-                  <img src={formCopy.showcaseImage} alt={formCopy.title} className="h-[178px] w-full object-cover" />
-                </div>
-              ) : brandLogo ? (
+              {brandLogo ? (
                 <div className="mb-7 flex justify-start">
-                  <div className="rounded-[14px] border border-[#D8DDE7] bg-white px-5 py-4 shadow-sm">
-                    <img src={brandLogo} alt="Company Logo" className="max-h-[150px] max-w-full object-contain" />
-                  </div>
+                  <img src={brandLogo} alt="Company Logo" className="max-h-[150px] max-w-full object-contain" />
                 </div>
               ) : null}
 
