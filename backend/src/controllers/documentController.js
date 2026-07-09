@@ -2104,7 +2104,21 @@ class DocumentController {
         lastModified: latestVersion?.uploadedAt 
           ? new Date(latestVersion.uploadedAt).toLocaleDateString('en-GB')
           : new Date(doc.updatedAt).toLocaleDateString('en-GB'),
-        status: doc.status
+        status: doc.status,
+        requiresExpiryTracking: Boolean(doc.documentType?.requiresExpiryTracking),
+        allowRenewal: Boolean(doc.documentType?.allowRenewal),
+        hasExpiryProfile: Boolean(doc.expiryProfile),
+        trackingEnabled: Boolean(doc.expiryProfile?.trackingEnabled),
+        startDate: doc.expiryProfile?.startDate || null,
+        expiryDate: doc.expiryProfile?.expiryDate || null,
+        expiryStatus: doc.expiryProfile?.expiryStatus || null,
+        renewalStatus: doc.expiryProfile?.renewalStatus || null,
+        expiryRemarks: doc.expiryProfile?.remarks || '',
+        expiringSoonDays: doc.expiryProfile?.expiringSoonDays ?? null,
+        reminder1Days: doc.expiryProfile?.reminder1Days ?? null,
+        reminder2Days: doc.expiryProfile?.reminder2Days ?? null,
+        reminder3Days: doc.expiryProfile?.reminder3Days ?? null,
+        reminder4Days: doc.expiryProfile?.reminder4Days ?? null
       };
     });
 

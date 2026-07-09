@@ -1472,6 +1472,21 @@ class DocumentService {
         versions: {
           orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
           take: 1
+        },
+        expiryProfile: {
+          select: {
+            trackingEnabled: true,
+            startDate: true,
+            expiryDate: true,
+            expiryStatus: true,
+            renewalStatus: true,
+            remarks: true,
+            expiringSoonDays: true,
+            reminder1Days: true,
+            reminder2Days: true,
+            reminder3Days: true,
+            reminder4Days: true
+          }
         }
       },
       skip,
