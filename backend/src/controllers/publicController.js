@@ -198,13 +198,18 @@ exports.getStatistics = asyncHandler(async (req, res) => {
  * Get landing page settings (global)
  */
 exports.getLandingPageSettings = asyncHandler(async (req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.set('Pragma', 'no-cache');
-  res.set('Expires', '0');
-
   const config = await prisma.configuration.findUnique({
     where: { key: 'landing_page_settings' }
   });
+
+  const stamp = config?.updatedAt instanceof Date ? config.updatedAt.getTime() : 0;
+  const etag = `W/"landing-page-settings-${stamp}"`;
+  res.set('ETag', etag);
+  res.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.set('Vary', 'Accept-Encoding');
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
 
   let settings = null;
   if (config?.value) {
@@ -240,14 +245,22 @@ exports.getLoginPageSettings = asyncHandler(async (req, res) => {
 });
 
 exports.getBranding = asyncHandler(async (req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.set('Pragma', 'no-cache');
-  res.set('Expires', '0');
-
   const [companyConfig, themeConfig] = await Promise.all([
     prisma.configuration.findUnique({ where: { key: 'company_info' } }),
     prisma.configuration.findUnique({ where: { key: 'theme_settings' } })
   ]);
+
+  const companyStamp = companyConfig?.updatedAt instanceof Date ? companyConfig.updatedAt.getTime() : 0;
+  const themeStamp = themeConfig?.updatedAt instanceof Date ? themeConfig.updatedAt.getTime() : 0;
+  const etag = `W/"branding-${companyStamp}-${themeStamp}"`;
+
+  res.set('ETag', etag);
+  res.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.set('Vary', 'Accept-Encoding');
+
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
 
   let companyInfo = null;
   if (companyConfig?.value) {

@@ -7,7 +7,7 @@ const inMemoryBranding = {
   companyInfo: null
 }
 
-const HEAVY_THEME_ASSET_KEYS = ['mainLogo', 'favicon', 'bgImage']
+const HEAVY_THEME_ASSET_KEYS = ['favicon', 'bgImage']
 const BASE_DOCUMENT_TITLE = 'Document Management System'
 
 function cloneValue(value) {

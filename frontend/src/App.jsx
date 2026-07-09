@@ -42,7 +42,7 @@ export default function App() {
     let mounted = true
     const load = async () => {
       try {
-        const res = await api.get('/public/branding', { params: { v: Date.now() }, headers: { 'Cache-Control': 'no-cache' } })
+        const res = await api.get('/public/branding')
         const companyInfo = res.data?.data?.companyInfo || null
         const theme = res.data?.data?.theme || null
         if (!mounted) return

@@ -115,6 +115,15 @@ const HomePage = () => {
 
   const loadLandingContent = async () => {
     try {
+      const saved = localStorage.getItem('dms_landing_page_settings');
+      if (saved) {
+        setLandingContent(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading landing page content:', error);
+    }
+
+    try {
       const response = await api.get('/public/landing-page-settings');
       const serverSettings = response.data?.data?.settings;
       if (serverSettings && typeof serverSettings === 'object') {
@@ -123,15 +132,6 @@ const HomePage = () => {
         return;
       }
     } catch {}
-
-    try {
-      const saved = localStorage.getItem('dms_landing_page_settings');
-      if (saved) {
-        setLandingContent(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error('Error loading landing page content:', error);
-    }
   };
 
   const fetchFeatures = async () => {
