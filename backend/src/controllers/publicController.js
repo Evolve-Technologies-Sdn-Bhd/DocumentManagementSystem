@@ -198,6 +198,10 @@ exports.getStatistics = asyncHandler(async (req, res) => {
  * Get landing page settings (global)
  */
 exports.getLandingPageSettings = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   const config = await prisma.configuration.findUnique({
     where: { key: 'landing_page_settings' }
   });
@@ -215,6 +219,10 @@ exports.getLandingPageSettings = asyncHandler(async (req, res) => {
 });
 
 exports.getLoginPageSettings = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
   const config = await prisma.configuration.findUnique({
     where: { key: 'login_page_settings' }
   });
