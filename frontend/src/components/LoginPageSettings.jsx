@@ -129,13 +129,6 @@ export default function LoginPageSettings() {
     }))
   }
 
-  const updateForm = (key, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      formSection: { ...prev.formSection, [key]: value }
-    }))
-  }
-
   const updateFeaturePill = (index, value) => {
     const next = [...featurePills]
     next[index] = value
@@ -259,13 +252,217 @@ export default function LoginPageSettings() {
               />
             </Field>
           </div>
-          <Field label="Overlay start color" hint="Supports rgba(...) or hex values.">
-            <TextInput value={settings.heroSection.overlayStart} onChange={(e) => updateHero('overlayStart', e.target.value)} />
-          </Field>
-          <Field label="Overlay end color" hint="Supports rgba(...) or hex values.">
-            <TextInput value={settings.heroSection.overlayEnd} onChange={(e) => updateHero('overlayEnd', e.target.value)} />
-          </Field>
         </div>
+
+        <AppSurface padding="md" variant="panel" className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">Hero image crop</div>
+            <div className="mt-1 text-xs text-ink-muted">Adjust which part of the hero image stays visible (uses CSS background-position).</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Crop X (%)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalX ?? 50}
+                  onChange={(e) => updateHero('heroFocalX', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalX ?? 50}
+                  onChange={(e) => updateHero('heroFocalX', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+            <Field label="Crop Y (%)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalY ?? 50}
+                  onChange={(e) => updateHero('heroFocalY', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settings.heroSection.heroFocalY ?? 50}
+                  onChange={(e) => updateHero('heroFocalY', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+          </div>
+        </AppSurface>
+
+        <AppSurface padding="md" variant="panel" className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">Hero typography & position</div>
+            <div className="mt-1 text-xs text-ink-muted">Match font style and fine-tune text position on the hero panel.</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Font family"
+              hint="Example: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+            >
+              <TextInput value={settings.heroSection.heroFontFamily || ''} onChange={(e) => updateHero('heroFontFamily', e.target.value)} />
+            </Field>
+
+            <Field label="Text offset X (px)" hint="Move hero text block left/right. Positive = move right.">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="-200"
+                  max="200"
+                  value={settings.heroSection.heroTextOffsetX ?? 0}
+                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="-200"
+                  max="200"
+                  value={settings.heroSection.heroTextOffsetX ?? 0}
+                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 md:col-span-2">
+              <span className="text-sm font-medium text-ink">Enable text shadow</span>
+              <input
+                type="checkbox"
+                checked={settings.heroSection.heroTextShadowEnabled !== false}
+                onChange={(e) => updateHero('heroTextShadowEnabled', e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+
+            <Field
+              label="Title text shadow"
+              hint="CSS text-shadow value. Example: 0 14px 30px rgba(0,0,0,0.45)"
+            >
+              <TextInput
+                value={settings.heroSection.heroTitleTextShadow || ''}
+                onChange={(e) => updateHero('heroTitleTextShadow', e.target.value)}
+                placeholder="0 14px 30px rgba(0,0,0,0.45)"
+              />
+            </Field>
+
+            <Field
+              label="Description text shadow"
+              hint="CSS text-shadow value. Example: 0 10px 22px rgba(0,0,0,0.35)"
+            >
+              <TextInput
+                value={settings.heroSection.heroDescriptionTextShadow || ''}
+                onChange={(e) => updateHero('heroDescriptionTextShadow', e.target.value)}
+                placeholder="0 10px 22px rgba(0,0,0,0.35)"
+              />
+            </Field>
+
+            <Field label="Title font size (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="28"
+                  max="88"
+                  value={settings.heroSection.heroTitleFontSize ?? 50}
+                  onChange={(e) => updateHero('heroTitleFontSize', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="28"
+                  max="88"
+                  value={settings.heroSection.heroTitleFontSize ?? 50}
+                  onChange={(e) => updateHero('heroTitleFontSize', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Title font weight" hint="Common values: 600, 700, 800">
+              <TextInput
+                type="number"
+                min="300"
+                max="900"
+                value={settings.heroSection.heroTitleFontWeight ?? 800}
+                onChange={(e) => updateHero('heroTitleFontWeight', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Title letter spacing (em)" hint="Example: -0.03">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroTitleLetterSpacing ?? -0.03}
+                onChange={(e) => updateHero('heroTitleLetterSpacing', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Title line height" hint="Example: 1.02">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroTitleLineHeight ?? 1.02}
+                onChange={(e) => updateHero('heroTitleLineHeight', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Highlight color">
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={settings.heroSection.heroHighlightColor || '#F6AA3B'}
+                  onChange={(e) => updateHero('heroHighlightColor', e.target.value)}
+                  className="h-10 w-14 rounded-xl border border-border"
+                />
+                <TextInput value={settings.heroSection.heroHighlightColor || ''} onChange={(e) => updateHero('heroHighlightColor', e.target.value)} />
+              </div>
+            </Field>
+
+            <Field label="Description font size (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="11"
+                  max="22"
+                  value={settings.heroSection.heroDescriptionFontSize ?? 15}
+                  onChange={(e) => updateHero('heroDescriptionFontSize', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="11"
+                  max="22"
+                  value={settings.heroSection.heroDescriptionFontSize ?? 15}
+                  onChange={(e) => updateHero('heroDescriptionFontSize', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Description line height" hint="Example: 1.85">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroDescriptionLineHeight ?? 1.85}
+                onChange={(e) => updateHero('heroDescriptionLineHeight', Number(e.target.value))}
+              />
+            </Field>
+          </div>
+        </AppSurface>
 
         <ImagePicker
           label="Hero background image"
@@ -288,86 +485,6 @@ export default function LoginPageSettings() {
             ))}
           </div>
         </div>
-      </AppSurface>
-
-      <AppSurface padding="lg" variant="panel" className="space-y-5">
-        <SectionTitle
-          title="Right Form Panel"
-          description="Manage the login card text and image shown beside the form."
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Form title">
-            <TextInput value={settings.formSection.title} onChange={(e) => updateForm('title', e.target.value)} />
-          </Field>
-          <Field label="Form subtitle">
-            <TextInput value={settings.formSection.subtitle} onChange={(e) => updateForm('subtitle', e.target.value)} />
-          </Field>
-          <Field label="Username label">
-            <TextInput value={settings.formSection.usernameLabel} onChange={(e) => updateForm('usernameLabel', e.target.value)} />
-          </Field>
-          <Field label="Username placeholder">
-            <TextInput value={settings.formSection.usernamePlaceholder || ''} onChange={(e) => updateForm('usernamePlaceholder', e.target.value)} />
-          </Field>
-          <Field label="Password label">
-            <TextInput value={settings.formSection.passwordLabel} onChange={(e) => updateForm('passwordLabel', e.target.value)} />
-          </Field>
-          <Field label="Password placeholder">
-            <TextInput value={settings.formSection.passwordPlaceholder || ''} onChange={(e) => updateForm('passwordPlaceholder', e.target.value)} />
-          </Field>
-          <Field label="Remember me label">
-            <TextInput value={settings.formSection.rememberMeLabel} onChange={(e) => updateForm('rememberMeLabel', e.target.value)} />
-          </Field>
-          <Field label="Forgot password text">
-            <TextInput value={settings.formSection.forgotPasswordText || ''} onChange={(e) => updateForm('forgotPasswordText', e.target.value)} />
-          </Field>
-          <Field label="Login button label">
-            <TextInput value={settings.formSection.loginButtonLabel} onChange={(e) => updateForm('loginButtonLabel', e.target.value)} />
-          </Field>
-          <Field label="Back to home text">
-            <TextInput value={settings.formSection.backToHomeText} onChange={(e) => updateForm('backToHomeText', e.target.value)} />
-          </Field>
-          <Field label="Showcase badge">
-            <TextInput value={settings.formSection.showcaseBadge} onChange={(e) => updateForm('showcaseBadge', e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
-            <span className="text-sm font-medium text-ink">Show forgot password</span>
-            <input
-              type="checkbox"
-              checked={!!settings.formSection.showForgotPassword}
-              onChange={(e) => updateForm('showForgotPassword', e.target.checked)}
-              className="h-4 w-4"
-            />
-          </label>
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
-            <span className="text-sm font-medium text-ink">Show required asterisk</span>
-            <input
-              type="checkbox"
-              checked={settings.formSection.showRequiredAsterisk !== false}
-              onChange={(e) => updateForm('showRequiredAsterisk', e.target.checked)}
-              className="h-4 w-4"
-            />
-          </label>
-        </div>
-
-        <ImagePicker
-          label="Showcase image"
-          hint="Shown above the form fields inside the login card."
-          value={settings.formSection.showcaseImage}
-          onChange={(value) => updateForm('showcaseImage', value)}
-          onRemove={() => updateForm('showcaseImage', null)}
-        />
-
-        <ImagePicker
-          label="Brand logo override"
-          hint="Optional. If empty, the main branding logo is used."
-          value={settings.brandLogoOverride}
-          onChange={(value) => updateRoot('brandLogoOverride', value)}
-          onRemove={() => updateRoot('brandLogoOverride', null)}
-        />
       </AppSurface>
 
       <div className="flex flex-wrap justify-end gap-3">
