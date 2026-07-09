@@ -44,12 +44,12 @@ export default function PublicTopbar({ onSection }) {
         <div className="flex justify-between items-center h-16">
           <button type="button" className="flex items-center gap-3 text-left focus-visible:outline-none" onClick={() => navigate('/')} aria-label="Go to home">
             {branding.logo ? (
-              <div className="h-10 flex items-center bg-white rounded-lg px-2 shadow-sm">
+              <div className="inline-flex items-center rounded-lg bg-white px-2 py-1.5 shadow-sm">
                 <BrandLogoImage
                   src={branding.logo}
                   placeholderSrc={branding.logoPlaceholder}
                   alt="Company Logo"
-                  className="max-h-8 max-w-[180px] object-contain"
+                  className="block h-auto max-h-8 w-auto max-w-[180px] object-contain"
                 />
               </div>
             ) : (

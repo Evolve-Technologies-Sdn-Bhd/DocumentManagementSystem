@@ -486,7 +486,7 @@ export default function Login() {
                       src={brandLogo}
                       placeholderSrc={brandLogoPlaceholder}
                       alt="Brand Logo"
-                      className="h-12 w-12 rounded-xl object-contain shadow-sm"
+                      className="block h-auto max-h-12 w-auto max-w-[140px] object-contain"
                     />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--dms-login-btn-bg,#2563EB)]">
@@ -500,12 +500,12 @@ export default function Login() {
               </div>
 
               {brandLogo ? (
-                <div className="mb-7 flex w-full justify-center">
+                <div className="mb-7 flex justify-center">
                   <BrandLogoImage
                     src={brandLogo}
                     placeholderSrc={brandLogoPlaceholder}
                     alt="Company Logo"
-                    className="max-h-[220px] w-full object-contain"
+                    className="block h-auto max-h-[220px] w-auto max-w-full object-contain"
                   />
                 </div>
               ) : null}
