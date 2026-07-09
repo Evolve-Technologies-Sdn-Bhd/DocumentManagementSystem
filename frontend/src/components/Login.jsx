@@ -367,6 +367,12 @@ export default function Login() {
   const heroBackgroundStyle = hero.heroImage
     ? `linear-gradient(90deg, rgba(23, 23, 35, 0.58), rgba(12, 25, 58, 0.32)), url('${hero.heroImage}')`
     : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
+  const featurePillStyle = {
+    height: hero.featurePillHeight ? `${hero.featurePillHeight}px` : undefined,
+    paddingLeft: hero.featurePillPaddingX ? `${hero.featurePillPaddingX}px` : undefined,
+    paddingRight: hero.featurePillPaddingX ? `${hero.featurePillPaddingX}px` : undefined,
+    fontSize: hero.featurePillFontSize ? `${hero.featurePillFontSize}px` : undefined
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground }}>
@@ -402,10 +408,11 @@ export default function Login() {
               </div>
 
               <div
-                className="max-w-[420px] pb-4"
+                className="w-full pb-4"
                 style={{
                   transform: hero.heroTextOffsetX ? `translateX(${hero.heroTextOffsetX}px)` : undefined,
-                  fontFamily: hero.heroFontFamily || undefined
+                  fontFamily: hero.heroFontFamily || undefined,
+                  maxWidth: hero.heroTextMaxWidth ? `${hero.heroTextMaxWidth}px` : undefined
                 }}
               >
                 <h1
@@ -424,18 +431,23 @@ export default function Login() {
                   </span>
                 </h1>
                 <p
-                  className="mt-5 max-w-[360px] text-white/78"
+                  className="mt-5 text-white/78"
                   style={{
                     fontSize: hero.heroDescriptionFontSize ? `${hero.heroDescriptionFontSize}px` : undefined,
                     lineHeight: hero.heroDescriptionLineHeight || undefined,
-                    textShadow: hero.heroTextShadowEnabled ? (hero.heroDescriptionTextShadow || undefined) : undefined
+                    textShadow: hero.heroTextShadowEnabled ? (hero.heroDescriptionTextShadow || undefined) : undefined,
+                    maxWidth: hero.heroDescriptionMaxWidth ? `${hero.heroDescriptionMaxWidth}px` : undefined
                   }}
                 >
                   {hero.description}
                 </p>
                 <div className="mt-7 flex max-w-[470px] flex-wrap gap-2">
                   {hero.featurePills.filter(Boolean).map((item) => (
-                    <span key={item} className="inline-flex h-6 items-center rounded-full border border-white/12 bg-white/12 px-3 text-[10px] font-medium text-white/90 backdrop-blur-sm">
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-white/12 bg-white/12 font-medium text-white/90 backdrop-blur-sm"
+                      style={featurePillStyle}
+                    >
                       {item}
                     </span>
                   ))}
@@ -473,8 +485,8 @@ export default function Login() {
               </div>
 
               {brandLogo ? (
-                <div className="mb-7 flex justify-start">
-                  <img src={brandLogo} alt="Company Logo" className="max-h-[150px] max-w-full object-contain" />
+                <div className="mb-7 flex w-full justify-center">
+                  <img src={brandLogo} alt="Company Logo" className="max-h-[220px] w-full object-contain" />
                 </div>
               ) : null}
 

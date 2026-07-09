@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Button from './ui/Button'
@@ -79,10 +79,206 @@ function ImagePicker({ label, hint, value, onChange, onRemove }) {
   )
 }
 
+function clampPercent(value) {
+  const num = Number(value)
+  if (Number.isNaN(num)) return 50
+  return Math.max(0, Math.min(100, num))
+}
+
+function clampNumber(value, min, max) {
+  const num = Number(value)
+  if (Number.isNaN(num)) return min
+  return Math.max(min, Math.min(max, num))
+}
+
+function buildHeroBackground(heroImage) {
+  return heroImage
+    ? `linear-gradient(90deg, rgba(23, 23, 35, 0.58), rgba(12, 25, 58, 0.32)), url('${heroImage}')`
+    : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
+}
+
+function HeroCropPreview({ heroImage, focalX, focalY, onChange, presetKey, defaultSize, defaultRatio }) {
+  const boxRef = useRef(null)
+  const [dragging, setDragging] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const resizeRef = useRef(null)
+  const [lockAspectRatio, setLockAspectRatio] = useState(true)
+  const [size, setSize] = useState(defaultSize)
+
+  useEffect(() => {
+    setSize(defaultSize)
+    setLockAspectRatio(true)
+  }, [presetKey, defaultSize])
+
+  const updateFromEvent = useCallback((event) => {
+    const rect = boxRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const percentX = clampPercent(((event.clientX - rect.left) / rect.width) * 100)
+    const percentY = clampPercent(((event.clientY - rect.top) / rect.height) * 100)
+
+    onChange({ focalX: Math.round(percentX), focalY: Math.round(percentY) })
+  }, [onChange])
+
+  const handlePointerDown = useCallback((event) => {
+    if (resizing) return
+    if (event.button != null && event.button !== 0) return
+    boxRef.current?.setPointerCapture?.(event.pointerId)
+    setDragging(true)
+    updateFromEvent(event)
+  }, [resizing, updateFromEvent])
+
+  const handlePointerMove = useCallback((event) => {
+    if (!dragging) return
+    updateFromEvent(event)
+  }, [dragging, updateFromEvent])
+
+  const handlePointerUp = useCallback((event) => {
+    try {
+      boxRef.current?.releasePointerCapture?.(event.pointerId)
+    } catch {}
+    setDragging(false)
+  }, [])
+
+  const handleResizeDown = useCallback((event) => {
+    if (event.button != null && event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    const rect = boxRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    boxRef.current?.setPointerCapture?.(event.pointerId)
+    setResizing(true)
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: size.width,
+      startHeight: size.height
+    }
+  }, [size.height, size.width])
+
+  const handleResizeMove = useCallback((event) => {
+    if (!resizing) return
+    const state = resizeRef.current
+    if (!state) return
+
+    const dx = event.clientX - state.startX
+    const dy = event.clientY - state.startY
+    const ratio = Number(defaultRatio) || (8 / 9)
+
+    const nextWidthRaw = state.startWidth + dx
+    const nextHeightRaw = state.startHeight + dy
+
+    const nextWidth = clampNumber(nextWidthRaw, 240, 2000)
+    const nextHeight = lockAspectRatio
+      ? clampNumber(nextWidth / ratio, 240, 2000)
+      : clampNumber(nextHeightRaw, 240, 2000)
+
+    setSize({ width: Math.round(nextWidth), height: Math.round(nextHeight) })
+  }, [defaultRatio, lockAspectRatio, resizing])
+
+  const handleResizeUp = useCallback((event) => {
+    if (!resizing) return
+    try {
+      boxRef.current?.releasePointerCapture?.(event.pointerId)
+    } catch {}
+    resizeRef.current = null
+    setResizing(false)
+  }, [resizing])
+
+  const backgroundImage = buildHeroBackground(heroImage)
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs text-ink-muted">Drag within the preview to set focal point. Resize the preview to match your screen.</div>
+        <a href="/login" target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand hover:underline">
+          Open full preview
+        </a>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
+        <div className="text-xs text-ink-muted">
+          Preview: {size.width}×{size.height}px
+        </div>
+        <label className="flex items-center gap-2 text-xs font-semibold text-ink">
+          <input type="checkbox" checked={lockAspectRatio} onChange={(e) => setLockAspectRatio(e.target.checked)} />
+          Lock ratio
+        </label>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setSize(defaultSize)
+            setLockAspectRatio(true)
+          }}
+        >
+          Reset size
+        </Button>
+      </div>
+
+      <div className="w-full overflow-x-auto pb-2">
+        <div
+          ref={boxRef}
+          className="relative overflow-hidden rounded-3xl border border-border"
+          style={{
+            width: `${size.width}px`,
+            height: `${size.height}px`,
+            backgroundImage,
+            backgroundSize: 'cover',
+            backgroundPosition: `${focalX ?? 50}% ${focalY ?? 50}%`,
+            touchAction: 'none',
+            cursor: resizing ? 'nwse-resize' : (dragging ? 'grabbing' : 'grab')
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={(e) => {
+            handlePointerMove(e)
+            handleResizeMove(e)
+          }}
+          onPointerUp={(e) => {
+            handlePointerUp(e)
+            handleResizeUp(e)
+          }}
+          onPointerCancel={(e) => {
+            handlePointerUp(e)
+            handleResizeUp(e)
+          }}
+          role="presentation"
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(31,41,55,0.22),rgba(17,24,39,0.18))]" />
+
+          <div className="absolute inset-0">
+            <div className="absolute h-full w-px bg-white/35" style={{ left: `${focalX ?? 50}%` }} />
+            <div className="absolute h-px w-full bg-white/35" style={{ top: `${focalY ?? 50}%` }} />
+            <div
+              className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/85 bg-white/10 backdrop-blur-sm"
+              style={{ left: `${focalX ?? 50}%`, top: `${focalY ?? 50}%` }}
+            />
+          </div>
+
+          <div className="absolute bottom-3 right-3 rounded-full bg-black/35 px-2 py-1 text-[10px] font-semibold text-white/85 backdrop-blur-sm">
+            {(focalX ?? 50)}% / {(focalY ?? 50)}%
+          </div>
+
+          <div
+            className="absolute bottom-2 right-2 h-7 w-7 rounded-xl border border-white/25 bg-black/25 backdrop-blur-sm"
+            onPointerDown={handleResizeDown}
+            onPointerUp={handleResizeUp}
+            role="presentation"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LoginPageSettings() {
   const { t } = usePreferences()
   const [settings, setSettings] = useState(DEFAULT_LOGIN_PAGE_SETTINGS)
   const [saving, setSaving] = useState(false)
+  const [heroPreviewMode, setHeroPreviewMode] = useState('desktop')
 
   useEffect(() => {
     let mounted = true
@@ -301,7 +497,31 @@ export default function LoginPageSettings() {
                 />
               </div>
             </Field>
+
+            <Field label="Preview size" hint="Desktop matches the left hero panel (50% screen width x 100vh).">
+              <select
+                value={heroPreviewMode}
+                onChange={(e) => setHeroPreviewMode(e.target.value)}
+                className="block w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink"
+              >
+                <option value="desktop">Desktop (Recommended)</option>
+                <option value="widescreen">Widescreen (16:9)</option>
+              </select>
+            </Field>
           </div>
+
+          <HeroCropPreview
+            heroImage={settings.heroSection.heroImage}
+            focalX={settings.heroSection.heroFocalX ?? 50}
+            focalY={settings.heroSection.heroFocalY ?? 50}
+            presetKey={heroPreviewMode}
+            defaultSize={heroPreviewMode === 'widescreen' ? { width: 640, height: 360 } : { width: 520, height: 585 }}
+            defaultRatio={heroPreviewMode === 'widescreen' ? (16 / 9) : (8 / 9)}
+            onChange={({ focalX, focalY }) => {
+              updateHero('heroFocalX', focalX)
+              updateHero('heroFocalY', focalY)
+            }}
+          />
         </AppSurface>
 
         <AppSurface padding="md" variant="panel" className="space-y-4">
@@ -318,25 +538,56 @@ export default function LoginPageSettings() {
               <TextInput value={settings.heroSection.heroFontFamily || ''} onChange={(e) => updateHero('heroFontFamily', e.target.value)} />
             </Field>
 
-            <Field label="Text offset X (px)" hint="Move hero text block left/right. Positive = move right.">
+            <Field label="Text max width (px)" hint="Increase this if your headline breaks into 2 lines.">
               <div className="flex items-center gap-3">
                 <input
                   type="range"
-                  min="-200"
-                  max="200"
-                  value={settings.heroSection.heroTextOffsetX ?? 0}
-                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  min="280"
+                  max="900"
+                  value={settings.heroSection.heroTextMaxWidth ?? 420}
+                  onChange={(e) => updateHero('heroTextMaxWidth', Number(e.target.value))}
                   className="w-full"
                 />
                 <TextInput
                   type="number"
-                  min="-200"
-                  max="200"
-                  value={settings.heroSection.heroTextOffsetX ?? 0}
-                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  min="280"
+                  max="900"
+                  value={settings.heroSection.heroTextMaxWidth ?? 420}
+                  onChange={(e) => updateHero('heroTextMaxWidth', Number(e.target.value))}
                   className="w-24"
                 />
               </div>
+            </Field>
+
+            <Field label="Description max width (px)" hint="Increase to make the description line longer before it wraps.">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="240"
+                  max="900"
+                  value={settings.heroSection.heroDescriptionMaxWidth ?? 360}
+                  onChange={(e) => updateHero('heroDescriptionMaxWidth', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="240"
+                  max="900"
+                  value={settings.heroSection.heroDescriptionMaxWidth ?? 360}
+                  onChange={(e) => updateHero('heroDescriptionMaxWidth', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Text offset X (px) (optional)" hint="Use only if you need to shift the whole block left/right. Set 0 to disable.">
+              <TextInput
+                type="number"
+                min="-200"
+                max="200"
+                value={settings.heroSection.heroTextOffsetX ?? 0}
+                onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+              />
             </Field>
 
             <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 md:col-span-2">
@@ -460,6 +711,78 @@ export default function LoginPageSettings() {
                 value={settings.heroSection.heroDescriptionLineHeight ?? 1.85}
                 onChange={(e) => updateHero('heroDescriptionLineHeight', Number(e.target.value))}
               />
+            </Field>
+          </div>
+        </AppSurface>
+
+        <AppSurface padding="md" variant="panel" className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">Feature pills styling</div>
+            <div className="mt-1 text-xs text-ink-muted">Control the pill size shown under the hero description.</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Pill height (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="18"
+                  max="60"
+                  value={settings.heroSection.featurePillHeight ?? 24}
+                  onChange={(e) => updateHero('featurePillHeight', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="18"
+                  max="60"
+                  value={settings.heroSection.featurePillHeight ?? 24}
+                  onChange={(e) => updateHero('featurePillHeight', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Pill padding X (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="6"
+                  max="32"
+                  value={settings.heroSection.featurePillPaddingX ?? 12}
+                  onChange={(e) => updateHero('featurePillPaddingX', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="6"
+                  max="32"
+                  value={settings.heroSection.featurePillPaddingX ?? 12}
+                  onChange={(e) => updateHero('featurePillPaddingX', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Pill font size (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="9"
+                  max="18"
+                  value={settings.heroSection.featurePillFontSize ?? 10}
+                  onChange={(e) => updateHero('featurePillFontSize', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="9"
+                  max="18"
+                  value={settings.heroSection.featurePillFontSize ?? 10}
+                  onChange={(e) => updateHero('featurePillFontSize', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
             </Field>
           </div>
         </AppSurface>
