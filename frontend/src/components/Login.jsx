@@ -373,9 +373,10 @@ export default function Login() {
     paddingRight: hero.featurePillPaddingX ? `${hero.featurePillPaddingX}px` : undefined,
     fontSize: hero.featurePillFontSize ? `${hero.featurePillFontSize}px` : undefined
   }
+  const loginFontFamily = "Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground }}>
+    <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground, fontFamily: loginFontFamily }}>
       {loginPageSettings.showTopbar ? <PublicTopbar /> : null}
       {loginPageSettings.showFooter ? <PublicFooter /> : null}
 
