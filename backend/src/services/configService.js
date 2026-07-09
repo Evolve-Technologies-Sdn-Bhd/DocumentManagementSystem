@@ -817,6 +817,41 @@ class ConfigService {
     return JSON.parse(config.value);
   }
 
+  async getLoginPageSettings() {
+    const config = await prisma.configuration.findUnique({
+      where: { key: 'login_page_settings' }
+    });
+
+    if (config?.value) {
+      try {
+        return JSON.parse(config.value);
+      } catch (error) {
+        console.error('Failed to parse login page settings:', error);
+      }
+    }
+
+    return null;
+  }
+
+  async updateLoginPageSettings(settings) {
+    const settingsJson = JSON.stringify(settings);
+
+    const config = await prisma.configuration.upsert({
+      where: { key: 'login_page_settings' },
+      update: {
+        value: settingsJson,
+        description: 'Login page content and layout settings'
+      },
+      create: {
+        key: 'login_page_settings',
+        value: settingsJson,
+        description: 'Login page content and layout settings'
+      }
+    });
+
+    return JSON.parse(config.value);
+  }
+
   async getCompanyInfo() {
     const config = await prisma.configuration.findUnique({
       where: { key: 'company_info' }

@@ -8,6 +8,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import LoginPageSettings from './LoginPageSettings'
 
 // Sub-tab Navigation
 function SubTabNavigation({ activeTab, onTabChange }) {
@@ -15,6 +16,7 @@ function SubTabNavigation({ activeTab, onTabChange }) {
   const tabs = [
     { id: 'company', label: t('gss_company_info') },
     { id: 'landing', label: t('gss_landing_page') },
+    { id: 'login', label: 'Login Page' },
     { id: 'theme', label: t('gss_theme_branding') },
     { id: 'document', label: t('gss_document_settings') },
     { id: 'notification', label: t('gss_notification_settings') },
@@ -5006,6 +5008,7 @@ export default function GeneralSystemSettings() {
         
         {activeTab === 'company' && <CompanyInfo />}
         {activeTab === 'landing' && <LandingPageSettings />}
+        {activeTab === 'login' && <LoginPageSettings />}
         {activeTab === 'theme' && <ThemeBranding />}
         {activeTab === 'document' && <DocumentSettings />}
         {activeTab === 'notification' && <NotificationSettings />}

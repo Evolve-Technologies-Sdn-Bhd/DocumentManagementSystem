@@ -70,33 +70,35 @@ export default function PublicShare() {
         headers: { 'Cache-Control': 'no-cache' }
       })
 
-      const mimeType = previewRes?.headers?.['content-type'] || m?.version?.mimeType || ''
+      const responseMimeType = String(previewRes?.headers?.['content-type'] || '').toLowerCase()
+      const metaMimeType = String(m?.version?.mimeType || '').toLowerCase()
+      const hasResponseMimeType = !!responseMimeType
+      const mimeType = responseMimeType || metaMimeType
       const fileName = m?.version?.fileName || ''
       const fileExtension = fileName.toLowerCase().split('.').pop()
 
-      const isDocxLike =
-        fileExtension === 'docx' ||
-        fileExtension === 'dotx' ||
-        mimeType.includes('officedocument.wordprocessingml')
-
-      if (isDocxLike) {
-        const arrayBuffer = await previewRes.data.arrayBuffer()
-        setDocxBuffer(arrayBuffer)
-        setContentType('docx')
-        return
-      }
-
-      if (mimeType.includes('pdf') || fileExtension === 'pdf') {
+      if (mimeType.includes('pdf') || (!hasResponseMimeType && fileExtension === 'pdf')) {
         const url = window.URL.createObjectURL(new Blob([previewRes.data], { type: 'application/pdf' }))
         setBlobUrl(url)
         setContentType('pdf')
         return
       }
 
-      if (mimeType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension)) {
+      if (mimeType.startsWith('image/') || (!hasResponseMimeType && ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExtension))) {
         const url = window.URL.createObjectURL(new Blob([previewRes.data], { type: mimeType }))
         setBlobUrl(url)
         setContentType('image')
+        return
+      }
+
+      const isDocxLike =
+        mimeType.includes('officedocument.wordprocessingml') ||
+        (!hasResponseMimeType && (fileExtension === 'docx' || fileExtension === 'dotx'))
+
+      if (isDocxLike) {
+        const arrayBuffer = await previewRes.data.arrayBuffer()
+        setDocxBuffer(arrayBuffer)
+        setContentType('docx')
         return
       }
 
@@ -249,4 +251,3 @@ export default function PublicShare() {
     </div>
   )
 }
-

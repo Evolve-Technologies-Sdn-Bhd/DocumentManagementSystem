@@ -214,6 +214,23 @@ exports.getLandingPageSettings = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { settings }, 'Landing page settings retrieved successfully');
 });
 
+exports.getLoginPageSettings = asyncHandler(async (req, res) => {
+  const config = await prisma.configuration.findUnique({
+    where: { key: 'login_page_settings' }
+  });
+
+  let settings = null;
+  if (config?.value) {
+    try {
+      settings = JSON.parse(config.value);
+    } catch {
+      settings = null;
+    }
+  }
+
+  return ResponseFormatter.success(res, { settings }, 'Login page settings retrieved successfully');
+});
+
 exports.getBranding = asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');

@@ -211,6 +211,8 @@ router.post('/config/notification-settings/test-email', authenticate, configCont
 // Landing Page Settings (global)
 router.get('/config/landing-page-settings', authenticate, configController.getLandingPageSettings);
 router.put('/config/landing-page-settings', authenticate, configController.updateLandingPageSettings);
+router.get('/config/login-page-settings', authenticate, configController.getLoginPageSettings);
+router.put('/config/login-page-settings', authenticate, configController.updateLoginPageSettings);
 router.post('/config/landing-page/footer-pdf', authenticate, uploadLandingPdf, configController.uploadLandingFooterPdf);
 
 // Branding (global)
