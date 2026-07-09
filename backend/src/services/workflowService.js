@@ -3,8 +3,64 @@ const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/err
 const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
+const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
+  queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId }) {
+    setImmediate(async () => {
+      const taskStart = startTimer()
+      const timings = { documentId, userId }
+
+      try {
+        const notifyStart = startTimer()
+        try {
+          await notificationService.notifyDocumentPublished(documentId, updated)
+        } catch (error) {
+          console.error('Failed to send notification for document publish:', error);
+        } finally {
+          timings.notifyDocumentPublishedMs = roundMs(getElapsedMs(notifyStart))
+        }
+
+        const trackingStart = startTimer()
+        try {
+          await projectTrackingService.handleDocumentPublished(documentId)
+        } catch (error) {
+          console.error('Failed to update project tracking items for published document:', error);
+        } finally {
+          timings.projectTrackingMs = roundMs(getElapsedMs(trackingStart))
+        }
+
+        const shouldSyncExpiry = Boolean(document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled)
+        timings.expirySyncRequested = shouldSyncExpiry
+        if (shouldSyncExpiry) {
+          const expiryTrackingService = require('./expiryTrackingService')
+          const expiryStart = startTimer()
+          try {
+            await expiryTrackingService.syncProfileFromDocument(documentId, expiryInfo || {}, userId)
+          } catch (error) {
+            console.error('Failed to sync expiry tracking profile on publish:', error)
+          } finally {
+            timings.expirySyncMs = roundMs(getElapsedMs(expiryStart))
+          }
+        }
+
+        console.log('[publish-followup]', JSON.stringify({
+          success: true,
+          timings,
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      } catch (error) {
+        console.error('[publish-followup]', JSON.stringify({
+          success: false,
+          documentId,
+          userId,
+          error: { message: error.message, code: error.code || null },
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      }
+    })
+  }
+
   async saveWorkflowFileVersion(document, documentId, userId, file) {
     if (!file) return null;
 
@@ -547,7 +603,7 @@ class WorkflowService {
    * Publish document
    * Transition: READY_TO_PUBLISH → PUBLISHED
    */
-  async publishDocument(documentId, userId, folderId, notes = null, newFileName = null, expiryInfo = null) {
+  async publishDocument(documentId, userId, folderId, notes = null, newFileName = null, expiryInfo = null, options = {}) {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       include: { documentType: true, owner: true }
@@ -664,25 +720,29 @@ class WorkflowService {
       }
     }
 
-    try {
-      await notificationService.notifyDocumentPublished(documentId, updated);
-    } catch (error) {
-      console.error('Failed to send notification for document publish:', error);
-    }
-
-    try {
-      await projectTrackingService.handleDocumentPublished(documentId);
-    } catch (error) {
-      console.error('Failed to update project tracking items for published document:', error);
-    }
-
-    try {
-      if (document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled) {
-        const expiryTrackingService = require('./expiryTrackingService')
-        await expiryTrackingService.syncProfileFromDocument(documentId, expiryInfo || {}, userId)
+    if (options?.deferFollowUps) {
+      this.queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId })
+    } else {
+      try {
+        await notificationService.notifyDocumentPublished(documentId, updated);
+      } catch (error) {
+        console.error('Failed to send notification for document publish:', error);
       }
-    } catch (error) {
-      console.error('Failed to sync expiry tracking profile on publish:', error)
+
+      try {
+        await projectTrackingService.handleDocumentPublished(documentId);
+      } catch (error) {
+        console.error('Failed to update project tracking items for published document:', error);
+      }
+
+      try {
+        if (document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled) {
+          const expiryTrackingService = require('./expiryTrackingService')
+          await expiryTrackingService.syncProfileFromDocument(documentId, expiryInfo || {}, userId)
+        }
+      } catch (error) {
+        console.error('Failed to sync expiry tracking profile on publish:', error)
+      }
     }
 
     return updated;
@@ -714,6 +774,7 @@ class WorkflowService {
         status: 'PUBLISHED',
         stage: 'PUBLISHED',
         acknowledgedById: userId,
+        publishedById: userId,
         acknowledgedAt: new Date(),
         publishedAt: new Date()
       }

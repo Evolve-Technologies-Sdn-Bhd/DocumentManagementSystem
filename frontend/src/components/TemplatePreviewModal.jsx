@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import mammoth from 'mammoth'
 import useDocxFitToWidth from '../hooks/useDocxFitToWidth'
 
@@ -270,5 +270,6 @@ export default function TemplatePreviewModal({ template, onClose }) {
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

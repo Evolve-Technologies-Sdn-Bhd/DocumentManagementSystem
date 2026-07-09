@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import Button from './ui/Button'
 import IconButton from './ui/IconButton'
@@ -375,5 +375,6 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
     </div>
   )
 
-  return typeof window !== 'undefined' ? createPortal(modal, window.document.body) : modal
+  if (typeof window === 'undefined' || !ReactDOM?.createPortal || !window.document?.body) return modal
+  return ReactDOM.createPortal(modal, window.document.body)
 }

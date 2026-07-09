@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 
 export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit }) {
   const [permissions, setPermissions] = useState({})
@@ -692,5 +692,6 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

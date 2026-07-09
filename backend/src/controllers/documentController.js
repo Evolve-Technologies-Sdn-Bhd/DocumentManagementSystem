@@ -13,6 +13,7 @@ const documentAssignmentService = require('../services/documentAssignmentService
 const confidentialAccessService = require('../services/confidentialAccessService')
 const folderService = require('../services/folderService')
 const documentShareLinkService = require('../services/documentShareLinkService')
+const { startTimer, getElapsedMs, roundMs } = require('../utils/timing')
 
 const resolveExistingFilePath = (storedPath) => {
   const raw = String(storedPath || '').trim()
@@ -67,6 +68,60 @@ const getUserDisplayName = (user) => {
   return fullName || user.email || null
 }
 
+const buildUploadTimingLog = ({ req, documentId, success, timings, error }) => ({
+  route: 'POST /api/documents/:id/upload',
+  documentId,
+  userId: req.user?.id || null,
+  fileName: req.file?.originalname || null,
+  fileSize: req.file?.size || null,
+  success,
+  timings,
+  error: error ? { message: error.message, code: error.code || null } : null
+})
+
+const buildAuditRequestContext = (req) => ({
+  ip: req?.ip || null,
+  ips: Array.isArray(req?.ips) ? [...req.ips] : [],
+  headers: {
+    'user-agent': req?.headers?.['user-agent'] || '',
+    'x-forwarded-for': req?.headers?.['x-forwarded-for'] || '',
+    'x-real-ip': req?.headers?.['x-real-ip'] || '',
+    'cf-connecting-ip': req?.headers?.['cf-connecting-ip'] || ''
+  }
+})
+
+const buildBulkImportTimingLog = ({ req, timings, imported, failed, error }) => ({
+  route: 'POST /api/documents/bulk-import',
+  userId: req.user?.id || null,
+  fileCount: Array.isArray(req.files) ? req.files.length : 0,
+  timings,
+  counts: {
+    imported: imported.length,
+    failed: failed.length
+  },
+  error: error ? { message: error.message, code: error.code || null } : null
+})
+
+const queueBackgroundTask = (label, fn) => {
+  setImmediate(async () => {
+    const taskStart = startTimer()
+    try {
+      const timings = await fn()
+      console.log(`[${label}]`, JSON.stringify({
+        success: true,
+        timings,
+        totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+      }))
+    } catch (error) {
+      console.error(`[${label}]`, JSON.stringify({
+        success: false,
+        error: { message: error.message, code: error.code || null },
+        totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+      }))
+    }
+  })
+}
+
 const getLatestApprovalActorName = (approvalHistory = [], action) => {
   if (!Array.isArray(approvalHistory) || !action) return null
 
@@ -112,37 +167,91 @@ class DocumentController {
    * POST /api/documents/:id/upload
    */
   uploadDocument = asyncHandler(async (req, res) => {
+    const requestStart = startTimer()
     const documentId = parseInt(req.params.id);
-
-    if (!req.file) {
-      return ResponseFormatter.validationError(res, [
-        { field: 'file', message: 'File is required' }
-      ]);
+    const timings = {
+      middleware: req.uploadTiming?.middleware || null
     }
 
-    const version = await documentService.uploadDocumentVersion(
-      documentId,
-      req.file,
-      req.user.id
-    );
+    try {
+      if (!req.file) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'file', message: 'File is required' }
+        ]);
+      }
 
-    await epcRegistryService.generateForUploadedDraft(documentId, version.id, req)
+      const uploadVersionStart = startTimer()
+      const version = await documentService.uploadDocumentVersion(
+        documentId,
+        req.file,
+        req.user.id,
+        {
+          onTiming: (serviceTiming) => {
+            timings.service = serviceTiming
+          }
+        }
+      );
+      timings.uploadDocumentVersionMs = roundMs(getElapsedMs(uploadVersionStart))
+      timings.followUpQueued = true
+      timings.totalControllerMs = roundMs(getElapsedMs(requestStart))
 
-    // Log file upload
-    await auditLogService.logDocument(req.user.id, 'UPLOAD', { id: documentId, fileCode: version.document?.fileCode || documentId }, req, {
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      versionId: version.id
-    });
+      const actorUserId = req.user?.id || null
+      const auditReq = buildAuditRequestContext(req)
+      const uploadMeta = {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        versionId: version.id
+      }
+      const uploadDocumentRef = { id: documentId, fileCode: version.document?.fileCode || documentId }
 
-    return ResponseFormatter.success(
-      res,
-      { version },
-      'Document file uploaded successfully'
-    );
+      queueBackgroundTask('upload-followup', async () => {
+        const backgroundTimings = {
+          documentId,
+          versionId: version.id,
+          userId: actorUserId
+        }
+
+        const epcStart = startTimer()
+        await epcRegistryService.generateForUploadedDraft(documentId, version.id, {
+          ...auditReq,
+          user: { id: actorUserId }
+        })
+        backgroundTimings.epcGenerationMs = roundMs(getElapsedMs(epcStart))
+
+        const auditStart = startTimer()
+        await auditLogService.logDocument(actorUserId, 'UPLOAD', uploadDocumentRef, auditReq, uploadMeta)
+        backgroundTimings.auditLogMs = roundMs(getElapsedMs(auditStart))
+
+        return backgroundTimings
+      })
+
+      console.log('[upload-timing]', JSON.stringify(buildUploadTimingLog({
+        req,
+        documentId,
+        success: true,
+        timings
+      })))
+
+      return ResponseFormatter.success(
+        res,
+        { version },
+        'Document file uploaded successfully'
+      );
+    } catch (error) {
+      timings.totalControllerMs = roundMs(getElapsedMs(requestStart))
+      console.error('[upload-timing]', JSON.stringify(buildUploadTimingLog({
+        req,
+        documentId,
+        success: false,
+        timings,
+        error
+      })))
+      throw error
+    }
   });
 
   bulkImportPublished = asyncHandler(async (req, res) => {
+    const requestStart = startTimer()
     const { folderId, description, title, filesMeta, allowReassign, expiryInfo } = req.body;
 
     const errors = [];
@@ -159,228 +268,182 @@ class DocumentController {
         { field: 'folderId', message: 'Invalid folderId' }
       ]);
     }
-    const desc = description || '';
-    const singleTitle = typeof title === 'string' ? title.trim() : '';
-    const allowReassignFlag = String(allowReassign || '').toLowerCase() === 'true'
-    let parsedMeta = null
-    if (typeof filesMeta === 'string' && filesMeta.trim()) {
-      try {
-        const v = JSON.parse(filesMeta)
-        if (Array.isArray(v)) parsedMeta = v
-      } catch (_) {
-        parsedMeta = null
-      }
+    const timings = {
+      middleware: req.uploadTiming?.middleware || null
     }
-
-    let parsedExpiryInfo = null
-    if (typeof expiryInfo === 'string' && expiryInfo.trim()) {
-      try {
-        const v = JSON.parse(expiryInfo)
-        if (v && typeof v === 'object') parsedExpiryInfo = v
-      } catch (_) {
-        parsedExpiryInfo = null
-      }
-    } else if (expiryInfo && typeof expiryInfo === 'object') {
-      parsedExpiryInfo = expiryInfo
-    }
-
-    const normalizedExpiryInfo = parsedExpiryInfo && typeof parsedExpiryInfo === 'object'
-      ? parsedExpiryInfo
-      : { trackingEnabled: false }
-
-    const baseFolder = await prisma.folder.findUnique({
-      where: { id: folderIdInt },
-      select: { id: true, accessMode: true }
-    })
-    if (!baseFolder) {
-      return ResponseFormatter.validationError(res, [
-        { field: 'folderId', message: 'Folder not found' }
-      ])
-    }
-
-    const folderConfigById = new Map([[baseFolder.id, { accessMode: baseFolder.accessMode }]])
-    const folderByParentAndName = new Map()
-
-    const sanitizeFolderName = (s) => {
-      const v = String(s || '').replace(/\0/g, '').trim()
-      if (!v) return ''
-      if (v === '.' || v === '..') return ''
-      return v.length > 255 ? v.slice(0, 255) : v
-    }
-
-    const extractFolderSegments = (relativePath) => {
-      const rp = String(relativePath || '').trim()
-      if (!rp) return []
-      const normalized = rp.replace(/\\/g, '/').replace(/^\/+/, '')
-      const parts = normalized.split('/').filter(Boolean)
-      if (parts.length <= 1) return []
-      return parts.slice(0, -1).map(sanitizeFolderName).filter(Boolean)
-    }
-
-    const getBaseName = (relativePath, fallback) => {
-      const src = String(relativePath || '').trim()
-      if (src) {
-        const normalized = src.replace(/\\/g, '/')
-        const last = normalized.split('/').filter(Boolean).pop()
-        if (last) return last
-      }
-      return String(fallback || '')
-    }
-
-    const ensureFolderPath = async (rootId, segments) => {
-      let currentId = rootId
-      for (const segRaw of segments || []) {
-        const seg = sanitizeFolderName(segRaw)
-        if (!seg) continue
-        const cacheKey = `${currentId}:${seg}`
-        const cachedId = folderByParentAndName.get(cacheKey)
-        if (cachedId) {
-          currentId = cachedId
-          continue
-        }
-        const existing = await prisma.folder.findFirst({
-          where: { parentId: currentId, name: seg },
-          select: { id: true }
-        })
-        if (existing) {
-          folderByParentAndName.set(cacheKey, existing.id)
-          currentId = existing.id
-          if (!folderConfigById.has(existing.id)) {
-            const cfg = await prisma.folder.findUnique({ where: { id: existing.id }, select: { accessMode: true } })
-            if (cfg) folderConfigById.set(existing.id, { accessMode: cfg.accessMode })
-          }
-          continue
-        }
-
-        let parentCfg = folderConfigById.get(currentId)
-        if (!parentCfg) {
-          const cfg = await prisma.folder.findUnique({ where: { id: currentId }, select: { accessMode: true } })
-          parentCfg = cfg ? { accessMode: cfg.accessMode } : { accessMode: 'PUBLIC' }
-          folderConfigById.set(currentId, parentCfg)
-        }
-
-        const created = await prisma.folder.create({
-          data: {
-            name: seg,
-            parentId: currentId,
-            createdById: req.user.id,
-            accessMode: parentCfg.accessMode,
-            inheritPermissions: true
-          },
-          select: { id: true, accessMode: true }
-        })
-        folderByParentAndName.set(cacheKey, created.id)
-        folderConfigById.set(created.id, { accessMode: created.accessMode })
-        currentId = created.id
-      }
-      return currentId
-    }
-
-    const documentTypes = await prisma.documentType.findMany({
-      select: { id: true, name: true, prefix: true, isActive: true }
-    })
-    const typeByPrefix = new Map(documentTypes.map((dt) => [dt.prefix, dt]))
-    const typeByPrefixLower = new Map(documentTypes.map((dt) => [String(dt.prefix || '').toLowerCase(), dt]))
-    const typeById = new Map(documentTypes.map((dt) => [dt.id, dt]))
-    const othersTypeId = (() => {
-      const byName = documentTypes.find((dt) => dt?.isActive && String(dt?.name || '').toLowerCase() === 'others')
-      if (byName) return byName.id
-      const byPrefix = documentTypes.find((dt) => dt?.isActive && String(dt?.prefix || '').toLowerCase() === 'oth')
-      if (byPrefix) return byPrefix.id
-      return null
-    })()
-
-    const reserved = { fileCodes: new Set(), runningByCodeKey: new Map() }
-    const reserveAllocation = (allocation) => {
-      const codeKey = allocation?.codeKey
-      const rn = allocation?.suggestedRunningNumber
-      const fc = allocation?.suggestedFileCode
-      if (codeKey && Number.isFinite(Number(rn))) {
-        const set = reserved.runningByCodeKey.get(codeKey) || new Set()
-        set.add(parseInt(rn, 10))
-        reserved.runningByCodeKey.set(codeKey, set)
-      }
-      if (fc) reserved.fileCodes.add(fc)
-    }
-
-    const allocationsByIndex = new Map()
-    const conflicts = []
-    for (let i = 0; i < req.files.length; i++) {
-      const file = req.files[i]
-      const meta = parsedMeta?.[i] && typeof parsedMeta[i] === 'object' ? parsedMeta[i] : null
-      const relPath = meta && typeof meta.relativePath === 'string' ? meta.relativePath : ''
-      const baseName = getBaseName(relPath, file.originalname)
-      const derivedTitle = path.basename(baseName, path.extname(baseName)).trim() || baseName
-      const metaTitle = meta && typeof meta.title === 'string' ? meta.title.trim() : ''
-      const docTitle = req.files.length === 1 && singleTitle ? singleTitle : (metaTitle || derivedTitle)
-      const isClientDocument = Boolean(meta?.isClientDocument)
-
-      const derivedFileCode = (() => {
-        const base = derivedTitle
-        const sepIdx = base.indexOf('_')
-        if (sepIdx > 0) return base.slice(0, sepIdx).trim()
-        return base.trim()
-      })()
-      const metaFileCode = meta && typeof meta.fileCode === 'string' ? meta.fileCode.trim() : ''
-      const fileCodeToUse = isClientDocument ? '' : (metaFileCode || derivedFileCode)
-      if (!isClientDocument && !fileCodeToUse) continue
-
-      const metaDocTypeIdRaw = meta?.documentTypeId
-      const metaDocTypeId = Number.isFinite(Number(metaDocTypeIdRaw)) ? parseInt(metaDocTypeIdRaw) : null
-      const metaProjectCategoryIdRaw = meta?.projectCategoryId
-      const metaProjectCategoryId = Number.isFinite(Number(metaProjectCategoryIdRaw)) ? parseInt(metaProjectCategoryIdRaw) : null
-
-      let documentTypeIdToUse = null
-      if (metaDocTypeId) {
-        const dt = typeById.get(metaDocTypeId)
-        if (!dt || !dt.isActive) continue
-        documentTypeIdToUse = dt.id
-      } else {
-        if (isClientDocument) continue
-        const prefixMatch = String(fileCodeToUse).match(/^[A-Za-z]+/)
-        const prefix = prefixMatch?.[0] || ''
-        if (!prefix) continue
-        const dt = typeByPrefix.get(prefix) || typeByPrefixLower.get(prefix.toLowerCase())
-        if (!dt || !dt.isActive) continue
-        documentTypeIdToUse = dt.id
-      }
-
-      if (isClientDocument) continue
-      if (!metaProjectCategoryId) continue
-
-      const allocation = await documentService.resolveImportedPublishedFileCode({
-        fileCode: fileCodeToUse,
-        documentTypeId: documentTypeIdToUse,
-        projectCategoryId: metaProjectCategoryId
-      }, reserved)
-
-      reserveAllocation(allocation)
-      allocationsByIndex.set(i, allocation)
-      if (allocation.suggestedFileCode !== allocation.normalizedRequested) {
-        conflicts.push({
-          lineNumber: i + 1,
-          fileName: baseName,
-          requestedFileCode: allocation.normalizedRequested,
-          suggestedFileCode: allocation.suggestedFileCode,
-          documentTitle: docTitle,
-          reasonCode: 'RUNNING_NUMBER_TAKEN'
-        })
-      }
-    }
-
-    if (conflicts.length > 0 && !allowReassignFlag) {
-      const err = new ConflictError('File code redundant. Confirmation required.')
-      err.code = 'FILE_CODE_REASSIGN_REQUIRED'
-      err.errors = conflicts
-      throw err
-    }
-
     const imported = [];
     const failed = [];
+    const fileTimings = []
 
-    for (let i = 0; i < req.files.length; i++) {
-      const file = req.files[i]
-      try {
+    try {
+      const desc = description || '';
+      const singleTitle = typeof title === 'string' ? title.trim() : '';
+      const allowReassignFlag = String(allowReassign || '').toLowerCase() === 'true'
+      let parsedMeta = null
+      if (typeof filesMeta === 'string' && filesMeta.trim()) {
+        try {
+          const v = JSON.parse(filesMeta)
+          if (Array.isArray(v)) parsedMeta = v
+        } catch (_) {
+          parsedMeta = null
+        }
+      }
+
+      let parsedExpiryInfo = null
+      if (typeof expiryInfo === 'string' && expiryInfo.trim()) {
+        try {
+          const v = JSON.parse(expiryInfo)
+          if (v && typeof v === 'object') parsedExpiryInfo = v
+        } catch (_) {
+          parsedExpiryInfo = null
+        }
+      } else if (expiryInfo && typeof expiryInfo === 'object') {
+        parsedExpiryInfo = expiryInfo
+      }
+
+      const normalizedExpiryInfo = parsedExpiryInfo && typeof parsedExpiryInfo === 'object'
+        ? parsedExpiryInfo
+        : { trackingEnabled: false }
+
+      const loadFolderStart = startTimer()
+      const baseFolder = await prisma.folder.findUnique({
+        where: { id: folderIdInt },
+        select: { id: true, accessMode: true }
+      })
+      timings.loadBaseFolderMs = roundMs(getElapsedMs(loadFolderStart))
+      if (!baseFolder) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'folderId', message: 'Folder not found' }
+        ])
+      }
+
+      const folderConfigById = new Map([[baseFolder.id, { accessMode: baseFolder.accessMode }]])
+      const folderByParentAndName = new Map()
+
+      const sanitizeFolderName = (s) => {
+        const v = String(s || '').replace(/\0/g, '').trim()
+        if (!v) return ''
+        if (v === '.' || v === '..') return ''
+        return v.length > 255 ? v.slice(0, 255) : v
+      }
+
+      const extractFolderSegments = (relativePath) => {
+        const rp = String(relativePath || '').trim()
+        if (!rp) return []
+        const normalized = rp.replace(/\\/g, '/').replace(/^\/+/, '')
+        const parts = normalized.split('/').filter(Boolean)
+        if (parts.length <= 1) return []
+        return parts.slice(0, -1).map(sanitizeFolderName).filter(Boolean)
+      }
+
+      const getBaseName = (relativePath, fallback) => {
+        const src = String(relativePath || '').trim()
+        if (src) {
+          const normalized = src.replace(/\\/g, '/')
+          const last = normalized.split('/').filter(Boolean).pop()
+          if (last) return last
+        }
+        return String(fallback || '')
+      }
+
+      const ensureFolderPath = async (rootId, segments) => {
+        let currentId = rootId
+        for (const segRaw of segments || []) {
+          const seg = sanitizeFolderName(segRaw)
+          if (!seg) continue
+          const cacheKey = `${currentId}:${seg}`
+          const cachedId = folderByParentAndName.get(cacheKey)
+          if (cachedId) {
+            currentId = cachedId
+            continue
+          }
+
+          const existing = await prisma.folder.findFirst({
+            where: { parentId: currentId, name: seg },
+            select: { id: true }
+          })
+          if (existing) {
+            folderByParentAndName.set(cacheKey, existing.id)
+            currentId = existing.id
+            if (!folderConfigById.has(existing.id)) {
+              const cfg = await prisma.folder.findUnique({ where: { id: existing.id }, select: { accessMode: true } })
+              if (cfg) folderConfigById.set(existing.id, { accessMode: cfg.accessMode })
+            }
+            continue
+          }
+
+          let parentCfg = folderConfigById.get(currentId)
+          if (!parentCfg) {
+            const cfg = await prisma.folder.findUnique({ where: { id: currentId }, select: { accessMode: true } })
+            parentCfg = cfg ? { accessMode: cfg.accessMode } : { accessMode: 'PUBLIC' }
+            folderConfigById.set(currentId, parentCfg)
+          }
+
+          const created = await prisma.folder.create({
+            data: {
+              name: seg,
+              parentId: currentId,
+              createdById: req.user.id,
+              accessMode: parentCfg.accessMode,
+              inheritPermissions: true
+            },
+            select: { id: true, accessMode: true }
+          })
+          folderByParentAndName.set(cacheKey, created.id)
+          folderConfigById.set(created.id, { accessMode: created.accessMode })
+          currentId = created.id
+        }
+        return currentId
+      }
+
+      const loadDocumentTypesStart = startTimer()
+      const documentTypes = await prisma.documentType.findMany({
+        select: { id: true, name: true, prefix: true, isActive: true }
+      })
+      timings.loadDocumentTypesMs = roundMs(getElapsedMs(loadDocumentTypesStart))
+      const typeByPrefix = new Map(documentTypes.map((dt) => [dt.prefix, dt]))
+      const typeByPrefixLower = new Map(documentTypes.map((dt) => [String(dt.prefix || '').toLowerCase(), dt]))
+      const typeById = new Map(documentTypes.map((dt) => [dt.id, dt]))
+      const othersTypeId = (() => {
+        const byName = documentTypes.find((dt) => dt?.isActive && String(dt?.name || '').toLowerCase() === 'others')
+        if (byName) return byName.id
+        const byPrefix = documentTypes.find((dt) => dt?.isActive && String(dt?.prefix || '').toLowerCase() === 'oth')
+        if (byPrefix) return byPrefix.id
+        return null
+      })()
+      const referencedProjectCategoryIds = Array.from(new Set(
+        (Array.isArray(parsedMeta) ? parsedMeta : [])
+          .map((meta) => parseInt(meta?.projectCategoryId, 10))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      ))
+      const loadProjectCategoriesStart = startTimer()
+      const projectCategories = referencedProjectCategoryIds.length > 0
+        ? await prisma.projectCategory.findMany({
+            where: { id: { in: referencedProjectCategoryIds } },
+            select: { id: true }
+          })
+        : []
+      timings.loadProjectCategoriesMs = roundMs(getElapsedMs(loadProjectCategoriesStart))
+      const validProjectCategoryIds = new Set(projectCategories.map((category) => category.id))
+
+      const reserved = { fileCodes: new Set(), runningByCodeKey: new Map() }
+      const reserveAllocation = (allocation) => {
+        const codeKey = allocation?.codeKey
+        const rn = allocation?.suggestedRunningNumber
+        const fc = allocation?.suggestedFileCode
+        if (codeKey && Number.isFinite(Number(rn))) {
+          const set = reserved.runningByCodeKey.get(codeKey) || new Set()
+          set.add(parseInt(rn, 10))
+          reserved.runningByCodeKey.set(codeKey, set)
+        }
+        if (fc) reserved.fileCodes.add(fc)
+      }
+
+      const allocationsByIndex = new Map()
+      const conflicts = []
+      const allocationPhaseStart = startTimer()
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i]
         const meta = parsedMeta?.[i] && typeof parsedMeta[i] === 'object' ? parsedMeta[i] : null
         const relPath = meta && typeof meta.relativePath === 'string' ? meta.relativePath : ''
         const baseName = getBaseName(relPath, file.originalname)
@@ -397,152 +460,296 @@ class DocumentController {
         })()
         const metaFileCode = meta && typeof meta.fileCode === 'string' ? meta.fileCode.trim() : ''
         const fileCodeToUse = isClientDocument ? '' : (metaFileCode || derivedFileCode)
-        if (!isClientDocument && !fileCodeToUse) {
-          throw new Error('File code is required')
-        }
+        if (!isClientDocument && !fileCodeToUse) continue
 
         const metaDocTypeIdRaw = meta?.documentTypeId
         const metaDocTypeId = Number.isFinite(Number(metaDocTypeIdRaw)) ? parseInt(metaDocTypeIdRaw) : null
         const metaProjectCategoryIdRaw = meta?.projectCategoryId
         const metaProjectCategoryId = Number.isFinite(Number(metaProjectCategoryIdRaw)) ? parseInt(metaProjectCategoryIdRaw) : null
 
-        let parsedMetaExpiryInfo = null
-        const metaExpiryInfo = meta?.expiryInfo
-        if (typeof metaExpiryInfo === 'string' && metaExpiryInfo.trim()) {
-          try {
-            const v = JSON.parse(metaExpiryInfo)
-            if (v && typeof v === 'object') parsedMetaExpiryInfo = v
-          } catch (_) {
-            parsedMetaExpiryInfo = null
-          }
-        } else if (metaExpiryInfo && typeof metaExpiryInfo === 'object') {
-          parsedMetaExpiryInfo = metaExpiryInfo
-        }
-
-        const expiryRaw = parsedMetaExpiryInfo && typeof parsedMetaExpiryInfo === 'object'
-          ? { ...normalizedExpiryInfo, ...parsedMetaExpiryInfo }
-          : normalizedExpiryInfo
-
-        const expiryToUse = (() => {
-          const enabled = Boolean(expiryRaw?.trackingEnabled)
-          const startDate = expiryRaw?.startDate
-          const expiryDate = expiryRaw?.expiryDate
-          const remarks = expiryRaw?.remarks
-          if (!enabled) return { trackingEnabled: false }
-          if (!startDate || !expiryDate) return { trackingEnabled: false }
-          return {
-            trackingEnabled: true,
-            startDate,
-            expiryDate,
-            remarks,
-            expiringSoonDays: expiryRaw?.expiringSoonDays,
-            reminder1Days: expiryRaw?.reminder1Days,
-            reminder2Days: expiryRaw?.reminder2Days,
-            reminder3Days: expiryRaw?.reminder3Days,
-            reminder4Days: expiryRaw?.reminder4Days
-          }
-        })()
-
         let documentTypeIdToUse = null
-        if (isClientDocument) {
-          if (!othersTypeId) {
-            throw new Error('Document type "Others" not found. Please create it in System Configuration.')
-          }
-          documentTypeIdToUse = othersTypeId
-        } else if (metaDocTypeId) {
+        if (metaDocTypeId) {
           const dt = typeById.get(metaDocTypeId)
-          if (!dt || !dt.isActive) {
-            throw new Error('Document type not found')
-          }
+          if (!dt || !dt.isActive) continue
           documentTypeIdToUse = dt.id
         } else {
+          if (isClientDocument) continue
           const prefixMatch = String(fileCodeToUse).match(/^[A-Za-z]+/)
           const prefix = prefixMatch?.[0] || ''
-          if (!prefix) {
-            throw new Error(`Unable to determine document type for "${fileCodeToUse}"`)
-          }
+          if (!prefix) continue
           const dt = typeByPrefix.get(prefix) || typeByPrefixLower.get(prefix.toLowerCase())
-          if (!dt || !dt.isActive) {
-            throw new Error(`Document type not found for prefix "${prefix}"`)
-          }
+          if (!dt || !dt.isActive) continue
           documentTypeIdToUse = dt.id
         }
 
-        const planned = allocationsByIndex.get(i)
-        const finalFileCodeToUse = (!isClientDocument && planned)
-          ? (allowReassignFlag ? planned.suggestedFileCode : planned.normalizedRequested)
-          : fileCodeToUse
-        const wasReassigned = Boolean(!isClientDocument && planned && planned.suggestedFileCode !== planned.normalizedRequested && allowReassignFlag)
+        if (isClientDocument) continue
+        if (!metaProjectCategoryId) continue
+        if (!validProjectCategoryIds.has(metaProjectCategoryId)) continue
 
-        const created = await documentService.createImportedPublishedDocument({
-          fileCode: finalFileCodeToUse,
-          isClientDocument,
-          title: docTitle,
-          description: desc,
+        const allocation = await documentService.resolveImportedPublishedFileCode({
+          fileCode: fileCodeToUse,
           documentTypeId: documentTypeIdToUse,
-          projectCategoryId: metaProjectCategoryId,
-          folderId: await (async () => {
+          projectCategoryId: metaProjectCategoryId
+        }, reserved)
+
+        reserveAllocation(allocation)
+        allocationsByIndex.set(i, allocation)
+        if (allocation.suggestedFileCode !== allocation.normalizedRequested) {
+          conflicts.push({
+            lineNumber: i + 1,
+            fileName: baseName,
+            requestedFileCode: allocation.normalizedRequested,
+            suggestedFileCode: allocation.suggestedFileCode,
+            documentTitle: docTitle,
+            reasonCode: 'RUNNING_NUMBER_TAKEN'
+          })
+        }
+      }
+      timings.allocationPhaseMs = roundMs(getElapsedMs(allocationPhaseStart))
+      timings.conflictCount = conflicts.length
+
+      if (conflicts.length > 0 && !allowReassignFlag) {
+        const err = new ConflictError('File code redundant. Confirmation required.')
+        err.code = 'FILE_CODE_REASSIGN_REQUIRED'
+        err.errors = conflicts
+        throw err
+      }
+
+      timings.fileProcessingCount = req.files.length
+
+      for (let i = 0; i < req.files.length; i++) {
+        const fileStart = startTimer()
+        const file = req.files[i]
+        const fileTiming = {
+          lineNumber: i + 1,
+          fileName: file?.originalname || 'unknown',
+          fileSize: file?.size || null
+        }
+        try {
+          const meta = parsedMeta?.[i] && typeof parsedMeta[i] === 'object' ? parsedMeta[i] : null
+          const relPath = meta && typeof meta.relativePath === 'string' ? meta.relativePath : ''
+          const baseName = getBaseName(relPath, file.originalname)
+          const derivedTitle = path.basename(baseName, path.extname(baseName)).trim() || baseName
+          const metaTitle = meta && typeof meta.title === 'string' ? meta.title.trim() : ''
+          const docTitle = req.files.length === 1 && singleTitle ? singleTitle : (metaTitle || derivedTitle)
+          const isClientDocument = Boolean(meta?.isClientDocument)
+
+          const derivedFileCode = (() => {
+            const base = derivedTitle
+            const sepIdx = base.indexOf('_')
+            if (sepIdx > 0) return base.slice(0, sepIdx).trim()
+            return base.trim()
+          })()
+          const metaFileCode = meta && typeof meta.fileCode === 'string' ? meta.fileCode.trim() : ''
+          const fileCodeToUse = isClientDocument ? '' : (metaFileCode || derivedFileCode)
+          if (!isClientDocument && !fileCodeToUse) {
+            throw new Error('File code is required')
+          }
+
+          const metaDocTypeIdRaw = meta?.documentTypeId
+          const metaDocTypeId = Number.isFinite(Number(metaDocTypeIdRaw)) ? parseInt(metaDocTypeIdRaw) : null
+          const metaProjectCategoryIdRaw = meta?.projectCategoryId
+          const metaProjectCategoryId = Number.isFinite(Number(metaProjectCategoryIdRaw)) ? parseInt(metaProjectCategoryIdRaw) : null
+          if (!metaProjectCategoryId) {
+            throw new Error('Project category is required')
+          }
+          if (!validProjectCategoryIds.has(metaProjectCategoryId)) {
+            throw new Error('Project category not found')
+          }
+
+          let parsedMetaExpiryInfo = null
+          const metaExpiryInfo = meta?.expiryInfo
+          if (typeof metaExpiryInfo === 'string' && metaExpiryInfo.trim()) {
+            try {
+              const v = JSON.parse(metaExpiryInfo)
+              if (v && typeof v === 'object') parsedMetaExpiryInfo = v
+            } catch (_) {
+              parsedMetaExpiryInfo = null
+            }
+          } else if (metaExpiryInfo && typeof metaExpiryInfo === 'object') {
+            parsedMetaExpiryInfo = metaExpiryInfo
+          }
+
+          const expiryRaw = parsedMetaExpiryInfo && typeof parsedMetaExpiryInfo === 'object'
+            ? { ...normalizedExpiryInfo, ...parsedMetaExpiryInfo }
+            : normalizedExpiryInfo
+
+          const expiryToUse = (() => {
+            const enabled = Boolean(expiryRaw?.trackingEnabled)
+            const startDate = expiryRaw?.startDate
+            const expiryDate = expiryRaw?.expiryDate
+            const remarks = expiryRaw?.remarks
+            if (!enabled) return { trackingEnabled: false }
+            if (!startDate || !expiryDate) return { trackingEnabled: false }
+            return {
+              trackingEnabled: true,
+              startDate,
+              expiryDate,
+              remarks,
+              expiringSoonDays: expiryRaw?.expiringSoonDays,
+              reminder1Days: expiryRaw?.reminder1Days,
+              reminder2Days: expiryRaw?.reminder2Days,
+              reminder3Days: expiryRaw?.reminder3Days,
+              reminder4Days: expiryRaw?.reminder4Days
+            }
+          })()
+
+          let documentTypeIdToUse = null
+          if (isClientDocument) {
+            if (!othersTypeId) {
+              throw new Error('Document type "Others" not found. Please create it in System Configuration.')
+            }
+            documentTypeIdToUse = othersTypeId
+          } else if (metaDocTypeId) {
+            const dt = typeById.get(metaDocTypeId)
+            if (!dt || !dt.isActive) {
+              throw new Error('Document type not found')
+            }
+            documentTypeIdToUse = dt.id
+          } else {
+            const prefixMatch = String(fileCodeToUse).match(/^[A-Za-z]+/)
+            const prefix = prefixMatch?.[0] || ''
+            if (!prefix) {
+              throw new Error(`Unable to determine document type for "${fileCodeToUse}"`)
+            }
+            const dt = typeByPrefix.get(prefix) || typeByPrefixLower.get(prefix.toLowerCase())
+            if (!dt || !dt.isActive) {
+              throw new Error(`Document type not found for prefix "${prefix}"`)
+            }
+            documentTypeIdToUse = dt.id
+          }
+
+          const planned = allocationsByIndex.get(i)
+          const finalFileCodeToUse = (!isClientDocument && planned)
+            ? (allowReassignFlag ? planned.suggestedFileCode : planned.normalizedRequested)
+            : fileCodeToUse
+          const wasReassigned = Boolean(!isClientDocument && planned && planned.suggestedFileCode !== planned.normalizedRequested && allowReassignFlag)
+          fileTiming.wasReassigned = wasReassigned
+          fileTiming.isClientDocument = isClientDocument
+
+          const resolveFolderStart = startTimer()
+          const resolvedFolderId = await (async () => {
             const segments = extractFolderSegments(relPath)
             if (segments.length === 0) return folderIdInt
             return ensureFolderPath(folderIdInt, segments)
           })()
-        }, req.user.id);
+          fileTiming.resolveFolderMs = roundMs(getElapsedMs(resolveFolderStart))
 
-        const document = created?.document || created
-        if (wasReassigned) {
-          const ext = path.extname(baseName) || path.extname(file.originalname) || ''
-          const codeNoSep = String(finalFileCodeToUse || document.fileCode || '')
-            .replace(/[^A-Za-z0-9]/g, '')
-          const safeTitle = String(docTitle || '')
-            .replace(/[\\/:*?"<>|]+/g, ' ')
-            .trim()
-          const name = `${codeNoSep}_${safeTitle || codeNoSep}${ext}`
-          file.displayName = name.length > 255 ? name.slice(0, 255) : name
+          const createDocumentStart = startTimer()
+          const created = await documentService.createImportedPublishedDocument({
+            fileCode: finalFileCodeToUse,
+            isClientDocument,
+            title: docTitle,
+            description: desc,
+            documentTypeId: documentTypeIdToUse,
+            projectCategoryId: metaProjectCategoryId,
+            folderId: resolvedFolderId,
+            resolvedFinalFileCode: isClientDocument ? null : finalFileCodeToUse,
+            resolvedRunningNumber: isClientDocument ? null : (planned
+              ? (allowReassignFlag ? planned.suggestedRunningNumber : planned.requestedRunningNumber)
+              : null),
+            skipProjectCategoryValidation: true
+          }, req.user.id);
+          fileTiming.createDocumentMs = roundMs(getElapsedMs(createDocumentStart))
+
+          const document = created?.document || created
+          fileTiming.documentId = document.id
+          fileTiming.fileCode = document.fileCode
+          if (wasReassigned) {
+            const ext = path.extname(baseName) || path.extname(file.originalname) || ''
+            const codeNoSep = String(finalFileCodeToUse || document.fileCode || '')
+              .replace(/[^A-Za-z0-9]/g, '')
+            const safeTitle = String(docTitle || '')
+              .replace(/[\\/:*?"<>|]+/g, ' ')
+              .trim()
+            const name = `${codeNoSep}_${safeTitle || codeNoSep}${ext}`
+            file.displayName = name.length > 255 ? name.slice(0, 255) : name
+          }
+
+          const uploadVersionStart = startTimer()
+          await documentService.uploadDocumentVersion(document.id, file, req.user.id);
+          fileTiming.uploadVersionMs = roundMs(getElapsedMs(uploadVersionStart))
+
+          const markReadyStart = startTimer()
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { status: 'READY_TO_PUBLISH', stage: 'READY_TO_PUBLISH' }
+          });
+          fileTiming.markReadyToPublishMs = roundMs(getElapsedMs(markReadyStart))
+
+          const publishStart = startTimer()
+          const workflowService = require('../services/workflowService');
+          await workflowService.publishDocument(
+            document.id,
+            req.user.id,
+            document.folderId || folderIdInt,
+            'Bulk import',
+            null,
+            expiryToUse,
+            { deferFollowUps: true }
+          );
+          fileTiming.publishDocumentMs = roundMs(getElapsedMs(publishStart))
+
+          imported.push({
+            id: document.id,
+            fileCode: document.isClientDocument ? '-' : document.fileCode,
+            title: document.title,
+            fileName: file.displayName || baseName
+          });
+        } catch (error) {
+          const reasonCode = String(error?.code || error?.name || 'IMPORT_FAILED')
+          fileTiming.error = { message: error?.message || 'Failed to import file', code: reasonCode }
+          failed.push({
+            lineNumber: i + 1,
+            fileName: file?.originalname || 'unknown',
+            reasonCode,
+            message: error?.message || 'Failed to import file'
+          });
+        } finally {
+          fileTiming.totalFileMs = roundMs(getElapsedMs(fileStart))
+          fileTimings.push(fileTiming)
+
+          if (req.files.length <= 20 || fileTiming.totalFileMs >= 1000 || fileTiming.error) {
+            console.log('[bulk-import-file-timing]', JSON.stringify(fileTiming))
+          }
         }
-
-        await documentService.uploadDocumentVersion(document.id, file, req.user.id);
-
-        await prisma.document.update({
-          where: { id: document.id },
-          data: { status: 'READY_TO_PUBLISH', stage: 'READY_TO_PUBLISH' }
-        });
-
-        const workflowService = require('../services/workflowService');
-        await workflowService.publishDocument(
-          document.id,
-          req.user.id,
-          document.folderId || folderIdInt,
-          'Bulk import',
-          null,
-          expiryToUse
-        );
-
-        imported.push({
-          id: document.id,
-          fileCode: document.isClientDocument ? '-' : document.fileCode,
-          title: document.title,
-          fileName: file.displayName || baseName
-        });
-      } catch (error) {
-        const reasonCode = String(error?.code || error?.name || 'IMPORT_FAILED')
-        failed.push({
-          lineNumber: i + 1,
-          fileName: file?.originalname || 'unknown',
-          reasonCode,
-          message: error?.message || 'Failed to import file'
-        });
       }
-    }
 
-    return ResponseFormatter.success(
-      res,
-      {
+      timings.totalControllerMs = roundMs(getElapsedMs(requestStart))
+      const slowestFiles = [...fileTimings]
+        .sort((a, b) => (b.totalFileMs || 0) - (a.totalFileMs || 0))
+        .slice(0, 5)
+
+      console.log('[bulk-import-timing]', JSON.stringify(buildBulkImportTimingLog({
+        req,
+        timings: {
+          ...timings,
+          slowestFiles
+        },
+        imported,
+        failed
+      })))
+
+      return ResponseFormatter.success(
+        res,
+        {
+          imported,
+          failed,
+          counts: { imported: imported.length, failed: failed.length }
+        },
+        'Bulk import completed'
+      );
+    } catch (error) {
+      timings.totalControllerMs = roundMs(getElapsedMs(requestStart))
+      console.error('[bulk-import-timing]', JSON.stringify(buildBulkImportTimingLog({
+        req,
+        timings,
         imported,
         failed,
-        counts: { imported: imported.length, failed: failed.length }
-      },
-      'Bulk import completed'
-    );
+        error
+      })))
+      throw error
+    }
   });
 
   /**
@@ -2257,14 +2464,33 @@ class DocumentController {
       req.user.id
     );
 
-    await epcRegistryService.generateForUploadedDraft(documentId, uploadedVersion.id, req)
+    const actorUserId = req.user?.id || null
+    const auditReq = buildAuditRequestContext(req)
+    const uploadFileName = req.file.originalname
+    queueBackgroundTask('draft-upload-followup', async () => {
+      const backgroundTimings = {
+        documentId,
+        versionId: uploadedVersion.id,
+        userId: actorUserId
+      }
 
-    // Log draft upload
-    await auditLogService.logDocument(req.user.id, 'DRAFT_UPLOAD', { id: documentId, fileCode: savedFileCode }, req, {
-      fileName: req.file.originalname,
-      title,
-      versionNo
-    });
+      const epcStart = startTimer()
+      await epcRegistryService.generateForUploadedDraft(documentId, uploadedVersion.id, {
+        ...auditReq,
+        user: { id: actorUserId }
+      })
+      backgroundTimings.epcGenerationMs = roundMs(getElapsedMs(epcStart))
+
+      const auditStart = startTimer()
+      await auditLogService.logDocument(actorUserId, 'DRAFT_UPLOAD', { id: documentId, fileCode: savedFileCode }, auditReq, {
+        fileName: uploadFileName,
+        title,
+        versionNo
+      });
+      backgroundTimings.auditLogMs = roundMs(getElapsedMs(auditStart))
+
+      return backgroundTimings
+    })
 
     // Submit for review
     const finalDocument = await documentService.submitDraftForReview(

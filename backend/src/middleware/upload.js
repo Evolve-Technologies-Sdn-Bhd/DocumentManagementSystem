@@ -3,6 +3,7 @@ const path = require('path');
 const config = require('../config/app');
 const fileStorageService = require('../services/fileStorageService');
 const configService = require('../services/configService');
+const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 /**
  * Cache for file upload settings to avoid frequent DB queries
@@ -14,6 +15,17 @@ const CACHE_DURATION = 60000; // 1 minute
 function updateFileUploadSettingsCache(nextSettings) {
   cachedFileUploadSettings = nextSettings || null;
   cacheTimestamp = nextSettings ? Date.now() : 0;
+}
+
+function recordUploadMiddlewareTiming(req, fieldName, fileCount, start) {
+  req.uploadTiming = {
+    ...(req.uploadTiming || {}),
+    middleware: {
+      fieldName,
+      fileCount,
+      multipartParseMs: roundMs(getElapsedMs(start))
+    }
+  };
 }
 
 /**
@@ -98,6 +110,7 @@ const getDynamicLimits = async () => {
  */
 const createUploadMiddleware = (fieldName = 'file') => {
   return async (req, res, next) => {
+    const middlewareStart = startTimer();
     try {
       const limits = await getDynamicLimits();
       const upload = multer({
@@ -106,8 +119,12 @@ const createUploadMiddleware = (fieldName = 'file') => {
         fileFilter: documentFileFilter
       }).single(fieldName);  // Use the provided fieldName
       
-      upload(req, res, next);
+      upload(req, res, (error) => {
+        recordUploadMiddlewareTiming(req, fieldName, req.file ? 1 : 0, middlewareStart);
+        next(error);
+      });
     } catch (error) {
+      recordUploadMiddlewareTiming(req, fieldName, req.file ? 1 : 0, middlewareStart);
       next(error);
     }
   };
@@ -115,6 +132,7 @@ const createUploadMiddleware = (fieldName = 'file') => {
 
 const createUploadArrayMiddleware = (fieldName = 'files', maxCount) => {
   return async (req, res, next) => {
+    const middlewareStart = startTimer();
     try {
       const clamp = (n, min, max) => Math.min(max, Math.max(min, n))
       const parsedMaxCount = Number.isFinite(maxCount) ? maxCount : parseInt(maxCount, 10)
@@ -137,8 +155,12 @@ const createUploadArrayMiddleware = (fieldName = 'files', maxCount) => {
         limits: { ...limits, files: resolvedMaxCount },
         fileFilter: documentFileFilter
       }).array(fieldName, resolvedMaxCount);
-      upload(req, res, next);
+      upload(req, res, (error) => {
+        recordUploadMiddlewareTiming(req, fieldName, Array.isArray(req.files) ? req.files.length : 0, middlewareStart);
+        next(error);
+      });
     } catch (error) {
+      recordUploadMiddlewareTiming(req, fieldName, Array.isArray(req.files) ? req.files.length : 0, middlewareStart);
       next(error);
     }
   };

@@ -31,6 +31,15 @@ const formatDate = (value) => {
   return `${day}/${month}/${year}`
 }
 
+const REMINDER_LEVELS = [
+  { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days', recipientsField: 'reminder1Recipients' },
+  { key: 'reminder2', label: 'Reminder 2', daysField: 'reminder2Days', recipientsField: 'reminder2Recipients' },
+  { key: 'reminder3', label: 'Reminder 3', daysField: 'reminder3Days', recipientsField: 'reminder3Recipients' },
+  { key: 'reminder4', label: 'Reminder 4', daysField: 'reminder4Days', recipientsField: 'reminder4Recipients' }
+]
+
+const formatUserLabel = (user) => `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '-'
+
 function ExpiryStatusBadge({ status }) {
   const normalized = String(status || '').toUpperCase()
   const base = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold'
@@ -76,7 +85,7 @@ function Field({ label, children, hint = null }) {
   )
 }
 
-function ExpiryEditModal({ open, profile, globalSettings, onClose, onSubmit, saving }) {
+function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubmit, saving }) {
   const [useGlobalRule, setUseGlobalRule] = useState(false)
   const [form, setForm] = useState({
     startDate: '',
@@ -86,7 +95,13 @@ function ExpiryEditModal({ open, profile, globalSettings, onClose, onSubmit, sav
     reminder1Days: 90,
     reminder2Days: 60,
     reminder3Days: 30,
-    reminder4Days: 7
+    reminder4Days: 7,
+    reminderRecipients: {
+      reminder1: [],
+      reminder2: [],
+      reminder3: [],
+      reminder4: []
+    }
   })
 
   useEffect(() => {
@@ -100,11 +115,38 @@ function ExpiryEditModal({ open, profile, globalSettings, onClose, onSubmit, sav
       reminder1Days: profile.reminderRule?.reminder1Days ?? 90,
       reminder2Days: profile.reminderRule?.reminder2Days ?? 60,
       reminder3Days: profile.reminderRule?.reminder3Days ?? 30,
-      reminder4Days: profile.reminderRule?.reminder4Days ?? 7
+      reminder4Days: profile.reminderRule?.reminder4Days ?? 7,
+      reminderRecipients: {
+        reminder1: Array.isArray(profile.reminderRule?.reminder1Recipients) ? profile.reminderRule.reminder1Recipients.map((u) => u.id) : [],
+        reminder2: Array.isArray(profile.reminderRule?.reminder2Recipients) ? profile.reminderRule.reminder2Recipients.map((u) => u.id) : [],
+        reminder3: Array.isArray(profile.reminderRule?.reminder3Recipients) ? profile.reminderRule.reminder3Recipients.map((u) => u.id) : [],
+        reminder4: Array.isArray(profile.reminderRule?.reminder4Recipients) ? profile.reminderRule.reminder4Recipients.map((u) => u.id) : []
+      }
     })
   }, [profile, open])
 
   if (!open || !profile) return null
+
+  const ownerId = profile.document?.ownerId || null
+  const activeUsers = Array.isArray(users)
+    ? users.filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
+    : []
+
+  const toggleRecipient = (levelKey, userId) => {
+    if (ownerId && userId === ownerId) return
+    setForm((prev) => {
+      const existing = new Set(prev.reminderRecipients?.[levelKey] || [])
+      if (existing.has(userId)) existing.delete(userId)
+      else existing.add(userId)
+      return {
+        ...prev,
+        reminderRecipients: {
+          ...prev.reminderRecipients,
+          [levelKey]: Array.from(existing)
+        }
+      }
+    })
+  }
 
   return (
     <Modal onClose={onClose} closeOnBackdrop size="md">
@@ -176,6 +218,45 @@ function ExpiryEditModal({ open, profile, globalSettings, onClose, onSubmit, sav
             <Field label="Reminder 4">
               <TextInput type="number" min="0" value={form.reminder4Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder4Days: e.target.value }))} required disabled={useGlobalRule} />
             </Field>
+            <div className="md:col-span-2">
+              <AppSurface padding="lg" variant="panel" className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-ink">Reminder Recipients</h3>
+                  <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
+                </div>
+                {REMINDER_LEVELS.map((level) => {
+                  const selectedIds = new Set(form.reminderRecipients?.[level.key] || [])
+                  return (
+                    <div key={level.key} className="space-y-2 rounded-xl border border-border p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-ink">{level.label}</p>
+                          <p className="text-xs text-ink-soft">{form[level.daysField] ?? '-'} day(s) before expiry</p>
+                        </div>
+                        <p className="text-xs text-ink-soft">Owner included automatically</p>
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {activeUsers.map((user) => {
+                          const isOwner = ownerId && user.id === ownerId
+                          return (
+                            <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+                              <input
+                                type="checkbox"
+                                checked={isOwner ? true : selectedIds.has(user.id)}
+                                disabled={isOwner}
+                                onChange={() => toggleRecipient(level.key, user.id)}
+                                className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                              />
+                              <span>{isOwner ? `${formatUserLabel(user)} (Owner)` : formatUserLabel(user)}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </AppSurface>
+            </div>
             <div className="md:col-span-2">
               <Field label="Remarks">
                 <TextArea rows={4} value={form.remarks} onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))} />
@@ -260,7 +341,7 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
   )
 }
 
-function DetailModal({ open, profile, onClose, canEdit, onManageWatchers }) {
+function DetailModal({ open, profile, onClose }) {
   if (!open || !profile) return null
 
   return (
@@ -293,38 +374,24 @@ function DetailModal({ open, profile, onClose, canEdit, onManageWatchers }) {
         </div>
         <AppSurface padding="lg" variant="panel" className="space-y-3">
           <h3 className="text-sm font-semibold text-ink">Reminder Rules</h3>
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-1 xl:grid-cols-5">
             <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Expiring Soon</p><p className="mt-1 text-sm text-ink">{profile.expiringSoonDays ?? '-'} day(s)</p></div>
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 1</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder1Days ?? '-'} day(s)</p></div>
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 2</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder2Days ?? '-'} day(s)</p></div>
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 3</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder3Days ?? '-'} day(s)</p></div>
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Reminder 4</p><p className="mt-1 text-sm text-ink">{profile.reminderRule?.reminder4Days ?? '-'} day(s)</p></div>
-          </div>
-        </AppSurface>
-        <AppSurface padding="lg" variant="panel" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-ink">Subscribers</h3>
-            {canEdit ? <Button type="button" variant="secondary" onClick={onManageWatchers}>Manage</Button> : null}
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Owner</p>
-              <p className="mt-1 text-sm text-ink">{profile.document?.ownerName || '-'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Watchers</p>
-              {Array.isArray(profile.watchers) && profile.watchers.length > 0 ? (
-                <div className="mt-1 space-y-1">
-                  {profile.watchers.map((w) => (
-                    <p key={w.id} className="text-sm text-ink">
-                      {`${w.firstName || ''} ${w.lastName || ''}`.trim() || w.email || '-'}
-                    </p>
-                  ))}
+            {REMINDER_LEVELS.map((level) => {
+              const recipients = profile.reminderRule?.[level.recipientsField] || []
+              return (
+                <div key={level.key}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{level.label}</p>
+                  <p className="mt-1 text-sm text-ink">{profile.reminderRule?.[level.daysField] ?? '-'} day(s)</p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">Recipients</p>
+                  <div className="mt-1 space-y-1 text-sm text-ink">
+                    <p>{profile.document?.ownerName || '-'} (Owner)</p>
+                    {recipients.length > 0 ? recipients.map((user) => (
+                      <p key={`${level.key}-${user.id}`}>{formatUserLabel(user)}</p>
+                    )) : <p>-</p>}
+                  </div>
                 </div>
-              ) : (
-                <p className="mt-1 text-sm text-ink">-</p>
-              )}
-            </div>
+              )
+            })}
           </div>
         </AppSurface>
         <AppSurface padding="lg" variant="panel">
@@ -373,107 +440,6 @@ function DetailModal({ open, profile, onClose, canEdit, onManageWatchers }) {
   )
 }
 
-function WatchersModal({ open, profile, users, onClose, onSave, saving }) {
-  const [search, setSearch] = useState('')
-  const [selectedIds, setSelectedIds] = useState([])
-
-  useEffect(() => {
-    if (!open || !profile) return
-    setSearch('')
-    setSelectedIds(Array.isArray(profile.watchers) ? profile.watchers.map((u) => u.id) : [])
-  }, [open, profile])
-
-  if (!open || !profile) return null
-
-  const ownerId = profile.document?.ownerId || null
-  const normalizedUsers = Array.isArray(users) ? users : []
-  const activeUsers = normalizedUsers.filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
-  const keyword = String(search || '').trim().toLowerCase()
-  const filteredUsers = keyword
-    ? activeUsers.filter((u) => {
-        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase()
-        const email = String(u.email || '').toLowerCase()
-        const dept = String(u.department || '').toLowerCase()
-        return name.includes(keyword) || email.includes(keyword) || dept.includes(keyword)
-      })
-    : activeUsers
-
-  const selectedSet = new Set(selectedIds)
-
-  const toggle = (id) => {
-    setSelectedIds((prev) => {
-      const set = new Set(prev)
-      if (set.has(id)) set.delete(id)
-      else set.add(id)
-      return Array.from(set)
-    })
-  }
-
-  return (
-    <Modal onClose={onClose} closeOnBackdrop size="lg">
-      <ModalHeader
-        title="Manage Subscribers"
-        subtitle={profile.document ? `${profile.document.fileCode} - ${profile.document.title}` : ''}
-        onClose={onClose}
-      />
-      <ModalBody className="space-y-4">
-        <AppSurface padding="lg" variant="panel" className="space-y-4">
-          <p className="text-sm text-ink-muted">Owner will always receive expiry notifications. Watchers will also receive reminders based on expiry tracking configuration.</p>
-          <TextInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users by name, email, or department"
-          />
-        </AppSurface>
-        <TableContainer>
-          <Table>
-            <thead>
-              <tr>
-                <Th className="w-16">Select</Th>
-                <Th>User</Th>
-                <Th>Email</Th>
-                <Th>Department</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length === 0 ? (
-                <Tr>
-                  <Td colSpan={4} className="py-8 text-center text-sm text-ink-muted">No users found.</Td>
-                </Tr>
-              ) : (
-                filteredUsers.map((u) => {
-                  const isOwner = ownerId && u.id === ownerId
-                  const label = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || '-'
-                  return (
-                    <Tr key={u.id}>
-                      <Td>
-                        <input
-                          type="checkbox"
-                          checked={isOwner ? true : selectedSet.has(u.id)}
-                          disabled={isOwner}
-                          onChange={() => toggle(u.id)}
-                          className="h-4 w-4"
-                        />
-                      </Td>
-                      <Td className="font-medium text-ink">{isOwner ? `${label} (Owner)` : label}</Td>
-                      <Td className="text-ink-muted">{u.email || '-'}</Td>
-                      <Td className="text-ink-muted">{u.department || '-'}</Td>
-                    </Tr>
-                  )
-                })
-              )}
-            </tbody>
-          </Table>
-        </TableContainer>
-      </ModalBody>
-      <ModalFooter>
-        <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button type="button" onClick={() => onSave(selectedIds)} disabled={saving}>{saving ? 'Saving...' : 'Save Subscribers'}</Button>
-      </ModalFooter>
-    </Modal>
-  )
-}
-
 export default function ExpiryTracking() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -513,7 +479,6 @@ export default function ExpiryTracking() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [renewalOpen, setRenewalOpen] = useState(false)
-  const [watchersOpen, setWatchersOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const canEdit = hasPermission('expiryTracking', 'edit')
@@ -658,6 +623,7 @@ export default function ExpiryTracking() {
         payload.reminder3Days = parseInt(form.reminder3Days, 10) || 0
         payload.reminder4Days = parseInt(form.reminder4Days, 10) || 0
       }
+      payload.reminderRecipients = form.reminderRecipients
 
       await api.patch(`/expiry-tracking/${selectedProfile.documentId}`, payload)
       setEditOpen(false)
@@ -709,27 +675,6 @@ export default function ExpiryTracking() {
     } catch (error) {
       console.error('Failed to complete renewal:', error)
       alert(error.response?.data?.message || 'Failed to complete renewal')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const openManageWatchers = () => {
-    if (!selectedProfile) return
-    setWatchersOpen(true)
-  }
-
-  const handleSaveWatchers = async (watcherIds) => {
-    if (!selectedProfile) return
-    setSaving(true)
-    try {
-      const res = await api.put(`/expiry-tracking/${selectedProfile.documentId}/watchers`, { watcherIds })
-      setSelectedProfile(res.data?.data?.profile || null)
-      setWatchersOpen(false)
-      refresh()
-    } catch (error) {
-      console.error('Failed to update watchers:', error)
-      alert(error.response?.data?.message || 'Failed to update subscribers')
     } finally {
       setSaving(false)
     }
@@ -987,14 +932,12 @@ export default function ExpiryTracking() {
         )}
       </AppSurface>
 
-      <DetailModal open={detailOpen} profile={selectedProfile} canEdit={canEdit} onManageWatchers={openManageWatchers} onClose={() => {
+      <DetailModal open={detailOpen} profile={selectedProfile} onClose={() => {
         setDetailOpen(false)
         setSelectedProfile(null)
       }} />
 
-      <WatchersModal open={watchersOpen} profile={selectedProfile} users={owners} saving={saving} onSave={handleSaveWatchers} onClose={() => setWatchersOpen(false)} />
-
-      <ExpiryEditModal open={editOpen} profile={selectedProfile} globalSettings={globalExpirySettings} onClose={() => {
+      <ExpiryEditModal open={editOpen} profile={selectedProfile} globalSettings={globalExpirySettings} users={owners} onClose={() => {
         setEditOpen(false)
         setSelectedProfile(null)
       }} onSubmit={handleProfileUpdate} saving={saving} />

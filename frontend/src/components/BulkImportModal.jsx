@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -12,6 +12,33 @@ function getOtherDocumentationTypeId(documentTypes) {
   const byPrefix = types.find((dt) => String(dt?.prefix || '').toLowerCase() === 'oth')
   if (byPrefix) return String(byPrefix.id)
   return ''
+}
+
+function buildFileCodeGuide(settings) {
+  const safeSettings = settings && typeof settings === 'object' ? settings : {}
+  const separator = String(safeSettings.separator || '/')
+  const prefix = String(safeSettings.prefixPlaceholder || 'PFX').toUpperCase()
+  const includeVersion = Boolean(safeSettings.includeVersion)
+  const versionDigits = includeVersion ? Math.max(1, parseInt(safeSettings.versionDigits, 10) || 2) : 0
+  const dateFormat = String(safeSettings.dateFormat || 'YYMMDD').toUpperCase()
+  const counterDigits = Math.max(1, parseInt(safeSettings.counterDigits, 10) || 3)
+
+  const formatParts = [prefix]
+  if (includeVersion) formatParts.push('V'.repeat(versionDigits))
+  if (dateFormat !== 'NONE') formatParts.push(dateFormat)
+  formatParts.push('X'.repeat(counterDigits))
+
+  const legendParts = [
+    `${prefix}=prefix`
+  ]
+  if (includeVersion) legendParts.push(`${'V'.repeat(versionDigits)}=version`)
+  if (dateFormat !== 'NONE') legendParts.push(`${dateFormat}=date`)
+  legendParts.push(`${'X'.repeat(counterDigits)}=running number`)
+
+  return {
+    format: formatParts.join(separator),
+    legend: legendParts.join(', ')
+  }
 }
 
 export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, selectedFolderId }) {
@@ -63,6 +90,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const otherTypeId = useMemo(() => getOtherDocumentationTypeId(documentTypes), [documentTypes])
   const allClientChecked = useMemo(() => fileItems.length > 0 && fileItems.every((it) => Boolean(it.isClientDocument)), [fileItems])
   const someClientChecked = useMemo(() => fileItems.some((it) => Boolean(it.isClientDocument)), [fileItems])
+  const fileCodeGuide = useMemo(() => buildFileCodeGuide(numberingSettings), [numberingSettings])
   const clientDeclarationRef = useRef(null)
 
   useEffect(() => {
@@ -965,8 +993,14 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                   }))
                                 }}
                                 disabled={Boolean(it.isClientDocument)}
+                                placeholder={fileCodeGuide.format}
                                 className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm font-mono bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
                               />
+                              <p className="mt-1 text-xs text-ink-muted">
+                                {String(t('bulk_import_file_code_format_hint'))
+                                  .replace('{format}', fileCodeGuide.format)
+                                  .replace('{legend}', fileCodeGuide.legend)}
+                              </p>
                               <p className="mt-1 text-xs text-ink-muted">{t('bulk_import_auto_extracted_hint')}</p>
                             </div>
 
@@ -1156,5 +1190,6 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

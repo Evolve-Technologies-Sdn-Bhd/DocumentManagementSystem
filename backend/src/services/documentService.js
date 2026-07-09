@@ -6,8 +6,90 @@ const confidentialAccessService = require('./confidentialAccessService')
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const DocumentNumbering = require('../utils/documentNumbering');
 const path = require('path');
+const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class DocumentService {
+  queueDocumentVersionEncryption(versionId, expectedFilePath = null) {
+    setImmediate(async () => {
+      const taskStart = startTimer()
+      try {
+        const result = await this.encryptStoredDocumentVersion(versionId, expectedFilePath)
+        console.log('[document-version-encryption]', JSON.stringify({
+          success: true,
+          versionId,
+          ...result,
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      } catch (error) {
+        console.error('[document-version-encryption]', JSON.stringify({
+          success: false,
+          versionId,
+          error: { message: error.message, code: error.code || null },
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      }
+    })
+  }
+
+  async encryptStoredDocumentVersion(versionId, expectedFilePath = null) {
+    const timings = {}
+
+    const loadVersionStart = startTimer()
+    const version = await prisma.documentVersion.findUnique({
+      where: { id: versionId },
+      select: { id: true, filePath: true, isEncrypted: true }
+    })
+    timings.loadVersionMs = roundMs(getElapsedMs(loadVersionStart))
+
+    if (!version) {
+      return { timings, skipped: 'VERSION_NOT_FOUND' }
+    }
+
+    if (version.isEncrypted) {
+      return { timings, skipped: 'ALREADY_ENCRYPTED' }
+    }
+
+    if (expectedFilePath && version.filePath !== expectedFilePath) {
+      return { timings, skipped: 'FILE_PATH_CHANGED' }
+    }
+
+    const encryptionService = require('./encryptionService')
+    const encryptedPath = `${version.filePath}.enc`
+
+    const encryptStart = startTimer()
+    await encryptionService.encryptFile(version.filePath, encryptedPath)
+    timings.encryptFileMs = roundMs(getElapsedMs(encryptStart))
+
+    const updateVersionStart = startTimer()
+    const updated = await prisma.documentVersion.updateMany({
+      where: {
+        id: versionId,
+        isEncrypted: false,
+        filePath: version.filePath
+      },
+      data: {
+        filePath: encryptedPath,
+        isEncrypted: true
+      }
+    })
+    timings.updateVersionRowMs = roundMs(getElapsedMs(updateVersionStart))
+
+    if (updated.count === 0) {
+      await fileStorageService.deleteFile(encryptedPath)
+      return { timings, skipped: 'VERSION_CHANGED_DURING_ENCRYPTION' }
+    }
+
+    const deleteOriginalStart = startTimer()
+    const deletedOriginal = await fileStorageService.deleteFile(version.filePath)
+    timings.deleteOriginalMs = roundMs(getElapsedMs(deleteOriginalStart))
+
+    return {
+      timings,
+      encryptedPath,
+      deletedOriginal
+    }
+  }
+
   getDateDigitsFromSettings(dateFormat) {
     switch (String(dateFormat || '').toUpperCase()) {
       case 'YYMMDD': return 6
@@ -828,7 +910,19 @@ class DocumentService {
   }
 
   async createImportedPublishedDocument(data, creatorId) {
-    const { fileCode, title, description, documentTypeId, projectCategoryId, folderId, isClientDocument, allowReassign } = data
+    const {
+      fileCode,
+      title,
+      description,
+      documentTypeId,
+      projectCategoryId,
+      folderId,
+      isClientDocument,
+      allowReassign,
+      resolvedFinalFileCode,
+      resolvedRunningNumber,
+      skipProjectCategoryValidation
+    } = data
     const clientDoc = Boolean(isClientDocument)
 
     const categoryId = projectCategoryId ? parseInt(projectCategoryId, 10) : null
@@ -838,13 +932,15 @@ class DocumentService {
       throw err
     }
 
-    const category = await prisma.projectCategory.findUnique({
-      where: { id: categoryId }
-    })
-    if (!category) {
-      const err = new BadRequestError('Project category not found')
-      err.code = 'PROJECT_CATEGORY_NOT_FOUND'
-      throw err
+    if (!skipProjectCategoryValidation) {
+      const category = await prisma.projectCategory.findUnique({
+        where: { id: categoryId }
+      })
+      if (!category) {
+        const err = new BadRequestError('Project category not found')
+        err.code = 'PROJECT_CATEGORY_NOT_FOUND'
+        throw err
+      }
     }
 
     let finalFileCode = ''
@@ -856,33 +952,42 @@ class DocumentService {
       const base = `CLT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
       finalFileCode = base
     } else {
-      if (!fileCode || !String(fileCode).trim()) {
-        throw new BadRequestError('File code is required')
-      }
-      const allocation = await this.resolveImportedPublishedFileCode({
-        fileCode,
-        documentTypeId,
-        projectCategoryId: categoryId
-      })
-
-      normalizedRequested = allocation.normalizedRequested
-      if (allocation.suggestedFileCode !== normalizedRequested) {
-        if (!allowReassign) {
-          const { ConflictError } = require('../utils/errors')
-          const err = new ConflictError('File code is redundant. Confirmation required to reassign.')
-          err.code = 'FILE_CODE_REASSIGN_REQUIRED'
-          err.errors = [{
-            requestedFileCode: normalizedRequested,
-            suggestedFileCode: allocation.suggestedFileCode,
-            reasonCode: 'RUNNING_NUMBER_TAKEN'
-          }]
-          throw err
+      if (resolvedFinalFileCode && String(resolvedFinalFileCode).trim()) {
+        finalFileCode = String(resolvedFinalFileCode).trim()
+        nextRunning = Number.isFinite(Number(resolvedRunningNumber)) ? parseInt(resolvedRunningNumber, 10) : null
+      } else {
+        if (!fileCode || !String(fileCode).trim()) {
+          throw new BadRequestError('File code is required')
         }
-        wasReassigned = true
-      }
+        const allocation = await this.resolveImportedPublishedFileCode({
+          fileCode,
+          documentTypeId,
+          projectCategoryId: categoryId
+        })
 
-      finalFileCode = allowReassign ? allocation.suggestedFileCode : normalizedRequested
-      nextRunning = allowReassign ? allocation.suggestedRunningNumber : allocation.requestedRunningNumber
+        normalizedRequested = allocation.normalizedRequested
+        if (allocation.suggestedFileCode !== normalizedRequested) {
+          if (!allowReassign) {
+            const { ConflictError } = require('../utils/errors')
+            const err = new ConflictError('File code is redundant. Confirmation required to reassign.')
+            err.code = 'FILE_CODE_REASSIGN_REQUIRED'
+            err.errors = [{
+              requestedFileCode: normalizedRequested,
+              suggestedFileCode: allocation.suggestedFileCode,
+              reasonCode: 'RUNNING_NUMBER_TAKEN'
+            }]
+            throw err
+          }
+          wasReassigned = true
+        }
+
+        finalFileCode = allowReassign ? allocation.suggestedFileCode : normalizedRequested
+        nextRunning = allowReassign ? allocation.suggestedRunningNumber : allocation.requestedRunningNumber
+      }
+    }
+
+    if (!clientDoc && !finalFileCode) {
+      throw new BadRequestError('Resolved file code is required')
     }
 
     const document = await prisma.document.create({
@@ -962,83 +1067,110 @@ class DocumentService {
   /**
    * Upload document file version
    */
-  async uploadDocumentVersion(documentId, file, uploaderId) {
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
-      include: { 
-        documentType: true,
-        versions: {
-          orderBy: { uploadedAt: 'asc' }
+  async uploadDocumentVersion(documentId, file, uploaderId, options = {}) {
+    const overallStart = startTimer()
+    const onTiming = typeof options?.onTiming === 'function' ? options.onTiming : null
+    const timing = {}
+
+    const finishTiming = (extra = {}) => {
+      const payload = {
+        ...timing,
+        ...extra,
+        totalServiceMs: roundMs(getElapsedMs(overallStart))
+      }
+      if (onTiming) onTiming(payload)
+    }
+
+    try {
+      const loadDocumentStart = startTimer()
+      const document = await prisma.document.findUnique({
+        where: { id: documentId },
+        include: {
+          documentType: true,
+          versions: {
+            orderBy: { uploadedAt: 'asc' }
+          }
         }
+      });
+      timing.loadDocumentMs = roundMs(getElapsedMs(loadDocumentStart))
+
+      if (!document) {
+        throw new NotFoundError('Document');
       }
-    });
 
-    if (!document) {
-      throw new NotFoundError('Document');
-    }
+      // Get version control settings
+      const configService = require('./configService');
+      const settingsStart = startTimer()
+      const versionSettings = await configService.getVersionControlSettings();
+      timing.loadVersionSettingsMs = roundMs(getElapsedMs(settingsStart))
 
-    // Get version control settings
-    const configService = require('./configService');
-    const versionSettings = await configService.getVersionControlSettings();
+      // Check if we need to enforce version limit
+      if (versionSettings.maxVersions && document.versions.length >= versionSettings.maxVersions) {
+        // Delete the oldest version(s) to make room
+        const versionsToDelete = document.versions.slice(0, document.versions.length - versionSettings.maxVersions + 1);
+        const cleanupStart = startTimer()
 
-    // Check if we need to enforce version limit
-    if (versionSettings.maxVersions && document.versions.length >= versionSettings.maxVersions) {
-      // Delete the oldest version(s) to make room
-      const versionsToDelete = document.versions.slice(0, document.versions.length - versionSettings.maxVersions + 1);
-      
-      for (const oldVersion of versionsToDelete) {
-        // Delete file from storage
-        try {
-          await fileStorageService.deleteFile(oldVersion.filePath);
-        } catch (error) {
-          console.error(`Failed to delete old version file: ${oldVersion.filePath}`, error);
+        for (const oldVersion of versionsToDelete) {
+          // Delete file from storage
+          try {
+            await fileStorageService.deleteFile(oldVersion.filePath);
+          } catch (error) {
+            console.error(`Failed to delete old version file: ${oldVersion.filePath}`, error);
+          }
+
+          // Delete version record
+          await prisma.documentVersion.delete({
+            where: { id: oldVersion.id }
+          });
         }
-        
-        // Delete version record
-        await prisma.documentVersion.delete({
-          where: { id: oldVersion.id }
-        });
+
+        timing.oldVersionCleanupMs = roundMs(getElapsedMs(cleanupStart))
+        timing.oldVersionsDeleted = versionsToDelete.length
       }
+
+      // Move file from temp to document directory
+      const { absolutePath } = fileStorageService.getDocumentPath(document.fileCode, document.projectCategoryId || null);
+      const fileName = fileStorageService.generateUniqueFileName(file.originalname);
+      const saveFileStart = startTimer()
+      let finalPath = await fileStorageService.saveFile(file, absolutePath, fileName);
+      timing.moveToStorageMs = roundMs(getElapsedMs(saveFileStart))
+
+      // Check if encryption is enabled
+      const encryptionService = require('./encryptionService');
+      const encryptionSettingStart = startTimer()
+      const isEncryptionEnabled = await encryptionService.isEncryptionEnabled();
+      timing.checkEncryptionSettingMs = roundMs(getElapsedMs(encryptionSettingStart))
+
+      // Create document version record
+      const createVersionStart = startTimer()
+      const version = await prisma.documentVersion.create({
+        data: {
+          documentId,
+          version: document.version,
+          filePath: finalPath,
+          fileName: file.displayName || file.originalname,
+          mimeType: file.mimetype,
+          fileSize: file.size,
+          uploadedById: uploaderId,
+          isPublished: false,
+          isEncrypted: false
+        }
+      });
+      timing.createVersionRowMs = roundMs(getElapsedMs(createVersionStart))
+      timing.encryptionDeferred = Boolean(isEncryptionEnabled)
+
+      if (isEncryptionEnabled) {
+        const queueEncryptionStart = startTimer()
+        this.queueDocumentVersionEncryption(version.id, finalPath)
+        timing.queueEncryptionMs = roundMs(getElapsedMs(queueEncryptionStart))
+      }
+
+      finishTiming()
+      return version;
+    } catch (error) {
+      finishTiming({ error: error.message })
+      throw error
     }
-
-    // Move file from temp to document directory
-    const { absolutePath } = fileStorageService.getDocumentPath(document.fileCode, document.projectCategoryId || null);
-    const fileName = fileStorageService.generateUniqueFileName(file.originalname);
-    let finalPath = await fileStorageService.saveFile(file, absolutePath, fileName);
-
-    // Check if encryption is enabled and encrypt the file
-    const encryptionService = require('./encryptionService');
-    const isEncryptionEnabled = await encryptionService.isEncryptionEnabled();
-    let isEncrypted = false;
-
-    if (isEncryptionEnabled) {
-      try {
-        const encryptionResult = await encryptionService.encryptFileInPlace(finalPath);
-        finalPath = encryptionResult.encryptedPath;
-        isEncrypted = true;
-        console.log(`File encrypted: ${finalPath}`);
-      } catch (error) {
-        console.error('Failed to encrypt file:', error);
-        // Continue without encryption if it fails
-      }
-    }
-
-    // Create document version record
-    const version = await prisma.documentVersion.create({
-      data: {
-        documentId,
-        version: document.version,
-        filePath: finalPath,
-        fileName: file.displayName || file.originalname,
-        mimeType: file.mimetype,
-        fileSize: file.size,
-        uploadedById: uploaderId,
-        isPublished: false,
-        isEncrypted
-      }
-    });
-
-    return version;
   }
 
   /**

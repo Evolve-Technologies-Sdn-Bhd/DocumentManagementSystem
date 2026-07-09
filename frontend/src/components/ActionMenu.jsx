@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 
 /**
  * ActionMenu Component
@@ -93,6 +93,11 @@ export default function ActionMenu({ actions }) {
     </>
   )
 
+  const renderedDropdown =
+    typeof document !== 'undefined' && isOpen && ReactDOM?.createPortal && document.body
+      ? ReactDOM.createPortal(dropdown, document.body)
+      : dropdown
+
   return (
     <>
       <div className="relative">
@@ -106,7 +111,7 @@ export default function ActionMenu({ actions }) {
           </svg>
         </button>
       </div>
-      {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
+      {renderedDropdown}
     </>
   )
 }
