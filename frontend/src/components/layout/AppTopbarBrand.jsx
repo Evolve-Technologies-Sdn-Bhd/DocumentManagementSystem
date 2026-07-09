@@ -16,12 +16,12 @@ export default function AppTopbarBrand({
       aria-label="Go to dashboard"
     >
       {logo ? (
-        <div className="inline-flex items-center rounded-xl border border-topbar-border bg-surface px-2 py-1.5 shadow-dms-soft">
+        <div className="inline-flex w-fit shrink-0 items-center justify-center overflow-hidden rounded-xl border border-topbar-border bg-surface shadow-dms-soft leading-none">
           <BrandLogoImage
             src={logo}
             placeholderSrc={logoPlaceholder}
             alt="Company Logo"
-            className="block h-auto max-h-8 w-auto max-w-[120px] object-contain sm:max-w-[168px]"
+            className="block h-auto max-h-10 w-auto max-w-[120px] object-contain align-middle sm:max-w-[168px]"
           />
         </div>
       ) : (
