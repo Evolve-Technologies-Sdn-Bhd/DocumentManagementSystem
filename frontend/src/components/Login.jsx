@@ -9,6 +9,8 @@ import { persistLoginPageSettings, readBranding, readLoginPageSettings, subscrib
 import { DEFAULT_LOGIN_FORM_COPY, normalizeLoginPageSettings } from '../utils/loginPageSettings'
 import PublicTopbar from './PublicTopbar'
 import PublicFooter from './PublicFooter'
+import BrandLogoImage from './ui/BrandLogoImage'
+import BrandLogoPreload from './ui/BrandLogoPreload'
 
 export default function Login() {
   const { t } = usePreferences()
@@ -358,6 +360,7 @@ export default function Login() {
   const hero = loginPageSettings.heroSection
   const formCopy = DEFAULT_LOGIN_FORM_COPY
   const brandLogo = branding.logo
+  const brandLogoPlaceholder = branding.logoPlaceholder
   const contentOffsetClass = loginPageSettings.showTopbar ? 'pt-16' : ''
   const contentBottomClass = loginPageSettings.showFooter ? 'pb-14' : ''
   const pageShellClass = [contentOffsetClass, contentBottomClass].filter(Boolean).join(' ')
@@ -377,6 +380,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground, fontFamily: loginFontFamily }}>
+      <BrandLogoPreload src={brandLogo} />
       {loginPageSettings.showTopbar ? <PublicTopbar /> : null}
       {loginPageSettings.showFooter ? <PublicFooter /> : null}
 
@@ -394,7 +398,12 @@ export default function Login() {
             <div className="relative z-10 flex min-h-full w-full flex-col justify-between px-7 py-7 text-white xl:px-8 xl:py-8">
               <div className="flex items-center gap-3">
                 {brandLogo ? (
-                  <img src={brandLogo} alt="Brand Logo" className="h-9 w-auto object-contain" />
+                  <BrandLogoImage
+                    src={brandLogo}
+                    placeholderSrc={brandLogoPlaceholder}
+                    alt="Brand Logo"
+                    className="h-9 w-auto object-contain"
+                  />
                 ) : (
                   <DocumentTextIcon className="h-6 w-6 text-white" />
                 )}
@@ -473,7 +482,12 @@ export default function Login() {
               <div className="mb-7 text-left">
                 <div className="mb-5 flex items-center justify-center gap-3 lg:hidden">
                   {brandLogo ? (
-                    <img src={brandLogo} alt="Brand Logo" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
+                    <BrandLogoImage
+                      src={brandLogo}
+                      placeholderSrc={brandLogoPlaceholder}
+                      alt="Brand Logo"
+                      className="h-12 w-12 rounded-xl object-contain shadow-sm"
+                    />
                   ) : (
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--dms-login-btn-bg,#2563EB)]">
                       <DocumentTextIcon className="h-6 w-6 text-white" />
@@ -487,7 +501,12 @@ export default function Login() {
 
               {brandLogo ? (
                 <div className="mb-7 flex w-full justify-center">
-                  <img src={brandLogo} alt="Company Logo" className="max-h-[220px] w-full object-contain" />
+                  <BrandLogoImage
+                    src={brandLogo}
+                    placeholderSrc={brandLogoPlaceholder}
+                    alt="Company Logo"
+                    className="max-h-[220px] w-full object-contain"
+                  />
                 </div>
               ) : null}
 

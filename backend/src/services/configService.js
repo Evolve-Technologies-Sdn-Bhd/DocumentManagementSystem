@@ -970,6 +970,10 @@ class ConfigService {
       nextTheme.mainLogo = null;
     }
 
+    if (typeof nextTheme.mainLogoPlaceholder !== 'string' || !nextTheme.mainLogoPlaceholder.trim()) {
+      nextTheme.mainLogoPlaceholder = null;
+    }
+
     const value = JSON.stringify(nextTheme);
 
     const config = await prisma.configuration.upsert({

@@ -6,6 +6,7 @@ import { readBranding, subscribeBranding } from '../utils/branding'
 import IconButton from './ui/IconButton'
 import AppTopbarBrand from './layout/AppTopbarBrand'
 import AppUserMenu from './layout/AppUserMenu'
+import BrandLogoPreload from './ui/BrandLogoPreload'
 
 export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHint }) {
   const { t, themeMode, setThemeMode } = usePreferences()
@@ -80,6 +81,7 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
 
   return (
     <div className="app-topbar flex h-topbar items-center justify-between border-b border-topbar-border px-3 shadow-md sm:px-4">
+      <BrandLogoPreload src={branding.logo} />
       <div className="flex min-w-0 items-center gap-3">
         <IconButton
           onClick={onMenu}
@@ -92,6 +94,7 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
         </IconButton>
         <AppTopbarBrand
           logo={branding.logo}
+          logoPlaceholder={branding.logoPlaceholder}
           companyName={branding.companyName}
           appLabel={t('dms_label')}
         />

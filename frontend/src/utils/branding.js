@@ -139,6 +139,7 @@ export function readBranding() {
     theme,
     companyInfo,
     logo: theme?.mainLogo || null,
+    logoPlaceholder: theme?.mainLogoPlaceholder || null,
     companyName: companyInfo?.companyName || 'FileNix',
     welcomeMessage: theme?.loginWelcomeMessage || 'Welcome to {companyName}'
   }

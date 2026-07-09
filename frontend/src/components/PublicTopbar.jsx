@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Bars3Icon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { readBranding, subscribeBranding } from '../utils/branding'
+import BrandLogoImage from './ui/BrandLogoImage'
+import BrandLogoPreload from './ui/BrandLogoPreload'
 
 export default function PublicTopbar({ onSection }) {
   const { t } = usePreferences()
@@ -37,12 +39,18 @@ export default function PublicTopbar({ onSection }) {
 
   return (
     <nav className="app-topbar fixed top-0 inset-x-0 z-50 text-white shadow-md" style={{ backdropFilter: 'blur(10px)' }}>
+      <BrandLogoPreload src={branding.logo} />
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <button type="button" className="flex items-center gap-3 text-left focus-visible:outline-none" onClick={() => navigate('/')} aria-label="Go to home">
             {branding.logo ? (
               <div className="h-10 flex items-center bg-white rounded-lg px-2 shadow-sm">
-                <img src={branding.logo} alt="Company Logo" className="max-h-8 max-w-[180px] object-contain" />
+                <BrandLogoImage
+                  src={branding.logo}
+                  placeholderSrc={branding.logoPlaceholder}
+                  alt="Company Logo"
+                  className="max-h-8 max-w-[180px] object-contain"
+                />
               </div>
             ) : (
               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
