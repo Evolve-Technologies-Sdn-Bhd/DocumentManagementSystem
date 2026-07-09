@@ -12,6 +12,7 @@ import { PermissionGate } from './PermissionGate'
 import { hasPermission } from '../utils/permissions'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import ShareDocumentModal from './ShareDocumentModal'
+import DocumentExpiryModal from './DocumentExpiryModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
@@ -65,6 +66,16 @@ export default function PublishedDocuments() {
   const [accessEntries, setAccessEntries] = useState([])
   const [subjects, setSubjects] = useState({ users: [], roles: [] })
   const [showShareDocument, setShowShareDocument] = useState(null)
+  const [expiryDocument, setExpiryDocument] = useState(null)
+  const [showExpiryModal, setShowExpiryModal] = useState(false)
+  const [expirySaving, setExpirySaving] = useState(false)
+  const [expirySettings, setExpirySettings] = useState({
+    expiringSoonDays: 60,
+    reminder1Days: 90,
+    reminder2Days: 60,
+    reminder3Days: 30,
+    reminder4Days: 7
+  })
 
   const [createAccessMode, setCreateAccessMode] = useState('PUBLIC')
   const [createInheritPermissions, setCreateInheritPermissions] = useState(true)
@@ -147,6 +158,7 @@ export default function PublishedDocuments() {
   const canDownloadSelected = Boolean(selectedFolderMeta?.canDownload)
   const hasAnyCreatableFolder = useMemo(() => flatFolders.some((f) => Boolean(f.canCreate)), [flatFolders])
   const canUpdatePublished = hasPermission('documents.published', 'update')
+  const canEditExpiryTracking = hasPermission('expiryTracking', 'edit')
 
   useEffect(() => {
     loadFolders()
@@ -507,6 +519,64 @@ export default function PublishedDocuments() {
   const handleSupersedeObsoleteSubmit = () => {
     setAlertModal({ show: true, title: 'Success', message: 'Supersede/Obsolete request submitted successfully! It will go through review and approval.', type: 'success' })
     loadDocuments()
+  }
+
+  const openExpiryModal = async (doc) => {
+    try {
+      const res = await api.get('/system/config/expiry-tracking')
+      setExpirySettings(res.data?.data?.settings || expirySettings)
+    } catch (error) {
+      console.error('Failed to load expiry settings:', error)
+    }
+
+    setExpiryDocument(doc)
+    setShowExpiryModal(true)
+  }
+
+  const closeExpiryModal = () => {
+    if (expirySaving) return
+    setShowExpiryModal(false)
+    setExpiryDocument(null)
+  }
+
+  const submitExpiry = async (form) => {
+    if (!expiryDocument?.id) return
+
+    setExpirySaving(true)
+    try {
+      const payload = {
+        trackingEnabled: true,
+        startDate: form.startDate,
+        expiryDate: form.expiryDate,
+        remarks: form.remarks,
+        expiringSoonDays: parseInt(form.useGlobalRule ? expirySettings.expiringSoonDays : form.expiringSoonDays, 10) || 0,
+        reminder1Days: parseInt(form.useGlobalRule ? expirySettings.reminder1Days : form.reminder1Days, 10) || 0,
+        reminder2Days: parseInt(form.useGlobalRule ? expirySettings.reminder2Days : form.reminder2Days, 10) || 0,
+        reminder3Days: parseInt(form.useGlobalRule ? expirySettings.reminder3Days : form.reminder3Days, 10) || 0,
+        reminder4Days: parseInt(form.useGlobalRule ? expirySettings.reminder4Days : form.reminder4Days, 10) || 0
+      }
+
+      await api.patch(`/expiry-tracking/${expiryDocument.id}`, payload)
+      await loadDocuments()
+      setAlertModal({
+        show: true,
+        title: 'Success',
+        message: expiryDocument.trackingEnabled ? 'Expiry updated successfully.' : 'Expiry tracking enabled successfully.',
+        type: 'success'
+      })
+      setShowExpiryModal(false)
+      setExpiryDocument(null)
+    } catch (error) {
+      console.error('Failed to save expiry:', error)
+      setAlertModal({
+        show: true,
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to save expiry settings',
+        type: 'error'
+      })
+    } finally {
+      setExpirySaving(false)
+    }
   }
 
   const handleDelete = async (doc) => {
@@ -1574,6 +1644,13 @@ export default function PublishedDocuments() {
                                   ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, doc.fileName) }]
                                   : []
                                 ),
+                                ...(canEditExpiryTracking
+                                  ? [{
+                                      label: doc.trackingEnabled ? 'Update Expiry' : 'Set Expiry',
+                                      onClick: () => openExpiryModal(doc)
+                                    }]
+                                  : []
+                                ),
                                 ...(hasPermission('documents.published', 'update') && !['OBSOLETE', 'SUPERSEDED'].includes(doc.status)
                                   ? [
                                       { label: t('obsolete_action'), onClick: () => handleObsolete(doc) },
@@ -2080,6 +2157,15 @@ export default function PublishedDocuments() {
           </ModalFooter>
         </Modal>
       )}
+
+      <DocumentExpiryModal
+        open={showExpiryModal}
+        document={expiryDocument}
+        expirySettings={expirySettings}
+        onClose={closeExpiryModal}
+        onSubmit={submitExpiry}
+        saving={expirySaving}
+      />
       
       {/* Document Viewer Modal */}
       {showViewModal && selectedDocument && (

@@ -637,16 +637,6 @@ export default function ExpiryTracking() {
     }
   }
 
-  const handleStartRenewal = async (record) => {
-    try {
-      await api.post(`/expiry-tracking/${record.documentId}/renew/start`, {})
-      refresh()
-    } catch (error) {
-      console.error('Failed to start renewal:', error)
-      alert(error.response?.data?.message || 'Failed to start renewal')
-    }
-  }
-
   const handleRejectRenewal = async (record) => {
     try {
       await api.post(`/expiry-tracking/${record.documentId}/renew/reject`, {})
@@ -897,7 +887,6 @@ export default function ExpiryTracking() {
                                 ...(canEdit ? [{ label: 'Update', onClick: () => openEdit(record) }] : []),
                                 ...(canRenew && record.document?.allowRenewal
                                   ? [
-                                      { label: 'Start Renewal', onClick: () => handleStartRenewal(record) },
                                       { label: 'Renew', onClick: () => openRenewal(record) }
                                     ]
                                   : []
