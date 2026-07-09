@@ -304,6 +304,166 @@ export default function LoginPageSettings() {
           </div>
         </AppSurface>
 
+        <AppSurface padding="md" variant="panel" className="space-y-4">
+          <div>
+            <div className="text-sm font-semibold text-ink">Hero typography & position</div>
+            <div className="mt-1 text-xs text-ink-muted">Match font style and fine-tune text position on the hero panel.</div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Font family"
+              hint="Example: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+            >
+              <TextInput value={settings.heroSection.heroFontFamily || ''} onChange={(e) => updateHero('heroFontFamily', e.target.value)} />
+            </Field>
+
+            <Field label="Text offset X (px)" hint="Move hero text block left/right. Positive = move right.">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="-200"
+                  max="200"
+                  value={settings.heroSection.heroTextOffsetX ?? 0}
+                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="-200"
+                  max="200"
+                  value={settings.heroSection.heroTextOffsetX ?? 0}
+                  onChange={(e) => updateHero('heroTextOffsetX', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 md:col-span-2">
+              <span className="text-sm font-medium text-ink">Enable text shadow</span>
+              <input
+                type="checkbox"
+                checked={settings.heroSection.heroTextShadowEnabled !== false}
+                onChange={(e) => updateHero('heroTextShadowEnabled', e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+
+            <Field
+              label="Title text shadow"
+              hint="CSS text-shadow value. Example: 0 14px 30px rgba(0,0,0,0.45)"
+            >
+              <TextInput
+                value={settings.heroSection.heroTitleTextShadow || ''}
+                onChange={(e) => updateHero('heroTitleTextShadow', e.target.value)}
+                placeholder="0 14px 30px rgba(0,0,0,0.45)"
+              />
+            </Field>
+
+            <Field
+              label="Description text shadow"
+              hint="CSS text-shadow value. Example: 0 10px 22px rgba(0,0,0,0.35)"
+            >
+              <TextInput
+                value={settings.heroSection.heroDescriptionTextShadow || ''}
+                onChange={(e) => updateHero('heroDescriptionTextShadow', e.target.value)}
+                placeholder="0 10px 22px rgba(0,0,0,0.35)"
+              />
+            </Field>
+
+            <Field label="Title font size (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="28"
+                  max="88"
+                  value={settings.heroSection.heroTitleFontSize ?? 50}
+                  onChange={(e) => updateHero('heroTitleFontSize', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="28"
+                  max="88"
+                  value={settings.heroSection.heroTitleFontSize ?? 50}
+                  onChange={(e) => updateHero('heroTitleFontSize', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Title font weight" hint="Common values: 600, 700, 800">
+              <TextInput
+                type="number"
+                min="300"
+                max="900"
+                value={settings.heroSection.heroTitleFontWeight ?? 800}
+                onChange={(e) => updateHero('heroTitleFontWeight', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Title letter spacing (em)" hint="Example: -0.03">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroTitleLetterSpacing ?? -0.03}
+                onChange={(e) => updateHero('heroTitleLetterSpacing', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Title line height" hint="Example: 1.02">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroTitleLineHeight ?? 1.02}
+                onChange={(e) => updateHero('heroTitleLineHeight', Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Highlight color">
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={settings.heroSection.heroHighlightColor || '#F6AA3B'}
+                  onChange={(e) => updateHero('heroHighlightColor', e.target.value)}
+                  className="h-10 w-14 rounded-xl border border-border"
+                />
+                <TextInput value={settings.heroSection.heroHighlightColor || ''} onChange={(e) => updateHero('heroHighlightColor', e.target.value)} />
+              </div>
+            </Field>
+
+            <Field label="Description font size (px)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="11"
+                  max="22"
+                  value={settings.heroSection.heroDescriptionFontSize ?? 15}
+                  onChange={(e) => updateHero('heroDescriptionFontSize', Number(e.target.value))}
+                  className="w-full"
+                />
+                <TextInput
+                  type="number"
+                  min="11"
+                  max="22"
+                  value={settings.heroSection.heroDescriptionFontSize ?? 15}
+                  onChange={(e) => updateHero('heroDescriptionFontSize', Number(e.target.value))}
+                  className="w-24"
+                />
+              </div>
+            </Field>
+
+            <Field label="Description line height" hint="Example: 1.85">
+              <TextInput
+                type="number"
+                step="0.01"
+                value={settings.heroSection.heroDescriptionLineHeight ?? 1.85}
+                onChange={(e) => updateHero('heroDescriptionLineHeight', Number(e.target.value))}
+              />
+            </Field>
+          </div>
+        </AppSurface>
+
         <ImagePicker
           label="Hero background image"
           hint="Recommended: wide landscape image."

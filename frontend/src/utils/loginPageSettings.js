@@ -18,6 +18,18 @@ export const DEFAULT_LOGIN_PAGE_SETTINGS = {
     heroImage: null,
     heroFocalX: 50,
     heroFocalY: 50,
+    heroTextOffsetX: 0,
+    heroFontFamily: '',
+    heroTitleFontSize: 50,
+    heroTitleFontWeight: 800,
+    heroTitleLetterSpacing: -0.03,
+    heroTitleLineHeight: 1.02,
+    heroHighlightColor: '#F6AA3B',
+    heroDescriptionFontSize: 15,
+    heroDescriptionLineHeight: 1.85,
+    heroTextShadowEnabled: true,
+    heroTitleTextShadow: '0 14px 30px rgba(0, 0, 0, 0.45)',
+    heroDescriptionTextShadow: '0 10px 22px rgba(0, 0, 0, 0.35)',
     headline: 'Smart Warehouse',
     highlightedHeadline: 'at Your Fingertips',
     description: 'End-to-end RFID-powered inventory management, MES integration, and real-time analytics - all in one platform.',
@@ -47,6 +59,14 @@ function clampPercent(value, fallback) {
   return Math.min(100, Math.max(0, n))
 }
 
+function clampNumber(value, fallback, min, max) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  if (Number.isFinite(min) && n < min) return min
+  if (Number.isFinite(max) && n > max) return max
+  return n
+}
+
 function mergeObjects(base, override) {
   const next = { ...base }
   if (!override || typeof override !== 'object') return next
@@ -71,6 +91,13 @@ export function normalizeLoginPageSettings(settings) {
   const pills = Array.isArray(merged.heroSection?.featurePills) ? merged.heroSection.featurePills : []
   const focalX = clampPercent(merged.heroSection?.heroFocalX, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroFocalX)
   const focalY = clampPercent(merged.heroSection?.heroFocalY, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroFocalY)
+  const textOffsetX = clampNumber(merged.heroSection?.heroTextOffsetX, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTextOffsetX, -200, 200)
+  const titleFontSize = clampNumber(merged.heroSection?.heroTitleFontSize, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTitleFontSize, 28, 88)
+  const titleFontWeight = clampNumber(merged.heroSection?.heroTitleFontWeight, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTitleFontWeight, 300, 900)
+  const titleLetterSpacing = clampNumber(merged.heroSection?.heroTitleLetterSpacing, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTitleLetterSpacing, -0.2, 0.3)
+  const titleLineHeight = clampNumber(merged.heroSection?.heroTitleLineHeight, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTitleLineHeight, 0.9, 1.6)
+  const descriptionFontSize = clampNumber(merged.heroSection?.heroDescriptionFontSize, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroDescriptionFontSize, 11, 22)
+  const descriptionLineHeight = clampNumber(merged.heroSection?.heroDescriptionLineHeight, DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroDescriptionLineHeight, 1.2, 2.6)
 
   return {
     showTopbar: !!merged.showTopbar,
@@ -84,6 +111,18 @@ export function normalizeLoginPageSettings(settings) {
       heroImage: merged.heroSection?.heroImage || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroImage,
       heroFocalX: focalX,
       heroFocalY: focalY,
+      heroTextOffsetX: textOffsetX,
+      heroFontFamily: merged.heroSection?.heroFontFamily || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroFontFamily,
+      heroTitleFontSize: titleFontSize,
+      heroTitleFontWeight: titleFontWeight,
+      heroTitleLetterSpacing: titleLetterSpacing,
+      heroTitleLineHeight: titleLineHeight,
+      heroHighlightColor: merged.heroSection?.heroHighlightColor || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroHighlightColor,
+      heroDescriptionFontSize: descriptionFontSize,
+      heroDescriptionLineHeight: descriptionLineHeight,
+      heroTextShadowEnabled: merged.heroSection?.heroTextShadowEnabled !== false,
+      heroTitleTextShadow: merged.heroSection?.heroTitleTextShadow || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroTitleTextShadow,
+      heroDescriptionTextShadow: merged.heroSection?.heroDescriptionTextShadow || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroDescriptionTextShadow,
       headline: merged.heroSection?.headline || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.headline,
       highlightedHeadline: merged.heroSection?.highlightedHeadline || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.highlightedHeadline,
       description: merged.heroSection?.description || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.description,

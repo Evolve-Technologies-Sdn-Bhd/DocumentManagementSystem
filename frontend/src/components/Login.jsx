@@ -401,12 +401,36 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="max-w-[420px] pb-4">
-                <h1 className="text-[50px] font-bold leading-[1.02] tracking-[-0.03em]">
+              <div
+                className="max-w-[420px] pb-4"
+                style={{
+                  transform: hero.heroTextOffsetX ? `translateX(${hero.heroTextOffsetX}px)` : undefined,
+                  fontFamily: hero.heroFontFamily || undefined
+                }}
+              >
+                <h1
+                  className="font-bold"
+                  style={{
+                    fontSize: hero.heroTitleFontSize ? `${hero.heroTitleFontSize}px` : undefined,
+                    fontWeight: hero.heroTitleFontWeight || undefined,
+                    letterSpacing: hero.heroTitleLetterSpacing != null ? `${hero.heroTitleLetterSpacing}em` : undefined,
+                    lineHeight: hero.heroTitleLineHeight || undefined,
+                    textShadow: hero.heroTextShadowEnabled ? (hero.heroTitleTextShadow || undefined) : undefined
+                  }}
+                >
                   <span className="block">{hero.headline}</span>
-                  <span className="mt-1 block text-[#F6AA3B]">{hero.highlightedHeadline}</span>
+                  <span className="mt-1 block" style={{ color: hero.heroHighlightColor || undefined }}>
+                    {hero.highlightedHeadline}
+                  </span>
                 </h1>
-                <p className="mt-5 max-w-[360px] text-[15px] leading-7 text-white/78">
+                <p
+                  className="mt-5 max-w-[360px] text-white/78"
+                  style={{
+                    fontSize: hero.heroDescriptionFontSize ? `${hero.heroDescriptionFontSize}px` : undefined,
+                    lineHeight: hero.heroDescriptionLineHeight || undefined,
+                    textShadow: hero.heroTextShadowEnabled ? (hero.heroDescriptionTextShadow || undefined) : undefined
+                  }}
+                >
                   {hero.description}
                 </p>
                 <div className="mt-7 flex max-w-[470px] flex-wrap gap-2">
