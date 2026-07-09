@@ -1256,6 +1256,7 @@ const ThemeBranding = () => {
     sidebarPosition: 'left',
     sidebarWidth: '240px',
     mainLogo: null,
+    mainLogoPlaceholder: null,
     favicon: null,
     bgImage: null,
     
@@ -1348,6 +1349,7 @@ const ThemeBranding = () => {
         sidebarPosition: 'left',
         sidebarWidth: '240px',
         mainLogo: null,
+        mainLogoPlaceholder: null,
         favicon: null,
         bgImage: null
       }
@@ -1428,6 +1430,25 @@ const ThemeBranding = () => {
     return optimizedDataUrl
   }
 
+  const generateLogoPlaceholder = async (dataUrl) => {
+    const image = await loadImageElement(dataUrl)
+    const maxWidth = 48
+    const maxHeight = 48
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight)
+    const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale))
+    const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+
+    const context = canvas.getContext('2d')
+    if (!context) return dataUrl
+
+    context.drawImage(image, 0, 0, targetWidth, targetHeight)
+    return canvas.toDataURL('image/webp', 0.65)
+  }
+
   const handleLogoUpload = async (e, type) => {
     const file = e.target.files[0]
     if (!file) return
@@ -1445,8 +1466,9 @@ const ThemeBranding = () => {
         : await readFileAsDataUrl(file)
 
       if (type === 'logo') {
+        const placeholderString = await generateLogoPlaceholder(base64String)
         setLogoPreview(base64String)
-        handleThemeChange('mainLogo', base64String)
+        handleThemeChange('mainLogo', base64String, { mainLogoPlaceholder: placeholderString })
       } else if (type === 'favicon') {
         setFaviconPreview(base64String)
         handleThemeChange('favicon', base64String)
@@ -1467,6 +1489,7 @@ const ThemeBranding = () => {
     if (type === 'logo') {
       setLogoPreview(null)
       newTheme.mainLogo = null
+      newTheme.mainLogoPlaceholder = null
       // Clear the file input
       if (logoInputRef.current) {
         logoInputRef.current.value = ''
@@ -1504,8 +1527,8 @@ const ThemeBranding = () => {
     setOriginalTheme(newTheme)
   }
 
-  const handleThemeChange = (key, value) => {
-    const newTheme = { ...theme, [key]: value }
+  const handleThemeChange = (key, value, extraUpdates = null) => {
+    const newTheme = { ...theme, [key]: value, ...(extraUpdates && typeof extraUpdates === 'object' ? extraUpdates : {}) }
     setTheme(newTheme)
     setHasChanges(true)
     applyTheme(newTheme)
@@ -1608,6 +1631,7 @@ const ThemeBranding = () => {
       sidebarPosition: 'left',
       sidebarWidth: '240px',
       mainLogo: null,
+      mainLogoPlaceholder: null,
       favicon: null,
       bgImage: null,
       

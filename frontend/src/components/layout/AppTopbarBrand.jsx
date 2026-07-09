@@ -1,9 +1,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { normalizeAppPath } from '../../utils/normalizeUrl'
+import BrandLogoImage from '../ui/BrandLogoImage'
 
 export default function AppTopbarBrand({
   logo,
+  logoPlaceholder,
   companyName,
   appLabel,
   compact = false
@@ -15,11 +16,12 @@ export default function AppTopbarBrand({
       aria-label="Go to dashboard"
     >
       {logo ? (
-        <div className="flex h-10 items-center rounded-xl border border-topbar-border bg-surface px-2 shadow-dms-soft">
-          <img
-            src={normalizeAppPath(logo)}
+        <div className="inline-flex w-fit shrink-0 items-center justify-center overflow-hidden rounded-xl border border-topbar-border bg-surface shadow-dms-soft leading-none">
+          <BrandLogoImage
+            src={logo}
+            placeholderSrc={logoPlaceholder}
             alt="Company Logo"
-            className="max-h-8 max-w-[120px] object-contain sm:max-w-[168px]"
+            className="block h-auto max-h-10 w-auto max-w-[120px] object-contain align-middle sm:max-w-[168px]"
           />
         </div>
       ) : (

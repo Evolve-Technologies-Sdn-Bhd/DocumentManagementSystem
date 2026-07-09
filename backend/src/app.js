@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const config = require('./config/app');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const ResponseFormatter = require('./utils/responseFormatter');
@@ -61,7 +62,7 @@ if (config.nodeEnv === 'development') {
 app.use(express.json({ limit: config.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
-// Static file serving for uploads
+app.use('/uploads/branding', express.static(path.join(config.uploadDir, 'branding'), { maxAge: '30d', immutable: true }));
 app.use('/uploads', express.static(config.uploadDir));
 
 // Health check
