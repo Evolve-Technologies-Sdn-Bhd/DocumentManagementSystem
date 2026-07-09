@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 
 export default function GettingStartedModal({ open, onClose, showAdminGuide, onStartTour }) {
@@ -85,5 +85,6 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

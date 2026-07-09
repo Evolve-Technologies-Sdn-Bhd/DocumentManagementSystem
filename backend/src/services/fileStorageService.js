@@ -74,6 +74,87 @@ class FileStorageService {
     return newPath;
   }
 
+  async findDocumentDirectories(fileCode, projectCategoryId) {
+    const baseDir = path.join(config.uploadDir, 'documents')
+    let years = []
+    try {
+      years = await fs.readdir(baseDir, { withFileTypes: true })
+    } catch {
+      years = []
+    }
+
+    const matches = new Set()
+    const pcSegment = projectCategoryId ? `pc_${projectCategoryId}` : null
+
+    for (const yearEnt of years) {
+      if (!yearEnt.isDirectory()) continue
+      const yearPath = path.join(baseDir, yearEnt.name)
+      let months = []
+      try {
+        months = await fs.readdir(yearPath, { withFileTypes: true })
+      } catch {
+        months = []
+      }
+
+      for (const monthEnt of months) {
+        if (!monthEnt.isDirectory()) continue
+        const monthPath = path.join(yearPath, monthEnt.name)
+
+        const directCandidate = path.join(monthPath, fileCode)
+        if (await this.fileExists(directCandidate)) {
+          matches.add(directCandidate)
+        }
+
+        if (pcSegment) {
+          const pcCandidate = path.join(monthPath, pcSegment, fileCode)
+          if (await this.fileExists(pcCandidate)) {
+            matches.add(pcCandidate)
+          }
+        } else {
+          let entries = []
+          try {
+            entries = await fs.readdir(monthPath, { withFileTypes: true })
+          } catch {
+            entries = []
+          }
+          for (const ent of entries) {
+            if (!ent.isDirectory()) continue
+            if (!String(ent.name).startsWith('pc_')) continue
+            const pcCandidate = path.join(monthPath, ent.name, fileCode)
+            if (await this.fileExists(pcCandidate)) {
+              matches.add(pcCandidate)
+            }
+          }
+        }
+      }
+    }
+
+    return Array.from(matches)
+  }
+
+  async renameDocumentDirectories(oldFileCode, newFileCode, projectCategoryId) {
+    const directories = await this.findDocumentDirectories(oldFileCode, projectCategoryId)
+    const moved = []
+
+    for (const oldPath of directories) {
+      const newPath = path.join(path.dirname(oldPath), newFileCode)
+      const oldExists = await this.fileExists(oldPath)
+      if (!oldExists) continue
+
+      const newExists = await this.fileExists(newPath)
+      if (newExists) {
+        throw new BadRequestError('Destination directory already exists')
+      }
+
+      const newParentDir = path.dirname(newPath)
+      await fs.mkdir(newParentDir, { recursive: true })
+      await fs.rename(oldPath, newPath)
+      moved.push({ oldPath, newPath })
+    }
+
+    return moved
+  }
+
   async deleteDocumentDirectory(fileCode) {
     const baseDir = path.join(config.uploadDir, 'documents');
     let years = [];

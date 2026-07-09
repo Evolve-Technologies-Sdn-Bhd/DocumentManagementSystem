@@ -1,5 +1,5 @@
 import React from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
@@ -90,5 +90,6 @@ export default function DocumentRemarksModal({ isOpen, document, remarks, loadin
     </Modal>
   )
 
-  return typeof window !== 'undefined' && window.document?.body ? createPortal(modal, window.document.body) : modal
+  if (typeof window === 'undefined' || !ReactDOM?.createPortal || !window.document?.body) return modal
+  return ReactDOM.createPortal(modal, window.document.body)
 }

@@ -11,6 +11,23 @@ const {
 } = require('../constants/notificationEvents');
 
 class NotificationService {
+  formatUserDisplayName(user) {
+    if (!user) return ''
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
+  }
+
+  async resolveUserDisplayName(userId) {
+    const normalizedUserId = Number.parseInt(userId, 10)
+    if (Number.isNaN(normalizedUserId)) return ''
+
+    const user = await prisma.user.findUnique({
+      where: { id: normalizedUserId },
+      select: { firstName: true, lastName: true, email: true }
+    })
+
+    return this.formatUserDisplayName(user)
+  }
+
   getValidNotificationTypes() {
     return new Set([
       'DOCUMENT_ASSIGNED',
@@ -490,11 +507,14 @@ class NotificationService {
     const title = 'Document Published';
     const message = `Document "${document.title}" (${document.fileCode}) has been published`;
     const link = `/documents/${documentId}`;
+    const publishedBy = this.formatUserDisplayName(document.publishedBy || document.owner)
+      || await this.resolveUserDisplayName(document.publishedById || document.acknowledgedById)
+      || 'Unknown'
 
     const emailData = {
       title: document.title,
       fileCode: document.fileCode,
-      publishedBy: document.owner ? `${document.owner.firstName} ${document.owner.lastName}` : 'Unknown',
+      publishedBy,
       link: `${process.env.FRONTEND_URL || 'http://localhost:3000'}${link}`
     }
 

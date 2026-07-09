@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import api from '../api/axios'
 import ActionMenu from '../components/ActionMenu'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
+import DocumentViewerModal from '../components/DocumentViewerModal'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import AppSurface from '../components/ui/AppSurface'
@@ -96,6 +97,8 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   const { itemsPerPage, t } = usePreferences()
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState(null)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [deleting, setDeleting] = useState(false)
@@ -196,6 +199,55 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize)
     setCurrentPage(1)
+  }
+
+  const handleView = (doc) => {
+    setSelectedDocument(doc)
+    setShowViewModal(true)
+  }
+
+  const handleDownload = async (doc) => {
+    try {
+      const res = await api.get(`/documents/${doc.id}/download`, {
+        responseType: 'blob'
+      })
+
+      const contentDisposition = res.headers?.['content-disposition'] || ''
+      const contentType = res.headers?.['content-type'] || ''
+      const fallbackName = doc.fileName || doc.title || `document-${doc.id}`
+      const getFileNameFromContentDisposition = (value) => {
+        const v = String(value || '')
+        const mStar = v.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)
+        if (mStar && mStar[1]) {
+          try {
+            return decodeURIComponent(mStar[1].trim().replace(/^"|"$/g, ''))
+          } catch {
+            return mStar[1].trim().replace(/^"|"$/g, '')
+          }
+        }
+        const m = v.match(/filename\s*=\s*("?)([^";]+)\1/i)
+        if (m && m[2]) return m[2].trim()
+        return null
+      }
+
+      const downloadName = getFileNameFromContentDisposition(contentDisposition) || fallbackName
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: contentType || undefined }))
+      const link = window.document.createElement('a')
+      link.href = url
+      link.setAttribute('download', downloadName)
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download document:', error)
+      setAlertModal({
+        show: true,
+        title: 'Download failed',
+        message: error.response?.data?.message || 'Failed to download document. Please try again.',
+        type: 'error'
+      })
+    }
   }
 
   // Pagination calculations
@@ -381,8 +433,8 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
                     <Td>
                       <ActionMenu
                         actions={[
-                          { label: 'View', onClick: () => console.log('View document:', doc) },
-                          { label: 'Download', onClick: () => console.log('Download document:', doc) },
+                          { label: 'View', onClick: () => handleView(doc) },
+                          { label: 'Download', onClick: () => handleDownload(doc) },
                           ...(isAdmin() ? [{
                             label: 'Delete',
                             variant: 'destructive',
@@ -423,6 +475,16 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
         onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
       />
 
+      {showViewModal && selectedDocument && (
+        <DocumentViewerModal
+          document={selectedDocument}
+          onClose={() => {
+            setShowViewModal(false)
+            setSelectedDocument(null)
+          }}
+        />
+      )}
+
       {/* Pagination */}
       {!loading && filteredDocuments.length > 0 && (
         <Pagination
@@ -443,6 +505,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [versions, setVersions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [filters, setFilters] = useState({
@@ -535,6 +598,15 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize)
     setCurrentPage(1)
+  }
+
+  const handleCompare = (version) => {
+    setAlertModal({
+      show: true,
+      title: 'Compare unavailable',
+      message: `Comparison view is not connected for "${version.fileCode}" yet.`,
+      type: 'info'
+    })
   }
 
   // Pagination calculations
@@ -701,7 +773,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
                   <td className="px-4 py-3 text-sm">
                     <ActionMenu
                       actions={[
-                        { label: t('mr_compare'), onClick: () => console.log('Compare version:', version) }
+                        { label: t('mr_compare'), onClick: () => handleCompare(version) }
                       ]}
                     />
                   </td>
@@ -724,6 +796,14 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      <AlertModal
+        show={alertModal.show}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
+      />
     </div>
   )
 }
@@ -733,6 +813,9 @@ function ObsoleteRegister({ projectCategories = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState(null)
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [filters, setFilters] = useState({
@@ -761,6 +844,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
         fileCode: record.fileCode,
         title: record.documentTitle,
         type: record.documentType,
+        projectCategoryId: record.projectCategoryId ?? null,
         projectCategory: record.projectCategory || '',
         obsoleteDate: new Date(record.obsoleteDate).toLocaleDateString('en-GB'),
         reason: record.reason,
@@ -835,6 +919,36 @@ function ObsoleteRegister({ projectCategories = [] }) {
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize)
     setCurrentPage(1)
+  }
+
+  const handleViewArchive = async (doc) => {
+    try {
+      const res = await api.get(`/documents/code/${encodeURIComponent(doc.fileCode)}`, {
+        params: doc.projectCategoryId ? { projectCategoryId: doc.projectCategoryId } : undefined
+      })
+      const fullDocument = res.data?.data?.document || res.data?.document
+      if (!fullDocument?.id) {
+        throw new Error('Document record not found')
+      }
+
+      setSelectedDocument({
+        id: fullDocument.id,
+        fileCode: fullDocument.fileCode,
+        title: fullDocument.title,
+        fileName: fullDocument.versions?.[0]?.fileName || fullDocument.title,
+        version: fullDocument.version,
+        status: fullDocument.status
+      })
+      setShowViewModal(true)
+    } catch (error) {
+      console.error('Failed to open archived document:', error)
+      setAlertModal({
+        show: true,
+        title: 'Unable to open archive',
+        message: error.response?.data?.message || 'No linked document preview is available for this archive record.',
+        type: 'error'
+      })
+    }
   }
 
   // Pagination calculations
@@ -997,7 +1111,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
                   <td className="px-4 py-3 text-sm">
                     <ActionMenu
                       actions={[
-                        { label: t('mr_view_archive'), onClick: () => console.log('View archive:', doc) }
+                        { label: t('mr_view_archive'), onClick: () => handleViewArchive(doc) }
                       ]}
                     />
                   </td>
@@ -1020,6 +1134,24 @@ function ObsoleteRegister({ projectCategories = [] }) {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      <AlertModal
+        show={alertModal.show}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
+      />
+
+      {showViewModal && selectedDocument && (
+        <DocumentViewerModal
+          document={selectedDocument}
+          onClose={() => {
+            setShowViewModal(false)
+            setSelectedDocument(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -1029,6 +1161,7 @@ function OldVersionRegister({ projectCategories = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [versions, setVersions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [filters, setFilters] = useState({
@@ -1122,6 +1255,15 @@ function OldVersionRegister({ projectCategories = [] }) {
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize)
     setCurrentPage(1)
+  }
+
+  const handleRestore = (version) => {
+    setAlertModal({
+      show: true,
+      title: 'Restore unavailable',
+      message: `Restore flow is not connected for archived version "${version.fileCode}" yet.`,
+      type: 'info'
+    })
   }
 
   // Pagination calculations
@@ -1280,7 +1422,7 @@ function OldVersionRegister({ projectCategories = [] }) {
                   <td className="px-4 py-3 text-sm">
                     <ActionMenu
                       actions={[
-                        { label: t('mr_restore'), onClick: () => console.log('Restore version:', version) }
+                        { label: t('mr_restore'), onClick: () => handleRestore(version) }
                       ]}
                     />
                   </td>
@@ -1303,6 +1445,14 @@ function OldVersionRegister({ projectCategories = [] }) {
           onPageSizeChange={handlePageSizeChange}
         />
       )}
+
+      <AlertModal
+        show={alertModal.show}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
+      />
     </div>
   )
 }

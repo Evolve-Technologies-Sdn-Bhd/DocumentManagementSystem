@@ -2,12 +2,118 @@ const prisma = require('../config/database')
 const configService = require('./configService')
 const fileStorageService = require('./fileStorageService')
 const notificationService = require('./notificationService')
+const DocumentNumbering = require('../utils/documentNumbering')
+const path = require('path')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
+
+const REMINDER_LEVEL_CONFIG = [
+  { key: 'reminder1', level: 'REMINDER_1', daysField: 'reminder1Days', sentAtField: 'lastReminder1SentAt' },
+  { key: 'reminder2', level: 'REMINDER_2', daysField: 'reminder2Days', sentAtField: 'lastReminder2SentAt' },
+  { key: 'reminder3', level: 'REMINDER_3', daysField: 'reminder3Days', sentAtField: 'lastReminder3SentAt' },
+  { key: 'reminder4', level: 'REMINDER_4', daysField: 'reminder4Days', sentAtField: 'lastReminder4SentAt' }
+]
 
 class ExpiryTrackingService {
   formatUserDisplay(user) {
     if (!user) return ''
     return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
+  }
+
+  normalizeReminderRecipientInput(input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+
+    const normalized = {}
+    for (const config of REMINDER_LEVEL_CONFIG) {
+      const rawValues = input[config.key]
+      const cleaned = Array.isArray(rawValues)
+        ? Array.from(
+            new Set(
+              rawValues
+                .map((value) => parseInt(value, 10))
+                .filter((value) => Number.isFinite(value) && value > 0)
+            )
+          )
+        : []
+      normalized[config.key] = cleaned
+    }
+
+    return normalized
+  }
+
+  formatRecipientUser(user) {
+    if (!user || user.status !== 'ACTIVE') return null
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department || null
+    }
+  }
+
+  buildReminderRecipientMap(reminderRecipients = []) {
+    const grouped = Object.fromEntries(REMINDER_LEVEL_CONFIG.map((config) => [config.key, []]))
+
+    for (const entry of Array.isArray(reminderRecipients) ? reminderRecipients : []) {
+      const user = this.formatRecipientUser(entry?.user)
+      const config = REMINDER_LEVEL_CONFIG.find((item) => item.level === entry?.reminderLevel)
+      if (!user || !config) continue
+      grouped[config.key].push(user)
+    }
+
+    for (const config of REMINDER_LEVEL_CONFIG) {
+      grouped[config.key].sort((a, b) => this.formatUserDisplay(a).localeCompare(this.formatUserDisplay(b)))
+    }
+
+    return grouped
+  }
+
+  async syncReminderRecipients(expiryProfileId, reminderRecipientsInput, ownerId, userId) {
+    const normalized = this.normalizeReminderRecipientInput(reminderRecipientsInput)
+    if (!normalized) return
+
+    const requestedIds = Array.from(
+      new Set(
+        REMINDER_LEVEL_CONFIG.flatMap((config) => normalized[config.key] || [])
+          .filter((id) => (ownerId ? id !== ownerId : true))
+      )
+    )
+
+    const allowedUsers = requestedIds.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            id: { in: requestedIds },
+            status: 'ACTIVE'
+          },
+          select: { id: true }
+        })
+      : []
+
+    const allowedIds = new Set(allowedUsers.map((user) => user.id))
+    const finalEntries = REMINDER_LEVEL_CONFIG.flatMap((config) =>
+      (normalized[config.key] || [])
+        .filter((id) => allowedIds.has(id) && (ownerId ? id !== ownerId : true))
+        .map((id) => ({
+          expiryProfileId,
+          reminderLevel: config.level,
+          userId: id,
+          createdById: userId || null
+        }))
+    )
+
+    await prisma.$transaction([
+      prisma.documentExpiryReminderRecipient.deleteMany({
+        where: { expiryProfileId }
+      }),
+      ...(finalEntries.length > 0
+        ? [
+            prisma.documentExpiryReminderRecipient.createMany({
+              data: finalEntries,
+              skipDuplicates: true
+            })
+          ]
+        : [])
+    ])
   }
 
   startOfDay(value = new Date()) {
@@ -77,6 +183,24 @@ class ExpiryTrackingService {
               }
             }
           }
+        },
+        reminderRecipients: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                department: true
+              }
+            }
+          },
+          orderBy: [
+            { reminderLevel: 'asc' },
+            { createdAt: 'asc' }
+          ]
         }
       }
     })
@@ -118,6 +242,30 @@ class ExpiryTrackingService {
 
     if (!Number.isFinite(major)) return '2.0'
     return `${major + 1}.${Number.isFinite(minor) ? minor : 0}`
+  }
+
+  async incrementFileCodeVersion(fileCode) {
+    const raw = String(fileCode || '').trim()
+    if (!raw) return null
+
+    const settings = await DocumentNumbering.loadSettings()
+    if (!settings?.includeVersion) return null
+
+    const separator = settings.separator || '/'
+    const parts = raw.split(separator)
+    if (parts.length < 3) return null
+
+    const dateIncluded = Boolean(settings?.dateFormat && settings.dateFormat !== 'none')
+    const expectedWithoutCategory = 1 + 1 + (dateIncluded ? 1 : 0) + 1
+    const hasCategory = Boolean(settings?.includeProjectCategoryCode && parts.length > expectedWithoutCategory)
+    const versionIndex = hasCategory ? 2 : 1
+
+    const currentVersion = parseInt(parts[versionIndex], 10)
+    if (!Number.isFinite(currentVersion)) return null
+
+    const versionDigits = parseInt(settings.versionDigits, 10) || 2
+    parts[versionIndex] = String(currentVersion + 1).padStart(versionDigits, '0')
+    return parts.join(separator)
   }
 
   async getSettingsSnapshot(overrides = {}, fallback = null) {
@@ -247,6 +395,7 @@ class ExpiryTrackingService {
     const document = await this.getDocumentContext(documentId)
     const existingProfile = document.expiryProfile
     const profileData = await this.buildProfileData(document, input, userId, existingProfile)
+    const reminderRecipientsInput = this.normalizeReminderRecipientInput(input.reminderRecipients)
 
     if (!profileData.trackingEnabled && !existingProfile) {
       return null
@@ -314,6 +463,10 @@ class ExpiryTrackingService {
           }
         })
 
+    if (reminderRecipientsInput) {
+      await this.syncReminderRecipients(saved.id, reminderRecipientsInput, document.owner?.id || document.ownerId || null, userId)
+    }
+
     if (profileData.trackingEnabled && profileData.expiryDate) {
       this.queueImmediateReminderProcessing(saved.documentId)
     }
@@ -329,6 +482,7 @@ class ExpiryTrackingService {
     const ownerName = profile.document?.owner
       ? `${profile.document.owner.firstName || ''} ${profile.document.owner.lastName || ''}`.trim() || profile.document.owner.email || ''
       : null
+    const reminderRecipientMap = this.buildReminderRecipientMap(profile.reminderRecipients)
 
     return {
       id: profile.id,
@@ -345,7 +499,11 @@ class ExpiryTrackingService {
         reminder1Days: profile.reminder1Days,
         reminder2Days: profile.reminder2Days,
         reminder3Days: profile.reminder3Days,
-        reminder4Days: profile.reminder4Days
+        reminder4Days: profile.reminder4Days,
+        reminder1Recipients: reminderRecipientMap.reminder1,
+        reminder2Recipients: reminderRecipientMap.reminder2,
+        reminder3Recipients: reminderRecipientMap.reminder3,
+        reminder4Recipients: reminderRecipientMap.reminder4
       },
       company: profile.companySnapshot,
       department: profile.departmentSnapshot || profile.document?.owner?.department || null,
@@ -494,6 +652,24 @@ class ExpiryTrackingService {
               }
             },
             orderBy: { renewedAt: 'desc' }
+          },
+          reminderRecipients: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  department: true,
+                  status: true
+                }
+              }
+            },
+            orderBy: [
+              { reminderLevel: 'asc' },
+              { createdAt: 'asc' }
+            ]
           }
         },
         orderBy: [
@@ -581,6 +757,24 @@ class ExpiryTrackingService {
             }
           },
           orderBy: { createdAt: 'asc' }
+        },
+        reminderRecipients: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                department: true,
+                status: true
+              }
+            }
+          },
+          orderBy: [
+            { reminderLevel: 'asc' },
+            { createdAt: 'asc' }
+          ]
         },
         renewalHistory: {
           include: {
@@ -875,23 +1069,11 @@ class ExpiryTrackingService {
 
     const { absolutePath } = fileStorageService.getDocumentPath(document.fileCode, document.projectCategoryId || null)
     const fileName = fileStorageService.generateUniqueFileName(file.originalname)
-    let finalPath = await fileStorageService.saveFile(file, absolutePath, fileName)
+    const finalPath = await fileStorageService.saveFile(file, absolutePath, fileName)
 
     const encryptionService = require('./encryptionService')
     const isEncryptionEnabled = await encryptionService.isEncryptionEnabled()
-    let isEncrypted = false
-
-    if (isEncryptionEnabled) {
-      try {
-        const encryptionResult = await encryptionService.encryptFileInPlace(finalPath)
-        finalPath = encryptionResult.encryptedPath
-        isEncrypted = true
-      } catch (error) {
-        console.error('Failed to encrypt renewal file:', error)
-      }
-    }
-
-    return prisma.documentVersion.create({
+    const version = await prisma.documentVersion.create({
       data: {
         documentId: document.id,
         version: nextVersion,
@@ -901,9 +1083,16 @@ class ExpiryTrackingService {
         fileSize: file.size,
         uploadedById: userId,
         isPublished: true,
-        isEncrypted
+        isEncrypted: false
       }
     })
+
+    if (isEncryptionEnabled) {
+      const documentService = require('./documentService')
+      documentService.queueDocumentVersionEncryption(version.id, finalPath)
+    }
+
+    return version
   }
 
   async completeRenewal(documentId, file, input = {}, userId) {
@@ -928,13 +1117,53 @@ class ExpiryTrackingService {
     }
 
     const nextVersion = this.incrementVersion(document.version)
+    const oldFileCode = document.fileCode
+    const nextFileCode = (await this.incrementFileCodeVersion(oldFileCode)) || oldFileCode
+    const shouldUpdateFileCode = Boolean(nextFileCode && oldFileCode && nextFileCode !== oldFileCode)
+
+    if (shouldUpdateFileCode) {
+      const movedDirectories = await fileStorageService.renameDocumentDirectories(oldFileCode, nextFileCode, document.projectCategoryId || null)
+      if (movedDirectories.length > 0) {
+        const versions = await prisma.documentVersion.findMany({
+          where: { documentId: document.id },
+          select: { id: true, filePath: true }
+        })
+
+        for (const version of versions) {
+          if (!version?.filePath) continue
+          let updatedPath = version.filePath
+
+          for (const moved of movedDirectories) {
+            const oldPrefix = moved.oldPath + path.sep
+            if (updatedPath === moved.oldPath) {
+              updatedPath = moved.newPath
+              break
+            }
+            if (updatedPath.startsWith(oldPrefix)) {
+              updatedPath = moved.newPath + updatedPath.slice(moved.oldPath.length)
+              break
+            }
+          }
+
+          if (updatedPath !== version.filePath) {
+            await prisma.documentVersion.update({
+              where: { id: version.id },
+              data: { filePath: updatedPath }
+            })
+          }
+        }
+      }
+    }
+
     const renewedAt = new Date()
+    document.fileCode = nextFileCode
     const versionRecord = await this.createPublishedVersion(document, file, nextVersion, userId)
 
     await prisma.document.update({
       where: { id: document.id },
       data: {
         version: nextVersion,
+        fileCode: nextFileCode,
         updatedAt: renewedAt
       }
     })
@@ -977,7 +1206,7 @@ class ExpiryTrackingService {
 
     const existingRegister = await prisma.documentRegister.findFirst({
       where: {
-        fileCode: document.fileCode,
+        fileCode: oldFileCode,
         projectCategoryId: document.projectCategoryId
       }
     })
@@ -986,23 +1215,73 @@ class ExpiryTrackingService {
       await prisma.documentRegister.update({
         where: { id: existingRegister.id },
         data: {
+          fileCode: nextFileCode,
           version: nextVersion,
           registeredDate: renewedAt
         }
       })
+    } else if (shouldUpdateFileCode) {
+      const ownerName = this.formatUserDisplay(document.owner)
+      const department = document.owner?.department || ''
+      const docType = document.documentType?.name || ''
+
+      if (document.projectCategoryId) {
+        await prisma.documentRegister.upsert({
+          where: {
+            fileCode_projectCategoryId: {
+              fileCode: nextFileCode,
+              projectCategoryId: document.projectCategoryId
+            }
+          },
+          update: {
+            documentTitle: document.title,
+            documentType: docType,
+            version: nextVersion,
+            registeredDate: renewedAt,
+            owner: ownerName,
+            department,
+            status: document.status
+          },
+          create: {
+            fileCode: nextFileCode,
+            projectCategoryId: document.projectCategoryId,
+            documentTitle: document.title,
+            documentType: docType,
+            version: nextVersion,
+            registeredDate: renewedAt,
+            owner: ownerName,
+            department,
+            status: document.status
+          }
+        })
+      } else {
+        await prisma.documentRegister.create({
+          data: {
+            fileCode: nextFileCode,
+            projectCategoryId: null,
+            documentTitle: document.title,
+            documentType: docType,
+            version: nextVersion,
+            registeredDate: renewedAt,
+            owner: ownerName,
+            department,
+            status: document.status
+          }
+        })
+      }
     }
 
     await notificationService.sendNotification(
       document.ownerId,
       'renewalCompleted',
       'Renewal Completed',
-      `Renewal completed for document "${document.title}" (${document.fileCode}). New version ${nextVersion} is now active.`,
+      `Renewal completed for document "${document.title}" (${nextFileCode}). New version ${nextVersion} is now active.`,
       '/expiry-tracking',
       {
-        subject: `Renewal Completed - ${document.fileCode || 'DMS'}`,
+        subject: `Renewal Completed - ${nextFileCode || 'DMS'}`,
         title: document.title,
-        fileCode: document.fileCode,
-        message: `Renewal completed for document "${document.title}" (${document.fileCode}). New version ${nextVersion} is now active.`,
+        fileCode: nextFileCode,
+        message: `Renewal completed for document "${document.title}" (${nextFileCode}). New version ${nextVersion} is now active.`,
         link: notificationService.buildAbsoluteLink('/expiry-tracking')
       }
     )
@@ -1019,41 +1298,85 @@ class ExpiryTrackingService {
     const computedStatus = this.calculateExpiryStatus(profile.expiryDate, profile.expiringSoonDays)
     const daysLeft = this.getDaysLeft(profile.expiryDate)
     const updateData = {}
+    const todayStart = this.startOfDay(new Date())
     const fileName = profile.document?.versions?.[0]?.fileName || null
     const subjectLabel = fileName || profile.document?.title || profile.document?.fileCode || 'DMS'
     const ownerName = this.formatUserDisplay(profile.document?.owner) || 'Unknown'
     const lastUploadAt = profile.document?.versions?.[0]?.uploadedAt || null
-    const recipients = new Set()
-    const recipientUsers = new Map()
+    const documentLink = `/documents/${profile.document?.id || profile.documentId}`
+    const recipientMap = new Map()
     if (profile.document?.ownerId && profile.document?.owner?.status === 'ACTIVE') {
-      recipients.add(profile.document.ownerId)
-      recipientUsers.set(profile.document.ownerId, profile.document.owner)
+      recipientMap.set(profile.document.ownerId, profile.document.owner)
     }
-    if (Array.isArray(profile.watchers)) {
-      for (const w of profile.watchers) {
-        if (w?.userId && w.user?.status === 'ACTIVE') {
-          recipients.add(w.userId)
-          recipientUsers.set(w.userId, w.user)
-        }
+    for (const entry of Array.isArray(profile.reminderRecipients) ? profile.reminderRecipients : []) {
+      if (entry?.userId && entry.user?.status === 'ACTIVE') {
+        recipientMap.set(entry.userId, entry.user)
       }
     }
-    const allRecipientNames = Array.from(recipients)
-      .map((recipientId) => this.formatUserDisplay(recipientUsers.get(recipientId)))
-      .filter(Boolean)
-    const documentLink = `/documents/${profile.document?.id || profile.documentId}`
+
+    const getRecipientsForLevel = (reminderLevel) => {
+      const recipients = new Set()
+      if (profile.document?.ownerId && profile.document?.owner?.status === 'ACTIVE') {
+        recipients.add(profile.document.ownerId)
+      }
+
+      for (const entry of Array.isArray(profile.reminderRecipients) ? profile.reminderRecipients : []) {
+        if (entry?.reminderLevel === reminderLevel && entry?.userId && entry.user?.status === 'ACTIVE') {
+          recipients.add(entry.userId)
+        }
+      }
+
+      return Array.from(recipients)
+    }
 
     if (computedStatus !== profile.expiryStatus) {
       updateData.expiryStatus = computedStatus
     }
 
-    const reminderMap = [
-      { field: 'lastReminder1SentAt', threshold: profile.reminder1Days },
-      { field: 'lastReminder2SentAt', threshold: profile.reminder2Days },
-      { field: 'lastReminder3SentAt', threshold: profile.reminder3Days },
-      { field: 'lastReminder4SentAt', threshold: profile.reminder4Days }
-    ]
+    const reminderMap = REMINDER_LEVEL_CONFIG.map((config) => ({
+      level: config.level,
+      field: config.sentAtField,
+      threshold: profile[config.daysField]
+    }))
 
-    if (Number.isFinite(daysLeft) && daysLeft >= 0) {
+    const lastReminder4SentToday = profile.lastReminder4SentAt
+      ? this.startOfDay(profile.lastReminder4SentAt).getTime() === todayStart.getTime()
+      : false
+
+    if (daysLeft === 0 && !lastReminder4SentToday) {
+      updateData.lastReminder4SentAt = new Date()
+      const recipients = getRecipientsForLevel('REMINDER_4')
+      const allRecipientNames = recipients
+        .map((recipientId) => this.formatUserDisplay(recipientMap.get(recipientId)))
+        .filter(Boolean)
+      for (const recipientId of recipients) {
+        const recipientUser = recipientMap.get(recipientId)
+        const docId = profile.document?.id || profile.documentId
+        await notificationService.sendNotification(
+          recipientId,
+          'documentExpiring',
+          'Document Expires Today',
+          `Document "${profile.document?.title || 'document'}" (${profile.document?.fileCode || 'N/A'}) expires today.`,
+          documentLink,
+          {
+            subject: `Document Expires Today - ${subjectLabel}`,
+            title: profile.document?.title || 'Document Expires Today',
+            documentId: docId,
+            fileCode: profile.document?.fileCode || '',
+            fileName: fileName || '',
+            ownerName,
+            daysLeft,
+            expiryDate: profile.expiryDate,
+            lastUploadAt,
+            recipientName: this.formatUserDisplay(recipientUser) || '',
+            recipientEmail: recipientUser?.email || '',
+            notifiedRecipients: allRecipientNames,
+            renewLink: notificationService.buildAbsoluteLink(`/expiry-tracking?renew=1&docId=${docId}`),
+            link: notificationService.buildAbsoluteLink(documentLink)
+          }
+        )
+      }
+    } else if (Number.isFinite(daysLeft) && daysLeft > 0) {
       const eligible = reminderMap
         .filter((r) => Number.isFinite(r.threshold))
         .sort((a, b) => a.threshold - b.threshold)
@@ -1066,8 +1389,12 @@ class ExpiryTrackingService {
           : false
         if (!alreadySentForWindow) {
           updateData[selected.field] = new Date()
+          const recipients = getRecipientsForLevel(selected.level)
+          const allRecipientNames = recipients
+            .map((recipientId) => this.formatUserDisplay(recipientMap.get(recipientId)))
+            .filter(Boolean)
           for (const recipientId of recipients) {
-            const recipientUser = recipientUsers.get(recipientId)
+            const recipientUser = recipientMap.get(recipientId)
             const docId = profile.document?.id || profile.documentId
             await notificationService.sendNotification(
               recipientId,
@@ -1097,13 +1424,14 @@ class ExpiryTrackingService {
       }
     }
 
-    const expiredAlreadySentToday = profile.lastReminder4SentAt
-      ? this.startOfDay(profile.lastReminder4SentAt).getTime() === this.startOfDay(new Date()).getTime()
-      : false
-    if (Number.isFinite(daysLeft) && daysLeft < 0 && !expiredAlreadySentToday) {
+    if (Number.isFinite(daysLeft) && daysLeft < 0 && !lastReminder4SentToday) {
       updateData.lastReminder4SentAt = new Date()
+      const recipients = getRecipientsForLevel('REMINDER_4')
+      const allRecipientNames = recipients
+        .map((recipientId) => this.formatUserDisplay(recipientMap.get(recipientId)))
+        .filter(Boolean)
       for (const recipientId of recipients) {
-        const recipientUser = recipientUsers.get(recipientId)
+        const recipientUser = recipientMap.get(recipientId)
         const docId = profile.document?.id || profile.documentId
         await notificationService.sendNotification(
           recipientId,
@@ -1180,6 +1508,24 @@ class ExpiryTrackingService {
               }
             }
           }
+        },
+        reminderRecipients: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                status: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                department: true
+              }
+            }
+          },
+          orderBy: [
+            { reminderLevel: 'asc' },
+            { createdAt: 'asc' }
+          ]
         }
       }
     })

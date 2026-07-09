@@ -81,6 +81,7 @@ model User {
   projectSetupRequirementOverrideAccessEntries ProjectSetupDocumentRequirementOverrideConfidentialAccess[]
   createdProjectChangeRequests ProjectChangeRequest[] @relation("ProjectChangeRequestCreator")
   expiryWatchers            DocumentExpiryWatcher[]
+  expiryReminderRecipients  DocumentExpiryReminderRecipient[]
   createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
 
   @@index([email])
@@ -481,6 +482,13 @@ enum RenewalStatus {
   IN_PROGRESS
   COMPLETED
   REJECTED
+}
+
+enum ExpiryReminderLevel {
+  REMINDER_1
+  REMINDER_2
+  REMINDER_3
+  REMINDER_4
 }
 
 model Project {
@@ -896,6 +904,7 @@ model DocumentExpiryProfile {
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   renewalHistory DocumentExpiryRenewalHistory[]
   watchers DocumentExpiryWatcher[]
+  reminderRecipients DocumentExpiryReminderRecipient[]
 
   @@index([expiryStatus])
   @@index([renewalStatus])
@@ -939,6 +948,23 @@ model DocumentExpiryWatcher {
 
   @@unique([expiryProfileId, userId], map: "DEW_profile_user_key")
   @@index([expiryProfileId])
+  @@index([userId])
+}
+
+model DocumentExpiryReminderRecipient {
+  id              Int                 @id @default(autoincrement())
+  expiryProfileId Int
+  reminderLevel   ExpiryReminderLevel
+  userId          Int
+  createdById     Int?
+  createdAt       DateTime            @default(now())
+
+  expiryProfile DocumentExpiryProfile @relation(fields: [expiryProfileId], references: [id], onDelete: Cascade)
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([expiryProfileId, reminderLevel, userId], map: "DERR_profile_level_user_key")
+  @@index([expiryProfileId])
+  @@index([reminderLevel])
   @@index([userId])
 }
 

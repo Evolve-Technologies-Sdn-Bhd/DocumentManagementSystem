@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 
 export default function AddRoleModal({ onClose, onSubmit, initialData }) {
   const [formData, setFormData] = useState({
@@ -682,5 +682,6 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

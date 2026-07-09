@@ -1,5 +1,5 @@
 import React from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import AppSurface from './AppSurface'
 import IconButton from './IconButton'
 
@@ -57,5 +57,6 @@ export default function Modal({
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

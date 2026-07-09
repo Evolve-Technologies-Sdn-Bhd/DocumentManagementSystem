@@ -1,5 +1,5 @@
 import React from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 
 /**
  * Reusable Confirmation Modal Component
@@ -110,7 +110,8 @@ export default function ConfirmModal({
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }
 
 /**
@@ -191,5 +192,6 @@ export function AlertModal({
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }

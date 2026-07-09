@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import { AlertModal } from './ConfirmModal'
 
@@ -206,5 +206,6 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
     </>
   )
 
-  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
+  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
+  return ReactDOM.createPortal(modal, document.body)
 }
