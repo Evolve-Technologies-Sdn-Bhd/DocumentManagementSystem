@@ -806,7 +806,7 @@ export default function ExpiryTracking() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-id="expiry-page">
       <PageHeader
         title="Expiry Tracking Management"
         subtitle="Track enrolled documents, expiry status, and renewal progress without duplicating document metadata."
@@ -828,7 +828,7 @@ export default function ExpiryTracking() {
         <StatCard label="Renewal In Progress" value={dashboard.renewalInProgress} tone="info" />
       </div>
 
-      <AppSurface padding="lg" variant="panel" className="space-y-4">
+      <AppSurface padding="lg" variant="panel" className="space-y-4" data-tour-id="expiry-filters-card">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Field label="Search">
             <TextInput
@@ -890,7 +890,7 @@ export default function ExpiryTracking() {
         </div>
       </AppSurface>
 
-      <AppSurface padding="none" variant="panel">
+      <AppSurface padding="none" variant="panel" data-tour-id="expiry-table-card">
         {loading ? (
           <div className="flex items-center justify-center px-6 py-16">
             <InlineSpinner label="Loading expiry tracking records..." />
