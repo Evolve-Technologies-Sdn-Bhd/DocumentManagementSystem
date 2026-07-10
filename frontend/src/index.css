@@ -36,6 +36,10 @@ body {
 	--dms-primary-dark: #002244;
 	--dms-secondary: #0066CC;
 	--dms-accent: #FF9900;
+        --dms-success: #10b981;
+        --dms-warning: #f59e0b;
+        --dms-error: #ef4444;
+        --dms-info: #3b82f6;
 	--dms-sidebar-bg: #003366;
 	--dms-sidebar-text: #E3F2FD;
 	--dms-main-bg: #F5F7FA;
@@ -71,12 +75,16 @@ body {
   --dms-color-brand-primary-hover: var(--dms-primary-dark);
   --dms-color-brand-secondary: var(--dms-secondary);
   --dms-color-accent: var(--dms-accent);
+  --dms-color-success-default: var(--dms-success);
   --dms-color-success-soft: #ecfdf5;
   --dms-color-success-ink: #047857;
+  --dms-color-warning-default: var(--dms-warning);
   --dms-color-warning-soft: #fef3c7;
   --dms-color-warning-ink: #b45309;
+  --dms-color-danger-default: var(--dms-error);
   --dms-color-danger-soft: #fee2e2;
   --dms-color-danger-ink: #b91c1c;
+  --dms-color-info-default: var(--dms-info);
   --dms-color-info-soft: #dbeafe;
   --dms-color-info-ink: var(--dms-color-brand-secondary);
   --dms-space-1: 4px;
