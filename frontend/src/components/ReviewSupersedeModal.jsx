@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import api from '../api/axios'
 import DocumentViewerModal from './DocumentViewerModal'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
@@ -15,6 +15,8 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
   const [showViewModal, setShowViewModal] = useState(false)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitLockRef = useRef(false)
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -25,7 +27,12 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
   }
 
   const handleProceed = async () => {
+    if (submitLockRef.current) return
+
     // Comments are optional for proceeding
+    submitLockRef.current = true
+    setIsSubmitting(true)
+
     try {
       await api.post(`/supersede-requests/${document.id}/review`, {
         action: 'approve',
@@ -37,10 +44,15 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
     } catch (error) {
       console.error('Failed to review request:', error)
       setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit review', type: 'error' })
+    } finally {
+      submitLockRef.current = false
+      setIsSubmitting(false)
     }
   }
 
   const handleReject = async () => {
+    if (isSubmitting) return
+
     if (!formData.reviewComments) {
       setAlertModal({ show: true, title: 'Validation Error', message: 'Please provide review comments for rejection', type: 'warning' })
       return
@@ -51,18 +63,27 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
       title: 'Confirm Rejection',
       message: 'Are you sure you want to reject this request?',
       onConfirm: async () => {
-        setConfirmModal({ show: false })
+        if (submitLockRef.current) return
+
+        submitLockRef.current = true
+        setIsSubmitting(true)
+
         try {
           await api.post(`/supersede-requests/${document.id}/review`, {
             action: 'reject',
             comments: formData.reviewComments
           })
           
+          setConfirmModal({ show: false })
           setAlertModal({ show: true, title: 'Success', message: 'Request rejected successfully!', type: 'success' })
           setTimeout(() => onSubmit({ action: 'reject' }), 1500)
         } catch (error) {
           console.error('Failed to reject request:', error)
+          setConfirmModal({ show: false })
           setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to reject request', type: 'error' })
+        } finally {
+          submitLockRef.current = false
+          setIsSubmitting(false)
         }
       }
     })
@@ -84,8 +105,12 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
         title={confirmModal.title}
         message={confirmModal.message}
         type="danger"
+        loading={isSubmitting}
         onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal({ show: false })}
+        onCancel={() => {
+          if (isSubmitting) return
+          setConfirmModal({ show: false })
+        }}
       />
       <AlertModal
         show={alertModal.show}
@@ -94,11 +119,11 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
         type={alertModal.type}
         onClose={() => setAlertModal({ show: false })}
       />
-      <Modal onClose={onClose} closeOnBackdrop size="lg">
+      <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="lg">
         <ModalHeader
           title="Review Supersede / Obsolete Document"
           subtitle="Please make sure a replacement file is available before requesting to supersede, and ensure it goes through the review and approval process."
-          onClose={onClose}
+          onClose={isSubmitting ? undefined : onClose}
         />
 
         <ModalBody className="space-y-4">
@@ -235,14 +260,14 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
         </ModalBody>
 
         <ModalFooter className="flex-wrap justify-between">
-          <Button type="button" variant="secondary" onClick={handleViewDocument}>
+          <Button type="button" variant="secondary" onClick={handleViewDocument} disabled={isSubmitting}>
             View Document
           </Button>
           <div className="flex gap-3">
-            <Button type="button" variant="danger" onClick={handleReject}>
+            <Button type="button" variant="danger" onClick={handleReject} disabled={isSubmitting}>
               Reject
             </Button>
-            <Button type="button" onClick={handleProceed}>
+            <Button type="button" onClick={handleProceed} disabled={isSubmitting}>
               Proceed
             </Button>
           </div>

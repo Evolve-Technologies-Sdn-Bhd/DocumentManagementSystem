@@ -20,6 +20,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+import FolderTreePicker from './ui/FolderTreePicker'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 
@@ -2063,19 +2064,19 @@ export default function PublishedDocuments() {
               <label className="block text-sm font-medium text-ink-secondary mb-2">
                 {t('select_parent_folder')}
               </label>
-              <SelectField
-                value={parentFolderForSub ?? ''}
-                onChange={(e) => setParentFolderForSub(toFolderId(e.target.value))}
-                className="font-mono"
+              <FolderTreePicker
+                folders={flatFolders.filter((f) => Boolean(f.canCreate))}
+                selectedId={parentFolderForSub ?? ''}
+                onSelect={(folderId) => {
+                  setParentFolderForSub(toFolderId(folderId))
+                  setCreateAccessError('')
+                }}
+                emptySelectionText={t('select_a_folder')}
+                selectedLabel={t('creating_subfolder_in')}
+                treeClassName="max-h-64"
                 disabled={createAccessLoading}
-              >
-                <option value="">{t('select_a_folder')}</option>
-                {flatFolders.filter((f) => Boolean(f.canCreate)).map((folder) => (
-                  <option key={folder.id} value={toFolderId(folder.id) ?? ''}>
-                    {folder.icon} {folder.displayName}
-                  </option>
-                ))}
-              </SelectField>
+                mode="flat"
+              />
 
               {parentFolderForSub !== null ? (
                 <div className="mt-2 rounded-2xl border border-blue-200 bg-blue-50 p-4">

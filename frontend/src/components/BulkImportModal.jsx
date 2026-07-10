@@ -145,7 +145,10 @@ function buildFileCodeGuide(settings) {
 }
 
 export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, selectedFolderId }) {
+  const normalizeFolderId = (value) => String(value ?? '').trim()
   const [folderId, setFolderId] = useState(selectedFolderId || '')
+  const [folderPickerQuery, setFolderPickerQuery] = useState('')
+  const [folderPickerExpanded, setFolderPickerExpanded] = useState([])
   const [projectCategoryId, setProjectCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const getToday = () => new Date().toISOString().slice(0, 10)
@@ -200,6 +203,95 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const allClientChecked = useMemo(() => fileItems.length > 0 && fileItems.every((it) => Boolean(it.isClientDocument)), [fileItems])
   const someClientChecked = useMemo(() => fileItems.some((it) => Boolean(it.isClientDocument)), [fileItems])
   const fileCodeGuide = useMemo(() => buildFileCodeGuide(numberingSettings), [numberingSettings])
+  const folderPickerTree = useMemo(() => {
+    const root = []
+    const nodeMap = new Map()
+
+    ;(Array.isArray(folders) ? folders : []).forEach((folder) => {
+      const id = normalizeFolderId(folder?.id)
+      if (!id) return
+
+      const pathSegments = Array.isArray(folder?.fullPath) && folder.fullPath.length > 0
+        ? folder.fullPath.map((part) => String(part || '').trim()).filter(Boolean)
+        : String(folder?.path || folder?.name || '')
+            .split('›')
+            .map((part) => part.trim())
+            .filter(Boolean)
+
+      if (pathSegments.length === 0) return
+
+      let currentLevel = root
+      let currentPath = []
+
+      pathSegments.forEach((segment, index) => {
+        currentPath = [...currentPath, segment]
+        const pathKey = currentPath.join(' / ')
+        let node = nodeMap.get(pathKey)
+
+        if (!node) {
+          node = {
+            key: pathKey,
+            name: segment,
+            pathSegments: [...currentPath],
+            fullPathLabel: pathKey,
+            folderId: '',
+            selectable: false,
+            icon: index === 0 ? '📁' : '📂',
+            children: []
+          }
+          nodeMap.set(pathKey, node)
+          currentLevel.push(node)
+        }
+
+        if (index === pathSegments.length - 1) {
+          node.folderId = id
+          node.selectable = true
+          node.icon = folder?.icon || (index === 0 ? '📁' : '📂')
+          node.meta = folder
+        }
+
+        currentLevel = node.children
+      })
+    })
+
+    return root
+  }, [folders])
+  const folderPickerNodeMap = useMemo(() => {
+    const map = new Map()
+    const visit = (nodes) => {
+      ;(nodes || []).forEach((node) => {
+        map.set(node.key, node)
+        visit(node.children)
+      })
+    }
+    visit(folderPickerTree)
+    return map
+  }, [folderPickerTree])
+  const selectedFolderMeta = useMemo(() => {
+    const targetId = normalizeFolderId(folderId)
+    if (!targetId) return null
+    return (Array.isArray(folders) ? folders : []).find((folder) => normalizeFolderId(folder?.id) === targetId) || null
+  }, [folders, folderId])
+  const filteredFolderPickerTree = useMemo(() => {
+    const query = String(folderPickerQuery || '').trim().toLowerCase()
+    const filterNodes = (nodes) => {
+      return (nodes || []).reduce((acc, node) => {
+        const children = filterNodes(node.children)
+        const matchesQuery = !query || node.fullPathLabel.toLowerCase().includes(query)
+
+        if (matchesQuery || children.length > 0) {
+          acc.push({
+            ...node,
+            children
+          })
+        }
+
+        return acc
+      }, [])
+    }
+
+    return filterNodes(folderPickerTree)
+  }, [folderPickerQuery, folderPickerTree])
   const activeUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
     return users
@@ -216,8 +308,30 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   useEffect(() => {
     if (!isOpen) return
     setFolderId(selectedFolderId || '')
+    setFolderPickerQuery('')
     refreshSettings()
   }, [isOpen, selectedFolderId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const targetId = normalizeFolderId(selectedFolderId || '')
+    if (!targetId) {
+      setFolderPickerExpanded([])
+      return
+    }
+
+    const selectedNode = Array.from(folderPickerNodeMap.values()).find((node) => node.folderId === targetId)
+    if (!selectedNode) {
+      setFolderPickerExpanded([])
+      return
+    }
+
+    const ancestorKeys = selectedNode.pathSegments
+      .slice(0, -1)
+      .map((_, index) => selectedNode.pathSegments.slice(0, index + 1).join(' / '))
+
+    setFolderPickerExpanded(ancestorKeys)
+  }, [isOpen, selectedFolderId, folderPickerNodeMap])
 
   useEffect(() => {
     if (!isOpen) return
@@ -356,9 +470,94 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     setNumberingSettings(null)
     setProjectCategories([])
     setFolderId(selectedFolderId || '')
+    setFolderPickerQuery('')
+    setFolderPickerExpanded([])
     setUsers([])
     setReassignConfirm({ show: false, conflicts: [], payload: null })
     onClose()
+  }
+
+  const toggleFolderPickerNode = (nodeKey) => {
+    setFolderPickerExpanded((prev) => (
+      prev.includes(nodeKey)
+        ? prev.filter((key) => key !== nodeKey)
+        : [...prev, nodeKey]
+    ))
+  }
+
+  const FolderPickerTreeItem = ({ node, level = 0, forceExpanded = false }) => {
+    const isExpanded = forceExpanded || folderPickerExpanded.includes(node.key)
+    const hasChildren = (node.children || []).length > 0
+    const isSelected = normalizeFolderId(folderId) === normalizeFolderId(node.folderId)
+
+    const handleSelect = () => {
+      if (node.selectable && node.folderId) {
+        setFolderId(node.folderId)
+        setFormError('')
+      }
+
+      if (hasChildren && !forceExpanded) {
+        toggleFolderPickerNode(node.key)
+      }
+    }
+
+    return (
+      <div key={node.key}>
+        <div
+          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
+            isSelected
+              ? 'bg-brand/10 text-brand ring-1 ring-brand/20'
+              : node.selectable
+                ? 'cursor-pointer text-ink hover:bg-surface-muted'
+                : 'text-ink-soft'
+          }`}
+          style={{ paddingLeft: `${12 + level * 18}px` }}
+          onClick={handleSelect}
+        >
+          <span className="text-base leading-none">{node.icon || (level === 0 ? '📁' : '📂')}</span>
+          <span className="min-w-0 flex-1 truncate">{node.name}</span>
+          {!node.selectable && (
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-soft">
+              Parent
+            </span>
+          )}
+          {hasChildren && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!forceExpanded) toggleFolderPickerNode(node.key)
+              }}
+              disabled={forceExpanded}
+              className="rounded-full p-1 text-ink-soft transition-colors hover:bg-surface hover:text-ink disabled:cursor-default disabled:opacity-40"
+              aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+            >
+              <svg
+                className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {isExpanded && hasChildren && (
+          <div className="space-y-1">
+            {node.children.map((child) => (
+              <FolderPickerTreeItem
+                key={child.key}
+                node={child}
+                level={level + 1}
+                forceExpanded={forceExpanded}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   const getDateDigits = (format) => {
@@ -812,19 +1011,44 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_folder_label')}</label>
-                <select
-                  value={folderId || ''}
-                  onChange={(e) => setFolderId(e.target.value)}
-                  data-tour-id="bulk-import-folder"
-                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                >
-                  <option value="">{t('bulk_import_select_folder')}</option>
-                  {(folders || []).map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.icon} {folder.displayName}
-                    </option>
-                  ))}
-                </select>
+                <div data-tour-id="bulk-import-folder" className="space-y-3">
+                  <input
+                    type="text"
+                    value={folderPickerQuery}
+                    onChange={(e) => setFolderPickerQuery(e.target.value)}
+                    placeholder="Search folder name or path"
+                    className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  />
+                  {selectedFolderMeta ? (
+                    <div className="rounded-lg border border-border bg-surface-muted px-3 py-2">
+                      <div className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Selected folder</div>
+                      <div className="mt-1 text-sm font-medium text-ink">{selectedFolderMeta.name}</div>
+                      <div className="mt-1 text-xs text-ink-secondary break-words">
+                        {Array.isArray(selectedFolderMeta.fullPath) ? selectedFolderMeta.fullPath.join(' / ') : (selectedFolderMeta.path || '')}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-ink-soft">
+                      {t('bulk_import_select_folder')}
+                    </div>
+                  )}
+                  <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-surface p-2 space-y-1">
+                    {filteredFolderPickerTree.length > 0 ? (
+                      filteredFolderPickerTree.map((node) => (
+                        <FolderPickerTreeItem
+                          key={node.key}
+                          node={node}
+                          level={0}
+                          forceExpanded={Boolean(String(folderPickerQuery || '').trim())}
+                        />
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-sm text-ink-soft">
+                        No matching folders found.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_project_category_label')}</label>
@@ -844,172 +1068,6 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_description_label')}</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-              />
-            </div>
-
-            <div className="border border-border rounded-lg p-4 space-y-3 bg-surface">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-                <input
-                  type="checkbox"
-                  checked={expiryInfo.trackingEnabled}
-                  onChange={(e) => setExpiryInfo((prev) => ({
-                    ...prev,
-                    trackingEnabled: e.target.checked,
-                    startDate: prev.startDate || getToday(),
-                    ...(e.target.checked && prev.useGlobalRule
-                      ? {
-                          expiringSoonDays: expirySettings.expiringSoonDays,
-                          reminder1Days: expirySettings.reminder1Days,
-                          reminder2Days: expirySettings.reminder2Days,
-                          reminder3Days: expirySettings.reminder3Days,
-                          reminder4Days: expirySettings.reminder4Days
-                        }
-                      : {})
-                  }))}
-                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                />
-                Track Expiry (apply to all imported documents)
-              </label>
-              {expiryInfo.trackingEnabled ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
-                      <input
-                        type="date"
-                        value={expiryInfo.startDate}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
-                      <input
-                        type="date"
-                        value={expiryInfo.expiryDate}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Remarks</label>
-                      <textarea
-                        value={expiryInfo.remarks}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, remarks: e.target.value }))}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                        placeholder="Optional expiry remarks"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs text-ink-muted">
-                      Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
-                    </p>
-                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-                      <input
-                        type="checkbox"
-                        checked={expiryInfo.useGlobalRule}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setExpiryInfo((prev) => ({
-                            ...prev,
-                            useGlobalRule: checked,
-                            ...(checked
-                              ? {
-                                  expiringSoonDays: expirySettings.expiringSoonDays,
-                                  reminder1Days: expirySettings.reminder1Days,
-                                  reminder2Days: expirySettings.reminder2Days,
-                                  reminder3Days: expirySettings.reminder3Days,
-                                  reminder4Days: expirySettings.reminder4Days
-                                }
-                              : {})
-                          }))
-                        }}
-                        className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                      />
-                      Use Global Defaults
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.expiringSoonDays}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder1Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder2Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder3Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder4Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                  </div>
-                  <ReminderRecipientsPicker
-                    values={expiryInfo}
-                    activeUsers={activeUsers}
-                    searchValues={recipientSearch.global}
-                    onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
-                    onToggle={toggleGlobalRecipient}
-                  />
-                </div>
-              ) : null}
             </div>
 
             <div
@@ -1320,15 +1378,6 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                         />
                                       </div>
                                       <div className="md:col-span-2">
-                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Remarks</label>
-                                        <textarea
-                                          value={it.expiryOverride?.remarks || ''}
-                                          onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), remarks: e.target.value } } : x))}
-                                          rows={2}
-                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                                        />
-                                      </div>
-                                      <div className="md:col-span-2">
                                         <ReminderRecipientsPicker
                                           values={it.expiryOverride}
                                           activeUsers={activeUsers}
@@ -1394,6 +1443,152 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 </div>
               </div>
             )}
+
+            <div className="border border-border rounded-lg p-4 space-y-3 bg-surface">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={expiryInfo.trackingEnabled}
+                  onChange={(e) => setExpiryInfo((prev) => ({
+                    ...prev,
+                    trackingEnabled: e.target.checked,
+                    startDate: prev.startDate || getToday(),
+                    ...(e.target.checked && prev.useGlobalRule
+                      ? {
+                          expiringSoonDays: expirySettings.expiringSoonDays,
+                          reminder1Days: expirySettings.reminder1Days,
+                          reminder2Days: expirySettings.reminder2Days,
+                          reminder3Days: expirySettings.reminder3Days,
+                          reminder4Days: expirySettings.reminder4Days
+                        }
+                      : {})
+                  }))}
+                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                />
+                Track Expiry (apply to all imported documents)
+              </label>
+              {expiryInfo.trackingEnabled ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
+                      <input
+                        type="date"
+                        value={expiryInfo.startDate}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
+                      <input
+                        type="date"
+                        value={expiryInfo.expiryDate}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-ink-muted">
+                      Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
+                    </p>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={expiryInfo.useGlobalRule}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setExpiryInfo((prev) => ({
+                            ...prev,
+                            useGlobalRule: checked,
+                            ...(checked
+                              ? {
+                                  expiringSoonDays: expirySettings.expiringSoonDays,
+                                  reminder1Days: expirySettings.reminder1Days,
+                                  reminder2Days: expirySettings.reminder2Days,
+                                  reminder3Days: expirySettings.reminder3Days,
+                                  reminder4Days: expirySettings.reminder4Days
+                                }
+                              : {})
+                          }))
+                        }}
+                        className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                      />
+                      Use Global Defaults
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.expiringSoonDays}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder1Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder2Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder3Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryInfo.reminder4Days}
+                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))}
+                        disabled={expiryInfo.useGlobalRule}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                      />
+                    </div>
+                  </div>
+                  <ReminderRecipientsPicker
+                    values={expiryInfo}
+                    activeUsers={activeUsers}
+                    searchValues={recipientSearch.global}
+                    onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
+                    onToggle={toggleGlobalRecipient}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="px-6 py-4 bg-surface-muted border-t border-border flex justify-end gap-3">
