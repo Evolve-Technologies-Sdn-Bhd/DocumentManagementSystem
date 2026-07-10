@@ -6,7 +6,7 @@ const projectTrackingService = require('./projectTrackingService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
-  queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId }) {
+  queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId, skipExpirySync = false }) {
     setImmediate(async () => {
       const taskStart = startTimer()
       const timings = { documentId, userId }
@@ -30,7 +30,7 @@ class WorkflowService {
           timings.projectTrackingMs = roundMs(getElapsedMs(trackingStart))
         }
 
-        const shouldSyncExpiry = Boolean(document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled)
+        const shouldSyncExpiry = !skipExpirySync && Boolean(document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled)
         timings.expirySyncRequested = shouldSyncExpiry
         if (shouldSyncExpiry) {
           const expiryTrackingService = require('./expiryTrackingService')
@@ -720,8 +720,26 @@ class WorkflowService {
       }
     }
 
+    const shouldSyncExpiry = Boolean(document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled)
+
     if (options?.deferFollowUps) {
-      this.queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId })
+      if (options?.syncExpiryInline && shouldSyncExpiry) {
+        try {
+          const expiryTrackingService = require('./expiryTrackingService')
+          await expiryTrackingService.syncProfileFromDocument(documentId, expiryInfo || {}, userId)
+        } catch (error) {
+          console.error('Failed to sync expiry tracking profile on publish:', error)
+        }
+      }
+
+      this.queuePublishFollowUps({
+        documentId,
+        updated,
+        document,
+        expiryInfo,
+        userId,
+        skipExpirySync: Boolean(options?.syncExpiryInline)
+      })
     } else {
       try {
         await notificationService.notifyDocumentPublished(documentId, updated);
@@ -736,7 +754,7 @@ class WorkflowService {
       }
 
       try {
-        if (document.documentType?.requiresExpiryTracking || expiryInfo?.trackingEnabled) {
+        if (shouldSyncExpiry) {
           const expiryTrackingService = require('./expiryTrackingService')
           await expiryTrackingService.syncProfileFromDocument(documentId, expiryInfo || {}, userId)
         }
