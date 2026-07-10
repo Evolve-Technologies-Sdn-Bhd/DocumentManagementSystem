@@ -7,6 +7,13 @@ import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 
+const REMINDER_LEVELS = [
+  { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
+  { key: 'reminder2', label: 'Reminder 2', daysField: 'reminder2Days' },
+  { key: 'reminder3', label: 'Reminder 3', daysField: 'reminder3Days' },
+  { key: 'reminder4', label: 'Reminder 4', daysField: 'reminder4Days' }
+]
+
 const toDateInputValue = (value) => {
   if (!value) return ''
   const date = new Date(value)
@@ -14,6 +21,8 @@ const toDateInputValue = (value) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
   return local.toISOString().slice(0, 10)
 }
+
+const formatUserLabel = (user) => `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '-'
 
 function Field({ label, children, hint = null }) {
   return (
@@ -27,11 +36,18 @@ function Field({ label, children, hint = null }) {
 
 export default function PublishDocumentModal({ isOpen, onClose, document, onPublish }) {
   const [folders, setFolders] = useState([])
+  const [users, setUsers] = useState([])
   const [selectedFolder, setSelectedFolder] = useState('')
   const [newFileName, setNewFileName] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [recipientSearch, setRecipientSearch] = useState({
+    reminder1: '',
+    reminder2: '',
+    reminder3: '',
+    reminder4: ''
+  })
   const [expirySettings, setExpirySettings] = useState({
     expiringSoonDays: 60,
     reminder1Days: 90,
@@ -49,7 +65,13 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     reminder1Days: 90,
     reminder2Days: 60,
     reminder3Days: 30,
-    reminder4Days: 7
+    reminder4Days: 7,
+    reminderRecipients: {
+      reminder1: [],
+      reminder2: [],
+      reminder3: [],
+      reminder4: []
+    }
   })
 
   useEffect(() => {
@@ -59,6 +81,12 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     setNewFileName(document?.fileName || '')
     setNotes('')
     setError('')
+    setRecipientSearch({
+      reminder1: '',
+      reminder2: '',
+      reminder3: '',
+      reminder4: ''
+    })
     setExpiryInfo({
       trackingEnabled: requiresExpiryTracking,
       useGlobalRule: true,
@@ -69,10 +97,17 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
       reminder1Days: expirySettings.reminder1Days,
       reminder2Days: expirySettings.reminder2Days,
       reminder3Days: expirySettings.reminder3Days,
-      reminder4Days: expirySettings.reminder4Days
+      reminder4Days: expirySettings.reminder4Days,
+      reminderRecipients: {
+        reminder1: [],
+        reminder2: [],
+        reminder3: [],
+        reminder4: []
+      }
     })
     void fetchFolders()
     void fetchExpirySettings()
+    void fetchUsers()
   }, [isOpen, document])
 
   const flattenFolders = (folderList, level = 0) => {
@@ -91,6 +126,16 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   }
 
   const flatFolders = useMemo(() => flattenFolders(folders), [folders])
+  const ownerId = document?.ownerId || document?.owner?.id || null
+  const ownerName = document?.ownerName
+    || formatUserLabel(document?.owner)
+    || '-'
+  const activeUsers = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    return users
+      .filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
+      .sort((left, right) => formatUserLabel(left).localeCompare(formatUserLabel(right)))
+  }, [users])
 
   const fetchFolders = async () => {
     try {
@@ -121,6 +166,31 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     } catch (fetchError) {
       console.error('Error fetching expiry settings:', fetchError)
     }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/users')
+      setUsers(response.data?.data?.users || response.data?.users || [])
+    } catch (fetchError) {
+      console.error('Error fetching users:', fetchError)
+    }
+  }
+
+  const toggleRecipient = (levelKey, userId) => {
+    if (ownerId && userId === ownerId) return
+    setExpiryInfo((prev) => {
+      const existing = new Set(prev.reminderRecipients?.[levelKey] || [])
+      if (existing.has(userId)) existing.delete(userId)
+      else existing.add(userId)
+      return {
+        ...prev,
+        reminderRecipients: {
+          ...prev.reminderRecipients,
+          [levelKey]: Array.from(existing)
+        }
+      }
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -154,7 +224,8 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
               reminder1Days: parseInt(expiryInfo.reminder1Days, 10) || 0,
               reminder2Days: parseInt(expiryInfo.reminder2Days, 10) || 0,
               reminder3Days: parseInt(expiryInfo.reminder3Days, 10) || 0,
-              reminder4Days: parseInt(expiryInfo.reminder4Days, 10) || 0
+              reminder4Days: parseInt(expiryInfo.reminder4Days, 10) || 0,
+              reminderRecipients: expiryInfo.reminderRecipients
             }
           : { trackingEnabled: false }
       })
@@ -300,6 +371,83 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                     <Field label="Reminder 4">
                       <TextInput type="number" min="0" value={expiryInfo.reminder4Days} onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))} disabled={expiryInfo.useGlobalRule} />
                     </Field>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-semibold text-ink">Reminder Recipients</h4>
+                      <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
+                    </div>
+                    {REMINDER_LEVELS.map((level) => {
+                      const selectedIds = new Set(expiryInfo.reminderRecipients?.[level.key] || [])
+                      const searchTerm = (recipientSearch[level.key] || '').trim().toLowerCase()
+                      const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
+                      const filteredUsers = activeUsers.filter((user) => {
+                        if (!searchTerm) return true
+                        return formatUserLabel(user).toLowerCase().includes(searchTerm)
+                      })
+                      const selectedSummary = selectedUsers.length > 0
+                        ? selectedUsers.slice(0, 2).map((user) => formatUserLabel(user)).join(', ')
+                        : ''
+                      const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
+
+                      return (
+                        <details key={level.key} className="rounded-xl border border-border bg-surface">
+                          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-ink">{level.label}</p>
+                              <p className="text-xs text-ink-soft">{expiryInfo[level.daysField] ?? '-'} day(s) before expiry</p>
+                              <p className="mt-1 truncate text-xs text-ink-soft">
+                                Owner + {selectedIds.size} extra recipient(s)
+                                {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-xs font-medium text-ink-soft">Click to expand</p>
+                              <p className="text-xs text-ink-soft">Owner included automatically</p>
+                            </div>
+                          </summary>
+                          <div className="space-y-3 border-t border-border px-4 py-3">
+                            <TextInput
+                              value={recipientSearch[level.key] || ''}
+                              onChange={(e) => setRecipientSearch((prev) => ({ ...prev, [level.key]: e.target.value }))}
+                              placeholder="Search user name"
+                            />
+                            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                                <input
+                                  type="checkbox"
+                                  checked
+                                  disabled
+                                  className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                                />
+                                <span>{ownerName} (Owner)</span>
+                              </label>
+                              {filteredUsers.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-ink-soft">
+                                  No matching user found.
+                                </div>
+                              ) : (
+                                filteredUsers.map((user) => {
+                                  const isOwner = ownerId && user.id === ownerId
+                                  if (isOwner) return null
+                                  return (
+                                    <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(user.id)}
+                                        onChange={() => toggleRecipient(level.key, user.id)}
+                                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                                      />
+                                      <span>{formatUserLabel(user)}</span>
+                                    </label>
+                                  )
+                                })
+                              )}
+                            </div>
+                          </div>
+                        </details>
+                      )
+                    })}
                   </div>
                 </AppSurface>
               </>

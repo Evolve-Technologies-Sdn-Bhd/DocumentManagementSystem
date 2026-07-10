@@ -5,6 +5,109 @@ import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
 import ConfirmModal from './ConfirmModal'
 
+const REMINDER_LEVELS = [
+  { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
+  { key: 'reminder2', label: 'Reminder 2', daysField: 'reminder2Days' },
+  { key: 'reminder3', label: 'Reminder 3', daysField: 'reminder3Days' },
+  { key: 'reminder4', label: 'Reminder 4', daysField: 'reminder4Days' }
+]
+
+const createReminderRecipients = () => ({
+  reminder1: [],
+  reminder2: [],
+  reminder3: [],
+  reminder4: []
+})
+
+const createReminderSearch = () => ({
+  reminder1: '',
+  reminder2: '',
+  reminder3: '',
+  reminder4: ''
+})
+
+const formatUserLabel = (user) => `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '-'
+
+function ReminderRecipientsPicker({
+  values,
+  activeUsers,
+  searchValues,
+  onSearchChange,
+  onToggle,
+  ownerSummary = 'Owner included automatically'
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h4 className="text-sm font-semibold text-ink">Reminder Recipients</h4>
+        <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
+      </div>
+      {REMINDER_LEVELS.map((level) => {
+        const selectedIds = new Set(values?.[level.key] || [])
+        const searchTerm = (searchValues?.[level.key] || '').trim().toLowerCase()
+        const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
+        const filteredUsers = activeUsers.filter((user) => {
+          if (!searchTerm) return true
+          return formatUserLabel(user).toLowerCase().includes(searchTerm)
+        })
+        const selectedSummary = selectedUsers.length > 0
+          ? selectedUsers.slice(0, 2).map((user) => formatUserLabel(user)).join(', ')
+          : ''
+        const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
+
+        return (
+          <details key={level.key} className="rounded-xl border border-border bg-surface">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">{level.label}</p>
+                <p className="text-xs text-ink-soft">
+                  {values?.[level.daysField] ?? '-'} day(s) before expiry
+                </p>
+                <p className="mt-1 truncate text-xs text-ink-soft">
+                  Owner + {selectedIds.size} extra recipient(s)
+                  {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-xs font-medium text-ink-soft">Click to expand</p>
+                <p className="text-xs text-ink-soft">{ownerSummary}</p>
+              </div>
+            </summary>
+            <div className="space-y-3 border-t border-border px-4 py-3">
+              <input
+                type="text"
+                value={searchValues?.[level.key] || ''}
+                onChange={(e) => onSearchChange(level.key, e.target.value)}
+                placeholder="Search user name"
+                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              />
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {filteredUsers.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-ink-soft">
+                    No matching user found.
+                  </div>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(user.id)}
+                        onChange={() => onToggle(level.key, user.id)}
+                        className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                      />
+                      <span>{formatUserLabel(user)}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          </details>
+        )
+      })}
+    </div>
+  )
+}
+
 function getOtherDocumentationTypeId(documentTypes) {
   const types = Array.isArray(documentTypes) ? documentTypes : []
   const byName = types.find((dt) => String(dt?.name || '').toLowerCase() === 'others')
@@ -46,6 +149,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const [projectCategoryId, setProjectCategoryId] = useState('')
   const [description, setDescription] = useState('')
   const getToday = () => new Date().toISOString().slice(0, 10)
+  const [users, setUsers] = useState([])
   const [expirySettings, setExpirySettings] = useState({
     expiringSoonDays: 60,
     reminder1Days: 90,
@@ -63,7 +167,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     reminder1Days: 90,
     reminder2Days: 60,
     reminder3Days: 30,
-    reminder4Days: 7
+    reminder4Days: 7,
+    reminderRecipients: createReminderRecipients()
+  })
+  const [recipientSearch, setRecipientSearch] = useState({
+    global: createReminderSearch(),
+    file: {}
   })
   const [fileItems, setFileItems] = useState([])
   const [isDragging, setIsDragging] = useState(false)
@@ -91,6 +200,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const allClientChecked = useMemo(() => fileItems.length > 0 && fileItems.every((it) => Boolean(it.isClientDocument)), [fileItems])
   const someClientChecked = useMemo(() => fileItems.some((it) => Boolean(it.isClientDocument)), [fileItems])
   const fileCodeGuide = useMemo(() => buildFileCodeGuide(numberingSettings), [numberingSettings])
+  const activeUsers = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    return users
+      .filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
+      .sort((left, right) => formatUserLabel(left).localeCompare(formatUserLabel(right)))
+  }, [users])
   const clientDeclarationRef = useRef(null)
 
   useEffect(() => {
@@ -132,6 +247,25 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
           })
         }
       } catch (_) {}
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const response = await api.get('/users')
+        if (cancelled) return
+        setUsers(response.data?.data?.users || response.data?.users || [])
+      } catch (_) {
+        if (cancelled) return
+        setUsers([])
+      }
     }
     load()
     return () => {
@@ -213,13 +347,16 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       reminder1Days: expirySettings.reminder1Days,
       reminder2Days: expirySettings.reminder2Days,
       reminder3Days: expirySettings.reminder3Days,
-      reminder4Days: expirySettings.reminder4Days
+      reminder4Days: expirySettings.reminder4Days,
+      reminderRecipients: createReminderRecipients()
     })
+    setRecipientSearch({ global: createReminderSearch(), file: {} })
     setFormError('')
     setDocumentTypes([])
     setNumberingSettings(null)
     setProjectCategories([])
     setFolderId(selectedFolderId || '')
+    setUsers([])
     setReassignConfirm({ show: false, conflicts: [], payload: null })
     onClose()
   }
@@ -328,6 +465,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     return getOtherDocumentationTypeId(documentTypes)
   }
 
+  const getFileItemKey = (item) => `${item?.relativePath || item?.file?.name || ''}:${item?.file?.size || 0}:${item?.file?.lastModified || 0}`
+
   const applyClientDeclaration = (item, checked) => {
     const nextClientTypeId = checked ? otherTypeId : ''
     return {
@@ -339,6 +478,73 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       documentTypeId: checked ? (nextClientTypeId || item.documentTypeId) : (item.nonClientDocumentTypeId || item.documentTypeId),
       expiryOverrideEnabled: checked ? false : Boolean(item.expiryOverrideEnabled)
     }
+  }
+
+  const updateSearchScope = (scope, levelKey, value) => {
+    setRecipientSearch((prev) => {
+      if (scope === 'global') {
+        return {
+          ...prev,
+          global: {
+            ...(prev.global || createReminderSearch()),
+            [levelKey]: value
+          }
+        }
+      }
+
+      return {
+        ...prev,
+        file: {
+          ...prev.file,
+          [scope]: {
+            ...(prev.file?.[scope] || createReminderSearch()),
+            [levelKey]: value
+          }
+        }
+      }
+    })
+  }
+
+  const toggleGlobalRecipient = (levelKey, userId) => {
+    setExpiryInfo((prev) => {
+      const existing = new Set(prev.reminderRecipients?.[levelKey] || [])
+      if (existing.has(userId)) existing.delete(userId)
+      else existing.add(userId)
+      return {
+        ...prev,
+        reminderRecipients: {
+          ...prev.reminderRecipients,
+          [levelKey]: Array.from(existing)
+        }
+      }
+    })
+  }
+
+  const toggleFileRecipient = (fileKey, itemIndex, levelKey, userId) => {
+    setFileItems((prev) => prev.map((item, idx) => {
+      if (idx !== itemIndex) return item
+      const existing = new Set(item.expiryOverride?.reminderRecipients?.[levelKey] || [])
+      if (existing.has(userId)) existing.delete(userId)
+      else existing.add(userId)
+      return {
+        ...item,
+        expiryOverride: {
+          ...(item.expiryOverride || {}),
+          reminderRecipients: {
+            ...(item.expiryOverride?.reminderRecipients || createReminderRecipients()),
+            [levelKey]: Array.from(existing)
+          }
+        }
+      }
+    }))
+
+    setRecipientSearch((prev) => ({
+      ...prev,
+      file: {
+        ...prev.file,
+        [fileKey]: prev.file?.[fileKey] || createReminderSearch()
+      }
+    }))
   }
 
   const addFiles = (incoming) => {
@@ -374,7 +580,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             trackingEnabled: false,
             startDate: getToday(),
             expiryDate: '',
-            remarks: ''
+            remarks: '',
+            reminderRecipients: createReminderRecipients()
           },
           collapsed: true
         }
@@ -487,7 +694,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               reminder1Days: expiryInfo.reminder1Days,
               reminder2Days: expiryInfo.reminder2Days,
               reminder3Days: expiryInfo.reminder3Days,
-              reminder4Days: expiryInfo.reminder4Days
+              reminder4Days: expiryInfo.reminder4Days,
+              reminderRecipients: expiryInfo.reminderRecipients
             }
           : { trackingEnabled: false },
         files: fileItems.map((it) => it.file),
@@ -508,7 +716,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 reminder1Days: it.expiryOverride?.reminder1Days,
                 reminder2Days: it.expiryOverride?.reminder2Days,
                 reminder3Days: it.expiryOverride?.reminder3Days,
-                reminder4Days: it.expiryOverride?.reminder4Days
+                reminder4Days: it.expiryOverride?.reminder4Days,
+                reminderRecipients: it.expiryOverride?.reminderRecipients || createReminderRecipients()
               }
             : null
         }))
@@ -792,6 +1001,13 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                       />
                     </div>
                   </div>
+                  <ReminderRecipientsPicker
+                    values={expiryInfo}
+                    activeUsers={activeUsers}
+                    searchValues={recipientSearch.global}
+                    onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
+                    onToggle={toggleGlobalRecipient}
+                  />
                 </div>
               ) : null}
             </div>
@@ -906,6 +1122,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 </div>
                 <div className="max-h-[50vh] overflow-auto divide-y divide-border">
                   {fileItems.map((it, idx) => {
+                    const fileKey = getFileItemKey(it)
                     const matchedType = documentTypes.find((dt) => String(dt.id) === String(it.documentTypeId))
                     const typeLabel = matchedType ? `${matchedType.name} (${matchedType.prefix})` : t('bulk_import_not_selected')
                     const matchedProject = projectCategories.find((pc) => String(pc.id) === String(projectCategoryId))
@@ -1045,7 +1262,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                               reminder1Days: expiryInfo.reminder1Days,
                                               reminder2Days: expiryInfo.reminder2Days,
                                               reminder3Days: expiryInfo.reminder3Days,
-                                              reminder4Days: expiryInfo.reminder4Days
+                                              reminder4Days: expiryInfo.reminder4Days,
+                                              reminderRecipients: expiryInfo.reminderRecipients
                                             }
                                           : x.expiryOverride
                                       }
@@ -1070,7 +1288,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                             expiryOverride: {
                                               ...(x.expiryOverride || {}),
                                               trackingEnabled: enabled,
-                                              startDate: (x.expiryOverride?.startDate || expiryInfo.startDate || getToday())
+                                              startDate: (x.expiryOverride?.startDate || expiryInfo.startDate || getToday()),
+                                              reminderRecipients: x.expiryOverride?.reminderRecipients || createReminderRecipients()
                                             }
                                           }
                                         }))
@@ -1107,6 +1326,15 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                           onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), remarks: e.target.value } } : x))}
                                           rows={2}
                                           className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                                        />
+                                      </div>
+                                      <div className="md:col-span-2">
+                                        <ReminderRecipientsPicker
+                                          values={it.expiryOverride}
+                                          activeUsers={activeUsers}
+                                          searchValues={recipientSearch.file?.[fileKey] || createReminderSearch()}
+                                          onSearchChange={(levelKey, value) => updateSearchScope(fileKey, levelKey, value)}
+                                          onToggle={(levelKey, userId) => toggleFileRecipient(fileKey, idx, levelKey, userId)}
                                         />
                                       </div>
                                     </>

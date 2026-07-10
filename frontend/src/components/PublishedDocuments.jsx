@@ -88,6 +88,8 @@ export default function PublishedDocuments() {
   const [selectedItems, setSelectedItems] = useState({ folders: [], documents: [] })
   const [showMoveModal, setShowMoveModal] = useState(false)
   const [moveDestinationFolderId, setMoveDestinationFolderId] = useState('')
+  const [movePickerQuery, setMovePickerQuery] = useState('')
+  const [moveExpandedFolders, setMoveExpandedFolders] = useState([])
   const [moveLoading, setMoveLoading] = useState(false)
   const [moveError, setMoveError] = useState('')
 
@@ -146,6 +148,35 @@ export default function PublishedDocuments() {
 
   // Build breadcrumbs for a folder
   const buildBreadcrumbs = (folderId) => buildBreadcrumbsFrom(folders, folderId)
+
+  const getAncestorFolderIds = (folderTree, folderId) => {
+    const fid = toFolderId(folderId)
+    if (!fid) return []
+
+    const findPathIds = (folderList, targetId, path = []) => {
+      for (const folder of folderList || []) {
+        const id = toFolderId(folder.id)
+        const currentPath = [...path, id]
+        if (id === targetId) {
+          return currentPath.slice(0, -1)
+        }
+        if (folder.children && folder.children.length > 0) {
+          const found = findPathIds(folder.children, targetId, currentPath)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    return findPathIds(folderTree || [], fid) || []
+  }
+
+  const buildFolderPathLabel = (folderId) => {
+    const crumbs = buildBreadcrumbsFrom(folders, folderId)
+      .slice(1)
+      .map((crumb) => crumb.name)
+    return crumbs.join(' / ')
+  }
 
   // Get flattened folders for dropdown
   const flatFolders = flattenFolders(folders)
@@ -405,22 +436,7 @@ export default function PublishedDocuments() {
   const expandPathToFolder = (folderId) => {
     const targetId = toFolderId(folderId)
     if (!targetId) return
-    const findPathIds = (folders, targetId, path = []) => {
-      for (const folder of folders) {
-        const id = toFolderId(folder.id)
-        const currentPath = [...path, id]
-        if (id === targetId) {
-          return currentPath.slice(0, -1) // Return all parent IDs, not including the target itself
-        }
-        if (folder.children && folder.children.length > 0) {
-          const found = findPathIds(folder.children, targetId, currentPath)
-          if (found) return found
-        }
-      }
-      return null
-    }
-    
-    const pathIds = findPathIds(folders, targetId)
+    const pathIds = getAncestorFolderIds(folders, targetId)
     if (pathIds) {
       setExpandedFolders(prev => {
         // Add all parent folder IDs to expanded folders
@@ -428,6 +444,17 @@ export default function PublishedDocuments() {
         return Array.from(newExpanded)
       })
     }
+  }
+
+  const toggleMoveFolder = (folderId) => {
+    const normalizedId = toFolderId(folderId)
+    if (!normalizedId) return
+
+    setMoveExpandedFolders((prev) => (
+      prev.includes(normalizedId)
+        ? prev.filter((id) => id !== normalizedId)
+        : [...prev, normalizedId]
+    ))
   }
 
   const handleDownload = async (doc) => {
@@ -847,6 +874,34 @@ export default function PublishedDocuments() {
   const moveDestinationOptions = useMemo(() => (
     flatFolders.filter((folder) => folder.canCreate && !disallowedMoveDestinationIds.has(folder.id))
   ), [flatFolders, disallowedMoveDestinationIds])
+  const moveDestinationIds = useMemo(() => (
+    new Set(moveDestinationOptions.map((folder) => toFolderId(folder.id)).filter(Boolean))
+  ), [moveDestinationOptions])
+  const moveDestinationMeta = useMemo(() => (
+    flatFolders.find((folder) => toFolderId(folder.id) === toFolderId(moveDestinationFolderId)) || null
+  ), [flatFolders, moveDestinationFolderId])
+  const filteredMoveFolderTree = useMemo(() => {
+    const normalizedQuery = String(movePickerQuery || '').trim().toLowerCase()
+    const filterTree = (folderList, parentPath = []) => {
+      return (folderList || []).reduce((acc, folder) => {
+        const currentPath = [...parentPath, folder.name]
+        const children = filterTree(folder.children || [], currentPath)
+        const searchablePath = currentPath.join(' / ').toLowerCase()
+        const matchesQuery = !normalizedQuery || searchablePath.includes(normalizedQuery)
+
+        if (matchesQuery || children.length > 0) {
+          acc.push({
+            ...folder,
+            children
+          })
+        }
+
+        return acc
+      }, [])
+    }
+
+    return filterTree(folders)
+  }, [folders, movePickerQuery])
   const selectionSummary = [
     selectedFolderIds.length > 0 ? `${selectedFolderIds.length} folder${selectedFolderIds.length > 1 ? 's' : ''}` : null,
     selectedDocumentIds.length > 0 ? `${selectedDocumentIds.length} document${selectedDocumentIds.length > 1 ? 's' : ''}` : null
@@ -866,14 +921,19 @@ export default function PublishedDocuments() {
 
   const openMoveSelectedModal = () => {
     if (selectedCount === 0) return
+    const initialDestinationId = moveDestinationOptions[0]?.id ? String(moveDestinationOptions[0].id) : ''
     setMoveError('')
-    setMoveDestinationFolderId(moveDestinationOptions[0]?.id ? String(moveDestinationOptions[0].id) : '')
+    setMovePickerQuery('')
+    setMoveDestinationFolderId(initialDestinationId)
+    setMoveExpandedFolders(initialDestinationId ? getAncestorFolderIds(folders, initialDestinationId) : [])
     setShowMoveModal(true)
   }
 
   const closeMoveSelectedModal = () => {
     setShowMoveModal(false)
     setMoveDestinationFolderId('')
+    setMovePickerQuery('')
+    setMoveExpandedFolders([])
     setMoveError('')
   }
 
@@ -1170,6 +1230,90 @@ export default function PublishedDocuments() {
               )}
             </div>
           </>
+        )}
+      </div>
+    )
+  }
+
+  const MoveDestinationTreeItem = ({ folder, level = 0, forceExpanded = false }) => {
+    const folderId = toFolderId(folder.id)
+    const hasChildren = Boolean(folder.children && folder.children.length > 0)
+    const isExpanded = forceExpanded || moveExpandedFolders.includes(folderId)
+    const isSelected = toFolderId(moveDestinationFolderId) === folderId
+    const isSelectable = moveDestinationIds.has(folderId)
+
+    const handleSelect = () => {
+      if (!isSelectable) {
+        if (hasChildren && !forceExpanded) {
+          toggleMoveFolder(folderId)
+        }
+        return
+      }
+
+      setMoveDestinationFolderId(String(folderId))
+      setMoveError('')
+
+      if (hasChildren && !isExpanded && !forceExpanded) {
+        setMoveExpandedFolders((prev) => Array.from(new Set([...prev, ...getAncestorFolderIds(folders, folderId), folderId])))
+      }
+    }
+
+    return (
+      <div key={folder.id}>
+        <div
+          className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm transition-colors ${
+            isSelected
+              ? 'bg-brand/10 text-brand ring-1 ring-brand/20'
+              : isSelectable
+                ? 'cursor-pointer text-ink hover:bg-surface-muted'
+                : 'text-ink-muted'
+          }`}
+          style={{ paddingLeft: `${12 + level * 18}px` }}
+          onClick={handleSelect}
+        >
+          <span className="text-base leading-none">{level === 0 ? '📁' : '📂'}</span>
+          <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+          {!isSelectable && (
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-muted">
+              View only
+            </span>
+          )}
+          {hasChildren && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!forceExpanded) {
+                  toggleMoveFolder(folderId)
+                }
+              }}
+              disabled={forceExpanded}
+              className="rounded-full p-1 text-ink-muted transition-colors hover:bg-surface hover:text-ink disabled:cursor-default disabled:opacity-40"
+              aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+            >
+              <svg
+                className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {isExpanded && hasChildren && (
+          <div className="space-y-1">
+            {folder.children.map((child) => (
+              <MoveDestinationTreeItem
+                key={child.id}
+                folder={child}
+                level={level + 1}
+                forceExpanded={forceExpanded}
+              />
+            ))}
+          </div>
         )}
       </div>
     )
@@ -2124,18 +2268,43 @@ export default function PublishedDocuments() {
               <label className="block text-sm font-medium text-ink-secondary mb-2">
                 Destination folder
               </label>
-              <SelectField
-                value={moveDestinationFolderId}
-                onChange={(e) => setMoveDestinationFolderId(e.target.value)}
+              <TextInput
+                value={movePickerQuery}
+                onChange={(e) => setMovePickerQuery(e.target.value)}
+                placeholder="Search folder name or path"
                 disabled={moveLoading || moveDestinationOptions.length === 0}
-              >
-                <option value="">Select a folder</option>
-                {moveDestinationOptions.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.path}
-                  </option>
-                ))}
-              </SelectField>
+              />
+              {moveDestinationMeta ? (
+                <AppSurface variant="muted" padding="md" className="mt-3 border border-border bg-surface-muted/60">
+                  <div className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+                    Selected destination
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-ink">
+                    {moveDestinationMeta.name}
+                  </div>
+                  <div className="mt-1 text-xs text-ink-secondary break-words">
+                    {buildFolderPathLabel(moveDestinationMeta.id)}
+                  </div>
+                </AppSurface>
+              ) : null}
+              <AppSurface variant="muted" padding="none" className="mt-3 max-h-72 overflow-y-auto border border-border bg-surface">
+                <div className="space-y-1 p-2">
+                  {filteredMoveFolderTree.length > 0 ? (
+                    filteredMoveFolderTree.map((folder) => (
+                      <MoveDestinationTreeItem
+                        key={folder.id}
+                        folder={folder}
+                        level={0}
+                        forceExpanded={Boolean(String(movePickerQuery || '').trim())}
+                      />
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-ink-muted">
+                      No matching folders found.
+                    </div>
+                  )}
+                </div>
+              </AppSurface>
               {moveDestinationOptions.length === 0 ? (
                 <p className="mt-2 text-sm text-amber-700">
                   No valid destination folder is available for the selected items.

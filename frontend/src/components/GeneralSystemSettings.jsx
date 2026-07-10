@@ -7,7 +7,6 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
-import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import LoginPageSettings from './LoginPageSettings'
 
 // Sub-tab Navigation
@@ -1159,6 +1158,7 @@ function ThemeAssetField({
 // Tab 3: Theme & Branding
 const ThemeBranding = () => {
   const { t } = usePreferences()
+  const DEFAULT_FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📄</text></svg>"
   const [theme, setTheme] = useState({
     // Basic Colors
     primaryColor: '#0f6fcf',
@@ -1293,8 +1293,8 @@ const ThemeBranding = () => {
     loginWelcomeMessage: 'Welcome to {companyName}'
   })
   const [originalTheme, setOriginalTheme] = useState(null)
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [logoPreview, setLogoPreview] = useState(null)
   const [faviconPreview, setFaviconPreview] = useState(null)
   const [bgImagePreview, setBgImagePreview] = useState(null)
@@ -1372,6 +1372,14 @@ const ThemeBranding = () => {
     }
     link.href = faviconData
   }
+
+  useEffect(() => {
+    return () => {
+      if (!hasChanges || !originalTheme) return
+      applyTheme(originalTheme)
+      updateFavicon(originalTheme.favicon || DEFAULT_FAVICON)
+    }
+  }, [DEFAULT_FAVICON, hasChanges, originalTheme])
 
   const readFileAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -1483,7 +1491,7 @@ const ThemeBranding = () => {
     }
   }
 
-  const handleRemoveLogo = async (type) => {
+  const handleRemoveLogo = (type) => {
     const newTheme = { ...theme }
     
     if (type === 'logo') {
@@ -1502,8 +1510,7 @@ const ThemeBranding = () => {
         faviconInputRef.current.value = ''
       }
       // Reset to default favicon
-      const defaultFavicon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📄</text></svg>"
-      updateFavicon(defaultFavicon)
+      updateFavicon(DEFAULT_FAVICON)
     } else if (type === 'bgImage') {
       setBgImagePreview(null)
       newTheme.bgImage = null
@@ -1514,17 +1521,8 @@ const ThemeBranding = () => {
     }
     
     setTheme(newTheme)
+    setHasChanges(true)
     applyTheme(newTheme)
-    // Immediately save the change
-    try {
-      const res = await api.put('/system/config/theme-settings', newTheme)
-      const savedTheme = res.data?.data?.theme || newTheme
-      persistBranding({ theme: savedTheme })
-      setOriginalTheme(savedTheme)
-      return
-    } catch {}
-    persistBranding({ theme: newTheme })
-    setOriginalTheme(newTheme)
   }
 
   const handleThemeChange = (key, value, extraUpdates = null) => {
@@ -1532,36 +1530,34 @@ const ThemeBranding = () => {
     setTheme(newTheme)
     setHasChanges(true)
     applyTheme(newTheme)
-    
-    // Show confirmation modal after 500ms of no changes
-    if (!showConfirmModal) {
-      setTimeout(() => {
-        setShowConfirmModal(true)
-      }, 500)
-    }
   }
 
-  const handleKeepChanges = async () => {
+  const handleSaveThemeChanges = async () => {
+    setIsSaving(true)
     try {
       const res = await api.put('/system/config/theme-settings', theme)
       const savedTheme = res.data?.data?.theme || theme
+      setTheme(savedTheme)
       persistBranding({ theme: savedTheme })
       setOriginalTheme(savedTheme)
-      setShowConfirmModal(false)
       setHasChanges(false)
-      alert('Theme changes saved successfully')
-      return
+      alert('All theme configuration saved successfully')
     } catch (error) {
       alert(error?.response?.data?.message || error?.message || 'Failed to save theme changes')
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const handleRevertChanges = () => {
+  const handleDiscardChanges = () => {
     if (originalTheme) {
       setTheme(originalTheme)
       applyTheme(originalTheme)
+      setLogoPreview(originalTheme.mainLogo || null)
+      setFaviconPreview(originalTheme.favicon || null)
+      setBgImagePreview(originalTheme.bgImage || null)
+      updateFavicon(originalTheme.favicon || DEFAULT_FAVICON)
     }
-    setShowConfirmModal(false)
     setHasChanges(false)
   }
 
@@ -1704,7 +1700,6 @@ const ThemeBranding = () => {
     setTheme(defaultTheme)
     applyTheme(defaultTheme)
     setHasChanges(true)
-    setTimeout(() => setShowConfirmModal(true), 500)
   }
 
   const applyPreset = (presetName) => {
@@ -2413,7 +2408,6 @@ const ThemeBranding = () => {
       setTheme(newTheme)
       applyTheme(newTheme)
       setHasChanges(true)
-      setTimeout(() => setShowConfirmModal(true), 500)
     }
   }
 
@@ -2446,7 +2440,6 @@ const ThemeBranding = () => {
             setTheme(newTheme)
             applyTheme(newTheme)
             setHasChanges(true)
-            setTimeout(() => setShowConfirmModal(true), 500)
             alert('Theme imported successfully!')
           } catch (error) {
             alert('Failed to import theme. Please check the JSON file format.')
@@ -2460,45 +2453,29 @@ const ThemeBranding = () => {
 
   return (
     <div className="space-y-6">
-      {/* Confirmation Modal */}
-      {showConfirmModal && hasChanges && (
-        <Modal onClose={handleRevertChanges} size="sm">
-          <ModalHeader
-            title="Keep Theme Changes?"
-            subtitle="You've made changes to the theme. Would you like to keep these changes or revert to the previous theme?"
-            onClose={handleRevertChanges}
-          />
-          <ModalBody>
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              </div>
-              <p className="text-sm leading-6 text-ink-secondary">
-                Preview mode is active. Keep the new branding if it looks right, or revert to the previous theme before users see it.
-              </p>
-            </div>
-          </ModalBody>
-          <ModalFooter className="justify-between">
-            <Button type="button" variant="secondary" onClick={handleRevertChanges}>
-              Revert Changes
-            </Button>
-            <Button type="button" onClick={handleKeepChanges}>
-              Keep Changes
-            </Button>
-          </ModalFooter>
-        </Modal>
-      )}
-
       <AppSurface padding="lg" className="bg-[var(--dms-color-info-soft)]">
-        <div className="flex items-start gap-3">
-          <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--dms-color-info-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-          </svg>
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--dms-color-info-ink)]">Theme & Branding Manager</h3>
-            <p className="mt-1 text-xs text-[var(--dms-color-info-ink)]/85">Customize colors, logos, and visual identity. Changes apply instantly with a confirmation dialog.</p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
+            <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--dms-color-info-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--dms-color-info-ink)]">Theme & Branding Manager</h3>
+              <p className="mt-1 text-xs text-[var(--dms-color-info-ink)]/85">Preview changes instantly, then click one save button to store all theme configuration.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasChanges && (
+              <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-[var(--dms-color-info-ink)]">
+                Unsaved changes
+              </span>
+            )}
+            <Button type="button" variant="secondary" onClick={handleDiscardChanges} disabled={!hasChanges || isSaving}>
+              Discard Changes
+            </Button>
+            <Button type="button" onClick={handleSaveThemeChanges} disabled={!hasChanges || isSaving}>
+              {isSaving ? 'Saving...' : 'Save All Configuration'}
+            </Button>
           </div>
         </div>
       </AppSurface>

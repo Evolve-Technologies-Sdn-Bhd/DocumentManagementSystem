@@ -87,6 +87,12 @@ function Field({ label, children, hint = null }) {
 
 function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubmit, saving }) {
   const [useGlobalRule, setUseGlobalRule] = useState(false)
+  const [recipientSearch, setRecipientSearch] = useState({
+    reminder1: '',
+    reminder2: '',
+    reminder3: '',
+    reminder4: ''
+  })
   const [form, setForm] = useState({
     startDate: '',
     expiryDate: '',
@@ -107,6 +113,12 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
   useEffect(() => {
     if (!profile || !open) return
     setUseGlobalRule(false)
+    setRecipientSearch({
+      reminder1: '',
+      reminder2: '',
+      reminder3: '',
+      reminder4: ''
+    })
     setForm({
       startDate: toDateInputValue(profile.startDate),
       expiryDate: toDateInputValue(profile.expiryDate),
@@ -128,9 +140,12 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
   if (!open || !profile) return null
 
   const ownerId = profile.document?.ownerId || null
-  const activeUsers = Array.isArray(users)
-    ? users.filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
-    : []
+  const activeUsers = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    return users
+      .filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
+      .sort((left, right) => formatUserLabel(left).localeCompare(formatUserLabel(right)))
+  }, [users])
 
   const toggleRecipient = (levelKey, userId) => {
     if (ownerId && userId === ownerId) return
@@ -226,33 +241,72 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
                 </div>
                 {REMINDER_LEVELS.map((level) => {
                   const selectedIds = new Set(form.reminderRecipients?.[level.key] || [])
+                  const searchTerm = (recipientSearch[level.key] || '').trim().toLowerCase()
+                  const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
+                  const filteredUsers = activeUsers.filter((user) => {
+                    if (!searchTerm) return true
+                    return formatUserLabel(user).toLowerCase().includes(searchTerm)
+                  })
+                  const selectedSummary = selectedUsers.length > 0
+                    ? selectedUsers.slice(0, 2).map((user) => formatUserLabel(user)).join(', ')
+                    : ''
+                  const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
                   return (
-                    <div key={level.key} className="space-y-2 rounded-xl border border-border p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
+                    <details key={level.key} className="rounded-xl border border-border bg-surface">
+                      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+                        <div className="min-w-0">
                           <p className="text-sm font-semibold text-ink">{level.label}</p>
                           <p className="text-xs text-ink-soft">{form[level.daysField] ?? '-'} day(s) before expiry</p>
+                          <p className="mt-1 truncate text-xs text-ink-soft">
+                            Owner + {selectedIds.size} extra recipient(s)
+                            {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
+                          </p>
                         </div>
-                        <p className="text-xs text-ink-soft">Owner included automatically</p>
+                        <div className="shrink-0 text-right">
+                          <p className="text-xs font-medium text-ink-soft">Click to expand</p>
+                          <p className="text-xs text-ink-soft">Owner included automatically</p>
+                        </div>
+                      </summary>
+                      <div className="space-y-3 border-t border-border px-4 py-3">
+                        <TextInput
+                          value={recipientSearch[level.key] || ''}
+                          onChange={(e) => setRecipientSearch((prev) => ({ ...prev, [level.key]: e.target.value }))}
+                          placeholder="Search user name"
+                        />
+                        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                          <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                            <input
+                              type="checkbox"
+                              checked
+                              disabled
+                              className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                            />
+                            <span>{profile.document?.ownerName || 'Owner'} (Owner)</span>
+                          </label>
+                          {filteredUsers.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-ink-soft">
+                              No matching user found.
+                            </div>
+                          ) : (
+                            filteredUsers.map((user) => {
+                              const isOwner = ownerId && user.id === ownerId
+                              if (isOwner) return null
+                              return (
+                                <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedIds.has(user.id)}
+                                    onChange={() => toggleRecipient(level.key, user.id)}
+                                    className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                                  />
+                                  <span>{formatUserLabel(user)}</span>
+                                </label>
+                              )
+                            })
+                          )}
+                        </div>
                       </div>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {activeUsers.map((user) => {
-                          const isOwner = ownerId && user.id === ownerId
-                          return (
-                            <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
-                              <input
-                                type="checkbox"
-                                checked={isOwner ? true : selectedIds.has(user.id)}
-                                disabled={isOwner}
-                                onChange={() => toggleRecipient(level.key, user.id)}
-                                className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                              />
-                              <span>{isOwner ? `${formatUserLabel(user)} (Owner)` : formatUserLabel(user)}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    </details>
                   )
                 })}
               </AppSurface>
