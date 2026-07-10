@@ -13,11 +13,7 @@ export default function ActionMenu({ actions }) {
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, placement: 'bottom' })
   const buttonRef = useRef(null)
   const dropdownRef = useRef(null)
-
-  // Don't render anything if there are no actions
-  if (!actions || actions.length === 0) {
-    return null
-  }
+  const actionCount = Array.isArray(actions) ? actions.length : 0
 
   useEffect(() => {
     if (isOpen && buttonRef.current) {
@@ -25,7 +21,7 @@ export default function ActionMenu({ actions }) {
       const viewportHeight = window.innerHeight
       const viewportWidth = window.innerWidth
       const dropdownWidth = 192 // w-48 = 12rem = 192px
-      const estimatedDropdownHeight = actions.length * 42 // Estimate based on button height
+      const estimatedDropdownHeight = actionCount * 42 // Estimate based on button height
       
       const spaceBelow = viewportHeight - buttonRect.bottom
       const spaceAbove = buttonRect.top
@@ -55,7 +51,12 @@ export default function ActionMenu({ actions }) {
 
       setDropdownPosition({ top, left, placement })
     }
-  }, [isOpen, actions.length])
+  }, [isOpen, actionCount])
+
+  // Keep hook order stable even when the menu has no actions.
+  if (actionCount === 0) {
+    return null
+  }
 
   const dropdown = isOpen && (
     <>

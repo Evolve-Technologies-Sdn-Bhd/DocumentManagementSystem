@@ -137,15 +137,15 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
     })
   }, [profile, open])
 
-  if (!open || !profile) return null
-
-  const ownerId = profile.document?.ownerId || null
+  const ownerId = profile?.document?.ownerId || null
   const activeUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
     return users
       .filter((u) => String(u.status || '').toUpperCase() === 'ACTIVE')
       .sort((left, right) => formatUserLabel(left).localeCompare(formatUserLabel(right)))
   }, [users])
+
+  if (!open || !profile) return null
 
   const toggleRecipient = (levelKey, userId) => {
     if (ownerId && userId === ownerId) return

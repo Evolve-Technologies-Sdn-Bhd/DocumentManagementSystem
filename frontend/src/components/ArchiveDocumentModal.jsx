@@ -1,101 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import api from '../api/axios';
-import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal';
-import AppSurface from './ui/AppSurface';
-import Button from './ui/Button';
-import TextInput from './ui/TextInput';
-import SelectField from './ui/SelectField';
-import InlineSpinner from './ui/InlineSpinner';
+import React, { useEffect, useState } from 'react'
+import api from '../api/axios'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import AppSurface from './ui/AppSurface'
+import Button from './ui/Button'
+import TextInput from './ui/TextInput'
+import InlineSpinner from './ui/InlineSpinner'
+import FolderTreePicker from './ui/FolderTreePicker'
 
 const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
-  const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [folders, setFolders] = useState([])
+  const [selectedFolder, setSelectedFolder] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (isOpen) {
-      fetchFolders();
+      fetchFolders()
     }
-  }, [isOpen]);
-
-  // Flatten nested folder hierarchy into a list with visual indentation
-  const flattenFolders = (folderList, level = 0, parentPath = []) => {
-    let result = [];
-    folderList.forEach(folder => {
-      const currentPath = [...parentPath, folder.name];
-      const hasChildren = folder.children && folder.children.length > 0;
-      
-      // Create proper indentation
-      let prefix = '';
-      if (level > 0) {
-        prefix = '\u00A0\u00A0'.repeat(level - 1) + '\u2514\u2500 ';
-      }
-      
-      result.push({
-        id: folder.id,
-        name: folder.name,
-        displayName: prefix + folder.name,
-        level: level,
-        path: currentPath.join(' › ')
-      });
-      
-      if (hasChildren) {
-        result = result.concat(flattenFolders(folder.children, level + 1, currentPath));
-      }
-    });
-    return result;
-  };
+  }, [isOpen])
 
   const fetchFolders = async () => {
     try {
-      const response = await api.get('/folders');
-      const folderList = response.data.data?.folders || response.data.folders || [];
-      setFolders(folderList);
+      const response = await api.get('/folders')
+      const folderList = response.data.data?.folders || response.data.folders || []
+      setFolders(folderList)
     } catch (error) {
-      console.error('Error fetching folders:', error);
-      setError('Error fetching folders');
+      console.error('Error fetching folders:', error)
+      setError('Error fetching folders')
     }
-  };
-  
-  // Get flattened folders for display
-  const flatFolders = flattenFolders(folders);
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     
     if (!selectedFolder) {
-      setError('Please select a folder for archiving');
-      return;
+      setError('Please select a folder for archiving')
+      return
     }
 
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
 
     try {
       const response = await api.post(`/workflow/archive/${document.id}`, {
         folderId: parseInt(selectedFolder)
-      });
+      })
 
       if (response.data) {
-        onArchive(response.data.data.document);
-        handleClose();
+        onArchive(response.data.data.document)
+        handleClose()
       }
     } catch (error) {
-      console.error('Error archiving document:', error);
-      setError(error.response?.data?.message || 'Failed to archive document');
+      console.error('Error archiving document:', error)
+      setError(error.response?.data?.message || 'Failed to archive document')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleClose = () => {
-    setSelectedFolder('');
-    setError('');
-    onClose();
-  };
+    setSelectedFolder('')
+    setError('')
+    onClose()
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <Modal onClose={handleClose} closeOnBackdrop size="md">
@@ -151,19 +120,19 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
               <label className="block text-sm font-medium text-ink-secondary mb-2">
                 Select Archive Folder <span className="text-red-500">*</span>
               </label>
-              <SelectField
-                value={selectedFolder}
-                onChange={(e) => setSelectedFolder(e.target.value)}
-                className="font-mono"
-                required
-              >
-                <option value="">-- Select Folder --</option>
-                {flatFolders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.displayName}
-                  </option>
-                ))}
-              </SelectField>
+              <FolderTreePicker
+                folders={folders}
+                selectedId={selectedFolder}
+                onSelect={(folderId) => {
+                  setSelectedFolder(folderId)
+                  setError('')
+                }}
+                emptySelectionText="-- Select Folder --"
+                selectedLabel="Selected archive folder"
+                treeClassName="max-h-64"
+                mode="nested"
+                disabled={loading}
+              />
               <p className="mt-1 text-xs text-ink-muted">
                 Choose the folder where this obsolete document should be archived.
               </p>
@@ -188,7 +157,7 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
         </ModalFooter>
       </form>
     </Modal>
-  );
-};
+  )
+}
 
-export default ArchiveDocumentModal;
+export default ArchiveDocumentModal

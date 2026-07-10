@@ -5,7 +5,7 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
-import SelectField from './ui/SelectField'
+import FolderTreePicker from './ui/FolderTreePicker'
 
 const REMINDER_LEVELS = [
   { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
@@ -110,22 +110,6 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     void fetchUsers()
   }, [isOpen, document])
 
-  const flattenFolders = (folderList, level = 0) => {
-    const result = []
-    folderList.forEach((folder) => {
-      const prefix = level > 0 ? `${'  '.repeat(level - 1)}└─ ` : ''
-      result.push({
-        id: folder.id,
-        displayName: `${prefix}${folder.name}`
-      })
-      if (folder.children?.length) {
-        result.push(...flattenFolders(folder.children, level + 1))
-      }
-    })
-    return result
-  }
-
-  const flatFolders = useMemo(() => flattenFolders(folders), [folders])
   const ownerId = document?.ownerId || document?.owner?.id || null
   const ownerName = document?.ownerName
     || formatUserLabel(document?.owner)
@@ -277,12 +261,19 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
             </Field>
             <div className="md:col-span-2">
               <Field label="Destination Folder">
-                <SelectField value={selectedFolder} onChange={(e) => setSelectedFolder(e.target.value)} required>
-                  <option value="">Select folder</option>
-                  {flatFolders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>{folder.displayName}</option>
-                  ))}
-                </SelectField>
+                <FolderTreePicker
+                  folders={folders}
+                  selectedId={selectedFolder}
+                  onSelect={(folderId) => {
+                    setSelectedFolder(folderId)
+                    setError('')
+                  }}
+                  emptySelectionText="Select folder"
+                  selectedLabel="Selected destination"
+                  treeClassName="max-h-64"
+                  mode="nested"
+                  disabled={loading}
+                />
               </Field>
             </div>
             <div className="md:col-span-2">
