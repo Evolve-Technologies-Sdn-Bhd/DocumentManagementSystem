@@ -115,7 +115,7 @@ export default function RfidEpcRegistry() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-id="epc-page">
       <PageHeader
         title="EPC Registry"
         subtitle="Automatically generated fixed-length 96-bit EPC records derived from document file codes."
@@ -148,7 +148,7 @@ export default function RfidEpcRegistry() {
         </AppSurface>
       )}
 
-      <AppSurface padding="lg" className="space-y-4">
+      <AppSurface padding="lg" className="space-y-4" data-tour-id="epc-filters-card">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="mb-1 block text-xs font-semibold text-ink-soft">Date From</label>
@@ -186,7 +186,7 @@ export default function RfidEpcRegistry() {
         </div>
       </AppSurface>
 
-      <AppSurface padding="none" className="overflow-hidden">
+      <AppSurface padding="none" className="overflow-hidden" data-tour-id="epc-table-card">
         {loading ? (
           <div className="flex items-center justify-center gap-3 px-4 py-12 text-sm text-ink-muted">
             <InlineSpinner />

@@ -2892,7 +2892,7 @@ function ProjectDetail({ projectId }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-id="pt-page">
       <AppSurface padding="lg" className="space-y-5">
         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
           <button type="button" className="text-brand hover:underline" onClick={() => navigate('/project-tracking')}>Projects</button>
@@ -4889,9 +4889,9 @@ export default function ProjectTracking() {
         subtitle="Track project phases, linked documents, and setup flows under the shared design system."
       />
 
-      <AppSurface padding="none">
+      <AppSurface padding="none" data-tour-id="pt-shell-card">
         <div className="border-b border-border px-4">
-          <nav className="flex gap-2 overflow-x-auto py-2" aria-label="Tabs">
+          <nav className="flex gap-2 overflow-x-auto py-2" aria-label="Tabs" data-tour-id="pt-tabbar">
             {tabs.map((t) => {
               const isActive = activeTab === t.id
               return (

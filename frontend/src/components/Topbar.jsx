@@ -9,7 +9,7 @@ import AppUserMenu from './layout/AppUserMenu'
 import BrandLogoPreload from './ui/BrandLogoPreload'
 
 export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHint }) {
-  const { t, themeMode, setThemeMode } = usePreferences()
+  const { t } = usePreferences()
   const navigate = useNavigate()
   const [branding, setBranding] = useState(() => readBranding())
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -101,23 +101,6 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
       </div>
 
       <div className="flex items-center gap-2">
-        <IconButton
-          onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-          className="border-topbar-border bg-topbar-surface text-ink-inverse hover:bg-topbar-surfaceHover hover:text-ink-inverse"
-          aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
-          {themeMode === 'dark' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.536 5.95a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zM17 9a1 1 0 100 2h1a1 1 0 100-2h-1zM4.222 15.95a1 1 0 010 1.414l-.707.707A1 1 0 112.1 16.657l.707-.707a1 1 0 011.414 0zM3 9a1 1 0 100 2H2a1 1 0 100-2h1zm1.222-4.95a1 1 0 10-1.414-1.414L2.1 3.343a1 1 0 001.414 1.414l.707-.707zM10 15a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm4.95-10.778a1 1 0 010 1.414l-.707.707A1 1 0 1112.829 4.93l.707-.707a1 1 0 011.414 0z" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-            </svg>
-          )}
-        </IconButton>
-
         <div className="relative">
           <button
             type="button"

@@ -555,7 +555,7 @@ export default function MyDocumentsStatus() {
       {/* Document Details Panel */}
       {showDetailsPanel && <DocumentDetailsPanel />}
 
-      <div className="space-y-6">
+      <div className="space-y-6" data-tour-id="my-docs-page">
         <PageHeader
           title={t('my_docs_title')}
           subtitle={t('my_docs_status_desc')}
@@ -607,7 +607,7 @@ export default function MyDocumentsStatus() {
           </AppSurface>
         )}
 
-        <AppSurface padding="lg" className="space-y-6">
+        <AppSurface padding="lg" className="space-y-6" data-tour-id="my-docs-list-card">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-ink">{t('current_doc_status')}</h2>

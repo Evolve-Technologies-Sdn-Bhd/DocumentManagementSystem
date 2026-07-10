@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { hasAnyPermission, hasPermission } from '../utils/permissions'
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
@@ -59,6 +60,30 @@ function isElementFullyVisibleInParent(el, parent, margin = 8) {
   return r.top >= pr.top + margin && r.bottom <= pr.bottom - margin
 }
 
+function canAccessStep(step) {
+  if (!step?.access) return true
+  const { module, action = 'view', requireAny = false, enabled = true } = step.access
+  if (!enabled) return false
+
+  const modules = Array.isArray(module) ? module : [module]
+  if (!modules[0]) return true
+
+  return requireAny
+    ? modules.some((item) => hasAnyPermission(item))
+    : modules.some((item) => hasPermission(item, action))
+}
+
+function isRfidRegistryEnabled() {
+  try {
+    const savedSettings = localStorage.getItem('dms_document_settings')
+    if (!savedSettings) return false
+    const parsed = JSON.parse(savedSettings)
+    return Boolean(parsed?.rfidEpcRegistryEnabled)
+  } catch {
+    return false
+  }
+}
+
 export default function GuidedTour({ open, tourId, onClose }) {
   const { t } = usePreferences()
   const navigate = useNavigate()
@@ -72,70 +97,95 @@ export default function GuidedTour({ open, tourId, onClose }) {
   const clickedStepRef = useRef(-1)
 
   const steps = useMemo(() => {
+    const rfidEnabled = isRfidRegistryEnabled()
+
     if (tourId === 'admin') {
       return [
-        { route: '/config', target: 'nav-config', titleKey: 'tour_admin_1_title', bodyKey: 'tour_admin_1_body', placement: 'right' },
-        { route: '/config', target: 'config-tab-general', titleKey: 'tour_admin_2_title', bodyKey: 'tour_admin_2_body', placement: 'bottom', click: true },
-        { route: '/config', target: 'gss-tabbar', titleKey: 'tour_admin_3_title', bodyKey: 'tour_admin_3_body', placement: 'bottom' },
-        { route: '/config', target: 'config-tab-masterdata', titleKey: 'tour_admin_4_title', bodyKey: 'tour_admin_4_body', placement: 'bottom', click: true },
-        { route: '/config', target: 'mdm-tabbar', titleKey: 'tour_admin_5_title', bodyKey: 'tour_admin_5_body', placement: 'bottom' },
-        { route: '/config', target: 'config-tab-roles', titleKey: 'tour_admin_6_title', bodyKey: 'tour_admin_6_body', placement: 'bottom', click: true },
-        { route: '/config', target: 'rp-tabbar', titleKey: 'tour_admin_7_title', bodyKey: 'tour_admin_7_body', placement: 'bottom' },
-        { route: '/config', target: 'config-tab-template', titleKey: 'tour_admin_8_title', bodyKey: 'tour_admin_8_body', placement: 'bottom', click: true },
-        { route: '/config', target: 'tmpl-btn-add-template', titleKey: 'tour_admin_9_title', bodyKey: 'tour_admin_9_body', placement: 'left' },
-        { route: '/published', target: 'nav-published', titleKey: 'tour_admin_10_title', bodyKey: 'tour_admin_10_body', placement: 'right' },
-        { route: '/published', target: 'pub-actions-card', titleKey: 'tour_admin_11_title', bodyKey: 'tour_admin_11_body', placement: 'bottom' },
-        { route: '/dashboard', target: 'nav-dashboard', titleKey: 'tour_admin_12_title', bodyKey: 'tour_admin_12_body', placement: 'right' },
-        { route: '/dashboard', target: 'dashboard-metrics', titleKey: 'tour_admin_13_title', bodyKey: 'tour_admin_13_body', placement: 'bottom' },
-        { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_admin_14_title', bodyKey: 'tour_admin_14_body', placement: 'right' },
-        { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_admin_15_title', bodyKey: 'tour_admin_15_body', placement: 'bottom' },
-        { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_admin_16_title', bodyKey: 'tour_admin_16_body', placement: 'bottom' },
-        { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_admin_17_title', bodyKey: 'tour_admin_17_body', placement: 'bottom' },
-        { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_admin_18_title', bodyKey: 'tour_admin_18_body', placement: 'right' },
-        { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_admin_19_title', bodyKey: 'tour_admin_19_body', placement: 'left', click: true },
-        { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_admin_20_title', bodyKey: 'tour_admin_20_body', placement: 'bottom' },
-        { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_admin_21_title', bodyKey: 'tour_admin_21_body', placement: 'bottom' },
-        { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_admin_22_title', bodyKey: 'tour_admin_22_body', placement: 'top' },
-        { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_admin_23_title', bodyKey: 'tour_admin_23_body', placement: 'right' },
-        { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_admin_24_title', bodyKey: 'tour_admin_24_body', placement: 'bottom' },
-        { route: '/published', target: 'pub-docs-table', titleKey: 'tour_admin_25_title', bodyKey: 'tour_admin_25_body', placement: 'bottom' },
-        { route: '/archived', target: 'nav-archived', titleKey: 'tour_admin_26_title', bodyKey: 'tour_admin_26_body', placement: 'right' },
-        { route: '/archived', target: 'so-btn-request', titleKey: 'tour_admin_27_title', bodyKey: 'tour_admin_27_body', placement: 'left' },
-        { route: '/logs', target: 'nav-logs', titleKey: 'tour_admin_28_title', bodyKey: 'tour_admin_28_body', placement: 'right' },
-        { route: '/logs', target: 'logs-tabbar', titleKey: 'tour_admin_29_title', bodyKey: 'tour_admin_29_body', placement: 'bottom' },
-        { route: '/logs', target: 'logs-export-activity', titleKey: 'tour_admin_30_title', bodyKey: 'tour_admin_30_body', placement: 'left' },
-        { route: '/master-record', target: 'nav-master-record', titleKey: 'tour_admin_31_title', bodyKey: 'tour_admin_31_body', placement: 'right' },
-        { route: '/master-record', target: 'mr-tabbar', titleKey: 'tour_admin_32_title', bodyKey: 'tour_admin_32_body', placement: 'bottom' }
-      ]
+        { route: '/config', target: 'nav-config', titleKey: 'tour_admin_1_title', bodyKey: 'tour_admin_1_body', placement: 'right', access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'config-tab-general', titleKey: 'tour_admin_2_title', bodyKey: 'tour_admin_2_body', placement: 'bottom', click: true, access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'gss-tabbar', titleKey: 'tour_admin_3_title', bodyKey: 'tour_admin_3_body', placement: 'bottom', access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'config-tab-masterdata', titleKey: 'tour_admin_4_title', bodyKey: 'tour_admin_4_body', placement: 'bottom', click: true, access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'mdm-tabbar', titleKey: 'tour_admin_5_title', bodyKey: 'tour_admin_5_body', placement: 'bottom', access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'config-tab-roles', titleKey: 'tour_admin_6_title', bodyKey: 'tour_admin_6_body', placement: 'bottom', click: true, access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'rp-tabbar', titleKey: 'tour_admin_7_title', bodyKey: 'tour_admin_7_body', placement: 'bottom', access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'config-tab-template', titleKey: 'tour_admin_8_title', bodyKey: 'tour_admin_8_body', placement: 'bottom', click: true, access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/config', target: 'tmpl-btn-add-template', titleKey: 'tour_admin_9_title', bodyKey: 'tour_admin_9_body', placement: 'left', access: { module: ['configuration.users', 'configuration.roles', 'configuration.templates', 'configuration.templateRequests', 'configuration.documentTypes', 'configuration.masterData', 'configuration.settings', 'configuration.backup', 'configuration.cleanup', 'configuration.auditSettings'], requireAny: true } },
+        { route: '/published', target: 'nav-published', titleKey: 'tour_admin_10_title', bodyKey: 'tour_admin_10_body', placement: 'right', access: { module: 'documents.published', requireAny: true } },
+        { route: '/published', target: 'pub-actions-card', titleKey: 'tour_admin_11_title', bodyKey: 'tour_admin_11_body', placement: 'bottom', access: { module: 'documents.published', requireAny: true } },
+        { route: '/dashboard', target: 'nav-dashboard', titleKey: 'tour_admin_12_title', bodyKey: 'tour_admin_12_body', placement: 'right', access: { module: 'dashboard' } },
+        { route: '/dashboard', target: 'dashboard-metrics', titleKey: 'tour_admin_13_title', bodyKey: 'tour_admin_13_body', placement: 'bottom', access: { module: 'dashboard' } },
+        { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_admin_14_title', bodyKey: 'tour_admin_14_body', placement: 'right', access: { module: 'newDocumentRequest' } },
+        { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_admin_15_title', bodyKey: 'tour_admin_15_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+        { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_admin_16_title', bodyKey: 'tour_admin_16_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+        { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_admin_17_title', bodyKey: 'tour_admin_17_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+        { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_admin_18_title', bodyKey: 'tour_admin_18_body', placement: 'right', access: { module: 'projectTracking' } },
+        { route: '/project-tracking', target: 'pt-tabbar', titleKey: 'tour_admin_19_title', bodyKey: 'tour_admin_19_body', placement: 'bottom', access: { module: 'projectTracking' } },
+        { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_admin_20_title', bodyKey: 'tour_admin_20_body', placement: 'right', access: { module: 'expiryTracking' } },
+        { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_admin_21_title', bodyKey: 'tour_admin_21_body', placement: 'bottom', access: { module: 'expiryTracking' } },
+        { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_admin_22_title', bodyKey: 'tour_admin_22_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+        { route: '/rfid-epc-registry', target: 'epc-table-card', titleKey: 'tour_admin_23_title', bodyKey: 'tour_admin_23_body', placement: 'bottom', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+        { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_admin_24_title', bodyKey: 'tour_admin_24_body', placement: 'right', access: { module: 'documents.draft', requireAny: true } },
+        { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_admin_25_title', bodyKey: 'tour_admin_25_body', placement: 'left', click: true, access: { module: 'documents.draft', requireAny: true } },
+        { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_admin_26_title', bodyKey: 'tour_admin_26_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+        { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_admin_27_title', bodyKey: 'tour_admin_27_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+        { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_admin_28_title', bodyKey: 'tour_admin_28_body', placement: 'top', access: { module: 'documents.draft', requireAny: true } },
+        { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_admin_29_title', bodyKey: 'tour_admin_29_body', placement: 'right', access: { module: 'documents.review', requireAny: true } },
+        { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_admin_30_title', bodyKey: 'tour_admin_30_body', placement: 'bottom', access: { module: 'documents.review', requireAny: true } },
+        { route: '/published', target: 'pub-docs-table', titleKey: 'tour_admin_31_title', bodyKey: 'tour_admin_31_body', placement: 'bottom', access: { module: 'documents.published', requireAny: true } },
+        { route: '/archived', target: 'nav-archived', titleKey: 'tour_admin_32_title', bodyKey: 'tour_admin_32_body', placement: 'right', access: { module: 'documents.superseded', requireAny: true } },
+        { route: '/archived', target: 'so-btn-request', titleKey: 'tour_admin_33_title', bodyKey: 'tour_admin_33_body', placement: 'left', access: { module: 'documents.superseded', requireAny: true } },
+        { route: '/logs', target: 'nav-logs', titleKey: 'tour_admin_34_title', bodyKey: 'tour_admin_34_body', placement: 'right', access: { module: 'logsReport.activityLogs', requireAny: true } },
+        { route: '/logs', target: 'logs-tabbar', titleKey: 'tour_admin_35_title', bodyKey: 'tour_admin_35_body', placement: 'bottom', access: { module: 'logsReport.activityLogs', requireAny: true } },
+        { route: '/logs', target: 'logs-export-activity', titleKey: 'tour_admin_36_title', bodyKey: 'tour_admin_36_body', placement: 'left', access: { module: 'logsReport.activityLogs', requireAny: true } },
+        { route: '/master-record', target: 'nav-master-record', titleKey: 'tour_admin_37_title', bodyKey: 'tour_admin_37_body', placement: 'right', access: { module: 'masterRecord' } },
+        { route: '/master-record', target: 'mr-tabbar', titleKey: 'tour_admin_38_title', bodyKey: 'tour_admin_38_body', placement: 'bottom', access: { module: 'masterRecord' } }
+      ].filter(canAccessStep)
     }
 
     return [
-      { route: '/profile', target: 'nav-profile', titleKey: 'tour_user_1_title', bodyKey: 'tour_user_1_body', placement: 'right' },
-      { route: '/profile', target: 'profile-tabbar', titleKey: 'tour_user_2_title', bodyKey: 'tour_user_2_body', placement: 'bottom' },
-      { route: '/dashboard', target: 'nav-dashboard', titleKey: 'tour_user_3_title', bodyKey: 'tour_user_3_body', placement: 'right' },
-      { route: '/dashboard', target: 'dashboard-metrics', titleKey: 'tour_user_4_title', bodyKey: 'tour_user_4_body', placement: 'bottom' },
-      { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_user_5_title', bodyKey: 'tour_user_5_body', placement: 'right' },
-      { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_user_6_title', bodyKey: 'tour_user_6_body', placement: 'bottom' },
-      { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_user_7_title', bodyKey: 'tour_user_7_body', placement: 'bottom' },
-      { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_user_8_title', bodyKey: 'tour_user_8_body', placement: 'bottom' },
-      { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_user_9_title', bodyKey: 'tour_user_9_body', placement: 'right' },
-      { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_user_10_title', bodyKey: 'tour_user_10_body', placement: 'left', click: true },
-      { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_user_11_title', bodyKey: 'tour_user_11_body', placement: 'bottom' },
-      { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom' },
-      { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_user_13_title', bodyKey: 'tour_user_13_body', placement: 'top' },
-      { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_user_14_title', bodyKey: 'tour_user_14_body', placement: 'right' },
-      { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_user_15_title', bodyKey: 'tour_user_15_body', placement: 'bottom' },
-      { route: '/published', target: 'nav-published', titleKey: 'tour_user_16_title', bodyKey: 'tour_user_16_body', placement: 'right' },
-      { route: '/published', target: 'pub-docs-table', titleKey: 'tour_user_17_title', bodyKey: 'tour_user_17_body', placement: 'bottom' },
-      { route: '/archived', target: 'nav-archived', titleKey: 'tour_user_18_title', bodyKey: 'tour_user_18_body', placement: 'right' },
-      { route: '/archived', target: 'so-list-card', titleKey: 'tour_user_19_title', bodyKey: 'tour_user_19_body', placement: 'bottom' }
-    ]
+      { route: '/profile', target: 'nav-profile', titleKey: 'tour_user_1_title', bodyKey: 'tour_user_1_body', placement: 'right', access: { module: 'profileSettings' } },
+      { route: '/profile', target: 'profile-tabbar', titleKey: 'tour_user_2_title', bodyKey: 'tour_user_2_body', placement: 'bottom', access: { module: 'profileSettings' } },
+      { route: '/dashboard', target: 'nav-dashboard', titleKey: 'tour_user_3_title', bodyKey: 'tour_user_3_body', placement: 'right', access: { module: 'dashboard' } },
+      { route: '/dashboard', target: 'dashboard-metrics', titleKey: 'tour_user_4_title', bodyKey: 'tour_user_4_body', placement: 'bottom', access: { module: 'dashboard' } },
+      { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_user_5_title', bodyKey: 'tour_user_5_body', placement: 'right', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_user_6_title', bodyKey: 'tour_user_6_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_user_7_title', bodyKey: 'tour_user_7_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_user_8_title', bodyKey: 'tour_user_8_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/my-documents', target: 'nav-my-documents', titleKey: 'tour_user_9_title', bodyKey: 'tour_user_9_body', placement: 'right', access: { module: 'myDocumentsStatus' } },
+      { route: '/my-documents', target: 'my-docs-list-card', titleKey: 'tour_user_10_title', bodyKey: 'tour_user_10_body', placement: 'bottom', access: { module: 'myDocumentsStatus' } },
+      { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_user_11_title', bodyKey: 'tour_user_11_body', placement: 'right', access: { module: 'projectTracking' } },
+      { route: '/project-tracking', target: 'pt-tabbar', titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom', access: { module: 'projectTracking' } },
+      { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_user_13_title', bodyKey: 'tour_user_13_body', placement: 'right', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_user_14_title', bodyKey: 'tour_user_14_body', placement: 'bottom', access: { module: 'expiryTracking' } },
+      { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_user_15_title', bodyKey: 'tour_user_15_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+      { route: '/rfid-epc-registry', target: 'epc-table-card', titleKey: 'tour_user_16_title', bodyKey: 'tour_user_16_body', placement: 'bottom', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+      { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_user_17_title', bodyKey: 'tour_user_17_body', placement: 'right', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_user_18_title', bodyKey: 'tour_user_18_body', placement: 'left', click: true, access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_user_19_title', bodyKey: 'tour_user_19_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_user_20_title', bodyKey: 'tour_user_20_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_user_21_title', bodyKey: 'tour_user_21_body', placement: 'top', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_user_22_title', bodyKey: 'tour_user_22_body', placement: 'right', access: { module: 'documents.review', requireAny: true } },
+      { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_user_23_title', bodyKey: 'tour_user_23_body', placement: 'bottom', access: { module: 'documents.review', requireAny: true } },
+      { route: '/published', target: 'nav-published', titleKey: 'tour_user_24_title', bodyKey: 'tour_user_24_body', placement: 'right', access: { module: 'documents.published', requireAny: true } },
+      { route: '/published', target: 'pub-docs-table', titleKey: 'tour_user_25_title', bodyKey: 'tour_user_25_body', placement: 'bottom', access: { module: 'documents.published', requireAny: true } },
+      { route: '/archived', target: 'nav-archived', titleKey: 'tour_user_26_title', bodyKey: 'tour_user_26_body', placement: 'right', access: { module: 'documents.superseded', requireAny: true } },
+      { route: '/archived', target: 'so-list-card', titleKey: 'tour_user_27_title', bodyKey: 'tour_user_27_body', placement: 'bottom', access: { module: 'documents.superseded', requireAny: true } }
+    ].filter(canAccessStep)
   }, [tourId])
 
   useEffect(() => {
     if (!open) return
     setStepIndex(0)
   }, [open, tourId])
+
+  useEffect(() => {
+    if (!open) return
+    if (!steps.length) {
+      onClose?.({ completed: false })
+      return
+    }
+    setStepIndex((prev) => Math.min(prev, steps.length - 1))
+  }, [open, steps, onClose])
 
   useEffect(() => {
     if (!open) return
