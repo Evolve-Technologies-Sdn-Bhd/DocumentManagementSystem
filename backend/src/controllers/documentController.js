@@ -686,7 +686,7 @@ class DocumentController {
             'Bulk import',
             null,
             expiryToUse,
-            { deferFollowUps: true }
+            { deferFollowUps: true, syncExpiryInline: true }
           );
           fileTiming.publishDocumentMs = roundMs(getElapsedMs(publishStart))
 
