@@ -347,6 +347,12 @@ export default function LoginPageSettings() {
     }
   }
 
+  const handlePreview = () => {
+    const draft = normalizeLoginPageSettings(settings)
+    persistLoginPageSettings(draft)
+    window.open('/login', '_blank', 'noopener,noreferrer')
+  }
+
   const handleReset = () => {
     const defaults = normalizeLoginPageSettings(DEFAULT_LOGIN_PAGE_SETTINGS)
     setSettings(defaults)
@@ -810,13 +816,18 @@ export default function LoginPageSettings() {
         </div>
       </AppSurface>
 
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="secondary" onClick={handleReset}>
-          {t('reset')}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+        <Button variant="secondary" onClick={handlePreview}>
+          {t('gss_lp_preview')}
         </Button>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? t('gss_saving') : t('gss_save_changes')}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="secondary" onClick={handleReset}>
+            {t('reset')}
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? t('gss_saving') : t('gss_save_changes')}
+          </Button>
+        </div>
       </div>
     </div>
   )
