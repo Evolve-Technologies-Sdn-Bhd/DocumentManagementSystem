@@ -47,7 +47,7 @@ export default function DashboardAttentionPanel({
                 className="flex items-start gap-3 rounded-2xl border border-border bg-surface-muted p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/20 hover:bg-surface hover:shadow-dms-soft"
               >
                 <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface">
-                  <span className={['h-2.5 w-2.5 rounded-full', tone.accent].join(' ')} />
+                  <span className={['block h-2.5 w-2.5 rounded-full', tone.accent].join(' ')} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
