@@ -4,6 +4,27 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { hasAnyPermission, hasPermission } from '../utils/permissions'
 
 const TOUR_TARGET_TIMEOUT_MS = 8000
+const DEBUG_SERVER_URL = 'http://127.0.0.1:7777/event'
+const DEBUG_SESSION_ID = 'tour-stuck-project-tracking'
+const DEBUG_RUN_ID = 'pre'
+
+function reportDebugEvent(hypothesisId, msg, data = {}) {
+  // #region debug-point D:tour-event
+  fetch(DEBUG_SERVER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location: 'GuidedTour.jsx',
+      msg,
+      data,
+      ts: Date.now()
+    })
+  }).catch(() => {})
+  // #endregion
+}
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
@@ -185,11 +206,13 @@ export default function GuidedTour({ open, tourId, onClose }) {
   useEffect(() => {
     if (!open) return
     setStepIndex(0)
+    reportDebugEvent('D', '[DEBUG] Tour opened/reset', { tourId, pathname: location.pathname })
   }, [open, tourId])
 
   useEffect(() => {
     if (!open) return
     if (!steps.length) {
+      reportDebugEvent('D', '[DEBUG] Tour closed: no steps after access filter', { tourId, pathname: location.pathname })
       onClose?.({ completed: false })
       return
     }
@@ -198,9 +221,41 @@ export default function GuidedTour({ open, tourId, onClose }) {
 
   useEffect(() => {
     if (!open) return
+    const onError = (event) => {
+      const msg = event?.message || String(event)
+      reportDebugEvent('E', '[DEBUG] window.error', { msg, filename: event?.filename, lineno: event?.lineno, colno: event?.colno })
+    }
+    const onRejection = (event) => {
+      const reason = event?.reason
+      reportDebugEvent('E', '[DEBUG] unhandledrejection', { reason: reason?.message || String(reason) })
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onRejection)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const step = steps[stepIndex]
+    reportDebugEvent('D', '[DEBUG] Step changed', {
+      tourId,
+      stepIndex,
+      total: steps.length,
+      route: step?.route,
+      target: step?.target,
+      pathname: location.pathname
+    })
+  }, [open, stepIndex, steps, tourId, location.pathname])
+
+  useEffect(() => {
+    if (!open) return
     const step = steps[stepIndex]
     if (!step) return
     if (step.route && location.pathname !== step.route) {
+      reportDebugEvent('A', '[DEBUG] Navigate requested', { from: location.pathname, to: step.route, stepIndex, target: step.target })
       navigate(step.route)
     }
   }, [open, stepIndex, steps, location.pathname, navigate])
@@ -224,9 +279,17 @@ export default function GuidedTour({ open, tourId, onClose }) {
     }
 
     const start = Date.now()
+    let loggedTimeout = false
     const tick = () => {
       const found = getTargetRect(step.target)
       if (found) {
+        reportDebugEvent('C', '[DEBUG] Target found', {
+          stepIndex,
+          pathname: location.pathname,
+          target: step.target,
+          elapsedMs: Date.now() - start,
+          rect: { x: found.rect?.x, y: found.rect?.y, w: found.rect?.width, h: found.rect?.height }
+        })
         try {
           const isNavTarget = String(step.target || '').startsWith('nav-')
           if (isNavTarget) {
@@ -248,7 +311,13 @@ export default function GuidedTour({ open, tourId, onClose }) {
         setTargetRect(found.rect)
         return
       }
-      if (Date.now() - start > TOUR_TARGET_TIMEOUT_MS) return
+      if (Date.now() - start > TOUR_TARGET_TIMEOUT_MS) {
+        if (!loggedTimeout) {
+          loggedTimeout = true
+          reportDebugEvent('C', '[DEBUG] Target timeout', { stepIndex, pathname: location.pathname, target: step.target, timeoutMs: TOUR_TARGET_TIMEOUT_MS })
+        }
+        return
+      }
       rafRef.current = requestAnimationFrame(tick)
     }
 
