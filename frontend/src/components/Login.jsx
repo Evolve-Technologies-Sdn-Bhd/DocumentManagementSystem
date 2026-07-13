@@ -14,6 +14,7 @@ import BrandLogoPreload from './ui/BrandLogoPreload'
 
 export default function Login() {
   const { t } = usePreferences()
+  const initialLoginPageSettings = readLoginPageSettings()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -31,7 +32,8 @@ export default function Login() {
   const [trustDevice, setTrustDevice] = useState(true)
 
   const [branding, setBranding] = useState(() => readBranding())
-  const [loginPageSettings, setLoginPageSettings] = useState(() => normalizeLoginPageSettings(readLoginPageSettings()))
+  const [loginPageSettings, setLoginPageSettings] = useState(() => normalizeLoginPageSettings(initialLoginPageSettings))
+  const [settingsReady, setSettingsReady] = useState(() => !!initialLoginPageSettings)
   const [showPassword, setShowPassword] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [changePasswordData, setChangePasswordData] = useState({
@@ -76,24 +78,27 @@ export default function Login() {
 
     const loadSettings = async () => {
       try {
-        const res = await api.get('/public/login-page-settings')
+        const res = await api.get('/public/login-page-settings', { timeout: 4000 })
         const serverSettings = res.data?.data?.settings
         if (serverSettings && typeof serverSettings === 'object') {
           const normalized = normalizeLoginPageSettings(serverSettings)
           if (!mounted) return
           setLoginPageSettings(normalized)
           persistLoginPageSettings(normalized)
+          setSettingsReady(true)
           return
         }
       } catch {}
 
       if (!mounted) return
       setLoginPageSettings(normalizeLoginPageSettings(readLoginPageSettings()))
+      setSettingsReady(true)
     }
 
     loadSettings()
     const unsubscribe = subscribeLoginPageSettings((next) => {
       setLoginPageSettings(normalizeLoginPageSettings(next))
+      setSettingsReady(true)
     })
 
     return () => {
@@ -361,6 +366,21 @@ export default function Login() {
   const formCopy = DEFAULT_LOGIN_FORM_COPY
   const brandLogo = branding.logo
   const brandLogoPlaceholder = branding.logoPlaceholder
+  const loginFontFamily = "Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+
+  if (!settingsReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: loginPageSettings.pageBackground, fontFamily: loginFontFamily }}>
+        <BrandLogoPreload src={brandLogo} />
+        <div className="flex max-w-sm flex-col items-center text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[var(--dms-login-btn-bg,#2563EB)]" />
+          <p className="text-base font-semibold text-gray-900">{branding.companyName || hero.brandName || 'Loading'}</p>
+          <p className="mt-1 text-sm text-gray-500">Loading login page settings...</p>
+        </div>
+      </div>
+    )
+  }
+
   const contentOffsetClass = loginPageSettings.showTopbar ? 'pt-16' : ''
   const contentBottomClass = loginPageSettings.showFooter ? 'pb-14' : ''
   const pageShellClass = [contentOffsetClass, contentBottomClass].filter(Boolean).join(' ')
@@ -376,7 +396,6 @@ export default function Login() {
     paddingRight: hero.featurePillPaddingX ? `${hero.featurePillPaddingX}px` : undefined,
     fontSize: hero.featurePillFontSize ? `${hero.featurePillFontSize}px` : undefined
   }
-  const loginFontFamily = "Outfit, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: loginPageSettings.pageBackground, fontFamily: loginFontFamily }}>

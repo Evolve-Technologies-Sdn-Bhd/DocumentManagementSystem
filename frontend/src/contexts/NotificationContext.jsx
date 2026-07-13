@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import api from '../api/axios'
 import { createDefaultNotificationPreferences, normalizeNotificationPreferences } from '../constants/notificationEvents'
 
@@ -42,10 +43,13 @@ export const NOTIFICATION_TYPES = {
 }
 
 export const NotificationProvider = ({ children }) => {
+  const location = useLocation()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [preferences, setPreferences] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const isPublicAuthPage = location.pathname === '/login'
 
   const hasAccessToken = () => {
     try {
@@ -58,6 +62,11 @@ export const NotificationProvider = ({ children }) => {
   // Load user notification preferences
   const loadPreferences = useCallback(async () => {
     try {
+      if (isPublicAuthPage) {
+        setLoading(false)
+        return
+      }
+
       // Try to load from localStorage first
       const savedPreferences = localStorage.getItem('notificationPreferences')
       if (savedPreferences) {
@@ -98,11 +107,17 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isPublicAuthPage])
 
   // Load notifications from backend
   const loadNotifications = useCallback(async () => {
     try {
+      if (isPublicAuthPage) {
+        setNotifications([])
+        setUnreadCount(0)
+        return
+      }
+
       if (!hasAccessToken()) {
         const savedNotifications = localStorage.getItem('notifications')
         if (savedNotifications) {
@@ -166,7 +181,7 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(0)
       }
     }
-  }, [])
+  }, [isPublicAuthPage])
 
   // Initialize
   useEffect(() => {
