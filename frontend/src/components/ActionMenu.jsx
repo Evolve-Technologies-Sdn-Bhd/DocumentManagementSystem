@@ -8,7 +8,7 @@ import * as ReactDOM from 'react-dom'
  * @param {Array} actions - Array of action objects with shape:
  *   { label: string, onClick: function, variant: 'default'|'destructive', dividerAfter: boolean }
  */
-export default function ActionMenu({ actions }) {
+export default function ActionMenu({ actions, dataTourId }) {
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, placement: 'bottom' })
   const buttonRef = useRef(null)
@@ -105,6 +105,7 @@ export default function ActionMenu({ actions }) {
         <button
           ref={buttonRef}
           onClick={() => setIsOpen(!isOpen)}
+          data-tour-id={dataTourId}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -4840,24 +4840,6 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
-  useEffect(() => {
-    // #region debug-point B:project-tracking-mount
-    fetch('http://127.0.0.1:7777/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'tour-stuck-project-tracking',
-        runId: 'pre',
-        hypothesisId: 'B',
-        location: 'ProjectTracking.jsx',
-        msg: '[DEBUG] ProjectTracking mounted',
-        data: { projectId, canSearchProjects, canOpenProjectSetup, canViewProjectDetail, tab: String(searchParams.get('tab') || '') },
-        ts: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [])
-
   const activeTab = String(searchParams.get('tab') || 'dashboard')
 
   const setTab = (tab) => {
@@ -4916,6 +4898,7 @@ export default function ProjectTracking() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
+                  data-tour-id={`pt-tab-${t.id}`}
                   className={`rounded-2xl px-4 py-2 text-sm font-medium transition-colors ${
                     isActive ? 'bg-brand/10 text-brand' : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
                   }`}
@@ -4928,17 +4911,27 @@ export default function ProjectTracking() {
         </div>
         <div className="p-4 md:p-5">
           {activeTab === 'setup' && canOpenProjectSetup ? (
-            <Setup />
+            <div data-tour-id="pt-setup-panel">
+              <Setup />
+            </div>
           ) : activeTab === 'dashboard' && canSearchProjects ? (
-            <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            <div data-tour-id="pt-dashboard-panel">
+              <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            </div>
           ) : activeTab === 'search' && canSearchProjects ? (
-            <DocumentsSearch />
+            <div data-tour-id="pt-search-panel">
+              <DocumentsSearch />
+            </div>
           ) : projectId && canViewProjectDetail ? (
-            <ProjectDetail projectId={Number(projectId)} />
+            <div data-tour-id="pt-detail-panel">
+              <ProjectDetail projectId={Number(projectId)} />
+            </div>
           ) : projectId ? (
             <EmptyState title="No access" message="You do not have permission to view this project." />
           ) : activeTab === 'projects' && canSearchProjects ? (
-            <ProjectsList onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            <div data-tour-id="pt-projects-panel">
+              <ProjectsList onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            </div>
           ) : tabs.length === 0 ? (
             <EmptyState title="No access" message="You do not have permission to access Project Tracking tabs." />
           ) : (

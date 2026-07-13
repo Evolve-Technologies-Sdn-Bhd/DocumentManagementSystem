@@ -811,15 +811,15 @@ export default function ExpiryTracking() {
         title="Expiry Tracking Management"
         subtitle="Track enrolled documents, expiry status, and renewal progress without duplicating document metadata."
         actions={
-          <>
+          <div className="flex flex-wrap items-center justify-end gap-2" data-tour-id="expiry-header-actions">
             <Button variant="secondary" onClick={refresh}>Refresh</Button>
             {canExport ? <Button variant="secondary" onClick={exportExcel}>Export Excel</Button> : null}
             {canExport ? <Button onClick={exportPdf}>Export PDF</Button> : null}
-          </>
+          </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6" data-tour-id="expiry-stats">
         <StatCard label="Total Tracked Documents" value={dashboard.totalTrackedDocuments} />
         <StatCard label="Active" value={dashboard.active} tone="success" />
         <StatCard label="Expiring Soon" value={dashboard.expiringSoon} tone="warning" />
@@ -936,6 +936,7 @@ export default function ExpiryTracking() {
                         <Td>
                           <div className="flex justify-end">
                             <ActionMenu
+                              dataTourId="expiry-action-menu"
                               actions={[
                                 { label: 'View', onClick: () => openProfileDetail(record) },
                                 ...(canEdit ? [{ label: 'Update', onClick: () => openEdit(record) }] : []),
