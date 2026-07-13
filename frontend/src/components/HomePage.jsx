@@ -19,6 +19,7 @@ import api from '../api/axios';
 import MarkdownRenderer from './MarkdownRenderer';
 import PublicTopbar from './PublicTopbar';
 import PublicFooter from './PublicFooter';
+import BrandLogoPreload from './ui/BrandLogoPreload';
 import { persistLandingPageSettings, readBranding, readLandingPageSettings, subscribeBranding } from '../utils/branding';
 
 const iconMap = {
@@ -76,6 +77,7 @@ const HomePage = () => {
     ? landingContent.contactPhone.trim()
     : '+60 19-6653453'
   const contactPhoneHref = `tel:${contactPhoneText.replace(/[^\d+]/g, '')}`
+  const brandLogo = branding.logo
 
   const workflowSteps = Array.isArray(landingContent?.workflowSteps) && landingContent.workflowSteps.length
     ? landingContent.workflowSteps
@@ -206,9 +208,13 @@ const HomePage = () => {
 
   if (loading || !settingsReady) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-4"></div>
-        <p className="text-gray-600 font-medium">{t('hp_loading')}</p>
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: '#f3f4f6' }}>
+        <BrandLogoPreload src={brandLogo} />
+        <div className="flex max-w-sm flex-col items-center text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[var(--dms-login-btn-bg,#2563EB)]" />
+          <p className="text-base font-semibold text-gray-900">{branding.companyName || 'Loading'}</p>
+          <p className="mt-1 text-sm text-gray-500">{t('hp_loading')}</p>
+        </div>
       </div>
     );
   }

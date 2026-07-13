@@ -235,7 +235,9 @@ export default function MyDocumentsStatus() {
     setLoading(true)
     setLoadError('')
     try {
-      const res = await api.get('/documents/my-status')
+      const res = await api.get('/documents/my-status', {
+        params: { limit: 0 }
+      })
       const docs = res.data.data?.documents || res.data.documents || []
       setDocuments(docs)
       setFilteredDocuments(docs)
