@@ -4840,6 +4840,24 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
+  useEffect(() => {
+    // #region debug-point B:project-tracking-mount
+    fetch('http://127.0.0.1:7777/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'tour-stuck-project-tracking',
+        runId: 'pre',
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx',
+        msg: '[DEBUG] ProjectTracking mounted',
+        data: { projectId, canSearchProjects, canOpenProjectSetup, canViewProjectDetail, tab: String(searchParams.get('tab') || '') },
+        ts: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+  }, [])
+
   const activeTab = String(searchParams.get('tab') || 'dashboard')
 
   const setTab = (tab) => {
