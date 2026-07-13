@@ -26,29 +26,64 @@ const notificationService = require('./services/notificationService');
 const app = express();
 app.set('trust proxy', 1);
 
+const parseAllowedOrigins = (value) => {
+  if (!value) return [];
+  return String(value)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+};
+
+const allowedOrigins = parseAllowedOrigins(config.corsOrigin);
+
+const isLocalOrigin = (origin) => origin.includes('localhost') || origin.includes('127.0.0.1');
+
+const isSameOriginAsProxyHost = (req, origin) => {
+  try {
+    const parsedOrigin = new URL(origin);
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const hostHeader = forwardedHost || req.headers.host;
+
+    if (!hostHeader) return false;
+
+    const normalizedHost = String(hostHeader).split(',')[0].trim().toLowerCase();
+    return parsedOrigin.host.toLowerCase() === normalizedHost;
+  } catch {
+    return false;
+  }
+};
+
+const corsOptionsDelegate = (req, callback) => {
+  const origin = req.header('Origin');
+
+  // Allow requests with no origin (like mobile apps or curl requests)
+  if (!origin) {
+    return callback(null, {
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
+    });
+  }
+
+  const isAllowed =
+    isLocalOrigin(origin) ||
+    config.corsOrigin === '*' ||
+    allowedOrigins.includes(origin) ||
+    isSameOriginAsProxyHost(req, origin);
+
+  callback(isAllowed ? null : new Error('Not allowed by CORS'), {
+    origin: isAllowed,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
+  });
+};
+
 // CORS configuration
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow all localhost origins
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    
-    // Allow configured origin
-    if (config.corsOrigin === '*' || origin === config.corsOrigin) {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
-}));
+app.use(cors(corsOptionsDelegate));
 
 // Request logging middleware (development only)
 if (config.nodeEnv === 'development') {

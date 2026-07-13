@@ -19,7 +19,7 @@ import api from '../api/axios';
 import MarkdownRenderer from './MarkdownRenderer';
 import PublicTopbar from './PublicTopbar';
 import PublicFooter from './PublicFooter';
-import { persistLandingPageSettings, readBranding, subscribeBranding } from '../utils/branding';
+import { persistLandingPageSettings, readBranding, readLandingPageSettings, subscribeBranding } from '../utils/branding';
 
 const iconMap = {
   'document-text': DocumentTextIcon,
@@ -35,9 +35,11 @@ const iconMap = {
 const HomePage = () => {
   const navigate = useNavigate();
   const { t } = usePreferences();
+  const initialLandingContent = readLandingPageSettings();
   const [features, setFeatures] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [landingContent, setLandingContent] = useState(null);
+  const [landingContent, setLandingContent] = useState(() => initialLandingContent);
+  const [settingsReady, setSettingsReady] = useState(() => !!initialLandingContent);
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
@@ -115,23 +117,17 @@ const HomePage = () => {
 
   const loadLandingContent = async () => {
     try {
-      const saved = localStorage.getItem('dms_landing_page_settings');
-      if (saved) {
-        setLandingContent(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error('Error loading landing page content:', error);
-    }
-
-    try {
-      const response = await api.get('/public/landing-page-settings');
+      const response = await api.get('/public/landing-page-settings', { timeout: 4000 });
       const serverSettings = response.data?.data?.settings;
       if (serverSettings && typeof serverSettings === 'object') {
         setLandingContent(serverSettings);
         persistLandingPageSettings(serverSettings);
+        setSettingsReady(true);
         return;
       }
     } catch {}
+
+    setSettingsReady(true);
   };
 
   const fetchFeatures = async () => {
@@ -208,7 +204,7 @@ const HomePage = () => {
     };
   }, [pdfModal.isOpen]);
 
-  if (loading) {
+  if (loading || !settingsReady) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-4"></div>
