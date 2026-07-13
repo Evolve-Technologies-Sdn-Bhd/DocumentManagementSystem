@@ -1311,7 +1311,7 @@ class DocumentController {
 
     const pagination = {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 100
+      limit: limit ? parseInt(limit) : 0
     };
 
     const result = await documentService.listDocuments(filters, pagination, req.user);

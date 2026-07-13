@@ -1326,7 +1326,9 @@ class DocumentService {
       sortOrder = 'desc'
     } = pagination;
 
-    const skip = (page - 1) * limit;
+    const normalizedLimit = Number.isFinite(Number(limit)) ? Number(limit) : 15;
+    const usePagination = normalizedLimit > 0;
+    const skip = usePagination ? (page - 1) * normalizedLimit : undefined;
 
     const where = {}
 
@@ -1490,17 +1492,22 @@ class DocumentService {
         }
       },
       skip,
-      take: limit,
+      take: usePagination ? normalizedLimit : undefined,
       orderBy: { [sortBy]: sortOrder }
     });
+
+    const effectiveLimit = usePagination ? normalizedLimit : total;
+    const totalPages = usePagination
+      ? Math.ceil(total / normalizedLimit)
+      : (total > 0 ? 1 : 0);
 
     return {
       documents,
       pagination: {
         page,
-        limit,
+        limit: effectiveLimit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       }
     };
   }

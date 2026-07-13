@@ -4883,7 +4883,7 @@ export default function ProjectTracking() {
   }, [activeTab, fallbackTab, projectId, tabs])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-id="pt-page">
       <PageHeader
         title="Project Tracking"
         subtitle="Track project phases, linked documents, and setup flows under the shared design system."

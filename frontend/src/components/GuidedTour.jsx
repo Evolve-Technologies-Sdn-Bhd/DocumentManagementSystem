@@ -3,15 +3,24 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { hasAnyPermission, hasPermission } from '../utils/permissions'
 
+const TOUR_TARGET_TIMEOUT_MS = 8000
+
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
 
 function getTargetRect(targetId) {
-  const el = document.querySelector(`[data-tour-id="${targetId}"]`)
-  if (!el) return null
-  const rect = el.getBoundingClientRect()
-  return { el, rect }
+  const targets = Array.isArray(targetId) ? targetId : [targetId]
+
+  for (const id of targets) {
+    if (!id) continue
+    const el = document.querySelector(`[data-tour-id="${id}"]`)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    return { el, rect }
+  }
+
+  return null
 }
 
 function computeTooltipPosition(rect, placement, size) {
@@ -119,7 +128,7 @@ export default function GuidedTour({ open, tourId, onClose }) {
         { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_admin_16_title', bodyKey: 'tour_admin_16_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
         { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_admin_17_title', bodyKey: 'tour_admin_17_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
         { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_admin_18_title', bodyKey: 'tour_admin_18_body', placement: 'right', access: { module: 'projectTracking' } },
-        { route: '/project-tracking', target: 'pt-tabbar', titleKey: 'tour_admin_19_title', bodyKey: 'tour_admin_19_body', placement: 'bottom', access: { module: 'projectTracking' } },
+        { route: '/project-tracking', target: ['pt-tabbar', 'pt-shell-card', 'pt-page'], titleKey: 'tour_admin_19_title', bodyKey: 'tour_admin_19_body', placement: 'bottom', access: { module: 'projectTracking' } },
         { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_admin_20_title', bodyKey: 'tour_admin_20_body', placement: 'right', access: { module: 'expiryTracking' } },
         { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_admin_21_title', bodyKey: 'tour_admin_21_body', placement: 'bottom', access: { module: 'expiryTracking' } },
         { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_admin_22_title', bodyKey: 'tour_admin_22_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
@@ -154,7 +163,7 @@ export default function GuidedTour({ open, tourId, onClose }) {
       { route: '/my-documents', target: 'nav-my-documents', titleKey: 'tour_user_9_title', bodyKey: 'tour_user_9_body', placement: 'right', access: { module: 'myDocumentsStatus' } },
       { route: '/my-documents', target: 'my-docs-list-card', titleKey: 'tour_user_10_title', bodyKey: 'tour_user_10_body', placement: 'bottom', access: { module: 'myDocumentsStatus' } },
       { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_user_11_title', bodyKey: 'tour_user_11_body', placement: 'right', access: { module: 'projectTracking' } },
-      { route: '/project-tracking', target: 'pt-tabbar', titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom', access: { module: 'projectTracking' } },
+      { route: '/project-tracking', target: ['pt-tabbar', 'pt-shell-card', 'pt-page'], titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom', access: { module: 'projectTracking' } },
       { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_user_13_title', bodyKey: 'tour_user_13_body', placement: 'right', access: { module: 'expiryTracking' } },
       { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_user_14_title', bodyKey: 'tour_user_14_body', placement: 'bottom', access: { module: 'expiryTracking' } },
       { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_user_15_title', bodyKey: 'tour_user_15_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
@@ -239,7 +248,7 @@ export default function GuidedTour({ open, tourId, onClose }) {
         setTargetRect(found.rect)
         return
       }
-      if (Date.now() - start > 2500) return
+      if (Date.now() - start > TOUR_TARGET_TIMEOUT_MS) return
       rafRef.current = requestAnimationFrame(tick)
     }
 
