@@ -20,7 +20,9 @@
 | E | A JS error/unhandled rejection occurs during navigation, interrupting rendering or overlay behavior. | Med | Low | Pending |
 
 ## Log Evidence
-[Key log entries]
+- Guided tour logs stop immediately after navigation to `/project-tracking`, while `ProjectTracking mounted` still appears:
+  - `.dbg/trae-debug-log-tour-stuck-project-tracking.ndjson` line 35–37
+- Indicates tour component is unmounted/reset during route transition (not an element-target timeout).
 
 ## Verification Conclusion
 [Pre-fix vs post-fix comparison]
