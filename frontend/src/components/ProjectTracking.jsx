@@ -4313,6 +4313,7 @@ function Setup() {
   const [savingStages, setSavingStages] = useState(false)
   const [addingReq, setAddingReq] = useState(false)
   const [showAddStage, setShowAddStage] = useState(false)
+  const [documentTypeSearch, setDocumentTypeSearch] = useState('')
   const [newReq, setNewReq] = useState({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
   const [accessRequirement, setAccessRequirement] = useState(null)
   const [accessEntries, setAccessEntries] = useState([])
@@ -4320,6 +4321,21 @@ function Setup() {
   const [subjectResults, setSubjectResults] = useState({ users: [], roles: [] })
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [savingAccess, setSavingAccess] = useState(false)
+
+  const filteredDocumentTypes = useMemo(() => {
+    const keyword = String(documentTypeSearch || '').trim().toLowerCase()
+    if (!keyword) return documentTypes
+
+    return documentTypes.filter((docType) => {
+      if (String(docType.id) === String(newReq.documentTypeId)) return true
+      return String(docType.name || '').toLowerCase().includes(keyword)
+    })
+  }, [documentTypes, documentTypeSearch, newReq.documentTypeId])
+
+  const selectedRequirementDocumentType = useMemo(
+    () => documentTypes.find((docType) => String(docType.id) === String(newReq.documentTypeId)) || null,
+    [documentTypes, newReq.documentTypeId]
+  )
 
   const loadBase = async () => {
     const [proj, docTypes] = await Promise.all([api.get('/project-tracking/projects'), api.get('/system/config/document-types')])
@@ -4391,6 +4407,7 @@ function Setup() {
         isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
       })
       setNewReq({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
+      setDocumentTypeSearch('')
       await loadSetup(selectedProjectId)
     } finally {
       setAddingReq(false)
@@ -4691,15 +4708,50 @@ function Setup() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
+                  <div className="mb-2 rounded-2xl border border-border bg-surface-muted/70 p-2">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">⌕</span>
+                      <TextInput
+                        value={documentTypeSearch}
+                        onChange={(e) => setDocumentTypeSearch(e.target.value)}
+                        placeholder="Search document type..."
+                        className="pr-16 pl-9"
+                      />
+                      {documentTypeSearch ? (
+                        <button
+                          type="button"
+                          onClick={() => setDocumentTypeSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-ink-muted transition hover:bg-surface hover:text-ink"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+                      <span>
+                        {documentTypeSearch
+                          ? `${filteredDocumentTypes.length} result${filteredDocumentTypes.length === 1 ? '' : 's'} found`
+                          : `Showing all ${filteredDocumentTypes.length} document types`}
+                      </span>
+                      <span className="truncate text-right">
+                        {selectedRequirementDocumentType
+                          ? `Selected: ${selectedRequirementDocumentType.name}`
+                          : 'No document type selected'}
+                      </span>
+                    </div>
+                  </div>
                   <SelectField
                     value={newReq.documentTypeId}
                     onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
                     required
                   >
                     <option value="">Select document type</option>
-                    {documentTypes.map((d) => (
+                    {filteredDocumentTypes.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
+                    {filteredDocumentTypes.length === 0 && (
+                      <option value="" disabled>No document type found</option>
+                    )}
                   </SelectField>
                 </div>
                 <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
