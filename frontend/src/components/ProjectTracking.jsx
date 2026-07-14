@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Timeline from '@mui/lab/Timeline'
 import TimelineConnector from '@mui/lab/TimelineConnector'
@@ -45,6 +45,128 @@ function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
         </div>
         <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
       </div>
+    </div>
+  )
+}
+
+function SearchableSelectField({
+  values = [],
+  options,
+  onChange,
+  searchValue,
+  onSearchChange,
+  placeholder = 'Select option',
+  noResultsLabel = 'No results found'
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+  const selectedValues = Array.isArray(values) ? values.map((value) => String(value)) : []
+  const selectedOptions = options.filter((option) => selectedValues.includes(String(option.id)))
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex min-h-[42px] w-full items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
+          open ? 'ring-2 ring-brand/20' : ''
+        }`}
+      >
+        <span className={selectedOptions.length > 0 ? 'text-ink' : 'text-ink-muted'}>
+          {selectedOptions.length === 0
+            ? placeholder
+            : selectedOptions.length === 1
+              ? selectedOptions[0].name
+              : `${selectedOptions.length} document types selected`}
+        </span>
+        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+          <div className="border-b border-border p-3">
+            <input
+              ref={inputRef}
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search document type..."
+              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+              <span>{options.length} result{options.length === 1 ? '' : 's'}</span>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
+                >
+                  Clear
+                </button>
+              ) : (
+                <span>Type to filter</span>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-2">
+            {options.length > 0 ? (
+              options.map((option) => {
+                const isSelected = selectedValues.includes(String(option.id))
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      const nextValues = isSelected
+                        ? selectedValues.filter((value) => value !== String(option.id))
+                        : [...selectedValues, String(option.id)]
+                      onChange(nextValues)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] ${isSelected ? 'border-brand bg-brand text-white' : 'border-border bg-surface'}`}>
+                        {isSelected ? '✓' : ''}
+                      </span>
+                      <span>{option.name}</span>
+                    </span>
+                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
+            )}
+          </div>
+          <div className="border-t border-border px-3 py-2 text-[11px] text-ink-muted">
+            {selectedOptions.length > 0
+              ? `${selectedOptions.length} document type${selectedOptions.length === 1 ? '' : 's'} selected`
+              : 'Select one or more document types'}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -4314,7 +4436,7 @@ function Setup() {
   const [addingReq, setAddingReq] = useState(false)
   const [showAddStage, setShowAddStage] = useState(false)
   const [documentTypeSearch, setDocumentTypeSearch] = useState('')
-  const [newReq, setNewReq] = useState({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
+  const [newReq, setNewReq] = useState({ stageId: '', documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
   const [accessRequirement, setAccessRequirement] = useState(null)
   const [accessEntries, setAccessEntries] = useState([])
   const [accessQuery, setAccessQuery] = useState('')
@@ -4327,14 +4449,14 @@ function Setup() {
     if (!keyword) return documentTypes
 
     return documentTypes.filter((docType) => {
-      if (String(docType.id) === String(newReq.documentTypeId)) return true
+      if ((newReq.documentTypeIds || []).map((id) => String(id)).includes(String(docType.id))) return true
       return String(docType.name || '').toLowerCase().includes(keyword)
     })
-  }, [documentTypes, documentTypeSearch, newReq.documentTypeId])
+  }, [documentTypes, documentTypeSearch, newReq.documentTypeIds])
 
-  const selectedRequirementDocumentType = useMemo(
-    () => documentTypes.find((docType) => String(docType.id) === String(newReq.documentTypeId)) || null,
-    [documentTypes, newReq.documentTypeId]
+  const selectedRequirementDocumentTypes = useMemo(
+    () => documentTypes.filter((docType) => (newReq.documentTypeIds || []).map((id) => String(id)).includes(String(docType.id))),
+    [documentTypes, newReq.documentTypeIds]
   )
 
   const loadBase = async () => {
@@ -4397,16 +4519,22 @@ function Setup() {
 
   const addRequirement = async (e) => {
     e.preventDefault()
+    if (!newReq.stageId || !(newReq.documentTypeIds || []).length) return
     setAddingReq(true)
     try {
       const isProjectScope = !!selectedProjectId
-      await api.post(isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements` : '/project-tracking/setup/requirements', {
-        stageId: Number(newReq.stageId),
-        documentTypeId: Number(newReq.documentTypeId),
-        isRequired: Boolean(newReq.isRequired),
-        isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
-      })
-      setNewReq({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
+      const endpoint = isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements` : '/project-tracking/setup/requirements'
+      await Promise.all(
+        (newReq.documentTypeIds || []).map((documentTypeId) =>
+          api.post(endpoint, {
+            stageId: Number(newReq.stageId),
+            documentTypeId: Number(documentTypeId),
+            isRequired: Boolean(newReq.isRequired),
+            isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
+          })
+        )
+      )
+      setNewReq({ stageId: '', documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
       setDocumentTypeSearch('')
       await loadSetup(selectedProjectId)
     } finally {
@@ -4708,51 +4836,20 @@ function Setup() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
-                  <div className="mb-2 rounded-2xl border border-border bg-surface-muted/70 p-2">
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">⌕</span>
-                      <TextInput
-                        value={documentTypeSearch}
-                        onChange={(e) => setDocumentTypeSearch(e.target.value)}
-                        placeholder="Search document type..."
-                        className="pr-16 pl-9"
-                      />
-                      {documentTypeSearch ? (
-                        <button
-                          type="button"
-                          onClick={() => setDocumentTypeSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-medium text-ink-muted transition hover:bg-surface hover:text-ink"
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
-                      <span>
-                        {documentTypeSearch
-                          ? `${filteredDocumentTypes.length} result${filteredDocumentTypes.length === 1 ? '' : 's'} found`
-                          : `Showing all ${filteredDocumentTypes.length} document types`}
-                      </span>
-                      <span className="truncate text-right">
-                        {selectedRequirementDocumentType
-                          ? `Selected: ${selectedRequirementDocumentType.name}`
-                          : 'No document type selected'}
-                      </span>
-                    </div>
+                  <SearchableSelectField
+                    values={newReq.documentTypeIds}
+                    options={filteredDocumentTypes}
+                    onChange={(values) => setNewReq((p) => ({ ...p, documentTypeIds: values }))}
+                    searchValue={documentTypeSearch}
+                    onSearchChange={setDocumentTypeSearch}
+                    placeholder="Select one or more document types"
+                    noResultsLabel="No document type found"
+                  />
+                  <div className="mt-2 text-[11px] text-ink-muted">
+                    {selectedRequirementDocumentTypes.length > 0
+                      ? `Selected: ${selectedRequirementDocumentTypes.map((docType) => docType.name).join(', ')}`
+                      : 'Pick one or more document types from the dropdown'}
                   </div>
-                  <SelectField
-                    value={newReq.documentTypeId}
-                    onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select document type</option>
-                    {filteredDocumentTypes.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                    {filteredDocumentTypes.length === 0 && (
-                      <option value="" disabled>No document type found</option>
-                    )}
-                  </SelectField>
                 </div>
                 <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
                   <input
@@ -4764,10 +4861,12 @@ function Setup() {
                   Confidential
                 </label>
                 <Button
-                  disabled={addingReq}
+                  disabled={addingReq || !newReq.stageId || !(newReq.documentTypeIds || []).length}
                   type="submit"
                 >
-                  {addingReq ? 'Adding...' : 'Add Requirement'}
+                  {addingReq
+                    ? 'Adding...'
+                    : `Add${(newReq.documentTypeIds || []).length ? ` ${(newReq.documentTypeIds || []).length}` : ''} Requirement${(newReq.documentTypeIds || []).length > 1 ? 's' : ''}`}
                 </Button>
               </form>
             </div>
