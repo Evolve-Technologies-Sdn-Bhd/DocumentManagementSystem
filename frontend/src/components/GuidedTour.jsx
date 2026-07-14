@@ -4,6 +4,8 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { hasAnyPermission, hasPermission } from '../utils/permissions'
 
 const TOUR_TARGET_TIMEOUT_MS = 8000
+const TOUR_SCROLL_TOP_OFFSET = 96
+const TOUR_SCROLL_BOTTOM_OFFSET = 32
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
@@ -67,6 +69,45 @@ function isElementFullyVisibleInParent(el, parent, margin = 8) {
   const r = el.getBoundingClientRect()
   const pr = parent.getBoundingClientRect()
   return r.top >= pr.top + margin && r.bottom <= pr.bottom - margin
+}
+
+function scrollElementIntoViewWithOffset(el, { topOffset = TOUR_SCROLL_TOP_OFFSET, bottomOffset = TOUR_SCROLL_BOTTOM_OFFSET, behavior = 'smooth' } = {}) {
+  if (!el) return
+
+  const parent = getScrollParent(el)
+  const rect = el.getBoundingClientRect()
+
+  if (parent) {
+    const parentRect = parent.getBoundingClientRect()
+    const availableHeight = parent.clientHeight - topOffset - bottomOffset
+    const shouldAlignTop = rect.height > availableHeight || rect.top < parentRect.top + topOffset
+    const bottomHidden = rect.bottom > parentRect.bottom - bottomOffset
+
+    if (shouldAlignTop) {
+      const delta = rect.top - parentRect.top - topOffset
+      parent.scrollTo({ top: parent.scrollTop + delta, behavior })
+      return
+    }
+
+    if (bottomHidden) {
+      const delta = rect.bottom - parentRect.bottom + bottomOffset
+      parent.scrollTo({ top: parent.scrollTop + delta, behavior })
+    }
+    return
+  }
+
+  const availableHeight = window.innerHeight - topOffset - bottomOffset
+  const shouldAlignTop = rect.height > availableHeight || rect.top < topOffset
+  const bottomHidden = rect.bottom > window.innerHeight - bottomOffset
+
+  if (shouldAlignTop) {
+    window.scrollBy({ top: rect.top - topOffset, behavior })
+    return
+  }
+
+  if (bottomHidden) {
+    window.scrollBy({ top: rect.bottom - window.innerHeight + bottomOffset, behavior })
+  }
 }
 
 function canAccessStep(step) {
@@ -156,39 +197,44 @@ export default function GuidedTour({ open, tourId, onClose }) {
       { route: '/profile', target: 'profile-tabbar', titleKey: 'tour_user_2_title', bodyKey: 'tour_user_2_body', placement: 'bottom', access: { module: 'profileSettings' } },
       { route: '/dashboard', target: 'nav-dashboard', titleKey: 'tour_user_3_title', bodyKey: 'tour_user_3_body', placement: 'right', access: { module: 'dashboard' } },
       { route: '/dashboard', target: 'dashboard-metrics', titleKey: 'tour_user_4_title', bodyKey: 'tour_user_4_body', placement: 'bottom', access: { module: 'dashboard' } },
-      { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_user_5_title', bodyKey: 'tour_user_5_body', placement: 'right', access: { module: 'newDocumentRequest' } },
-      { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_user_6_title', bodyKey: 'tour_user_6_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
-      { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_user_7_title', bodyKey: 'tour_user_7_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
-      { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_user_8_title', bodyKey: 'tour_user_8_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
-      { route: '/my-documents', target: 'nav-my-documents', titleKey: 'tour_user_9_title', bodyKey: 'tour_user_9_body', placement: 'right', access: { module: 'myDocumentsStatus' } },
-      { route: '/my-documents', target: 'my-docs-list-card', titleKey: 'tour_user_10_title', bodyKey: 'tour_user_10_body', placement: 'bottom', access: { module: 'myDocumentsStatus' } },
-      { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_user_11_title', bodyKey: 'tour_user_11_body', placement: 'right', access: { module: 'projectTracking' } },
-      { route: '/project-tracking', target: ['pt-tabbar', 'pt-shell-card', 'pt-page'], titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom', access: { module: 'projectTracking' } },
-      { route: '/project-tracking', target: 'pt-tab-projects', titleKey: 'tour_user_13_title', bodyKey: 'tour_user_13_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'searchProject' } },
-      { route: '/project-tracking', target: ['pt-projects-panel', 'pt-shell-card'], titleKey: 'tour_user_14_title', bodyKey: 'tour_user_14_body', placement: 'bottom', access: { module: 'projectTracking', action: 'searchProject' } },
-      { route: '/project-tracking', target: 'pt-tab-search', titleKey: 'tour_user_15_title', bodyKey: 'tour_user_15_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'searchProject' } },
-      { route: '/project-tracking', target: ['pt-search-panel', 'pt-shell-card'], titleKey: 'tour_user_16_title', bodyKey: 'tour_user_16_body', placement: 'bottom', access: { module: 'projectTracking', action: 'searchProject' } },
-      { route: '/project-tracking', target: 'pt-tab-setup', titleKey: 'tour_user_17_title', bodyKey: 'tour_user_17_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'projectSetup' } },
-      { route: '/project-tracking', target: ['pt-setup-panel', 'pt-shell-card'], titleKey: 'tour_user_18_title', bodyKey: 'tour_user_18_body', placement: 'bottom', access: { module: 'projectTracking', action: 'projectSetup' } },
-      { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_user_19_title', bodyKey: 'tour_user_19_body', placement: 'right', access: { module: 'expiryTracking' } },
-      { route: '/expiry-tracking', target: 'expiry-stats', titleKey: 'tour_user_20_title', bodyKey: 'tour_user_20_body', placement: 'bottom', access: { module: 'expiryTracking' } },
-      { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_user_21_title', bodyKey: 'tour_user_21_body', placement: 'bottom', access: { module: 'expiryTracking' } },
-      { route: '/expiry-tracking', target: 'expiry-header-actions', titleKey: 'tour_user_22_title', bodyKey: 'tour_user_22_body', placement: 'left', access: { module: 'expiryTracking' } },
-      { route: '/expiry-tracking', target: 'expiry-table-card', titleKey: 'tour_user_23_title', bodyKey: 'tour_user_23_body', placement: 'bottom', access: { module: 'expiryTracking' } },
-      { route: '/expiry-tracking', target: ['expiry-action-menu', 'expiry-table-card'], titleKey: 'tour_user_24_title', bodyKey: 'tour_user_24_body', placement: 'left', access: { module: 'expiryTracking' } },
-      { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_user_25_title', bodyKey: 'tour_user_25_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
-      { route: '/rfid-epc-registry', target: 'epc-table-card', titleKey: 'tour_user_26_title', bodyKey: 'tour_user_26_body', placement: 'bottom', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
-      { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_user_27_title', bodyKey: 'tour_user_27_body', placement: 'right', access: { module: 'documents.draft', requireAny: true } },
-      { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_user_28_title', bodyKey: 'tour_user_28_body', placement: 'left', click: true, access: { module: 'documents.draft', requireAny: true } },
-      { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_user_29_title', bodyKey: 'tour_user_29_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
-      { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_user_30_title', bodyKey: 'tour_user_30_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
-      { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_user_31_title', bodyKey: 'tour_user_31_body', placement: 'top', access: { module: 'documents.draft', requireAny: true } },
-      { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_user_32_title', bodyKey: 'tour_user_32_body', placement: 'right', access: { module: 'documents.review', requireAny: true } },
-      { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_user_33_title', bodyKey: 'tour_user_33_body', placement: 'bottom', access: { module: 'documents.review', requireAny: true } },
-      { route: '/published', target: 'nav-published', titleKey: 'tour_user_34_title', bodyKey: 'tour_user_34_body', placement: 'right', access: { module: 'documents.published', requireAny: true } },
-      { route: '/published', target: 'pub-docs-table', titleKey: 'tour_user_35_title', bodyKey: 'tour_user_35_body', placement: 'bottom', access: { module: 'documents.published', requireAny: true } },
-      { route: '/archived', target: 'nav-archived', titleKey: 'tour_user_36_title', bodyKey: 'tour_user_36_body', placement: 'right', access: { module: 'documents.superseded', requireAny: true } },
-      { route: '/archived', target: 'so-list-card', titleKey: 'tour_user_37_title', bodyKey: 'tour_user_37_body', placement: 'bottom', access: { module: 'documents.superseded', requireAny: true } }
+      { route: '/dashboard', target: 'dashboard-attention-panel', titleKey: 'tour_user_5_title', bodyKey: 'tour_user_5_body', placement: 'bottom', access: { module: 'dashboard' } },
+      { route: '/dashboard', target: 'dashboard-status-chart', titleKey: 'tour_user_6_title', bodyKey: 'tour_user_6_body', placement: 'left', access: { module: 'dashboard' } },
+      { route: '/dashboard', target: 'dashboard-quick-actions', titleKey: 'tour_user_7_title', bodyKey: 'tour_user_7_body', placement: 'top', access: { module: 'dashboard' } },
+      { route: '/dashboard', target: 'dashboard-expiry-overview', titleKey: 'tour_user_8_title', bodyKey: 'tour_user_8_body', placement: 'top', access: { module: 'dashboard' } },
+      { route: '/dashboard', target: 'dashboard-recent-activity', titleKey: 'tour_user_9_title', bodyKey: 'tour_user_9_body', placement: 'top', access: { module: 'dashboard' } },
+      { route: '/new-document-request', target: 'nav-new-document-request', titleKey: 'tour_user_10_title', bodyKey: 'tour_user_10_body', placement: 'right', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-form-card', titleKey: 'tour_user_11_title', bodyKey: 'tour_user_11_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-request-list-card', titleKey: 'tour_user_12_title', bodyKey: 'tour_user_12_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/new-document-request', target: 'ndr-btn-download-template', titleKey: 'tour_user_13_title', bodyKey: 'tour_user_13_body', placement: 'bottom', access: { module: 'newDocumentRequest' } },
+      { route: '/my-documents', target: 'nav-my-documents', titleKey: 'tour_user_14_title', bodyKey: 'tour_user_14_body', placement: 'right', access: { module: 'myDocumentsStatus' } },
+      { route: '/my-documents', target: 'my-docs-list-card', titleKey: 'tour_user_15_title', bodyKey: 'tour_user_15_body', placement: 'bottom', access: { module: 'myDocumentsStatus' } },
+      { route: '/project-tracking', target: 'nav-project-tracking', titleKey: 'tour_user_16_title', bodyKey: 'tour_user_16_body', placement: 'right', access: { module: 'projectTracking' } },
+      { route: '/project-tracking', target: ['pt-tabbar', 'pt-shell-card', 'pt-page'], titleKey: 'tour_user_17_title', bodyKey: 'tour_user_17_body', placement: 'bottom', access: { module: 'projectTracking' } },
+      { route: '/project-tracking', target: 'pt-tab-projects', titleKey: 'tour_user_18_title', bodyKey: 'tour_user_18_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'searchProject' } },
+      { route: '/project-tracking', target: ['pt-projects-panel', 'pt-shell-card'], titleKey: 'tour_user_19_title', bodyKey: 'tour_user_19_body', placement: 'bottom', access: { module: 'projectTracking', action: 'searchProject' } },
+      { route: '/project-tracking', target: 'pt-tab-search', titleKey: 'tour_user_20_title', bodyKey: 'tour_user_20_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'searchProject' } },
+      { route: '/project-tracking', target: ['pt-search-panel', 'pt-shell-card'], titleKey: 'tour_user_21_title', bodyKey: 'tour_user_21_body', placement: 'bottom', access: { module: 'projectTracking', action: 'searchProject' } },
+      { route: '/project-tracking', target: 'pt-tab-setup', titleKey: 'tour_user_22_title', bodyKey: 'tour_user_22_body', placement: 'bottom', click: true, access: { module: 'projectTracking', action: 'projectSetup' } },
+      { route: '/project-tracking', target: ['pt-setup-panel', 'pt-shell-card'], titleKey: 'tour_user_23_title', bodyKey: 'tour_user_23_body', placement: 'bottom', access: { module: 'projectTracking', action: 'projectSetup' } },
+      { route: '/expiry-tracking', target: 'nav-expiry-tracking', titleKey: 'tour_user_24_title', bodyKey: 'tour_user_24_body', placement: 'right', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: 'expiry-stats', titleKey: 'tour_user_25_title', bodyKey: 'tour_user_25_body', placement: 'bottom', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: 'expiry-filters-card', titleKey: 'tour_user_26_title', bodyKey: 'tour_user_26_body', placement: 'bottom', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: 'expiry-header-actions', titleKey: 'tour_user_27_title', bodyKey: 'tour_user_27_body', placement: 'left', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: 'expiry-table-card', titleKey: 'tour_user_28_title', bodyKey: 'tour_user_28_body', placement: 'bottom', access: { module: 'expiryTracking' } },
+      { route: '/expiry-tracking', target: ['expiry-action-menu', 'expiry-table-card'], titleKey: 'tour_user_29_title', bodyKey: 'tour_user_29_body', placement: 'left', access: { module: 'expiryTracking' } },
+      { route: '/rfid-epc-registry', target: 'nav-rfid-epc-registry', titleKey: 'tour_user_30_title', bodyKey: 'tour_user_30_body', placement: 'right', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+      { route: '/rfid-epc-registry', target: 'epc-table-card', titleKey: 'tour_user_31_title', bodyKey: 'tour_user_31_body', placement: 'bottom', access: { module: 'documents.rfidRegistry', enabled: rfidEnabled } },
+      { route: '/drafts', target: 'nav-drafts', titleKey: 'tour_user_32_title', bodyKey: 'tour_user_32_body', placement: 'right', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'drafts-btn-new-draft', titleKey: 'tour_user_33_title', bodyKey: 'tour_user_33_body', placement: 'left', click: true, access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-upload', titleKey: 'tour_user_34_title', bodyKey: 'tour_user_34_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-assign-reviewer', titleKey: 'tour_user_35_title', bodyKey: 'tour_user_35_body', placement: 'bottom', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/drafts', target: 'new-draft-submit-review', titleKey: 'tour_user_36_title', bodyKey: 'tour_user_36_body', placement: 'top', access: { module: 'documents.draft', requireAny: true } },
+      { route: '/review-approval', target: 'nav-review-approval', titleKey: 'tour_user_37_title', bodyKey: 'tour_user_37_body', placement: 'right', access: { module: 'documents.review', requireAny: true } },
+      { route: '/review-approval', target: 'ra-list-card', titleKey: 'tour_user_38_title', bodyKey: 'tour_user_38_body', placement: 'bottom', access: { module: 'documents.review', requireAny: true } },
+      { route: '/published', target: 'nav-published', titleKey: 'tour_user_39_title', bodyKey: 'tour_user_39_body', placement: 'right', access: { module: 'documents.published', requireAny: true } },
+      { route: '/published', target: 'pub-docs-table', titleKey: 'tour_user_40_title', bodyKey: 'tour_user_40_body', placement: 'bottom', access: { module: 'documents.published', requireAny: true } },
+      { route: '/archived', target: 'nav-archived', titleKey: 'tour_user_41_title', bodyKey: 'tour_user_41_body', placement: 'right', access: { module: 'documents.superseded', requireAny: true } },
+      { route: '/archived', target: 'so-list-card', titleKey: 'tour_user_42_title', bodyKey: 'tour_user_42_body', placement: 'bottom', access: { module: 'documents.superseded', requireAny: true } }
     ].filter(canAccessStep)
   }, [tourId])
 
@@ -244,7 +290,7 @@ export default function GuidedTour({ open, tourId, onClose }) {
             const visible = parent ? isElementFullyVisibleInParent(found.el, parent, 10) : true
             if (!visible) found.el.scrollIntoView({ block: 'nearest' })
           } else {
-            found.el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+            scrollElementIntoViewWithOffset(found.el)
           }
         } catch {
         }

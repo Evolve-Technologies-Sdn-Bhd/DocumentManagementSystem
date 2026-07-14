@@ -508,52 +508,62 @@ export default function Dashboard() {
           </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <DashboardAttentionPanel
-              title={dashboardMode === 'admin' ? t('dashboard_attention_admin_title') : t('dashboard_attention_title')}
-              subtitle={dashboardMode === 'admin' ? t('dashboard_attention_admin_subtitle') : t('dashboard_attention_subtitle')}
-              items={activeAttentionItems}
-              emptyTitle={t('dashboard_attention_empty_title')}
-              emptyDescription={t('dashboard_attention_empty_desc')}
-              actionLabel={t('dashboard_attention_action')}
-            />
-            <DashboardStatusChart
-              title={dashboardMode === 'admin' ? t('dashboard_status_chart_admin_title') : t('dashboard_status_chart_title')}
-              subtitle={dashboardMode === 'admin' ? t('dashboard_status_chart_admin_subtitle') : t('dashboard_status_chart_subtitle')}
-              items={activeStatusChartItems}
-              totalLabel={t('dashboard_status_total')}
-              emptyTitle={t('dashboard_status_empty_title')}
-              emptyDescription={t('dashboard_status_empty_desc')}
-            />
+            <div data-tour-id="dashboard-attention-panel">
+              <DashboardAttentionPanel
+                title={dashboardMode === 'admin' ? t('dashboard_attention_admin_title') : t('dashboard_attention_title')}
+                subtitle={dashboardMode === 'admin' ? t('dashboard_attention_admin_subtitle') : t('dashboard_attention_subtitle')}
+                items={activeAttentionItems}
+                emptyTitle={t('dashboard_attention_empty_title')}
+                emptyDescription={t('dashboard_attention_empty_desc')}
+                actionLabel={t('dashboard_attention_action')}
+              />
+            </div>
+            <div data-tour-id="dashboard-status-chart">
+              <DashboardStatusChart
+                title={dashboardMode === 'admin' ? t('dashboard_status_chart_admin_title') : t('dashboard_status_chart_title')}
+                subtitle={dashboardMode === 'admin' ? t('dashboard_status_chart_admin_subtitle') : t('dashboard_status_chart_subtitle')}
+                items={activeStatusChartItems}
+                totalLabel={t('dashboard_status_total')}
+                emptyTitle={t('dashboard_status_empty_title')}
+                emptyDescription={t('dashboard_status_empty_desc')}
+              />
+            </div>
           </section>
 
-          <DashboardQuickActions />
+          <div data-tour-id="dashboard-quick-actions">
+            <DashboardQuickActions />
+          </div>
 
-          <DashboardExpiryOverview
-            title={t('dashboard_expiry_title')}
-            subtitle={t('dashboard_expiry_subtitle')}
-            stats={expiryStats}
-            items={expiryItems}
-            totalLabel={t('dashboard_expiry_total')}
-            actionLabel={t('dashboard_expiry_action')}
-            emptyTitle={t('dashboard_expiry_empty_title')}
-            emptyDescription={t('dashboard_expiry_empty_desc')}
-          />
+          <div data-tour-id="dashboard-expiry-overview">
+            <DashboardExpiryOverview
+              title={t('dashboard_expiry_title')}
+              subtitle={t('dashboard_expiry_subtitle')}
+              stats={expiryStats}
+              items={expiryItems}
+              totalLabel={t('dashboard_expiry_total')}
+              actionLabel={t('dashboard_expiry_action')}
+              emptyTitle={t('dashboard_expiry_empty_title')}
+              emptyDescription={t('dashboard_expiry_empty_desc')}
+            />
+          </div>
 
-          <DashboardActivityTable
-            title={t('recent_activity')}
-            subtitle={dashboardMode === 'admin' ? t('recent_activity_admin_desc') : t('recent_activity_desc')}
-            recent={recent}
-            formatRelativeTime={formatRelativeTime}
-            viewAllLabel={activeRecentViewAllLabel}
-            viewAllTo={activeRecentViewAllTo}
-            columns={{
-              userDocument: t('user_document'),
-              action: t('action'),
-              time: t('time')
-            }}
-            emptyTitle={t('no_recent_activity_title')}
-            emptyDescription={t('no_recent_activity_desc')}
-          />
+          <div data-tour-id="dashboard-recent-activity">
+            <DashboardActivityTable
+              title={t('recent_activity')}
+              subtitle={dashboardMode === 'admin' ? t('recent_activity_admin_desc') : t('recent_activity_desc')}
+              recent={recent}
+              formatRelativeTime={formatRelativeTime}
+              viewAllLabel={activeRecentViewAllLabel}
+              viewAllTo={activeRecentViewAllTo}
+              columns={{
+                userDocument: t('user_document'),
+                action: t('action'),
+                time: t('time')
+              }}
+              emptyTitle={t('no_recent_activity_title')}
+              emptyDescription={t('no_recent_activity_desc')}
+            />
+          </div>
         </>
       )}
 

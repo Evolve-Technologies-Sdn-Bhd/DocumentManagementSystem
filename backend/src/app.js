@@ -98,7 +98,8 @@ app.use(express.json({ limit: config.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
 app.use('/uploads/branding', express.static(path.join(config.uploadDir, 'branding'), { maxAge: '30d', immutable: true }));
-app.use('/uploads', express.static(config.uploadDir));
+app.use('/uploads/landing', express.static(path.join(config.uploadDir, 'landing'), { maxAge: '30d' }));
+app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '1d' }));
 
 // Health check
 app.get('/', (req, res) => {
