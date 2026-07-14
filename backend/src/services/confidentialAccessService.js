@@ -1,8 +1,151 @@
 const prisma = require('../config/database')
 const folderPermissionService = require('./folderPermissionService')
-const { BadRequestError, ForbiddenError, NotFoundError } = require('../utils/errors')
+const { BadRequestError, ForbiddenError, NotFoundError, ValidationError } = require('../utils/errors')
 
 class ConfidentialAccessService {
+  async resolveProjectTrackingRequirementEntriesForLink(link, db = prisma) {
+    const projectId = Number(link?.iteration?.project?.id)
+    const projectCategoryId = Number(link?.iteration?.project?.projectCategoryId)
+    const stageId = Number(link?.stageId)
+    const documentTypeId = Number(link?.item?.documentTypeId || link?.document?.documentTypeId)
+
+    if (!projectId || !stageId || !documentTypeId) return []
+
+    const override = await db.projectSetupDocumentRequirementOverride.findFirst({
+      where: { projectId, stageId, documentTypeId, isExcluded: false, isConfidentialDefault: true },
+      select: { id: true }
+    })
+
+    if (override) {
+      return db.projectSetupDocumentRequirementOverrideConfidentialAccess.findMany({
+        where: { requirementId: override.id, canView: true },
+        select: { subjectType: true, userId: true, roleId: true }
+      })
+    }
+
+    const setupDefault = await db.projectSetupDocumentRequirementDefault.findFirst({
+      where: { stageId, documentTypeId, isConfidentialDefault: true },
+      select: { id: true }
+    })
+
+    if (setupDefault) {
+      return db.projectSetupDocumentRequirementDefaultConfidentialAccess.findMany({
+        where: { requirementId: setupDefault.id, canView: true },
+        select: { subjectType: true, userId: true, roleId: true }
+      })
+    }
+
+    if (!projectCategoryId) return []
+
+    const categoryRequirement = await db.projectCategoryDocumentRequirement.findFirst({
+      where: { projectCategoryId, stageId, documentTypeId, isConfidentialDefault: true },
+      select: { id: true }
+    })
+
+    if (!categoryRequirement) return []
+
+    return db.projectCategoryDocumentRequirementConfidentialAccess.findMany({
+      where: { requirementId: categoryRequirement.id, canView: true },
+      select: { subjectType: true, userId: true, roleId: true }
+    })
+  }
+
+  async syncProjectTrackingDocumentAccess(documentId, db = prisma) {
+    const docId = parseInt(documentId, 10)
+    if (!docId) return 0
+
+    const document = await db.document.findUnique({
+      where: { id: docId },
+      select: {
+        id: true,
+        isConfidential: true,
+        documentTypeId: true,
+        projectLinks: {
+          include: {
+            iteration: {
+              include: {
+                project: {
+                  select: { id: true, projectCategoryId: true }
+                }
+              }
+            },
+            item: {
+              select: { id: true, documentTypeId: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (!document?.isConfidential) return 0
+
+    const deduped = new Map()
+    for (const link of document.projectLinks || []) {
+      const rows = await this.resolveProjectTrackingRequirementEntriesForLink(
+        {
+          ...link,
+          document: { documentTypeId: document.documentTypeId }
+        },
+        db
+      )
+
+      for (const row of rows) {
+        const key = `${row.subjectType}:${row.userId || ''}:${row.roleId || ''}`
+        if (!deduped.has(key)) {
+          deduped.set(key, {
+            documentId: docId,
+            subjectType: row.subjectType,
+            userId: row.userId || null,
+            roleId: row.roleId || null,
+            canView: true
+          })
+        }
+      }
+    }
+
+    await db.documentConfidentialAccess.deleteMany({ where: { documentId: docId } })
+    if (deduped.size === 0) return 0
+
+    const created = await db.documentConfidentialAccess.createMany({
+      data: Array.from(deduped.values()),
+      skipDuplicates: true
+    })
+
+    return created.count || 0
+  }
+
+  async syncProjectSetupRequirementAccessToLinkedDocuments({ projectId, requirementId, scope }, db = prisma) {
+    const normalizedScope = String(scope || '').toUpperCase()
+    if (normalizedScope !== 'OVERRIDE') return { updatedDocuments: 0 }
+
+    const pid = parseInt(projectId, 10)
+    const reqId = parseInt(requirementId, 10)
+    if (!pid || !reqId) return { updatedDocuments: 0 }
+
+    const reqRow = await db.projectSetupDocumentRequirementOverride.findFirst({
+      where: { id: reqId, projectId: pid, isExcluded: false, isConfidentialDefault: true },
+      select: { id: true, stageId: true, documentTypeId: true }
+    })
+    if (!reqRow) return { updatedDocuments: 0 }
+
+    const links = await db.projectDocumentLink.findMany({
+      where: {
+        stageId: reqRow.stageId,
+        iteration: { projectId: pid },
+        item: { documentTypeId: reqRow.documentTypeId },
+        document: { isConfidential: true }
+      },
+      select: { documentId: true }
+    })
+
+    const documentIds = Array.from(new Set((links || []).map((link) => link.documentId).filter(Boolean)))
+    for (const documentId of documentIds) {
+      await this.syncProjectTrackingDocumentAccess(documentId, db)
+    }
+
+    return { updatedDocuments: documentIds.length }
+  }
+
   normalizeEntries(payload) {
     const entries = Array.isArray(payload?.entries) ? payload.entries : []
     const normalized = []
@@ -352,7 +495,9 @@ class ConfidentialAccessService {
       })
     })
 
-    return this.getProjectSetupRequirementAccess({ projectId: pid, requirementId: existingOverride.id, scope: 'OVERRIDE' })
+    const result = await this.getProjectSetupRequirementAccess({ projectId: pid, requirementId: existingOverride.id, scope: 'OVERRIDE' })
+    await this.syncProjectSetupRequirementAccessToLinkedDocuments({ projectId: pid, requirementId: existingOverride.id, scope: 'OVERRIDE' })
+    return result
   }
 
   async applyRequirementAccessToDocument(requirementId, documentId, db = prisma) {

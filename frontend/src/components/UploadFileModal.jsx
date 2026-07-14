@@ -131,30 +131,6 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
         type={alertModal.type}
         onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
       />
-      <AssignReviewerModal
-        isOpen={showAssignReviewer}
-        onClose={() => setShowAssignReviewer(false)}
-        document={document}
-        onSuccess={async () => {
-          setShowAssignReviewer(false)
-          if (onSuccess) await onSuccess({ type: 'submitForReview', documentId: document.id })
-          handleClose()
-        }}
-      />
-      {showDocumentAccess && (
-        <DocumentAccessModal
-          document={document}
-          onClose={() => setShowDocumentAccess(false)}
-          onSaved={async () => {
-            setShowDocumentAccess(false)
-            setAlertModal({ show: true, title: 'Success', message: 'Confidential access updated successfully.', type: 'success' })
-            if (onSuccess) await onSuccess({ type: 'accessUpdated', documentId: document.id })
-          }}
-          onError={(message) => {
-            setAlertModal({ show: true, title: 'Unable to update access', message, type: 'error' })
-          }}
-        />
-      )}
       <Modal onClose={handleClose} closeOnBackdrop size="sm">
         <ModalHeader
           title={uploadComplete ? 'File Uploaded' : 'Upload Document File'}
@@ -275,6 +251,30 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
           )}
         </ModalFooter>
       </Modal>
+      <AssignReviewerModal
+        isOpen={showAssignReviewer}
+        onClose={() => setShowAssignReviewer(false)}
+        document={document}
+        onSuccess={async () => {
+          setShowAssignReviewer(false)
+          if (onSuccess) await onSuccess({ type: 'submitForReview', documentId: document.id })
+          handleClose()
+        }}
+      />
+      {showDocumentAccess && (
+        <DocumentAccessModal
+          document={document}
+          onClose={() => setShowDocumentAccess(false)}
+          onSaved={async () => {
+            setShowDocumentAccess(false)
+            setAlertModal({ show: true, title: 'Success', message: 'Confidential access updated successfully.', type: 'success' })
+            if (onSuccess) await onSuccess({ type: 'accessUpdated', documentId: document.id })
+          }}
+          onError={(message) => {
+            setAlertModal({ show: true, title: 'Unable to update access', message, type: 'error' })
+          }}
+        />
+      )}
     </>
   )
 }

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import { AlertModal } from './ConfirmModal'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import Button from './ui/Button'
+import AppSurface from './ui/AppSurface'
+import InlineSpinner from './ui/InlineSpinner'
 
 export default function AssignReviewerModal({ isOpen, onClose, document, onSuccess }) {
   const [availableReviewers, setAvailableReviewers] = useState([])
@@ -88,7 +91,7 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
 
   if (!isOpen || !document) return null
 
-  const modal = (
+  return (
     <>
       <AlertModal
         show={alertModal.show}
@@ -97,54 +100,34 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
         type={alertModal.type}
         onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
       />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={handleClose} />
-      
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Assign Reviewer</h2>
-              <p className="text-sm text-gray-600 mt-1">{document.fileCode}: {document.title}</p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+      <Modal onClose={submitting ? undefined : handleClose} closeOnBackdrop={!submitting} size="md">
+        <ModalHeader
+          title="Assign Reviewer"
+          subtitle={`${document.fileCode}: ${document.title}`}
+          onClose={submitting ? undefined : handleClose}
+        />
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            {loading ? (
-              <div className="text-center py-8 text-gray-500">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <span>Loading reviewers...</span>
-                </div>
-              </div>
-            ) : availableReviewers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No reviewers available</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600 mb-4">
-                  Select a reviewer for this document:
-                </p>
+        <ModalBody className="space-y-4">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-ink-muted">
+              <InlineSpinner />
+              <span>Loading reviewers...</span>
+            </div>
+          ) : availableReviewers.length === 0 ? (
+            <AppSurface variant="muted" padding="md" className="text-center text-sm text-ink-muted">
+              No reviewers available
+            </AppSurface>
+          ) : (
+            <>
+              <p className="text-sm text-ink-muted">Select a reviewer for this document.</p>
+              <div className="max-h-[48vh] space-y-2 overflow-y-auto pr-1">
                 {availableReviewers.map((reviewer) => (
                   <label
                     key={reviewer.id}
-                    className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-colors border ${
-                      selectedReviewerId === reviewer.id 
-                        ? 'bg-blue-50 border-blue-200' 
-                        : 'border-gray-200 hover:bg-gray-50'
+                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors ${
+                      selectedReviewerId === reviewer.id
+                        ? 'border-brand bg-blue-50/50'
+                        : 'border-border hover:bg-surface-muted'
                     }`}
                   >
                     <input
@@ -152,60 +135,44 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
                       name="reviewer"
                       checked={selectedReviewerId === reviewer.id}
                       onChange={() => handleSelectReviewer(reviewer.id)}
-                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      className="mt-1 h-4 w-4"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-ink">
                         {reviewer.firstName && reviewer.lastName
                           ? `${reviewer.firstName} ${reviewer.lastName}`
                           : reviewer.email}
                       </div>
-                      {reviewer.position && (
-                        <div className="text-xs text-gray-500">{reviewer.position}</div>
-                      )}
-                      {reviewer.department && (
-                        <div className="text-xs text-gray-500">{reviewer.department}</div>
-                      )}
+                      {reviewer.position ? (
+                        <div className="text-xs text-ink-muted">{reviewer.position}</div>
+                      ) : null}
+                      {reviewer.department ? (
+                        <div className="text-xs text-ink-muted">{reviewer.department}</div>
+                      ) : null}
                     </div>
                   </label>
                 ))}
               </div>
-            )}
-            
-            {selectedReviewerId && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-900 font-medium">
-                  1 reviewer selected
-                </p>
-              </div>
-            )}
-          </div>
+            </>
+          )}
 
-          {/* Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!selectedReviewerId || submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Submitting...' : 'Submit for Review'}
-            </button>
-          </div>
-        </div>
-      </div>
-      </div>
+          {selectedReviewerId ? (
+            <AppSurface variant="panel" padding="sm" className="text-sm font-medium text-[var(--dms-color-info-ink)]">
+              1 reviewer selected
+            </AppSurface>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={!selectedReviewerId || submitting}>
+            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+            {submitting ? 'Submitting...' : 'Submit for Review'}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }
