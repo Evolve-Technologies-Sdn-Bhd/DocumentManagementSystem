@@ -1471,7 +1471,9 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
 function CreateDocumentModal({ item, phase, onClose, onCreated }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dateOfDocument, setDateOfDocument] = useState('')
   const [loading, setLoading] = useState(false)
+  const willCreateConfidential = Boolean(item?.isConfidentialDefault)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -1479,7 +1481,8 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
     try {
       const res = await api.post(`/project-tracking/items/${item.id}/create-document`, {
         title,
-        description: description || null
+        description: description || null,
+        dateOfDocument: dateOfDocument || null
       })
       onCreated(res?.data?.data)
     } finally {
@@ -1501,7 +1504,14 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           stageLabel={item.stage?.name}
           documentTypeLabel={item.documentType?.name}
         />
-        <div className="text-xs text-ink-soft">Create a new document for this required item and link it automatically.</div>
+        <div className="rounded-xl border border-[var(--dms-color-info-soft)] bg-[var(--dms-color-info-soft)] px-3 py-2 text-xs text-[var(--dms-color-info-ink)]">
+          This follows the NDR concept more closely: the system auto-generates a file code, assigns you as owner, and creates the document directly in Draft for this required item.
+        </div>
+        {willCreateConfidential && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            This required item is confidential by default. The new draft will be created as confidential automatically.
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-semibold text-ink-soft">Title</label>
           <TextInput
@@ -1511,7 +1521,15 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-ink-soft">Description</label>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Date of Document</label>
+          <TextInput
+            type="date"
+            value={dateOfDocument}
+            onChange={(e) => setDateOfDocument(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Remarks / Description</label>
           <TextArea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1522,7 +1540,7 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? 'Creating...' : willCreateConfidential ? 'Create Confidential Draft' : 'Create Draft'}
           </Button>
         </div>
       </form>
