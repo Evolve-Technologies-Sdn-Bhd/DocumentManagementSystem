@@ -5,6 +5,21 @@ const documentAssignmentService = require('./documentAssignmentService')
 const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
 
+// #region debug-point A:runtime-reporter
+const __ptDebugReport = (payload) => {
+  fetch('http://127.0.0.1:7777/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'project-confidential-access',
+      runId: 'pre-fix',
+      ts: Date.now(),
+      ...payload
+    })
+  }).catch(() => {})
+}
+// #endregion
+
 const PROJECT_STATUSES = new Set(['ACTIVE', 'ON_HOLD', 'CLOSED', 'ARCHIVED'])
 
 const normalizeProjectStatus = (value) => {
@@ -25,6 +40,44 @@ const assertProjectCanProgress = (project, actionLabel) => {
   }
 
   throw new ValidationError(`This project is ${status.toLowerCase()}. Update the project status before you can ${actionLabel}.`)
+}
+
+const resolveEffectiveRequirementForStageDocument = async (db, { projectId, projectCategoryId, stageId, documentTypeId }) => {
+  const override = await db.projectSetupDocumentRequirementOverride.findFirst({
+    where: {
+      projectId,
+      stageId,
+      documentTypeId,
+      isExcluded: false
+    },
+    select: { id: true, isConfidentialDefault: true }
+  })
+
+  if (override) {
+    return { scope: 'OVERRIDE', requirementId: override.id, isConfidentialDefault: override.isConfidentialDefault }
+  }
+
+  const setupDefault = await db.projectSetupDocumentRequirementDefault.findFirst({
+    where: { stageId, documentTypeId },
+    select: { id: true, isConfidentialDefault: true }
+  })
+
+  if (setupDefault) {
+    return { scope: 'DEFAULT', requirementId: setupDefault.id, isConfidentialDefault: setupDefault.isConfidentialDefault }
+  }
+
+  if (!projectCategoryId) return null
+
+  const categoryDefault = await db.projectCategoryDocumentRequirement.findFirst({
+    where: { projectCategoryId, stageId, documentTypeId },
+    select: { id: true, isConfidentialDefault: true }
+  })
+
+  if (categoryDefault) {
+    return { scope: 'CATEGORY', requirementId: categoryDefault.id, isConfidentialDefault: categoryDefault.isConfidentialDefault }
+  }
+
+  return null
 }
 
 const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) => {
@@ -56,12 +109,56 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 }
 
 const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
+  // #region debug-point A:linked-document-access-check
+  const __debugUserId = Number.isFinite(Number(user?.id)) ? Number(user.id) : null
+  const __debugRoleIds = Array.isArray(userRoleIds) ? userRoleIds.filter((id) => Number.isFinite(id)) : []
+  const __debugEntries = Array.isArray(document?.confidentialAccess)
+    ? document.confidentialAccess.map((entry) => ({ id: entry.id, userId: entry.userId, roleId: entry.roleId }))
+    : []
+  // #endregion
   if (!document) return false
-  if (!document.isConfidential) return true
-  if (!user) return false
+  if (!document.isConfidential) {
+    // #region debug-point A:linked-document-access-check
+    __ptDebugReport({
+      hypothesisId: 'A',
+      location: 'projectTrackingService.canInteractWithLinkedDocument:non-confidential',
+      msg: '[DEBUG] linked document allowed because confidential flag is off',
+      data: { documentId: document?.id || null, userId: __debugUserId, roleIds: __debugRoleIds }
+    })
+    // #endregion
+    return true
+  }
+  if (!user) {
+    // #region debug-point A:linked-document-access-check
+    __ptDebugReport({
+      hypothesisId: 'A',
+      location: 'projectTrackingService.canInteractWithLinkedDocument:no-user',
+      msg: '[DEBUG] linked confidential document denied because user context is missing',
+      data: { documentId: document?.id || null, entries: __debugEntries }
+    })
+    // #endregion
+    return false
+  }
 
   const userId = Number.isFinite(Number(user.id)) ? Number(user.id) : null
-  if (userId && (document.ownerId === userId || document.createdById === userId)) return true
+  if (userId && (document.ownerId === userId || document.createdById === userId)) {
+    // #region debug-point A:linked-document-access-check
+    __ptDebugReport({
+      hypothesisId: 'C',
+      location: 'projectTrackingService.canInteractWithLinkedDocument:owner-or-creator',
+      msg: '[DEBUG] linked confidential document allowed because user matches owner or creator',
+      data: {
+        documentId: document?.id || null,
+        userId,
+        ownerId: document?.ownerId || null,
+        createdById: document?.createdById || null,
+        roleIds: __debugRoleIds,
+        entries: __debugEntries
+      }
+    })
+    // #endregion
+    return true
+  }
 
   // Verify user actually has an access entry matching them (userId or roleId)
   if (Array.isArray(document.confidentialAccess) && document.confidentialAccess.length > 0) {
@@ -71,9 +168,41 @@ const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
       if (normalizedRoleIds.length > 0 && entry.roleId && normalizedRoleIds.includes(entry.roleId)) return true
       return false
     })
-    if (hasMatchingEntry) return true
+    if (hasMatchingEntry) {
+      // #region debug-point A:linked-document-access-check
+      __ptDebugReport({
+        hypothesisId: 'B',
+        location: 'projectTrackingService.canInteractWithLinkedDocument:matched-entry',
+        msg: '[DEBUG] linked confidential document allowed because access entry matched current user or role',
+        data: {
+          documentId: document?.id || null,
+          userId,
+          ownerId: document?.ownerId || null,
+          createdById: document?.createdById || null,
+          roleIds: normalizedRoleIds,
+          entries: __debugEntries
+        }
+      })
+      // #endregion
+      return true
+    }
   }
 
+  // #region debug-point A:linked-document-access-check
+  __ptDebugReport({
+    hypothesisId: 'A',
+    location: 'projectTrackingService.canInteractWithLinkedDocument:denied',
+    msg: '[DEBUG] linked confidential document denied after evaluating owner creator and matching entries',
+    data: {
+      documentId: document?.id || null,
+      userId,
+      ownerId: document?.ownerId || null,
+      createdById: document?.createdById || null,
+      roleIds: __debugRoleIds,
+      entries: __debugEntries
+    }
+  })
+  // #endregion
   return false
 }
 
@@ -792,6 +921,19 @@ exports.listIterationItems = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
+  // #region debug-point D:iteration-items-role-resolution
+  __ptDebugReport({
+    hypothesisId: 'D',
+    location: 'projectTrackingService.listIterationItems:role-resolution',
+    msg: '[DEBUG] resolved role ids for iteration items request',
+    data: {
+      iterationId,
+      userId: user?.id || null,
+      roleNames: user?.roles || [],
+      roleIds
+    }
+  })
+  // #endregion
 
   const items = await prisma.projectIterationDocumentItem.findMany({
     where: { projectIterationId: iterationId },
@@ -810,8 +952,24 @@ exports.listIterationItems = async (iterationId, { user }) => {
     orderBy: [{ stageId: 'asc' }, { documentTypeId: 'asc' }]
   });
 
+  const requirementMap = new Map()
+  await Promise.all(
+    items.map(async (item) => {
+      const key = `${item.stageId}:${item.documentTypeId}`
+      if (requirementMap.has(key)) return
+      const requirement = await resolveEffectiveRequirementForStageDocument(prisma, {
+        projectId: iteration.project.id,
+        projectCategoryId: iteration.project.projectCategoryId,
+        stageId: item.stageId,
+        documentTypeId: item.documentTypeId
+      })
+      requirementMap.set(key, requirement)
+    })
+  )
+
   const withStageNames = items.map((item) => ({
     ...item,
+    isConfidentialDefault: Boolean(requirementMap.get(`${item.stageId}:${item.documentTypeId}`)?.isConfidentialDefault),
     stage: item.stage
       ? { ...item.stage, name: stageNameMap.get(item.stageId) || item.stage.name }
       : item.stage,
@@ -889,7 +1047,7 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
         iteration: {
           include: {
             project: {
-              select: { id: true, status: true }
+              select: { id: true, status: true, projectCategoryId: true }
             }
           }
         }
@@ -900,7 +1058,7 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
 
     const doc = await tx.document.findUnique({
       where: { id: documentId },
-      select: { id: true, status: true }
+      select: { id: true, status: true, isConfidential: true }
     });
     if (!doc) throw new NotFoundError('Document');
 
@@ -910,6 +1068,35 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
     });
 
     if (exists) throw new ConflictError('Document already linked to this iteration');
+
+    const requirement = await resolveEffectiveRequirementForStageDocument(tx, {
+      projectId: item.iteration.project.id,
+      projectCategoryId: item.iteration.project.projectCategoryId,
+      stageId: item.stageId,
+      documentTypeId: item.documentTypeId
+    })
+    if (requirement?.isConfidentialDefault) {
+      if (!doc.isConfidential) {
+        await tx.document.update({
+          where: { id: documentId },
+          data: { isConfidential: true }
+        })
+
+        await tx.documentConfidentialAccess.deleteMany({
+          where: { documentId }
+        })
+      }
+
+      if (requirement.scope === 'DEFAULT' || requirement.scope === 'OVERRIDE') {
+        await confidentialAccessService.applyProjectSetupRequirementAccessToDocument(
+          { requirementId: requirement.requirementId, scope: requirement.scope },
+          documentId,
+          tx
+        )
+      } else if (requirement.scope === 'CATEGORY') {
+        await confidentialAccessService.applyRequirementAccessToDocument(requirement.requirementId, documentId, tx)
+      }
+    }
 
     const link = await tx.projectDocumentLink.create({
       data: {
@@ -1016,6 +1203,19 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
+  // #region debug-point D:stage-documents-role-resolution
+  __ptDebugReport({
+    hypothesisId: 'D',
+    location: 'projectTrackingService.listIterationStageDocuments:role-resolution',
+    msg: '[DEBUG] resolved role ids for stage documents request',
+    data: {
+      iterationId,
+      userId: user?.id || null,
+      roleNames: user?.roles || [],
+      roleIds
+    }
+  })
+  // #endregion
 
   const links = await prisma.projectDocumentLink.findMany({
     where: {
@@ -1123,7 +1323,7 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId, { user } 
   return { removedLinkId: link.id }
 }
 
-exports.createDocumentFromItem = async (itemId, { title, description, createdById }) => {
+exports.createDocumentFromItem = async (itemId, { title, description, dateOfDocument, createdById }) => {
   const item = await prisma.projectIterationDocumentItem.findUnique({
     where: { id: itemId },
     include: {
@@ -1172,7 +1372,8 @@ exports.createDocumentFromItem = async (itemId, { title, description, createdByI
     documentTypeId: item.documentTypeId,
     projectCategoryId,
     folderId: null,
-    isConfidential
+    isConfidential,
+    dateOfDocument
   }, createdById)
 
   if (isConfidential && requirement?.id && requirementScope) {
@@ -1195,7 +1396,7 @@ exports.createDocumentFromItem = async (itemId, { title, description, createdByI
   return { document, link }
 }
 
-exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, title, description, createdById }) => {
+exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, title, description, dateOfDocument, createdById }) => {
   const iteration = await prisma.projectIteration.findUnique({
     where: { id: iterationId },
     include: { project: true }
@@ -1236,7 +1437,8 @@ exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, 
     documentTypeId,
     projectCategoryId: iteration.project.projectCategoryId,
     folderId: null,
-    isConfidential
+    isConfidential,
+    dateOfDocument
   }, createdById)
 
   if (isConfidential && requirement?.id && requirementScope) {

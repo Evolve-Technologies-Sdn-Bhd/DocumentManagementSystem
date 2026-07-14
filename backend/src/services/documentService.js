@@ -591,10 +591,15 @@ class DocumentService {
    * Create new document
    */
   async createDocument(data, creatorId) {
-    const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential } = data;
+    const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential, dateOfDocument } = data;
 
     // Generate file code
-    const fileCode = await this.generateFileCode(documentTypeId, projectCategoryId || null);
+    const fileCode = await this.generateFileCode(
+      documentTypeId,
+      projectCategoryId || null,
+      '1',
+      dateOfDocument ? new Date(dateOfDocument) : null
+    );
 
     // Create document
     const document = await prisma.document.create({
@@ -610,7 +615,8 @@ class DocumentService {
         ownerId: creatorId,
         status: 'DRAFT',
         stage: 'DRAFT',
-        version: '1.0'
+        version: '1.0',
+        dateOfDocument: dateOfDocument ? new Date(dateOfDocument) : null
       },
       include: {
         documentType: true,

@@ -986,6 +986,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   const selectedResult = results.find((r) => String(r.id) === String(documentId)) || null
   const selectedDocumentTypeId = selectedResult?.document?.documentTypeId || selectedResult?.documentTypeId || null
   const matchingItem = stageItems.find((it) => String(it.documentTypeId) === String(selectedDocumentTypeId)) || null
+  const willAutoBecomeConfidential = Boolean(matchingItem?.isConfidentialDefault && selectedResult && !(selectedResult?.document?.isConfidential || selectedResult?.isConfidential))
   const filteredResults = useMemo(() => {
     if (statusFilter === 'ALL') return results
     return results.filter((r) => String(r.document?.status || r.status || '').toUpperCase() === statusFilter)
@@ -998,7 +999,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
     }
     setLoading(true)
     try {
-      const params = { q: searchText.trim() }
+      const params = { q: searchText.trim(), projectId }
       const res = await api.get('/project-tracking/documents/search', { params })
       setResults(res?.data?.data?.documents || [])
     } catch (error) {
@@ -1057,6 +1058,11 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </Button>
           </div>
           <div className="text-xs text-ink-soft">Search covers all accessible documents in the system, including published documents outside this project.</div>
+          {matchingItem?.isConfidentialDefault && (
+            <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+              This required item is confidential by default. Any document attached here will be treated as confidential and follow the configured access list.
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-1">
             {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
               <button
@@ -1116,11 +1122,16 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
               : 'Selected document will be linked under Other Documents for this stage.'
             : 'Search and select one document from the list above.'}
         </div>
+        {willAutoBecomeConfidential && (
+          <div className="text-xs font-medium text-[var(--dms-color-danger-ink)]">
+            The selected document is not currently confidential. It will be updated to confidential automatically after attach.
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading || !documentId} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Attaching...' : 'Attach'}
+            {loading ? 'Attaching...' : willAutoBecomeConfidential ? 'Attach as Confidential' : 'Attach'}
           </Button>
         </div>
       </form>
@@ -1132,9 +1143,11 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
   const [documentTypeId, setDocumentTypeId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dateOfDocument, setDateOfDocument] = useState('')
   const [loading, setLoading] = useState(false)
 
   const matchingItem = stageItems.find((it) => String(it.documentTypeId) === String(documentTypeId)) || null
+  const willCreateConfidential = Boolean(matchingItem?.isConfidentialDefault)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -1144,8 +1157,8 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
         ? `/project-tracking/items/${matchingItem.id}/create-document`
         : `/project-tracking/iterations/${iterationId}/stages/${stage.id}/create-document`
       const payload = matchingItem
-        ? { title, description: description || null }
-        : { documentTypeId: Number(documentTypeId), title, description: description || null }
+        ? { title, description: description || null, dateOfDocument: dateOfDocument || null }
+        : { documentTypeId: Number(documentTypeId), title, description: description || null, dateOfDocument: dateOfDocument || null }
       const res = await api.post(endpoint, payload)
       onCreated(res?.data?.data)
     } finally {
@@ -1166,11 +1179,19 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           stageLabel={stage?.name}
           documentTypeLabel={documentTypes.find((d) => String(d.id) === String(documentTypeId))?.name || null}
         />
+        <div className="rounded-xl border border-[var(--dms-color-info-soft)] bg-[var(--dms-color-info-soft)] px-3 py-2 text-xs text-[var(--dms-color-info-ink)]">
+          This follows the NDR concept more closely: the system auto-generates a file code, assigns you as owner, and creates the document directly in Draft for this project stage.
+        </div>
         <div className="text-xs text-ink-soft">
           {matchingItem
             ? `This document type matches a required checklist item, so the new document will appear under ${matchingItem.documentType?.name || 'that required row'}.`
             : 'No required checklist item matches this document type, so the new document will be linked under Other Documents for this stage.'}
         </div>
+        {willCreateConfidential && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            This required item is confidential by default. The new draft will be created as confidential automatically.
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-semibold text-ink-soft">Document Type</label>
           <SelectField
@@ -1193,7 +1214,15 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-ink-soft">Description</label>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Date of Document</label>
+          <TextInput
+            type="date"
+            value={dateOfDocument}
+            onChange={(e) => setDateOfDocument(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Remarks / Description</label>
           <TextArea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1204,7 +1233,7 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? 'Creating...' : willCreateConfidential ? 'Create Confidential Draft' : 'Create Draft'}
           </Button>
         </div>
       </form>
