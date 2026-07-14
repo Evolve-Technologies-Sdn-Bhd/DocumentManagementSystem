@@ -4454,11 +4454,6 @@ function Setup() {
     })
   }, [documentTypes, documentTypeSearch, newReq.documentTypeIds])
 
-  const selectedRequirementDocumentTypes = useMemo(
-    () => documentTypes.filter((docType) => (newReq.documentTypeIds || []).map((id) => String(id)).includes(String(docType.id))),
-    [documentTypes, newReq.documentTypeIds]
-  )
-
   const loadBase = async () => {
     const [proj, docTypes] = await Promise.all([api.get('/project-tracking/projects'), api.get('/system/config/document-types')])
     setProjects(proj?.data?.data?.projects || [])
@@ -4845,11 +4840,6 @@ function Setup() {
                     placeholder="Select one or more document types"
                     noResultsLabel="No document type found"
                   />
-                  <div className="mt-2 text-[11px] text-ink-muted">
-                    {selectedRequirementDocumentTypes.length > 0
-                      ? `Selected: ${selectedRequirementDocumentTypes.map((docType) => docType.name).join(', ')}`
-                      : 'Pick one or more document types from the dropdown'}
-                  </div>
                 </div>
                 <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
                   <input
