@@ -317,6 +317,10 @@ class DocumentController {
         ])
       }
 
+      const permissionStart = startTimer()
+      await folderPermissionService.assertCan(baseFolder.id, req.user, 'create')
+      timings.assertCreatePermissionMs = roundMs(getElapsedMs(permissionStart))
+
       const folderConfigById = new Map([[baseFolder.id, { accessMode: baseFolder.accessMode }]])
       const folderByParentAndName = new Map()
 
