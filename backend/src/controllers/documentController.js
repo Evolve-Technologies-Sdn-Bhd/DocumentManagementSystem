@@ -1825,6 +1825,39 @@ class DocumentController {
       return ResponseFormatter.notFound(res, 'Document version');
     }
 
+    // #region debug-point D:preview-document-controller
+    fetch('http://127.0.0.1:7777/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'master-record-preview-link',
+        runId: 'pre-fix',
+        hypothesisId: 'D',
+        location: 'documentController.js:previewDocument',
+        msg: '[DEBUG] Preview controller resolved document target',
+        data: {
+          userId: req.user?.id ?? null,
+          requestedDocumentId: documentId,
+          requestedVersionId: versionId ? parseInt(versionId, 10) : null,
+          resolvedDocument: {
+            id: document?.id ?? null,
+            fileCode: document?.fileCode ?? null,
+            title: document?.title ?? null,
+            projectCategoryId: document?.projectCategoryId ?? null,
+            status: document?.status ?? null,
+            folderId: document?.folderId ?? null
+          },
+          resolvedVersion: {
+            id: version?.id ?? null,
+            fileName: version?.fileName ?? null,
+            mimeType: version?.mimeType ?? null
+          }
+        },
+        ts: Date.now()
+      })
+    }).catch(() => {})
+    // #endregion
+
     const absolutePath = resolveExistingFilePath(version.filePath)
 
     if (!absolutePath) {

@@ -60,6 +60,33 @@ export default function DocumentViewerModal({ document, onClose }) {
         setDocxBuffer(null)
         setContentType(null)
         setDocxZoomMode('fit')
+        // #region debug-point C:preview-request-start
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'master-record-preview-link',
+            runId: 'pre-fix',
+            hypothesisId: 'C',
+            location: 'DocumentViewerModal.jsx:loadDocument:start',
+            msg: '[DEBUG] Starting preview load',
+            data: {
+              requestId,
+              effectiveDocumentId,
+              effectiveVersionId,
+              incomingDocument: {
+                id: document?.id ?? null,
+                documentId: document?.documentId ?? null,
+                fileCode: document?.fileCode ?? null,
+                projectCategoryId: document?.projectCategoryId ?? null,
+                title: document?.title ?? null,
+                fileName: document?.fileName ?? null
+              }
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         
         const res = await api.get(`/documents/${effectiveDocumentId}/preview`, {
           params: effectiveVersionId ? { versionId: effectiveVersionId } : undefined,
@@ -74,6 +101,28 @@ export default function DocumentViewerModal({ document, onClose }) {
         const mimeType = res.headers['content-type'] || ''
         const fileName = document.fileName || document.title || ''
         const fileExtension = fileName.toLowerCase().split('.').pop()
+        // #region debug-point D:preview-response
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'master-record-preview-link',
+            runId: 'pre-fix',
+            hypothesisId: 'D',
+            location: 'DocumentViewerModal.jsx:loadDocument:response',
+            msg: '[DEBUG] Preview response received',
+            data: {
+              requestId,
+              effectiveDocumentId,
+              effectiveVersionId,
+              mimeType,
+              fileName,
+              fileExtension
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         
         const isDocxLike =
           fileExtension === 'docx' ||
@@ -143,6 +192,27 @@ export default function DocumentViewerModal({ document, onClose }) {
           setContentType('other')
         }
       } catch (err) {
+        // #region debug-point E:preview-error
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'master-record-preview-link',
+            runId: 'pre-fix',
+            hypothesisId: 'E',
+            location: 'DocumentViewerModal.jsx:loadDocument:error',
+            msg: '[DEBUG] Preview request failed',
+            data: {
+              requestId,
+              effectiveDocumentId,
+              effectiveVersionId,
+              status: err?.response?.status ?? null,
+              message: err?.response?.data?.message || err?.message || null
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         if (isStale()) {
           return
         }
