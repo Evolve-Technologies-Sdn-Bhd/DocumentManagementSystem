@@ -4,6 +4,9 @@ const configService = require('../services/configService');
 const reportsService = require('../services/reportsService');
 const codeRegistryService = require('../services/codeRegistryService');
 const auditLogService = require('../services/auditLogService');
+const documentAssignmentService = require('../services/documentAssignmentService')
+const confidentialAccessService = require('../services/confidentialAccessService')
+const folderPermissionService = require('../services/folderPermissionService')
 const { authenticate, authorize } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
@@ -86,9 +89,17 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     : []
   const categoryById = new Map(categories.map((c) => [c.id, c]))
   const fileCodes = Array.from(new Set(records.map((r) => String(r.fileCode || '').trim()).filter(Boolean)))
+  const roleIds = req.user ? await folderPermissionService.getRoleIdsByNames(req.user.roles || []) : []
+  const accessibleDocumentWhere = {
+    AND: [
+      { fileCode: { in: fileCodes } },
+      documentAssignmentService.buildAccessWhereClause(req.user.id, roleIds),
+      confidentialAccessService.buildConfidentialWhereClause(req.user, roleIds)
+    ]
+  }
   const documents = fileCodes.length
     ? await prisma.document.findMany({
-      where: { fileCode: { in: fileCodes } },
+      where: accessibleDocumentWhere,
       select: {
         id: true,
         fileCode: true,
@@ -99,7 +110,8 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
           orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
           take: 1
         }
-      }
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }]
     })
     : []
   const documentByFileCodeAndCategory = new Map(
