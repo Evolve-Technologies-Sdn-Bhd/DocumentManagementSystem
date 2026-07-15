@@ -380,12 +380,13 @@ exports.createDocumentFromItem = asyncHandler(async (req, res) => {
   const itemId = Number(req.params.itemId);
   if (!itemId) throw new ValidationError('Invalid itemId');
 
-  const { title, description } = req.body || {};
+  const { title, description, dateOfDocument } = req.body || {};
   if (!title) throw new ValidationError('title is required');
 
   const result = await projectTrackingService.createDocumentFromItem(itemId, {
     title: String(title).trim(),
     description: description ? String(description) : null,
+    dateOfDocument: normalizeOptionalDate(dateOfDocument, 'dateOfDocument'),
     createdById: req.user.id
   });
 
@@ -398,7 +399,7 @@ exports.createDocumentForStage = asyncHandler(async (req, res) => {
   if (!iterationId) throw new ValidationError('Invalid iterationId');
   if (!stageId) throw new ValidationError('Invalid stageId');
 
-  const { documentTypeId, title, description } = req.body || {};
+  const { documentTypeId, title, description, dateOfDocument } = req.body || {};
   if (!documentTypeId) throw new ValidationError('documentTypeId is required');
   if (!title) throw new ValidationError('title is required');
 
@@ -406,6 +407,7 @@ exports.createDocumentForStage = asyncHandler(async (req, res) => {
     documentTypeId: Number(documentTypeId),
     title: String(title).trim(),
     description: description ? String(description) : null,
+    dateOfDocument: normalizeOptionalDate(dateOfDocument, 'dateOfDocument'),
     createdById: req.user.id
   });
 

@@ -19,6 +19,8 @@ export default function DocumentViewerModal({ document, onClose }) {
   const [error, setError] = useState(null)
   const docxContainerRef = useRef(null)
   const docxViewportRef = useRef(null)
+  const activeRequestRef = useRef(0)
+  const objectUrlRef = useRef(null)
   const [docxZoomMode, setDocxZoomMode] = useState('fit')
   const effectiveDocumentId = document?.documentId ?? document?.id
   const effectiveVersionId = document?.versionId ?? null
@@ -31,13 +33,26 @@ export default function DocumentViewerModal({ document, onClose }) {
 
   useEffect(() => {
     const loadDocument = async () => {
+      const requestId = activeRequestRef.current + 1
+      activeRequestRef.current = requestId
+      const isStale = () => activeRequestRef.current !== requestId
+      const revokeObjectUrl = (url = objectUrlRef.current) => {
+        if (!url) return
+        window.URL.revokeObjectURL(url)
+        if (objectUrlRef.current === url) {
+          objectUrlRef.current = null
+        }
+      }
+
       try {
         if (!effectiveDocumentId) {
+          revokeObjectUrl()
           setError('Missing document id')
           setLoading(false)
           return
         }
 
+        revokeObjectUrl()
         setLoading(true)
         setError(null)
         setFileUrl(null)
@@ -50,6 +65,10 @@ export default function DocumentViewerModal({ document, onClose }) {
           params: effectiveVersionId ? { versionId: effectiveVersionId } : undefined,
           responseType: 'blob'
         })
+
+        if (isStale()) {
+          return
+        }
         
         // Get file extension from response headers or document title
         const mimeType = res.headers['content-type'] || ''
@@ -64,42 +83,75 @@ export default function DocumentViewerModal({ document, onClose }) {
 
         if (isDocxLike) {
           const arrayBuffer = await res.data.arrayBuffer()
+          if (isStale()) {
+            return
+          }
           setDocxBuffer(arrayBuffer)
           setContentType('docx')
         } else if (isLegacyDoc) {
           const url = window.URL.createObjectURL(new Blob([res.data], { type: mimeType }))
+          if (isStale()) {
+            revokeObjectUrl(url)
+            return
+          }
+          objectUrlRef.current = url
           setFileUrl(url)
           setContentType('other')
         }
         // No preview for Excel/CSV
         else if (mimeType.includes('spreadsheet') || fileExtension === 'xlsx' || fileExtension === 'xls' || fileExtension === 'csv') {
           const url = window.URL.createObjectURL(new Blob([res.data], { type: mimeType }))
+          if (isStale()) {
+            revokeObjectUrl(url)
+            return
+          }
+          objectUrlRef.current = url
           setFileUrl(url)
           setContentType('other')
         }
         // Handle PDF and other files
         else if (mimeType.includes('pdf') || fileExtension === 'pdf') {
           const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+          if (isStale()) {
+            revokeObjectUrl(url)
+            return
+          }
+          objectUrlRef.current = url
           setFileUrl(url)
           setContentType('pdf')
         }
         // Handle images
         else if (mimeType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
           const url = window.URL.createObjectURL(new Blob([res.data], { type: mimeType }))
+          if (isStale()) {
+            revokeObjectUrl(url)
+            return
+          }
+          objectUrlRef.current = url
           setFileUrl(url)
           setContentType('image')
         }
         // Fallback for other file types
         else {
           const url = window.URL.createObjectURL(new Blob([res.data], { type: mimeType }))
+          if (isStale()) {
+            revokeObjectUrl(url)
+            return
+          }
+          objectUrlRef.current = url
           setFileUrl(url)
           setContentType('other')
         }
       } catch (err) {
+        if (isStale()) {
+          return
+        }
         console.error('Failed to load document:', err)
         setError(err.response?.data?.message || err.message || 'Failed to load document')
       } finally {
-        setLoading(false)
+        if (!isStale()) {
+          setLoading(false)
+        }
       }
     }
 
@@ -109,8 +161,9 @@ export default function DocumentViewerModal({ document, onClose }) {
 
     // Cleanup
     return () => {
-      if (fileUrl) {
-        window.URL.revokeObjectURL(fileUrl)
+      if (objectUrlRef.current) {
+        window.URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
       }
     }
   }, [document])

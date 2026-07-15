@@ -85,12 +85,34 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     ? await reportsService.getProjectCategoriesByIds(categoryIds)
     : []
   const categoryById = new Map(categories.map((c) => [c.id, c]))
+  const fileCodes = Array.from(new Set(records.map((r) => String(r.fileCode || '').trim()).filter(Boolean)))
+  const documents = fileCodes.length
+    ? await prisma.document.findMany({
+      where: { fileCode: { in: fileCodes } },
+      select: {
+        id: true,
+        fileCode: true,
+        title: true,
+        projectCategoryId: true,
+        versions: {
+          select: { fileName: true },
+          orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+          take: 1
+        }
+      }
+    })
+    : []
+  const documentByFileCodeAndCategory = new Map(
+    documents.map((doc) => [`${doc.fileCode}::${doc.projectCategoryId ?? ''}`, doc])
+  )
   
   // Format for frontend
   let formattedRecords = records.map(record => ({
     id: record.id,
+    documentId: documentByFileCodeAndCategory.get(`${record.fileCode}::${record.projectCategoryId ?? ''}`)?.id ?? null,
     fileCode: record.fileCode,
     title: record.documentTitle,
+    fileName: documentByFileCodeAndCategory.get(`${record.fileCode}::${record.projectCategoryId ?? ''}`)?.versions?.[0]?.fileName || null,
     type: record.documentType,
     projectCategoryId: record.projectCategoryId ?? null,
     projectCategory: categoryById.get(record.projectCategoryId)?.name || '',

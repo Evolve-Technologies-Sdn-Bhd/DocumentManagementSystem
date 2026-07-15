@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Timeline from '@mui/lab/Timeline'
 import TimelineConnector from '@mui/lab/TimelineConnector'
@@ -45,6 +45,128 @@ function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
         </div>
         <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
       </div>
+    </div>
+  )
+}
+
+function SearchableSelectField({
+  values = [],
+  options,
+  onChange,
+  searchValue,
+  onSearchChange,
+  placeholder = 'Select option',
+  noResultsLabel = 'No results found'
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+  const selectedValues = Array.isArray(values) ? values.map((value) => String(value)) : []
+  const selectedOptions = options.filter((option) => selectedValues.includes(String(option.id)))
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex min-h-[42px] w-full items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
+          open ? 'ring-2 ring-brand/20' : ''
+        }`}
+      >
+        <span className={selectedOptions.length > 0 ? 'text-ink' : 'text-ink-muted'}>
+          {selectedOptions.length === 0
+            ? placeholder
+            : selectedOptions.length === 1
+              ? selectedOptions[0].name
+              : `${selectedOptions.length} document types selected`}
+        </span>
+        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+          <div className="border-b border-border p-3">
+            <input
+              ref={inputRef}
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search document type..."
+              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+              <span>{options.length} result{options.length === 1 ? '' : 's'}</span>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
+                >
+                  Clear
+                </button>
+              ) : (
+                <span>Type to filter</span>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-2">
+            {options.length > 0 ? (
+              options.map((option) => {
+                const isSelected = selectedValues.includes(String(option.id))
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      const nextValues = isSelected
+                        ? selectedValues.filter((value) => value !== String(option.id))
+                        : [...selectedValues, String(option.id)]
+                      onChange(nextValues)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] ${isSelected ? 'border-brand bg-brand text-white' : 'border-border bg-surface'}`}>
+                        {isSelected ? '✓' : ''}
+                      </span>
+                      <span>{option.name}</span>
+                    </span>
+                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
+            )}
+          </div>
+          <div className="border-t border-border px-3 py-2 text-[11px] text-ink-muted">
+            {selectedOptions.length > 0
+              ? `${selectedOptions.length} document type${selectedOptions.length === 1 ? '' : 's'} selected`
+              : 'Select one or more document types'}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -986,6 +1108,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   const selectedResult = results.find((r) => String(r.id) === String(documentId)) || null
   const selectedDocumentTypeId = selectedResult?.document?.documentTypeId || selectedResult?.documentTypeId || null
   const matchingItem = stageItems.find((it) => String(it.documentTypeId) === String(selectedDocumentTypeId)) || null
+  const willAutoBecomeConfidential = Boolean(matchingItem?.isConfidentialDefault && selectedResult && !(selectedResult?.document?.isConfidential || selectedResult?.isConfidential))
   const filteredResults = useMemo(() => {
     if (statusFilter === 'ALL') return results
     return results.filter((r) => String(r.document?.status || r.status || '').toUpperCase() === statusFilter)
@@ -998,7 +1121,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
     }
     setLoading(true)
     try {
-      const params = { q: searchText.trim() }
+      const params = { q: searchText.trim(), projectId }
       const res = await api.get('/project-tracking/documents/search', { params })
       setResults(res?.data?.data?.documents || [])
     } catch (error) {
@@ -1057,6 +1180,11 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </Button>
           </div>
           <div className="text-xs text-ink-soft">Search covers all accessible documents in the system, including published documents outside this project.</div>
+          {matchingItem?.isConfidentialDefault && (
+            <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+              This required item is confidential by default. Any document attached here will be treated as confidential and follow the configured access list.
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-1">
             {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
               <button
@@ -1116,11 +1244,16 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
               : 'Selected document will be linked under Other Documents for this stage.'
             : 'Search and select one document from the list above.'}
         </div>
+        {willAutoBecomeConfidential && (
+          <div className="text-xs font-medium text-[var(--dms-color-danger-ink)]">
+            The selected document is not currently confidential. It will be updated to confidential automatically after attach.
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading || !documentId} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Attaching...' : 'Attach'}
+            {loading ? 'Attaching...' : willAutoBecomeConfidential ? 'Attach as Confidential' : 'Attach'}
           </Button>
         </div>
       </form>
@@ -1132,9 +1265,11 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
   const [documentTypeId, setDocumentTypeId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dateOfDocument, setDateOfDocument] = useState('')
   const [loading, setLoading] = useState(false)
 
   const matchingItem = stageItems.find((it) => String(it.documentTypeId) === String(documentTypeId)) || null
+  const willCreateConfidential = Boolean(matchingItem?.isConfidentialDefault)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -1144,8 +1279,8 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
         ? `/project-tracking/items/${matchingItem.id}/create-document`
         : `/project-tracking/iterations/${iterationId}/stages/${stage.id}/create-document`
       const payload = matchingItem
-        ? { title, description: description || null }
-        : { documentTypeId: Number(documentTypeId), title, description: description || null }
+        ? { title, description: description || null, dateOfDocument: dateOfDocument || null }
+        : { documentTypeId: Number(documentTypeId), title, description: description || null, dateOfDocument: dateOfDocument || null }
       const res = await api.post(endpoint, payload)
       onCreated(res?.data?.data)
     } finally {
@@ -1166,11 +1301,19 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           stageLabel={stage?.name}
           documentTypeLabel={documentTypes.find((d) => String(d.id) === String(documentTypeId))?.name || null}
         />
+        <div className="rounded-xl border border-[var(--dms-color-info-soft)] bg-[var(--dms-color-info-soft)] px-3 py-2 text-xs text-[var(--dms-color-info-ink)]">
+          This follows the NDR concept more closely: the system auto-generates a file code, assigns you as owner, and creates the document directly in Draft for this project stage.
+        </div>
         <div className="text-xs text-ink-soft">
           {matchingItem
             ? `This document type matches a required checklist item, so the new document will appear under ${matchingItem.documentType?.name || 'that required row'}.`
             : 'No required checklist item matches this document type, so the new document will be linked under Other Documents for this stage.'}
         </div>
+        {willCreateConfidential && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            This required item is confidential by default. The new draft will be created as confidential automatically.
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-semibold text-ink-soft">Document Type</label>
           <SelectField
@@ -1193,7 +1336,15 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-ink-soft">Description</label>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Date of Document</label>
+          <TextInput
+            type="date"
+            value={dateOfDocument}
+            onChange={(e) => setDateOfDocument(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Remarks / Description</label>
           <TextArea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1204,7 +1355,7 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? 'Creating...' : willCreateConfidential ? 'Create Confidential Draft' : 'Create Draft'}
           </Button>
         </div>
       </form>
@@ -1442,7 +1593,9 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
 function CreateDocumentModal({ item, phase, onClose, onCreated }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dateOfDocument, setDateOfDocument] = useState('')
   const [loading, setLoading] = useState(false)
+  const willCreateConfidential = Boolean(item?.isConfidentialDefault)
 
   const submit = async (e) => {
     e.preventDefault()
@@ -1450,7 +1603,8 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
     try {
       const res = await api.post(`/project-tracking/items/${item.id}/create-document`, {
         title,
-        description: description || null
+        description: description || null,
+        dateOfDocument: dateOfDocument || null
       })
       onCreated(res?.data?.data)
     } finally {
@@ -1472,7 +1626,14 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           stageLabel={item.stage?.name}
           documentTypeLabel={item.documentType?.name}
         />
-        <div className="text-xs text-ink-soft">Create a new document for this required item and link it automatically.</div>
+        <div className="rounded-xl border border-[var(--dms-color-info-soft)] bg-[var(--dms-color-info-soft)] px-3 py-2 text-xs text-[var(--dms-color-info-ink)]">
+          This follows the NDR concept more closely: the system auto-generates a file code, assigns you as owner, and creates the document directly in Draft for this required item.
+        </div>
+        {willCreateConfidential && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            This required item is confidential by default. The new draft will be created as confidential automatically.
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-semibold text-ink-soft">Title</label>
           <TextInput
@@ -1482,7 +1643,15 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-ink-soft">Description</label>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Date of Document</label>
+          <TextInput
+            type="date"
+            value={dateOfDocument}
+            onChange={(e) => setDateOfDocument(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-ink-soft">Remarks / Description</label>
           <TextArea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -1493,7 +1662,7 @@ function CreateDocumentModal({ item, phase, onClose, onCreated }) {
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={loading} type="submit">
             {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? 'Creating...' : willCreateConfidential ? 'Create Confidential Draft' : 'Create Draft'}
           </Button>
         </div>
       </form>
@@ -4266,13 +4435,24 @@ function Setup() {
   const [savingStages, setSavingStages] = useState(false)
   const [addingReq, setAddingReq] = useState(false)
   const [showAddStage, setShowAddStage] = useState(false)
-  const [newReq, setNewReq] = useState({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
+  const [documentTypeSearch, setDocumentTypeSearch] = useState('')
+  const [newReq, setNewReq] = useState({ stageId: '', documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
   const [accessRequirement, setAccessRequirement] = useState(null)
   const [accessEntries, setAccessEntries] = useState([])
   const [accessQuery, setAccessQuery] = useState('')
   const [subjectResults, setSubjectResults] = useState({ users: [], roles: [] })
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [savingAccess, setSavingAccess] = useState(false)
+
+  const filteredDocumentTypes = useMemo(() => {
+    const keyword = String(documentTypeSearch || '').trim().toLowerCase()
+    if (!keyword) return documentTypes
+
+    return documentTypes.filter((docType) => {
+      if ((newReq.documentTypeIds || []).map((id) => String(id)).includes(String(docType.id))) return true
+      return String(docType.name || '').toLowerCase().includes(keyword)
+    })
+  }, [documentTypes, documentTypeSearch, newReq.documentTypeIds])
 
   const loadBase = async () => {
     const [proj, docTypes] = await Promise.all([api.get('/project-tracking/projects'), api.get('/system/config/document-types')])
@@ -4334,16 +4514,23 @@ function Setup() {
 
   const addRequirement = async (e) => {
     e.preventDefault()
+    if (!newReq.stageId || !(newReq.documentTypeIds || []).length) return
     setAddingReq(true)
     try {
       const isProjectScope = !!selectedProjectId
-      await api.post(isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements` : '/project-tracking/setup/requirements', {
-        stageId: Number(newReq.stageId),
-        documentTypeId: Number(newReq.documentTypeId),
-        isRequired: Boolean(newReq.isRequired),
-        isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
-      })
-      setNewReq({ stageId: '', documentTypeId: '', isRequired: true, isConfidentialDefault: false })
+      const endpoint = isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements` : '/project-tracking/setup/requirements'
+      await Promise.all(
+        (newReq.documentTypeIds || []).map((documentTypeId) =>
+          api.post(endpoint, {
+            stageId: Number(newReq.stageId),
+            documentTypeId: Number(documentTypeId),
+            isRequired: Boolean(newReq.isRequired),
+            isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
+          })
+        )
+      )
+      setNewReq({ stageId: '', documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
+      setDocumentTypeSearch('')
       await loadSetup(selectedProjectId)
     } finally {
       setAddingReq(false)
@@ -4644,16 +4831,15 @@ function Setup() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
-                  <SelectField
-                    value={newReq.documentTypeId}
-                    onChange={(e) => setNewReq((p) => ({ ...p, documentTypeId: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select document type</option>
-                    {documentTypes.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </SelectField>
+                  <SearchableSelectField
+                    values={newReq.documentTypeIds}
+                    options={filteredDocumentTypes}
+                    onChange={(values) => setNewReq((p) => ({ ...p, documentTypeIds: values }))}
+                    searchValue={documentTypeSearch}
+                    onSearchChange={setDocumentTypeSearch}
+                    placeholder="Select one or more document types"
+                    noResultsLabel="No document type found"
+                  />
                 </div>
                 <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
                   <input
@@ -4665,10 +4851,12 @@ function Setup() {
                   Confidential
                 </label>
                 <Button
-                  disabled={addingReq}
+                  disabled={addingReq || !newReq.stageId || !(newReq.documentTypeIds || []).length}
                   type="submit"
                 >
-                  {addingReq ? 'Adding...' : 'Add Requirement'}
+                  {addingReq
+                    ? 'Adding...'
+                    : `Add${(newReq.documentTypeIds || []).length ? ` ${(newReq.documentTypeIds || []).length}` : ''} Requirement${(newReq.documentTypeIds || []).length > 1 ? 's' : ''}`}
                 </Button>
               </form>
             </div>
@@ -4840,24 +5028,6 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
-  useEffect(() => {
-    // #region debug-point B:project-tracking-mount
-    fetch('http://127.0.0.1:7777/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'tour-stuck-project-tracking',
-        runId: 'pre',
-        hypothesisId: 'B',
-        location: 'ProjectTracking.jsx',
-        msg: '[DEBUG] ProjectTracking mounted',
-        data: { projectId, canSearchProjects, canOpenProjectSetup, canViewProjectDetail, tab: String(searchParams.get('tab') || '') },
-        ts: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-  }, [])
-
   const activeTab = String(searchParams.get('tab') || 'dashboard')
 
   const setTab = (tab) => {
@@ -4916,6 +5086,7 @@ export default function ProjectTracking() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
+                  data-tour-id={`pt-tab-${t.id}`}
                   className={`rounded-2xl px-4 py-2 text-sm font-medium transition-colors ${
                     isActive ? 'bg-brand/10 text-brand' : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
                   }`}
@@ -4928,17 +5099,27 @@ export default function ProjectTracking() {
         </div>
         <div className="p-4 md:p-5">
           {activeTab === 'setup' && canOpenProjectSetup ? (
-            <Setup />
+            <div data-tour-id="pt-setup-panel">
+              <Setup />
+            </div>
           ) : activeTab === 'dashboard' && canSearchProjects ? (
-            <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            <div data-tour-id="pt-dashboard-panel">
+              <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            </div>
           ) : activeTab === 'search' && canSearchProjects ? (
-            <DocumentsSearch />
+            <div data-tour-id="pt-search-panel">
+              <DocumentsSearch />
+            </div>
           ) : projectId && canViewProjectDetail ? (
-            <ProjectDetail projectId={Number(projectId)} />
+            <div data-tour-id="pt-detail-panel">
+              <ProjectDetail projectId={Number(projectId)} />
+            </div>
           ) : projectId ? (
             <EmptyState title="No access" message="You do not have permission to view this project." />
           ) : activeTab === 'projects' && canSearchProjects ? (
-            <ProjectsList onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            <div data-tour-id="pt-projects-panel">
+              <ProjectsList onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+            </div>
           ) : tabs.length === 0 ? (
             <EmptyState title="No access" message="You do not have permission to access Project Tracking tabs." />
           ) : (

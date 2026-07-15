@@ -104,11 +104,11 @@ export default function App() {
           path="/project-tracking"
           element={
             <ProtectedRoute module="projectTracking" action="view">
-              <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading project tracking...</div>}>
-                <Layout>
+              <Layout>
+                <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading project tracking...</div>}>
                   <ProjectTracking />
-                </Layout>
-              </Suspense>
+                </Suspense>
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -117,7 +117,9 @@ export default function App() {
           element={
             <ProtectedRoute module="projectTracking" action="view">
               <Layout>
-                <ProjectTracking />
+                <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading project tracking...</div>}>
+                  <ProjectTracking />
+                </Suspense>
               </Layout>
             </ProtectedRoute>
           }
