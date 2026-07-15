@@ -202,19 +202,33 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   }
 
   const handleView = (doc) => {
+    if (!doc?.documentId && !doc?.id) {
+      setAlertModal({
+        show: true,
+        title: 'Preview unavailable',
+        message: 'No linked document preview is available for this record.',
+        type: 'error'
+      })
+      return
+    }
     setSelectedDocument(doc)
     setShowViewModal(true)
   }
 
   const handleDownload = async (doc) => {
     try {
-      const res = await api.get(`/documents/${doc.id}/download`, {
+      const effectiveDocumentId = doc?.documentId ?? doc?.id
+      if (!effectiveDocumentId) {
+        throw new Error('Missing document id')
+      }
+
+      const res = await api.get(`/documents/${effectiveDocumentId}/download`, {
         responseType: 'blob'
       })
 
       const contentDisposition = res.headers?.['content-disposition'] || ''
       const contentType = res.headers?.['content-type'] || ''
-      const fallbackName = doc.fileName || doc.title || `document-${doc.id}`
+      const fallbackName = doc.fileName || doc.title || `document-${effectiveDocumentId}`
       const getFileNameFromContentDisposition = (value) => {
         const v = String(value || '')
         const mStar = v.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)
