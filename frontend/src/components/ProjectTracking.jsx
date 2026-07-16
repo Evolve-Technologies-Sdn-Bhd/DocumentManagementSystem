@@ -1118,6 +1118,28 @@ const buildAttachSummaryMessage = ({ linkedCount = 0, failedCount = 0, failures 
   return failures[0]?.message || 'Unable to attach the selected documents right now.'
 }
 
+// #region debug-point A:attach-folder-debug-reporter
+const reportAttachFolderDebug = ({ hypothesisId, location, msg, data }) => {
+  try {
+    if (window?.localStorage?.getItem('dms_debug') !== '1') return
+    const url = window?.localStorage?.getItem('dms_debug_server_url') || 'http://127.0.0.1:7777/event'
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'attach-folder-empty',
+        runId: 'pre',
+        hypothesisId,
+        location,
+        msg,
+        data: data || {},
+        ts: Date.now()
+      })
+    }).catch(() => {})
+  } catch {}
+}
+// #endregion
+
 function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageItems = [], onClose, onLinked }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -1163,6 +1185,16 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }, [selectedEntries, stageItems])
 
   const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
+  const handleFolderSelect = (node) => {
+    const nextId = String(node?.id || '')
+    reportAttachFolderDebug({
+      hypothesisId: 'A',
+      location: 'ProjectTracking.jsx:StageLinkDocumentModal:handleFolderSelect',
+      msg: '[DEBUG] Folder selected in stage attach modal',
+      data: { nextId: nextId || null, fullPathLabel: node?.fullPathLabel || null }
+    })
+    setSelectedFolderId(nextId)
+  }
 
   useEffect(() => {
     let active = true
@@ -1206,6 +1238,12 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
     const normalizedFolderId = String(folderId || '').trim()
 
     if (!normalizedFolderId && trimmedQuery.length < 2) {
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
+        msg: '[DEBUG] Search skipped (no folderId and query too short)',
+        data: { trimmedQuery, normalizedFolderId: normalizedFolderId || null }
+      })
       setResults([])
       return
     }
@@ -1215,8 +1253,29 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
       const params = {}
       if (trimmedQuery) params.q = trimmedQuery
       if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
+        msg: '[DEBUG] Calling /project-tracking/documents/search',
+        data: { params }
+      })
       const res = await api.get('/project-tracking/documents/search', { params })
-      setResults(res?.data?.data?.documents || [])
+      const docs = res?.data?.data?.documents || []
+      reportAttachFolderDebug({
+        hypothesisId: 'C',
+        location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
+        msg: '[DEBUG] Search response received',
+        data: { count: Array.isArray(docs) ? docs.length : null }
+      })
+      setResults(docs)
+    } catch (error) {
+      reportAttachFolderDebug({
+        hypothesisId: 'E',
+        location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
+        msg: '[DEBUG] Search request failed',
+        data: { message: error?.response?.data?.message || error?.message || 'unknown', status: error?.response?.status || null }
+      })
+      throw error
     } finally {
       setSearching(false)
     }
@@ -1323,7 +1382,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
                 <FolderTreePicker
                   folders={folders}
                   selectedId={selectedFolderId}
-                  onSelect={(node) => setSelectedFolderId(String(node.id || ''))}
+                  onSelect={handleFolderSelect}
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
@@ -1664,6 +1723,16 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   const selectedEntries = useMemo(() => Object.values(selectedDocuments), [selectedDocuments])
   const selectedCount = selectedEntries.length
   const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
+  const handleFolderSelect = (node) => {
+    const nextId = String(node?.id || '')
+    reportAttachFolderDebug({
+      hypothesisId: 'A',
+      location: 'ProjectTracking.jsx:LinkDocumentModal:handleFolderSelect',
+      msg: '[DEBUG] Folder selected in required item attach modal',
+      data: { nextId: nextId || null, fullPathLabel: node?.fullPathLabel || null }
+    })
+    setSelectedFolderId(nextId)
+  }
 
   useEffect(() => {
     let active = true
@@ -1707,6 +1776,12 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
     const normalizedFolderId = String(folderId || '').trim()
 
     if (!normalizedFolderId && trimmedQuery.length < 2) {
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:LinkDocumentModal:search',
+        msg: '[DEBUG] Search skipped (no folderId and query too short)',
+        data: { trimmedQuery, normalizedFolderId: normalizedFolderId || null }
+      })
       setResults([])
       return
     }
@@ -1716,8 +1791,29 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
       const params = {}
       if (trimmedQuery) params.q = trimmedQuery
       if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:LinkDocumentModal:search',
+        msg: '[DEBUG] Calling /project-tracking/documents/search',
+        data: { params }
+      })
       const res = await api.get('/project-tracking/documents/search', { params })
-      setResults(res?.data?.data?.documents || [])
+      const docs = res?.data?.data?.documents || []
+      reportAttachFolderDebug({
+        hypothesisId: 'C',
+        location: 'ProjectTracking.jsx:LinkDocumentModal:search',
+        msg: '[DEBUG] Search response received',
+        data: { count: Array.isArray(docs) ? docs.length : null }
+      })
+      setResults(docs)
+    } catch (error) {
+      reportAttachFolderDebug({
+        hypothesisId: 'E',
+        location: 'ProjectTracking.jsx:LinkDocumentModal:search',
+        msg: '[DEBUG] Search request failed',
+        data: { message: error?.response?.data?.message || error?.message || 'unknown', status: error?.response?.status || null }
+      })
+      throw error
     } finally {
       setSearching(false)
     }
@@ -1818,7 +1914,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
                 <FolderTreePicker
                   folders={folders}
                   selectedId={selectedFolderId}
-                  onSelect={(node) => setSelectedFolderId(String(node.id || ''))}
+                  onSelect={handleFolderSelect}
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
