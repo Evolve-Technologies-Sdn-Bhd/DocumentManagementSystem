@@ -18,6 +18,15 @@ const splitPathSegments = (folder) => {
 const buildTreeFromFlatFolders = (folders) => {
   const root = []
   const nodeMap = new Map()
+  const folderByPathKey = new Map()
+
+  ;(Array.isArray(folders) ? folders : []).forEach((folder) => {
+    const folderId = normalizeFolderId(folder?.id)
+    if (!folderId) return
+    const pathSegments = splitPathSegments(folder)
+    if (pathSegments.length === 0) return
+    folderByPathKey.set(pathSegments.join(' / '), folder)
+  })
 
   ;(Array.isArray(folders) ? folders : []).forEach((folder) => {
     const folderId = normalizeFolderId(folder?.id)
@@ -48,6 +57,14 @@ const buildTreeFromFlatFolders = (folders) => {
         }
         nodeMap.set(nodeKey, node)
         currentLevel.push(node)
+      }
+
+      const exactFolder = folderByPathKey.get(nodeKey)
+      if (exactFolder) {
+        node.id = normalizeFolderId(exactFolder?.id)
+        node.selectable = Boolean(node.id)
+        node.icon = exactFolder?.icon || node.icon
+        node.meta = exactFolder
       }
 
       if (index === pathSegments.length - 1) {
