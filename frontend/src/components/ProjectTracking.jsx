@@ -21,6 +21,7 @@ import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
+import FolderTreePicker from './ui/FolderTreePicker'
 import SectionHeader from './ui/SectionHeader'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import IconButton from './ui/IconButton'
@@ -1098,66 +1099,199 @@ function AssignmentSummary({ phaseLabel, stageLabel, documentTypeLabel, modeLabe
   )
 }
 
+const getApiErrorMessage = (error, fallback = 'Unable to complete this request right now.') => (
+  error?.response?.data?.message || error?.response?.data?.error || error?.message || fallback
+)
+
+const buildAttachSummaryMessage = ({ linkedCount = 0, failedCount = 0, failures = [] } = {}) => {
+  if (linkedCount > 0 && failedCount === 0) {
+    return linkedCount === 1
+      ? '1 document attached successfully.'
+      : `${linkedCount} documents attached successfully.`
+  }
+
+  if (linkedCount > 0 && failedCount > 0) {
+    const firstFailure = failures[0]?.message
+    return `${linkedCount} document${linkedCount === 1 ? '' : 's'} attached. ${failedCount} failed.${firstFailure ? ` First issue: ${firstFailure}` : ''}`
+  }
+
+  return failures[0]?.message || 'Unable to attach the selected documents right now.'
+}
+
 function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageItems = [], onClose, onLinked }) {
-  const [documentId, setDocumentId] = useState('')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [folders, setFolders] = useState([])
+  const [foldersLoading, setFoldersLoading] = useState(false)
+  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [selectedDocuments, setSelectedDocuments] = useState({})
+  const [submitError, setSubmitError] = useState('')
 
-  const selectedResult = results.find((r) => String(r.id) === String(documentId)) || null
-  const selectedDocumentTypeId = selectedResult?.document?.documentTypeId || selectedResult?.documentTypeId || null
-  const matchingItem = stageItems.find((it) => String(it.documentTypeId) === String(selectedDocumentTypeId)) || null
-  const willAutoBecomeConfidential = Boolean(matchingItem?.isConfidentialDefault && selectedResult && !(selectedResult?.document?.isConfidential || selectedResult?.isConfidential))
+  const resolveMatchingItem = (result) => {
+    const selectedDocumentTypeId = result?.document?.documentTypeId || result?.documentTypeId || null
+    return stageItems.find((it) => String(it.documentTypeId) === String(selectedDocumentTypeId)) || null
+  }
+
   const filteredResults = useMemo(() => {
     if (statusFilter === 'ALL') return results
     return results.filter((r) => String(r.document?.status || r.status || '').toUpperCase() === statusFilter)
   }, [results, statusFilter])
 
-  const search = async (searchText = query) => {
-    if (!searchText || searchText.trim().length < 2) {
+  const selectedEntries = useMemo(() => Object.values(selectedDocuments), [selectedDocuments])
+  const selectedCount = selectedEntries.length
+
+  const attachmentBreakdown = useMemo(() => {
+    return selectedEntries.reduce((acc, result) => {
+      const matchingItem = resolveMatchingItem(result)
+      if (matchingItem) {
+        acc.required += 1
+      } else {
+        acc.other += 1
+      }
+
+      if (
+        matchingItem?.isConfidentialDefault &&
+        !(result?.document?.isConfidential || result?.isConfidential)
+      ) {
+        acc.autoConfidential += 1
+      }
+      return acc
+    }, { required: 0, other: 0, autoConfidential: 0 })
+  }, [selectedEntries, stageItems])
+
+  const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
+
+  useEffect(() => {
+    let active = true
+    const loadFolders = async () => {
+      setFoldersLoading(true)
+      try {
+        const res = await api.get('/folders')
+        if (!active) return
+        setFolders(res?.data?.data?.folders || res?.data?.folders || [])
+      } catch {
+        if (!active) return
+        setFolders([])
+      } finally {
+        if (active) setFoldersLoading(false)
+      }
+    }
+    loadFolders()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (results.length === 0) return
+    setSelectedDocuments((prev) => {
+      let changed = false
+      const next = { ...prev }
+      results.forEach((result) => {
+        const key = String(result.id)
+        if (next[key]) {
+          next[key] = result
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [results])
+
+  const search = async (searchText = query, folderId = selectedFolderId) => {
+    const trimmedQuery = String(searchText || '').trim()
+    const normalizedFolderId = String(folderId || '').trim()
+
+    if (!normalizedFolderId && trimmedQuery.length < 2) {
       setResults([])
       return
     }
-    setLoading(true)
+
+    setSearching(true)
     try {
-      const params = { q: searchText.trim(), projectId }
+      const params = { projectId }
+      if (trimmedQuery) params.q = trimmedQuery
+      if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
       const res = await api.get('/project-tracking/documents/search', { params })
       setResults(res?.data?.data?.documents || [])
-    } catch (error) {
-      throw error
     } finally {
-      setLoading(false)
+      setSearching(false)
     }
   }
 
   useEffect(() => {
-    if (!query || query.trim().length < 2) {
+    if (!selectedFolderId && query.trim().length < 2) {
       setResults([])
       return
     }
+
     const timer = window.setTimeout(() => {
-      search(query)
+      search(query, selectedFolderId)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [query])
+  }, [query, selectedFolderId])
+
+  const toggleDocument = (result) => {
+    const key = String(result.id)
+    setSelectedDocuments((prev) => {
+      if (prev[key]) {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      }
+      return { ...prev, [key]: result }
+    })
+    setSubmitError('')
+  }
 
   const submit = async (e) => {
     e.preventDefault()
-    setLoading(true)
+    if (selectedEntries.length === 0) return
+
+    setSubmitError('')
+    setSubmitting(true)
+    const successes = []
+    const failures = []
+
     try {
-      const endpoint = matchingItem
-        ? `/project-tracking/items/${matchingItem.id}/link-document`
-        : `/project-tracking/iterations/${iterationId}/stages/${stage.id}/link-document`
-      const res = await api.post(endpoint, { documentId: Number(documentId) })
-      onLinked(res?.data?.data)
+      for (const result of selectedEntries) {
+        const matchingItem = resolveMatchingItem(result)
+        const endpoint = matchingItem
+          ? `/project-tracking/items/${matchingItem.id}/link-document`
+          : `/project-tracking/iterations/${iterationId}/stages/${stage.id}/link-document`
+
+        try {
+          await api.post(endpoint, { documentId: Number(result.id) })
+          successes.push(result)
+        } catch (error) {
+          failures.push({
+            id: result.id,
+            title: getDocumentTitleLabel(result.document || result),
+            message: getApiErrorMessage(error, 'Unable to attach one of the selected documents.')
+          })
+        }
+      }
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
+
+    if (successes.length > 0) {
+      onLinked({
+        linkedCount: successes.length,
+        failedCount: failures.length,
+        failures
+      })
+      return
+    }
+
+    setSubmitError(buildAttachSummaryMessage({ linkedCount: 0, failedCount: failures.length, failures }))
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose}>
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
       <form onSubmit={submit} className="space-y-4">
         <AssignmentSummary
           modeLabel="Attach existing document to stage"
@@ -1165,95 +1299,154 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
           stageLabel={stage?.name}
           documentTypeLabel="Keep original document type"
         />
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
-          <div className="flex gap-2">
-            <TextInput
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1"
-              placeholder="Search globally by file code or title..."
-            />
-            <Button type="button" variant="secondary" onClick={() => search(query)} disabled={loading}>
-              {loading && <InlineSpinner className="h-4 w-4" />}
-              Search All
-            </Button>
-          </div>
-          <div className="text-xs text-ink-soft">Search covers all accessible documents in the system, including published documents outside this project.</div>
-          {matchingItem?.isConfidentialDefault && (
-            <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
-              This required item is confidential by default. Any document attached here will be treated as confidential and follow the configured access list.
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 pt-1">
-            {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
-              <button
-                key={filterValue}
-                type="button"
-                onClick={() => setStatusFilter(filterValue)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  statusFilter === filterValue
-                    ? 'border-white/10 bg-brand text-ink-inverse'
-                    : 'border-border bg-surface text-ink-secondary hover:bg-surface-muted hover:text-ink'
-                }`}
-              >
-                {filterValue === 'ALL' ? 'All' : filterValue === 'PUBLISHED' ? 'Published' : 'Draft'}
-              </button>
-            ))}
-          </div>
-          {filteredResults.length > 0 && (
-            <AppSurface padding="none" variant="panel" className="max-h-56 overflow-auto">
-              {filteredResults.map((r) => (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
+              {selectedFolderId && (
                 <button
-                  key={r.id}
                   type="button"
-                  onClick={() => setDocumentId(String(r.id))}
-                  className={`w-full border-b border-border px-3 py-2 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
-                    String(r.id) === String(documentId) ? 'bg-surface-muted' : ''
+                  onClick={() => setSelectedFolderId('')}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <AppSurface padding="sm" variant="panel">
+              {foldersLoading ? (
+                <div className="flex items-center justify-center py-6 text-sm text-ink-soft">
+                  <InlineSpinner className="h-4 w-4" />
+                  <span className="ml-2">Loading folders...</span>
+                </div>
+              ) : (
+                <FolderTreePicker
+                  folders={folders}
+                  selectedId={selectedFolderId}
+                  onSelect={(node) => setSelectedFolderId(String(node.id || ''))}
+                  searchPlaceholder="Search folder name or path"
+                  emptySelectionText="All folders"
+                  selectedLabel="Selected folder"
+                  treeClassName="max-h-72"
+                />
+              )}
+            </AppSurface>
+            <div className="text-xs text-ink-soft">
+              {selectedFolderId
+                ? 'Listing documents from the selected folder. Add a keyword to narrow the result.'
+                : 'Pick a folder to list files under it, or leave it empty and search globally.'}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
+            <div className="flex gap-2">
+              <TextInput
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1"
+                placeholder={selectedFolderId ? 'Search within selected folder by file code or title...' : 'Search globally by file code or title...'}
+              />
+              <Button type="button" variant="secondary" onClick={() => search(query, selectedFolderId)} disabled={searching || !canSearch}>
+                {searching && <InlineSpinner className="h-4 w-4" />}
+                {selectedFolderId ? 'Search Folder' : 'Search All'}
+              </Button>
+            </div>
+            <div className="text-xs text-ink-soft">
+              {selectedFolderId
+                ? 'Search covers accessible documents inside the chosen folder.'
+                : 'Search covers all accessible documents in the system, including published documents outside this project.'}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
+                <button
+                  key={filterValue}
+                  type="button"
+                  onClick={() => setStatusFilter(filterValue)}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                    statusFilter === filterValue
+                      ? 'border-white/10 bg-brand text-ink-inverse'
+                      : 'border-border bg-surface text-ink-secondary hover:bg-surface-muted hover:text-ink'
                   }`}
                 >
-                  <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                  <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
-                  <div className="mt-1 text-xs text-ink-soft">
-                    {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
-                  </div>
-                  <div className="mt-1 inline-flex items-center gap-2">
-                    <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
-                    <DocumentStatusBadge status={r.document?.status || r.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-ink-soft">
-                    {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
-                  </div>
+                  {filterValue === 'ALL' ? 'All' : filterValue === 'PUBLISHED' ? 'Published' : 'Draft'}
                 </button>
               ))}
-            </AppSurface>
-          )}
-          {!loading && query.trim().length >= 2 && filteredResults.length === 0 && (
-            <EmptyPanelState
-              title={results.length === 0 ? 'No matching documents found' : 'No documents match the selected status'}
-              description={results.length === 0
-                ? 'Try file code prefix, full file code, or part of the title.'
-                : 'Try switching the status filter.'}
-            />
-          )}
+            </div>
+            {filteredResults.length > 0 && (
+              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+                {filteredResults.map((r) => {
+                  const isSelected = Boolean(selectedDocuments[String(r.id)])
+                  const matchingItem = resolveMatchingItem(r)
+
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => toggleDocument(r)}
+                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-brand/5 ring-1 ring-inset ring-brand/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="mt-1 text-xs text-ink-soft">
+                            {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
+                          </div>
+                          <div className="mt-1 inline-flex items-center gap-2">
+                            <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
+                            <DocumentStatusBadge status={r.document?.status || r.status} />
+                          </div>
+                          <div className="mt-1 text-xs text-ink-soft">
+                            {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
+                          </div>
+                          <div className="mt-2 text-xs font-medium text-brand">
+                            {matchingItem
+                              ? `Will attach under required item: ${matchingItem.documentType?.name || 'Document Type'}`
+                              : 'Will attach under Other Documents for this stage'}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </AppSurface>
+            )}
+            {!searching && canSearch && filteredResults.length === 0 && (
+              <EmptyPanelState
+                title={results.length === 0 ? 'No matching documents found' : 'No documents match the selected status'}
+                description={results.length === 0
+                  ? (selectedFolderId
+                    ? 'Try another keyword or switch to a different folder.'
+                    : 'Try file code prefix, full file code, or part of the title.')
+                  : 'Try switching the status filter.'}
+              />
+            )}
+          </div>
         </div>
         <div className="text-xs text-ink-soft">
-          {documentId
-            ? matchingItem
-              ? `Selected document will be linked under required item: ${matchingItem.documentType?.name || 'Document Type'}.`
-              : 'Selected document will be linked under Other Documents for this stage.'
-            : 'Search and select one document from the list above.'}
+          {selectedCount > 0
+            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected. ${attachmentBreakdown.required > 0 ? `${attachmentBreakdown.required} will go to required item${attachmentBreakdown.required === 1 ? '' : 's'}. ` : ''}${attachmentBreakdown.other > 0 ? `${attachmentBreakdown.other} will go to Other Documents.` : ''}`
+            : 'Search and select one or more documents from the list above.'}
         </div>
-        {willAutoBecomeConfidential && (
-          <div className="text-xs font-medium text-[var(--dms-color-danger-ink)]">
-            The selected document is not currently confidential. It will be updated to confidential automatically after attach.
+        {attachmentBreakdown.autoConfidential > 0 && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            {attachmentBreakdown.autoConfidential} selected document{attachmentBreakdown.autoConfidential === 1 ? '' : 's'} will be updated to confidential automatically after attach.
+          </div>
+        )}
+        {submitError && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            {submitError}
           </div>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={loading || !documentId} type="submit">
-            {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Attaching...' : willAutoBecomeConfidential ? 'Attach as Confidential' : 'Attach'}
+          <Button disabled={submitting || selectedCount === 0} type="submit">
+            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+            {submitting ? 'Attaching...' : attachmentBreakdown.autoConfidential > 0 ? `Attach ${selectedCount} as Needed` : `Attach ${selectedCount || ''}`.trim()}
           </Button>
         </div>
       </form>
@@ -1452,58 +1645,148 @@ function CreateProjectModal({ onClose, onCreated }) {
 }
 
 function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
-  const [documentId, setDocumentId] = useState('')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [folders, setFolders] = useState([])
+  const [foldersLoading, setFoldersLoading] = useState(false)
+  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [selectedDocuments, setSelectedDocuments] = useState({})
+  const [submitError, setSubmitError] = useState('')
 
   const filteredResults = useMemo(() => {
     if (statusFilter === 'ALL') return results
     return results.filter((r) => String(r.document?.status || r.status || '').toUpperCase() === statusFilter)
   }, [results, statusFilter])
 
-  const search = async (searchText = query) => {
-    if (!searchText || searchText.trim().length < 2) {
+  const selectedEntries = useMemo(() => Object.values(selectedDocuments), [selectedDocuments])
+  const selectedCount = selectedEntries.length
+  const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
+
+  useEffect(() => {
+    let active = true
+    const loadFolders = async () => {
+      setFoldersLoading(true)
+      try {
+        const res = await api.get('/folders')
+        if (!active) return
+        setFolders(res?.data?.data?.folders || res?.data?.folders || [])
+      } catch {
+        if (!active) return
+        setFolders([])
+      } finally {
+        if (active) setFoldersLoading(false)
+      }
+    }
+    loadFolders()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (results.length === 0) return
+    setSelectedDocuments((prev) => {
+      let changed = false
+      const next = { ...prev }
+      results.forEach((result) => {
+        const key = String(result.id)
+        if (next[key]) {
+          next[key] = result
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [results])
+
+  const search = async (searchText = query, folderId = selectedFolderId) => {
+    const trimmedQuery = String(searchText || '').trim()
+    const normalizedFolderId = String(folderId || '').trim()
+
+    if (!normalizedFolderId && trimmedQuery.length < 2) {
       setResults([])
       return
     }
-    setLoading(true)
+
+    setSearching(true)
     try {
-      const params = { q: searchText.trim() }
+      const params = { projectId }
+      if (trimmedQuery) params.q = trimmedQuery
+      if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
       const res = await api.get('/project-tracking/documents/search', { params })
       setResults(res?.data?.data?.documents || [])
-    } catch (error) {
-      throw error
     } finally {
-      setLoading(false)
+      setSearching(false)
     }
   }
 
   useEffect(() => {
-    if (!query || query.trim().length < 2) {
+    if (!selectedFolderId && query.trim().length < 2) {
       setResults([])
       return
     }
     const timer = window.setTimeout(() => {
-      search(query)
+      search(query, selectedFolderId)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [query])
+  }, [query, selectedFolderId])
+
+  const toggleDocument = (result) => {
+    const key = String(result.id)
+    setSelectedDocuments((prev) => {
+      if (prev[key]) {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      }
+      return { ...prev, [key]: result }
+    })
+    setSubmitError('')
+  }
 
   const submit = async (e) => {
     e.preventDefault()
-    setLoading(true)
+    if (selectedEntries.length === 0) return
+
+    setSubmitError('')
+    setSubmitting(true)
+    const successes = []
+    const failures = []
+
     try {
-      const res = await api.post(`/project-tracking/items/${item.id}/link-document`, { documentId: Number(documentId) })
-      onLinked(res?.data?.data)
+      for (const result of selectedEntries) {
+        try {
+          await api.post(`/project-tracking/items/${item.id}/link-document`, { documentId: Number(result.id) })
+          successes.push(result)
+        } catch (error) {
+          failures.push({
+            id: result.id,
+            title: getDocumentTitleLabel(result.document || result),
+            message: getApiErrorMessage(error, 'Unable to attach one of the selected documents.')
+          })
+        }
+      }
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
+
+    if (successes.length > 0) {
+      onLinked({
+        linkedCount: successes.length,
+        failedCount: failures.length,
+        failures
+      })
+      return
+    }
+
+    setSubmitError(buildAttachSummaryMessage({ linkedCount: 0, failedCount: failures.length, failures }))
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose}>
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
       <form onSubmit={submit} className="space-y-4">
         <AssignmentSummary
           modeLabel="Attach existing document to required item"
@@ -1511,78 +1794,139 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
           stageLabel={item.stage?.name}
           documentTypeLabel={item.documentType?.name}
         />
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
-          <div className="flex gap-2">
-            <TextInput
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1"
-              placeholder="Search globally by file code or title..."
-            />
-            <Button type="button" variant="secondary" onClick={() => search(query)} disabled={loading}>
-              {loading && <InlineSpinner className="h-4 w-4" />}
-              Search All
-            </Button>
-          </div>
-          <div className="text-xs text-ink-soft">Search covers all accessible documents in the system, including published documents outside this project.</div>
-          <div className="flex flex-wrap gap-2 pt-1">
-            {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
-              <button
-                key={filterValue}
-                type="button"
-                onClick={() => setStatusFilter(filterValue)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                  statusFilter === filterValue
-                    ? 'border-white/10 bg-brand text-ink-inverse'
-                    : 'border-border bg-surface text-ink-secondary hover:bg-surface-muted hover:text-ink'
-                }`}
-              >
-                {filterValue === 'ALL' ? 'All' : filterValue === 'PUBLISHED' ? 'Published' : 'Draft'}
-              </button>
-            ))}
-          </div>
-          {filteredResults.length > 0 && (
-            <AppSurface padding="none" variant="panel" className="max-h-56 overflow-auto">
-              {filteredResults.map((r) => (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
+              {selectedFolderId && (
                 <button
-                  key={r.id}
                   type="button"
-                  onClick={() => setDocumentId(String(r.id))}
-                  className={`w-full border-b border-border px-3 py-2 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
-                    String(r.id) === String(documentId) ? 'bg-surface-muted' : ''
+                  onClick={() => setSelectedFolderId('')}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <AppSurface padding="sm" variant="panel">
+              {foldersLoading ? (
+                <div className="flex items-center justify-center py-6 text-sm text-ink-soft">
+                  <InlineSpinner className="h-4 w-4" />
+                  <span className="ml-2">Loading folders...</span>
+                </div>
+              ) : (
+                <FolderTreePicker
+                  folders={folders}
+                  selectedId={selectedFolderId}
+                  onSelect={(node) => setSelectedFolderId(String(node.id || ''))}
+                  searchPlaceholder="Search folder name or path"
+                  emptySelectionText="All folders"
+                  selectedLabel="Selected folder"
+                  treeClassName="max-h-72"
+                />
+              )}
+            </AppSurface>
+            <div className="text-xs text-ink-soft">
+              {selectedFolderId
+                ? 'Listing documents from the selected folder. Add a keyword to narrow the result.'
+                : 'Pick a folder to list files under it, or leave it empty and search globally.'}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
+            <div className="flex gap-2">
+              <TextInput
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1"
+                placeholder={selectedFolderId ? 'Search within selected folder by file code or title...' : 'Search globally by file code or title...'}
+              />
+              <Button type="button" variant="secondary" onClick={() => search(query, selectedFolderId)} disabled={searching || !canSearch}>
+                {searching && <InlineSpinner className="h-4 w-4" />}
+                {selectedFolderId ? 'Search Folder' : 'Search All'}
+              </Button>
+            </div>
+            <div className="text-xs text-ink-soft">
+              {selectedFolderId
+                ? 'Search covers accessible documents inside the chosen folder.'
+                : 'Search covers all accessible documents in the system, including published documents outside this project.'}
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {['ALL', 'PUBLISHED', 'DRAFT'].map((filterValue) => (
+                <button
+                  key={filterValue}
+                  type="button"
+                  onClick={() => setStatusFilter(filterValue)}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                    statusFilter === filterValue
+                      ? 'border-white/10 bg-brand text-ink-inverse'
+                      : 'border-border bg-surface text-ink-secondary hover:bg-surface-muted hover:text-ink'
                   }`}
                 >
-                  <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                  <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
-                  <div className="mt-1 inline-flex items-center gap-2">
-                    <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
-                    <DocumentStatusBadge status={r.document?.status || r.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-ink-soft">
-                    {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
-                  </div>
+                  {filterValue === 'ALL' ? 'All' : filterValue === 'PUBLISHED' ? 'Published' : 'Draft'}
                 </button>
               ))}
-            </AppSurface>
-          )}
-          {!loading && query.trim().length >= 2 && filteredResults.length === 0 && (
-            <EmptyPanelState
-              title={results.length === 0 ? 'No matching documents found' : 'No documents match the selected status'}
-              description={results.length === 0
-                ? 'Try file code prefix, full file code, or part of the title.'
-                : 'Try switching the status filter.'}
-            />
-          )}
+            </div>
+            {filteredResults.length > 0 && (
+              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+                {filteredResults.map((r) => {
+                  const isSelected = Boolean(selectedDocuments[String(r.id)])
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => toggleDocument(r)}
+                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-brand/5 ring-1 ring-inset ring-brand/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="mt-1 inline-flex items-center gap-2">
+                            <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
+                            <DocumentStatusBadge status={r.document?.status || r.status} />
+                          </div>
+                          <div className="mt-1 text-xs text-ink-soft">
+                            {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </AppSurface>
+            )}
+            {!searching && canSearch && filteredResults.length === 0 && (
+              <EmptyPanelState
+                title={results.length === 0 ? 'No matching documents found' : 'No documents match the selected status'}
+                description={results.length === 0
+                  ? (selectedFolderId
+                    ? 'Try another keyword or switch to a different folder.'
+                    : 'Try file code prefix, full file code, or part of the title.')
+                  : 'Try switching the status filter.'}
+              />
+            )}
+          </div>
         </div>
         <div className="text-xs text-ink-soft">
-          {documentId ? 'Selected document ready to attach.' : 'Search and select one document from the list above.'}
+          {selectedCount > 0
+            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected and ready to attach to this required item.`
+            : 'Search and select one or more documents from the list above.'}
         </div>
+        {submitError && (
+          <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
+            {submitError}
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={loading || !documentId} type="submit">
-            {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Attaching...' : 'Attach'}
+          <Button disabled={submitting || selectedCount === 0} type="submit">
+            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+            {submitting ? 'Attaching...' : `Attach ${selectedCount || ''}`.trim()}
           </Button>
         </div>
       </form>
@@ -3992,9 +4336,15 @@ function ProjectDetail({ projectId }) {
           item={showLink}
           phase={selectedPhase}
           onClose={() => setShowLink(null)}
-          onLinked={() => {
+          onLinked={async (summary) => {
             setShowLink(null)
-            if (selectedIterationId) loadItems(selectedIterationId)
+            if (selectedIterationId) await loadItems(selectedIterationId)
+            setAlertModal({
+              show: true,
+              title: summary?.failedCount ? 'Attach Completed with Notes' : 'Success',
+              message: buildAttachSummaryMessage(summary),
+              type: summary?.failedCount ? 'warning' : 'success'
+            })
           }}
         />
       )}
@@ -4019,9 +4369,15 @@ function ProjectDetail({ projectId }) {
           stage={showStageLink}
           stageItems={itemsByStage.get(showStageLink.id) || []}
           onClose={() => setShowStageLink(null)}
-          onLinked={() => {
+          onLinked={async (summary) => {
             setShowStageLink(null)
-            if (selectedIterationId) loadItems(selectedIterationId)
+            if (selectedIterationId) await loadItems(selectedIterationId)
+            setAlertModal({
+              show: true,
+              title: summary?.failedCount ? 'Attach Completed with Notes' : 'Success',
+              message: buildAttachSummaryMessage(summary),
+              type: summary?.failedCount ? 'warning' : 'success'
+            })
           }}
         />
       )}

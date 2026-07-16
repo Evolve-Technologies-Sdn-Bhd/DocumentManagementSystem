@@ -17,3 +17,6 @@
 ## Debug Server
 - URL: http://127.0.0.1:7777/event
 - Log file: .dbg/trae-debug-log-master-record-preview-link.ndjson
+
+## Notes
+- Logging debug hanya aktif jika `localStorage.dms_debug` = `1` (untuk elak console error bila debug server tak jalan).

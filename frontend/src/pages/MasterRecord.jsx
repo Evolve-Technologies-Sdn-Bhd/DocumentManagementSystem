@@ -17,7 +17,23 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { isAdmin } from '../utils/permissions'
 
 const MASTER_RECORD_DEBUG_URL = 'http://127.0.0.1:7777/event'
+const getFriendlyMasterRecordDownloadError = (error, doc) => {
+  const statusCode = error?.response?.status
+  const documentStatus = String(doc?.status || '').toUpperCase()
+
+  if (statusCode === 404 && documentStatus === 'ACKNOWLEDGED') {
+    return 'File is not uploaded yet'
+  }
+
+  return error?.response?.data?.message || 'Failed to download document. Please try again.'
+}
+
 const reportMasterRecordDebug = (hypothesisId, location, msg, data = {}, runId = 'pre-fix') => {
+  try {
+    if (localStorage.getItem('dms_debug') !== '1') return
+  } catch {
+    return
+  }
   fetch(MASTER_RECORD_DEBUG_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -283,7 +299,7 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
       setAlertModal({
         show: true,
         title: 'Download failed',
-        message: error.response?.data?.message || 'Failed to download document. Please try again.',
+        message: getFriendlyMasterRecordDownloadError(error, doc),
         type: 'error'
       })
     }

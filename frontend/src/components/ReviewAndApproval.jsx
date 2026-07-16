@@ -51,6 +51,18 @@ export default function ReviewAndApproval() {
   const [approveSupersedeModalOpen, setApproveSupersedeModalOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+  const canSendDebugRef = useRef(null)
+
+  const canSendDebug = () => {
+    if (canSendDebugRef.current === null) {
+      try {
+        canSendDebugRef.current = localStorage.getItem('dms_debug') === '1'
+      } catch {
+        canSendDebugRef.current = false
+      }
+    }
+    return canSendDebugRef.current
+  }
 
   // Get current user ID for ownership check
   const getCurrentUserId = () => {
@@ -220,30 +232,32 @@ export default function ReviewAndApproval() {
     try {
       const downloadId = doc?.documentId ?? doc?.id
       // #region debug-point A:download-click
-      fetch('http://127.0.0.1:7777/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'review-approval-title-download',
-          runId: 'pre-fix',
-          hypothesisId: 'A',
-          location: 'ReviewAndApproval.jsx:handleDownload',
-          msg: '[DEBUG] Download requested from review-approval list',
-          data: {
-            downloadId: downloadId ?? null,
-            doc: {
-              id: doc?.id ?? null,
-              documentId: doc?.documentId ?? null,
-              fileCode: doc?.fileCode ?? null,
-              title: doc?.title ?? null,
-              status: doc?.status ?? null,
-              stage: doc?.stage ?? null,
-              fileName: doc?.fileName ?? null
-            }
-          },
-          ts: Date.now()
-        })
-      }).catch(() => {})
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'A',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download requested from review-approval list',
+            data: {
+              downloadId: downloadId ?? null,
+              doc: {
+                id: doc?.id ?? null,
+                documentId: doc?.documentId ?? null,
+                fileCode: doc?.fileCode ?? null,
+                title: doc?.title ?? null,
+                status: doc?.status ?? null,
+                stage: doc?.stage ?? null,
+                fileName: doc?.fileName ?? null
+              }
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
       // #endregion
       if (!downloadId) {
         setAlertModal({
@@ -259,23 +273,25 @@ export default function ReviewAndApproval() {
         responseType: 'blob'
       })
       // #region debug-point B:download-success
-      fetch('http://127.0.0.1:7777/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'review-approval-title-download',
-          runId: 'pre-fix',
-          hypothesisId: 'B',
-          location: 'ReviewAndApproval.jsx:handleDownload',
-          msg: '[DEBUG] Download response OK',
-          data: {
-            downloadId,
-            contentType: res.headers?.['content-type'] || null,
-            contentDisposition: res.headers?.['content-disposition'] || null
-          },
-          ts: Date.now()
-        })
-      }).catch(() => {})
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'B',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download response OK',
+            data: {
+              downloadId,
+              contentType: res.headers?.['content-type'] || null,
+              contentDisposition: res.headers?.['content-disposition'] || null
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
       // #endregion
 
       const contentDisposition = res.headers?.['content-disposition'] || ''
@@ -309,27 +325,34 @@ export default function ReviewAndApproval() {
       console.error('Failed to download document:', err)
       const apiMessage = err?.response?.data?.message
       // #region debug-point C:download-error
-      fetch('http://127.0.0.1:7777/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'review-approval-title-download',
-          runId: 'pre-fix',
-          hypothesisId: 'C',
-          location: 'ReviewAndApproval.jsx:handleDownload',
-          msg: '[DEBUG] Download response error',
-          data: {
-            status: err?.response?.status ?? null,
-            message: apiMessage || err?.message || null
-          },
-          ts: Date.now()
-        })
-      }).catch(() => {})
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'C',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download response error',
+            data: {
+              status: err?.response?.status ?? null,
+              message: apiMessage || err?.message || null
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
       // #endregion
+      const status = err?.response?.status
+      const message =
+        status === 403
+          ? 'Anda tidak dibenarkan memuat turun dokumen ini. Jika dokumen masih dalam proses review/approval, hanya reviewer/approver/owner yang dibenarkan.'
+          : (apiMessage || t('failed_load_doc'))
       setAlertModal({
         show: true,
         title: t('failed_load_doc'),
-        message: apiMessage || t('failed_load_doc'),
+        message,
         type: 'error'
       })
     }
@@ -613,7 +636,6 @@ export default function ReviewAndApproval() {
                   <Th>{t('file_code')}</Th>
                   <Th>{t('doc_title')}</Th>
                   <Th>{t('version')}</Th>
-                  <Th>{t('stage')}</Th>
                   <Th>{t('submitted_by')}</Th>
                   <Th>{t('reviewer')}</Th>
                   <Th>{t('approver')}</Th>
@@ -626,7 +648,7 @@ export default function ReviewAndApproval() {
               <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="py-10">
+                  <td colSpan="10" className="py-10">
                     <div className="flex flex-col items-center gap-2">
                       <InlineSpinner />
                       <span className="text-sm text-ink-muted">{t('loading_docs')}</span>
@@ -635,7 +657,7 @@ export default function ReviewAndApproval() {
                 </tr>
               ) : currentDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="11">
+                  <td colSpan="10">
                     <EmptyState 
                       message={t('no_docs_found')} 
                       description={searchQuery || stageFilter !== 'All' ? t('try_adjusting') : t('no_pending_review')}
@@ -648,17 +670,30 @@ export default function ReviewAndApproval() {
                 currentDocuments.map((doc) => (
                   <Tr key={doc.id}>
                     <Td>
-                      <a href="#" className="font-medium text-ink hover:text-brand">
+                      <a
+                        href="#"
+                        className="font-medium text-ink hover:text-brand"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDownload(doc)
+                        }}
+                      >
                         {doc.fileCode}
                       </a>
                     </Td>
                     <Td>
-                      <a href="#" className="font-medium text-brand hover:text-brand-hover hover:underline">
+                      <a
+                        href="#"
+                        className="font-medium text-brand hover:text-brand-hover hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDownload(doc)
+                        }}
+                      >
                         {doc.title}
                       </a>
                     </Td>
                     <Td>{doc.version}</Td>
-                    <Td>{doc.stage}</Td>
                     <Td>{doc.submittedBy}</Td>
                     <Td>{doc.reviewerName || '-'}</Td>
                     <Td>{doc.firstApproverName || '-'}</Td>
@@ -725,10 +760,26 @@ export default function ReviewAndApproval() {
               <AppSurface key={doc.id} variant="muted" padding="md" className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <a href="#" className="text-ink font-semibold hover:text-brand">
+                    <a
+                      href="#"
+                      className="text-ink font-semibold hover:text-brand"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDownload(doc)
+                      }}
+                    >
                       {doc.fileCode}
                     </a>
-                    <div className="text-sm text-ink-secondary mt-1">{doc.title}</div>
+                    <a
+                      href="#"
+                      className="block text-sm text-ink-secondary mt-1 hover:text-brand hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDownload(doc)
+                      }}
+                    >
+                      {doc.title}
+                    </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -738,10 +789,6 @@ export default function ReviewAndApproval() {
                   <div>
                     <span className="text-ink-muted">{t('version')}:</span>
                     <div className="text-ink font-medium">{doc.version}</div>
-                  </div>
-                  <div>
-                    <span className="text-ink-muted">{t('stage')}:</span>
-                    <div className="text-ink font-medium">{doc.stage}</div>
                   </div>
                   <div>
                     <span className="text-ink-muted">{t('submitted_by')}:</span>

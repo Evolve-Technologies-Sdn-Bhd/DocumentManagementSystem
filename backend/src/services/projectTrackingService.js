@@ -1810,7 +1810,7 @@ exports.deleteProjectChangeRequest = async (changeRequestId, { deletedById } = {
   return { id }
 }
 
-exports.searchDocuments = async ({ projectId, q, attachedOnly }, { user }) => {
+exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { user }) => {
   const query = String(q || '').trim()
 
   const normalizeSearchValue = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -1829,6 +1829,9 @@ exports.searchDocuments = async ({ projectId, q, attachedOnly }, { user }) => {
   }
   if (projectId) {
     andWhere.push({ projectLinks: { some: { iteration: { projectId } } } })
+  }
+  if (folderId) {
+    andWhere.push({ folderId })
   }
 
   if (query) {
