@@ -395,6 +395,7 @@ export default function PublishedDocuments() {
         size: '-',
         lastModified: folder.createdAt ? formatDate(folder.createdAt) : '-',
         status: '-',
+        canCreate: Boolean(folder.canCreate),
         canEdit: Boolean(folder.canEdit),
         canManage: Boolean(folder.canManage)
       }))
@@ -1881,7 +1882,11 @@ export default function PublishedDocuments() {
                     currentDocuments.map((doc) => (
                       <Tr
                         key={doc.id}
-                        className={`cursor-pointer ${canUpdatePublished ? 'select-none' : ''}`}
+                        className={`cursor-pointer ${canUpdatePublished ? 'select-none' : ''} ${
+                          doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                            ? 'bg-brand/10 ring-1 ring-inset ring-brand/30'
+                            : ''
+                        }`}
                         onClick={() => {
                           if (doc.isFolder) {
                             setSelectedFolder(doc.folderId)
@@ -1895,6 +1900,19 @@ export default function PublishedDocuments() {
                         draggable={canUpdatePublished}
                         onDragStart={(e) => handleItemDragStart(e, doc)}
                         onDragEnd={handleItemDragEnd}
+                        onDragOver={(e) => {
+                          if (!doc.isFolder) return
+                          handleFolderDragOver(e, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                        }}
+                        onDrop={(e) => {
+                          if (!doc.isFolder) return
+                          handleFolderDrop(e, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                        }}
+                        onDragLeave={() => {
+                          if (doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId)) {
+                            setDragTargetFolderId(null)
+                          }
+                        }}
                       >
                         {canUpdatePublished && (
                           <Td onClick={(e) => e.stopPropagation()}>
@@ -1915,6 +1933,11 @@ export default function PublishedDocuments() {
                             <span className={doc.isFolder ? 'text-ink font-medium' : 'text-brand hover:text-brand-hover font-medium'}>
                               {doc.fileName}
                             </span>
+                            {doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate }) ? (
+                              <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
+                                Drop here
+                              </span>
+                            ) : null}
                           </div>
                         </Td>
                         <Td>{doc.type}</Td>
