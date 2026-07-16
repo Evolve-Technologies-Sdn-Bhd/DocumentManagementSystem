@@ -1212,7 +1212,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
 
     setSearching(true)
     try {
-      const params = { projectId }
+      const params = {}
       if (trimmedQuery) params.q = trimmedQuery
       if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
       const res = await api.get('/project-tracking/documents/search', { params })
@@ -1713,7 +1713,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
 
     setSearching(true)
     try {
-      const params = { projectId }
+      const params = {}
       if (trimmedQuery) params.q = trimmedQuery
       if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
       const res = await api.get('/project-tracking/documents/search', { params })
