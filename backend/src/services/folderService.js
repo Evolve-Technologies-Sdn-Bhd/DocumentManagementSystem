@@ -519,9 +519,6 @@ class FolderService {
         fileName: latestVersion ? latestVersion.fileName : doc.title,
         fileCode: doc.fileCode,
         title: doc.title,
-        isConfidential: doc.isConfidential,
-        statusCode: doc.status,
-        stage: doc.stage,
         type: latestVersion ? this.getFileExtension(latestVersion.fileName) : 'UNKNOWN',
         size: latestVersion ? this.formatFileSize(latestVersion.fileSize) : '0 KB',
         lastModified: doc.updatedAt.toLocaleString('en-GB', {

@@ -1185,8 +1185,10 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }, [selectedEntries, stageItems])
 
   const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
-  const handleFolderSelect = (node) => {
-    const nextId = String(node?.id || '')
+  const handleFolderSelect = (...args) => {
+    const folderId = args.length > 1 ? args[0] : args[0]?.id
+    const node = args.length > 1 ? args[1] : args[0]
+    const nextId = String(folderId || '')
     reportAttachFolderDebug({
       hypothesisId: 'A',
       location: 'ProjectTracking.jsx:StageLinkDocumentModal:handleFolderSelect',
@@ -1250,45 +1252,17 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
 
     setSearching(true)
     try {
-      let docs = []
-      if (normalizedFolderId) {
-        const params = { page: 1, limit: 200 }
-        if (trimmedQuery) params.search = trimmedQuery
-        reportAttachFolderDebug({
-          hypothesisId: 'B',
-          location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
-          msg: '[DEBUG] Calling /folders/:id/documents',
-          data: { folderId: normalizedFolderId, params }
-        })
-        const res = await api.get(`/folders/${normalizedFolderId}/documents`, { params })
-        const list = res?.data?.data || []
-        docs = (Array.isArray(list) ? list : []).map((d) => ({
-          id: d.id,
-          isConfidential: d.isConfidential,
-          status: d.statusCode || d.status || null,
-          documentType: d.documentType ? { name: d.documentType } : null,
-          document: {
-            id: d.id,
-            fileCode: d.fileCode,
-            title: d.title,
-            status: d.statusCode || d.status || null,
-            isConfidential: d.isConfidential,
-            stage: d.stage || null,
-            documentType: d.documentType ? { name: d.documentType } : null
-          }
-        }))
-      } else {
-        const params = {}
-        if (trimmedQuery) params.q = trimmedQuery
-        reportAttachFolderDebug({
-          hypothesisId: 'B',
-          location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
-          msg: '[DEBUG] Calling /project-tracking/documents/search',
-          data: { params }
-        })
-        const res = await api.get('/project-tracking/documents/search', { params })
-        docs = res?.data?.data?.documents || []
-      }
+      const params = {}
+      if (trimmedQuery) params.q = trimmedQuery
+      if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
+        msg: '[DEBUG] Calling /project-tracking/documents/search',
+        data: { params }
+      })
+      const res = await api.get('/project-tracking/documents/search', { params })
+      const docs = res?.data?.data?.documents || []
       reportAttachFolderDebug({
         hypothesisId: 'C',
         location: 'ProjectTracking.jsx:StageLinkDocumentModal:search',
@@ -1751,8 +1725,10 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   const selectedEntries = useMemo(() => Object.values(selectedDocuments), [selectedDocuments])
   const selectedCount = selectedEntries.length
   const canSearch = Boolean(selectedFolderId) || query.trim().length >= 2
-  const handleFolderSelect = (node) => {
-    const nextId = String(node?.id || '')
+  const handleFolderSelect = (...args) => {
+    const folderId = args.length > 1 ? args[0] : args[0]?.id
+    const node = args.length > 1 ? args[1] : args[0]
+    const nextId = String(folderId || '')
     reportAttachFolderDebug({
       hypothesisId: 'A',
       location: 'ProjectTracking.jsx:LinkDocumentModal:handleFolderSelect',
@@ -1816,45 +1792,17 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
 
     setSearching(true)
     try {
-      let docs = []
-      if (normalizedFolderId) {
-        const params = { page: 1, limit: 200 }
-        if (trimmedQuery) params.search = trimmedQuery
-        reportAttachFolderDebug({
-          hypothesisId: 'B',
-          location: 'ProjectTracking.jsx:LinkDocumentModal:search',
-          msg: '[DEBUG] Calling /folders/:id/documents',
-          data: { folderId: normalizedFolderId, params }
-        })
-        const res = await api.get(`/folders/${normalizedFolderId}/documents`, { params })
-        const list = res?.data?.data || []
-        docs = (Array.isArray(list) ? list : []).map((d) => ({
-          id: d.id,
-          isConfidential: d.isConfidential,
-          status: d.statusCode || d.status || null,
-          documentType: d.documentType ? { name: d.documentType } : null,
-          document: {
-            id: d.id,
-            fileCode: d.fileCode,
-            title: d.title,
-            status: d.statusCode || d.status || null,
-            isConfidential: d.isConfidential,
-            stage: d.stage || null,
-            documentType: d.documentType ? { name: d.documentType } : null
-          }
-        }))
-      } else {
-        const params = {}
-        if (trimmedQuery) params.q = trimmedQuery
-        reportAttachFolderDebug({
-          hypothesisId: 'B',
-          location: 'ProjectTracking.jsx:LinkDocumentModal:search',
-          msg: '[DEBUG] Calling /project-tracking/documents/search',
-          data: { params }
-        })
-        const res = await api.get('/project-tracking/documents/search', { params })
-        docs = res?.data?.data?.documents || []
-      }
+      const params = {}
+      if (trimmedQuery) params.q = trimmedQuery
+      if (normalizedFolderId) params.folderId = Number(normalizedFolderId)
+      reportAttachFolderDebug({
+        hypothesisId: 'B',
+        location: 'ProjectTracking.jsx:LinkDocumentModal:search',
+        msg: '[DEBUG] Calling /project-tracking/documents/search',
+        data: { params }
+      })
+      const res = await api.get('/project-tracking/documents/search', { params })
+      const docs = res?.data?.data?.documents || []
       reportAttachFolderDebug({
         hypothesisId: 'C',
         location: 'ProjectTracking.jsx:LinkDocumentModal:search',
