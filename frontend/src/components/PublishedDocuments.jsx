@@ -32,6 +32,11 @@ export default function PublishedDocuments() {
     const n = parseInt(v, 10)
     return Number.isFinite(n) ? n : null
   }
+  const getItemDisplayName = (item) => {
+    if (!item) return ''
+    if (item.isFolder) return String(item.fileName || item.name || '').trim()
+    return String(item.title || item.fileName || '').trim()
+  }
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedFolder, setSelectedFolder] = useState(null)
@@ -93,6 +98,8 @@ export default function PublishedDocuments() {
   const [moveExpandedFolders, setMoveExpandedFolders] = useState([])
   const [moveLoading, setMoveLoading] = useState(false)
   const [moveError, setMoveError] = useState('')
+  const [dragMovePayload, setDragMovePayload] = useState(null)
+  const [dragTargetFolderId, setDragTargetFolderId] = useState(null)
 
   // Helper function to flatten folder hierarchy for display
   const flattenFolders = (folderList, level = 0, parentPath = []) => {
@@ -393,6 +400,7 @@ export default function PublishedDocuments() {
         size: '-',
         lastModified: folder.createdAt ? formatDate(folder.createdAt) : '-',
         status: '-',
+        canCreate: Boolean(folder.canCreate),
         canEdit: Boolean(folder.canEdit),
         canManage: Boolean(folder.canManage)
       }))
@@ -612,16 +620,17 @@ export default function PublishedDocuments() {
       setAlertModal({ show: true, title: 'Permission Denied', message: 'You do not have permission to delete files. Only Admins can delete files.', type: 'warning' })
       return
     }
-    
+
+    const docLabel = getItemDisplayName(doc)
     setConfirmModal({
       show: true,
       title: 'Confirm Admin Delete',
-      message: `Are you sure you want to permanently delete "${doc.fileName}"? This will remove the record from the database. This action cannot be undone.`,
+      message: `Are you sure you want to permanently delete "${docLabel}"? This will remove the record from the database. This action cannot be undone.`,
       onConfirm: async () => {
         setConfirmModal({ show: false })
         try {
           await api.delete(`/documents/${doc.id}/purge`)
-          setAlertModal({ show: true, title: 'Success', message: `${doc.fileName} has been permanently deleted successfully`, type: 'success' })
+          setAlertModal({ show: true, title: 'Success', message: `${docLabel} has been permanently deleted successfully`, type: 'success' })
           loadDocuments()
         } catch (error) {
           console.error('Failed to delete document:', error)
@@ -831,6 +840,11 @@ export default function PublishedDocuments() {
     setSelectedItems({ folders: [], documents: [] })
   }
 
+  const clearDragMoveState = () => {
+    setDragMovePayload(null)
+    setDragTargetFolderId(null)
+  }
+
   const toggleSelectedItem = (item, checked) => {
     setSelectedItems((prev) => {
       if (item.isFolder) {
@@ -851,6 +865,87 @@ export default function PublishedDocuments() {
       }
       return { ...prev, documents: Array.from(documentsSet) }
     })
+  }
+
+  const buildSelectionSummary = (folderIds = [], documentIds = []) => (
+    [
+      folderIds.length > 0 ? `${folderIds.length} folder${folderIds.length > 1 ? 's' : ''}` : null,
+      documentIds.length > 0 ? `${documentIds.length} document${documentIds.length > 1 ? 's' : ''}` : null
+    ].filter(Boolean).join(' and ')
+  )
+
+  const buildMovePayloadForItem = (item) => {
+    if (!item || !canUpdatePublished) return null
+
+    const itemIsSelected = item.isFolder
+      ? selectedFolderIds.includes(item.folderId)
+      : selectedDocumentIds.includes(item.id)
+
+    if (itemIsSelected && selectedCount > 1) {
+      return {
+        folders: selectedFolderIds,
+        documents: selectedDocumentIds,
+        summary: buildSelectionSummary(selectedFolderIds, selectedDocumentIds)
+      }
+    }
+
+    return item.isFolder
+      ? { folders: [item.folderId], documents: [], summary: buildSelectionSummary([item.folderId], []) }
+      : { folders: [], documents: [item.id], summary: buildSelectionSummary([], [item.id]) }
+  }
+
+  const canDropPayloadIntoFolder = (payload, folder) => {
+    const targetFolderId = toFolderId(folder?.id)
+    if (!payload || !targetFolderId || !folder?.canCreate) return false
+
+    const blockedIds = new Set()
+    payload.folders.forEach((folderId) => {
+      blockedIds.add(folderId)
+      getDescendantFolderIds(folderId).forEach((childId) => blockedIds.add(childId))
+    })
+
+    return !blockedIds.has(targetFolderId)
+  }
+
+  const moveItemsToFolder = async ({ folderIds = [], documentIds = [], destinationFolderId }) => {
+    setMoveLoading(true)
+    setMoveError('')
+
+    try {
+      if (folderIds.length > 0) {
+        await api.post('/folders/bulk-move', {
+          folderIds,
+          destinationParentId: destinationFolderId
+        })
+      }
+
+      if (documentIds.length > 0) {
+        await api.post('/documents/bulk-move', {
+          documentIds,
+          destinationFolderId
+        })
+      }
+
+      const list = await loadFolders()
+      if (selectedFolder) {
+        setBreadcrumbs(buildBreadcrumbsFrom(list || [], selectedFolder))
+        expandPathToFolder(selectedFolder)
+      }
+      await loadDocuments()
+      return true
+    } catch (error) {
+      console.error('Failed to move selected items:', error)
+      setMoveError(error?.response?.data?.message || 'Failed to move selected items')
+      setAlertModal({
+        show: true,
+        title: 'Error',
+        message: error?.response?.data?.message || 'Failed to move selected items',
+        type: 'error'
+      })
+      return false
+    } finally {
+      setMoveLoading(false)
+    }
   }
 
   // Pagination
@@ -903,10 +998,7 @@ export default function PublishedDocuments() {
 
     return filterTree(folders)
   }, [folders, movePickerQuery])
-  const selectionSummary = [
-    selectedFolderIds.length > 0 ? `${selectedFolderIds.length} folder${selectedFolderIds.length > 1 ? 's' : ''}` : null,
-    selectedDocumentIds.length > 0 ? `${selectedDocumentIds.length} document${selectedDocumentIds.length > 1 ? 's' : ''}` : null
-  ].filter(Boolean).join(' and ')
+  const selectionSummary = buildSelectionSummary(selectedFolderIds, selectedDocumentIds)
 
   const handleToggleSelectAll = (checked) => {
     if (!checked) {
@@ -950,30 +1042,13 @@ export default function PublishedDocuments() {
       return
     }
 
-    setMoveLoading(true)
-    setMoveError('')
+    const moved = await moveItemsToFolder({
+      folderIds: selectedFolderIds,
+      documentIds: selectedDocumentIds,
+      destinationFolderId
+    })
 
-    try {
-      if (selectedFolderIds.length > 0) {
-        await api.post('/folders/bulk-move', {
-          folderIds: selectedFolderIds,
-          destinationParentId: destinationFolderId
-        })
-      }
-
-      if (selectedDocumentIds.length > 0) {
-        await api.post('/documents/bulk-move', {
-          documentIds: selectedDocumentIds,
-          destinationFolderId
-        })
-      }
-
-      const list = await loadFolders()
-      if (selectedFolder) {
-        setBreadcrumbs(buildBreadcrumbsFrom(list || [], selectedFolder))
-        expandPathToFolder(selectedFolder)
-      }
-      await loadDocuments()
+    if (moved) {
       clearSelectedItems()
       closeMoveSelectedModal()
       setAlertModal({
@@ -982,12 +1057,68 @@ export default function PublishedDocuments() {
         message: `${selectionSummary || 'Selected items'} moved successfully`,
         type: 'success'
       })
-    } catch (error) {
-      console.error('Failed to move selected items:', error)
-      setMoveError(error?.response?.data?.message || 'Failed to move selected items')
-    } finally {
-      setMoveLoading(false)
     }
+  }
+
+  const handleItemDragStart = (event, item) => {
+    const payload = buildMovePayloadForItem(item)
+    if (!payload) {
+      event.preventDefault()
+      return
+    }
+
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', item.isFolder ? `folder:${item.folderId}` : `document:${item.id}`)
+    setDragMovePayload(payload)
+    setDragTargetFolderId(null)
+  }
+
+  const handleItemDragEnd = () => {
+    clearDragMoveState()
+  }
+
+  const handleFolderDragOver = (event, folder) => {
+    if (!canDropPayloadIntoFolder(dragMovePayload, folder)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDragTargetFolderId(toFolderId(folder.id))
+  }
+
+  const handleFolderDrop = (event, folder) => {
+    event.preventDefault()
+
+    const destinationFolderId = toFolderId(folder.id)
+    const payload = dragMovePayload
+    if (!destinationFolderId || !canDropPayloadIntoFolder(payload, folder)) {
+      clearDragMoveState()
+      return
+    }
+
+    const destinationLabel = buildFolderPathLabel(destinationFolderId) || folder.name
+    setConfirmModal({
+      show: true,
+      title: 'Confirm Move',
+      message: `Move ${payload.summary || 'selected items'} to "${destinationLabel}"?`,
+      onConfirm: async () => {
+        setConfirmModal({ show: false })
+        const moved = await moveItemsToFolder({
+          folderIds: payload.folders,
+          documentIds: payload.documents,
+          destinationFolderId
+        })
+
+        if (moved) {
+          clearSelectedItems()
+          clearDragMoveState()
+          setAlertModal({
+            show: true,
+            title: 'Success',
+            message: `${payload.summary || 'Selected items'} moved successfully`,
+            type: 'success'
+          })
+        }
+      }
+    })
   }
 
   const handlePageChange = (page) => {
@@ -1082,6 +1213,8 @@ export default function PublishedDocuments() {
     const hasChildren = Boolean((folder.children && folder.children.length > 0) || (Number(folder.childrenCount) > 0))
     const isExpanded = expandedFolders.includes(folder.id)
     const isSelected = selectedFolder === folder.id
+    const isDropAllowed = canDropPayloadIntoFolder(dragMovePayload, folder)
+    const isDragTarget = dragTargetFolderId === toFolderId(folder.id) && isDropAllowed
     const [showContextMenu, setShowContextMenu] = useState(false)
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
 
@@ -1110,14 +1243,30 @@ export default function PublishedDocuments() {
       <div key={folder.id}>
         <div
           className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer group relative ${
-            isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+            isDragTarget
+              ? 'bg-brand/10 ring-2 ring-brand/30'
+              : isSelected
+                ? 'bg-blue-50 border-l-4 border-blue-600'
+                : ''
           }`}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
+          onDragOver={(e) => handleFolderDragOver(e, folder)}
+          onDrop={(e) => handleFolderDrop(e, folder)}
+          onDragLeave={() => {
+            if (dragTargetFolderId === toFolderId(folder.id)) {
+              setDragTargetFolderId(null)
+            }
+          }}
           style={{ paddingLeft: `${12 + level * 20}px` }}
         >
           <span className="text-gray-500">{level === 0 ? '📁' : '📂'}</span>
           <span className="flex-1">{folder.name}</span>
+          {isDragTarget && (
+            <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
+              Drop here
+            </span>
+          )}
           <div className="flex items-center gap-1">
             {hasChildren && (
               <button
@@ -1532,6 +1681,11 @@ export default function PublishedDocuments() {
               </svg>
             </button>
           </div>
+          {canUpdatePublished && (
+            <div className="mb-3 rounded-2xl bg-surface-muted px-3 py-2 text-xs text-ink-muted">
+              Drag files or folders from the list and drop them onto a folder here to move them.
+            </div>
+          )}
           <div className="space-y-1">
             {folders.map((folder) => (
               <FolderTreeItem key={folder.id} folder={folder} level={0} />
@@ -1734,7 +1888,11 @@ export default function PublishedDocuments() {
                     currentDocuments.map((doc) => (
                       <Tr
                         key={doc.id}
-                        className="cursor-pointer"
+                        className={`cursor-pointer ${canUpdatePublished ? 'select-none' : ''} ${
+                          doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                            ? 'bg-brand/10 ring-1 ring-inset ring-brand/30'
+                            : ''
+                        }`}
                         onClick={() => {
                           if (doc.isFolder) {
                             setSelectedFolder(doc.folderId)
@@ -1745,6 +1903,22 @@ export default function PublishedDocuments() {
                             }
                           }
                         }}
+                        draggable={canUpdatePublished}
+                        onDragStart={(e) => handleItemDragStart(e, doc)}
+                        onDragEnd={handleItemDragEnd}
+                        onDragOver={(e) => {
+                          if (!doc.isFolder) return
+                          handleFolderDragOver(e, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                        }}
+                        onDrop={(e) => {
+                          if (!doc.isFolder) return
+                          handleFolderDrop(e, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate })
+                        }}
+                        onDragLeave={() => {
+                          if (doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId)) {
+                            setDragTargetFolderId(null)
+                          }
+                        }}
                       >
                         {canUpdatePublished && (
                           <Td onClick={(e) => e.stopPropagation()}>
@@ -1753,7 +1927,7 @@ export default function PublishedDocuments() {
                               checked={doc.isFolder ? selectedFolderIds.includes(doc.folderId) : selectedDocumentIds.includes(doc.id)}
                               onChange={(e) => toggleSelectedItem(doc, e.target.checked)}
                               className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                              aria-label={`Select ${doc.fileName}`}
+                              aria-label={`Select ${getItemDisplayName(doc)}`}
                             />
                           </Td>
                         )}
@@ -1763,8 +1937,13 @@ export default function PublishedDocuments() {
                         <Td>
                           <div className="flex items-center">
                             <span className={doc.isFolder ? 'text-ink font-medium' : 'text-brand hover:text-brand-hover font-medium'}>
-                              {doc.fileName}
+                              {getItemDisplayName(doc)}
                             </span>
+                            {doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate }) ? (
+                              <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
+                                Drop here
+                              </span>
+                            ) : null}
                           </div>
                         </Td>
                         <Td>{doc.type}</Td>
@@ -1786,7 +1965,7 @@ export default function PublishedDocuments() {
                                   : []
                                 ),
                                 ...(hasPermission('documents.published', 'update')
-                                  ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, doc.fileName) }]
+                                  ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, getItemDisplayName(doc)) }]
                                   : []
                                 ),
                                 ...(canEditExpiryTracking

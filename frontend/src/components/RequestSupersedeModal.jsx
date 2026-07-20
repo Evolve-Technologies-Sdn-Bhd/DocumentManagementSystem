@@ -7,6 +7,8 @@ import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
 export default function RequestSupersedeModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -29,6 +31,8 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
   const [showDocumentSearch, setShowDocumentSearch] = useState(false)
   const [loadingPublishedDocs, setLoadingPublishedDocs] = useState(false)
   const [allPublishedDocs, setAllPublishedDocs] = useState([])
+  const loadProgress = useLoadingProgress(loadingPublishedDocs, { start: 20, max: 74, stepMs: 180 })
+  const submitProgress = useLoadingProgress(loading)
 
   // Load published documents to select from
   useEffect(() => {
@@ -192,10 +196,18 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
     <>
       {/* Document Selection Modal */}
       {showDocumentSearch && (
-        <Modal onClose={() => setShowDocumentSearch(false)} closeOnBackdrop size="lg">
+        <Modal onClose={loading ? undefined : () => setShowDocumentSearch(false)} closeOnBackdrop={!loading} size="lg">
           <ModalHeader title="Select Document to Supersede/Obsolete" onClose={() => setShowDocumentSearch(false)} />
           <ModalBody>
-            <div className="space-y-2">
+            <div className="space-y-3">
+              {loadingPublishedDocs ? (
+                <AsyncActionStatus
+                  title="Loading published documents"
+                  message="Available controlled documents are being prepared for selection."
+                  progress={loadProgress}
+                  busy
+                />
+              ) : null}
               {publishedDocs.map((doc) => (
                 <button
                   key={doc.id}
@@ -218,19 +230,37 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
         </Modal>
       )}
 
-      <Modal onClose={onClose} closeOnBackdrop size="md">
+      <Modal onClose={loading ? undefined : onClose} closeOnBackdrop={!loading} size="md">
         <form onSubmit={handleSubmit}>
-          <ModalHeader title="Request Supersede / Obsolete Document" onClose={onClose} />
+          <ModalHeader title="Request Supersede / Obsolete Document" onClose={loading ? undefined : onClose} />
 
           <ModalBody className="space-y-4">
+            {loadingPublishedDocs ? (
+              <AsyncActionStatus
+                title="Loading document options"
+                message="Published documents are being prepared for request selection."
+                progress={loadProgress}
+                busy
+              />
+            ) : null}
+            {loading ? (
+              <AsyncActionStatus
+                title="Submitting request"
+                message="Your supersede or obsolete request is being saved for review."
+                progress={submitProgress}
+                busy
+              />
+            ) : null}
             <AppSurface variant="muted" padding="md" className="border border-blue-200 bg-blue-50 text-sm text-blue-800">
               Please make sure a replacement file is available before requesting to supersede, and ensure it goes through the review and approval process.
             </AppSurface>
-            {error && (
-              <AppSurface variant="muted" padding="md" className="border border-red-200 bg-red-50 text-sm text-red-700">
-                {error}
-              </AppSurface>
-            )}
+            {error ? (
+              <AsyncActionStatus
+                title="Unable to continue"
+                message={error}
+                tone="error"
+              />
+            ) : null}
 
             {/* Select Document Button */}
             {!formData.fileCode && (
@@ -401,8 +431,8 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
             <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !formData.fileCode}>
-              {loading ? <><InlineSpinner className="h-4 w-4 border-2 border-white/40 border-t-white" /><span>Submitting...</span></> : 'Submit'}
+            <Button type="submit" disabled={loading || loadingPublishedDocs || !formData.fileCode} loading={loading} loadingText={`Submitting... ${submitProgress}%`}>
+              Submit
             </Button>
           </ModalFooter>
         </form>

@@ -4,14 +4,18 @@ import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
-import InlineSpinner from './ui/InlineSpinner'
 import FolderTreePicker from './ui/FolderTreePicker'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
 const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
   const [folders, setFolders] = useState([])
   const [selectedFolder, setSelectedFolder] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingFolders, setLoadingFolders] = useState(false)
   const [error, setError] = useState('')
+  const loadingFoldersProgress = useLoadingProgress(loadingFolders, { start: 20, max: 70, stepMs: 180 })
+  const archiveProgress = useLoadingProgress(loading)
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +24,7 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
   }, [isOpen])
 
   const fetchFolders = async () => {
+    setLoadingFolders(true)
     try {
       const response = await api.get('/folders')
       const folderList = response.data.data?.folders || response.data.folders || []
@@ -27,6 +32,8 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
     } catch (error) {
       console.error('Error fetching folders:', error)
       setError('Error fetching folders')
+    } finally {
+      setLoadingFolders(false)
     }
   }
 
@@ -67,15 +74,33 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
   if (!isOpen) return null
 
   return (
-    <Modal onClose={handleClose} closeOnBackdrop size="md">
+    <Modal onClose={loading ? undefined : handleClose} closeOnBackdrop={!loading} size="md">
       <form onSubmit={handleSubmit}>
-        <ModalHeader title="Archive Obsolete Document" onClose={handleClose} />
+        <ModalHeader title="Archive Obsolete Document" onClose={loading ? undefined : handleClose} />
 
         <ModalBody className="space-y-4">
+          {loadingFolders ? (
+            <AsyncActionStatus
+              title="Loading archive folders"
+              message="Available archive destinations are being prepared."
+              progress={loadingFoldersProgress}
+              busy
+            />
+          ) : null}
+          {loading ? (
+            <AsyncActionStatus
+              title="Archiving document"
+              message="The obsolete or superseded document is being assigned to the selected archive folder."
+              progress={archiveProgress}
+              busy
+            />
+          ) : null}
           {error ? (
-            <AppSurface variant="muted" padding="md" className="border border-red-200 bg-red-50 text-sm text-red-700">
-              {error}
-            </AppSurface>
+            <AsyncActionStatus
+              title="Unable to continue"
+              message={error}
+              tone="error"
+            />
           ) : null}
 
           <div className="space-y-4">
@@ -131,7 +156,7 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
                 selectedLabel="Selected archive folder"
                 treeClassName="max-h-64"
                 mode="nested"
-                disabled={loading}
+                disabled={loading || loadingFolders}
               />
               <p className="mt-1 text-xs text-ink-muted">
                 Choose the folder where this obsolete document should be archived.
@@ -151,8 +176,8 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
           <Button type="button" variant="secondary" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? <><InlineSpinner className="h-4 w-4 border-2 border-white/40 border-t-white" /><span>Archiving...</span></> : 'Archive Document'}
+          <Button type="submit" disabled={loading || loadingFolders} loading={loading} loadingText={`Archiving... ${archiveProgress}%`}>
+            Archive Document
           </Button>
         </ModalFooter>
       </form>

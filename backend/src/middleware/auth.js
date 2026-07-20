@@ -66,8 +66,22 @@ const authenticate = async (req, res, next) => {
       if (!rolePermissions || typeof rolePermissions !== 'object') return acc
 
       Object.keys(rolePermissions).forEach((moduleKey) => {
+        const actions = rolePermissions[moduleKey]
+
+        if (moduleKey === 'all' && actions === true) {
+          acc.all = true
+          return
+        }
+
         if (!acc[moduleKey]) acc[moduleKey] = {}
-        const actions = rolePermissions[moduleKey] || {}
+
+        if (Array.isArray(actions)) {
+          actions.forEach((action) => {
+            acc[moduleKey][action] = true
+          })
+          return
+        }
+
         if (!actions || typeof actions !== 'object') return
 
         Object.keys(actions).forEach((action) => {
@@ -129,8 +143,14 @@ const authorizePermission = (resource, ...actions) => {
       return next(new UnauthorizedError('User not authenticated'));
     }
 
-    const userPermissions = req.user.permissions[resource] || [];
-    const hasPermission = actions.some(action => userPermissions.includes(action));
+    if (req.user.permissions?.all === true) {
+      return next();
+    }
+
+    const userPermissions = req.user.permissions?.[resource];
+    const hasPermission = Array.isArray(userPermissions)
+      ? actions.some(action => userPermissions.includes(action))
+      : actions.some(action => Boolean(userPermissions?.[action]));
 
     if (!hasPermission) {
       return next(new ForbiddenError(`You don't have permission to perform this action`));

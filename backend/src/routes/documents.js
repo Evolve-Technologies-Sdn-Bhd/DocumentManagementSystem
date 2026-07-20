@@ -1,31 +1,20 @@
 const express = require('express');
 const documentController = require('../controllers/documentController');
 const versionRequestController = require('../controllers/versionRequestController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, authorizePermission } = require('../middleware/auth');
 const { uploadDocument } = require('../middleware/upload');
-const { ForbiddenError } = require('../utils/errors')
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticate);
 
-const requirePermission = (moduleKey, action) => {
-  return (req, res, next) => {
-    const allowed = !!req.user?.permissions?.[moduleKey]?.[action]
-    if (!allowed) {
-      return next(new ForbiddenError("You don't have permission to perform this action"))
-    }
-    next()
-  }
-}
-
 // Document requests (NDR - New Document Request)
-router.get('/requests', requirePermission('newDocumentRequest', 'view'), documentController.getDocumentRequests);
-router.post('/requests', requirePermission('newDocumentRequest', 'create'), documentController.createDocumentRequest);
-router.post('/requests/:id/acknowledge', requirePermission('newDocumentRequest', 'acknowledge'), documentController.acknowledgeDocumentRequest);
-router.post('/requests/:id/reject', requirePermission('newDocumentRequest', 'acknowledge'), documentController.rejectDocumentRequest);
-router.delete('/requests/:id', requirePermission('newDocumentRequest', 'create'), documentController.deleteDocumentRequest);
+router.get('/requests', authorizePermission('newDocumentRequest', 'view'), documentController.getDocumentRequests);
+router.post('/requests', authorizePermission('newDocumentRequest', 'create'), documentController.createDocumentRequest);
+router.post('/requests/:id/acknowledge', authorizePermission('newDocumentRequest', 'acknowledge'), documentController.acknowledgeDocumentRequest);
+router.post('/requests/:id/reject', authorizePermission('newDocumentRequest', 'acknowledge'), documentController.rejectDocumentRequest);
+router.delete('/requests/:id', authorizePermission('newDocumentRequest', 'create'), documentController.deleteDocumentRequest);
 
 // Draft document workflow
 router.post('/drafts/submit-for-review', uploadDocument.single('file'), documentController.createDraftAndSubmitForReview);
@@ -41,7 +30,13 @@ router.post('/version-requests/:id/approve', versionRequestController.approveReq
 router.post('/version-requests/:id/reject', versionRequestController.rejectRequest);
 router.delete('/version-requests/:id', versionRequestController.deleteRequest);
 
-router.post('/bulk-import', uploadDocument.array('files'), documentController.bulkImportPublished);
+router.post(
+  '/bulk-import',
+  authorizePermission('documents.published', 'publish'),
+  authorizePermission('documents.published', 'create'),
+  uploadDocument.array('files'),
+  documentController.bulkImportPublished
+);
 router.post('/bulk-move', documentController.bulkMoveDocuments);
 
 // Document CRUD operations

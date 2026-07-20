@@ -7,9 +7,16 @@ const confidentialAccessService = require('./confidentialAccessService')
  * Controls who can access documents based on workflow assignments
  */
 class DocumentAssignmentService {
-  hasPrivilegedWorkflowAccess(user) {
-    const roles = Array.isArray(user?.roles) ? user.roles : []
-    return roles.some((role) => ['admin', 'document_controller'].includes(String(role || '').toLowerCase()))
+  hasPublishPermission(user) {
+    if (!user) return false
+    if (user.permissions?.all === true) return true
+
+    const publishedPermissions = user.permissions?.['documents.published']
+    if (Array.isArray(publishedPermissions)) {
+      return publishedPermissions.includes('publish')
+    }
+
+    return Boolean(publishedPermissions?.publish)
   }
 
   /**
@@ -194,6 +201,15 @@ class DocumentAssignmentService {
       if (!ok) return false
     }
 
+    const isReadyToPublish =
+      String(document.stage || '').toUpperCase() === 'READY_TO_PUBLISH' ||
+      String(document.status || '').toUpperCase() === 'READY_TO_PUBLISH'
+
+    // READY_TO_PUBLISH documents are restricted to publish permission only.
+    if (isReadyToPublish) {
+      return this.hasPublishPermission(user)
+    }
+
     // Owner and creator always have access
     if (document.ownerId === userId || document.createdById === userId) {
       return true;
@@ -211,10 +227,6 @@ class DocumentAssignmentService {
     // Has assignment
     if (document.assignments.length > 0) {
       return true;
-    }
-
-    if (document.stage === 'READY_TO_PUBLISH' && this.hasPrivilegedWorkflowAccess(user)) {
-      return true
     }
 
     // Published, obsolete, and superseded documents are accessible to all UNLESS confidential

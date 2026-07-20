@@ -2,8 +2,12 @@ const express = require('express');
 const prisma = require('../config/database');
 const configService = require('../services/configService');
 const reportsService = require('../services/reportsService');
+const documentService = require('../services/documentService')
 const codeRegistryService = require('../services/codeRegistryService');
 const auditLogService = require('../services/auditLogService');
+const documentAssignmentService = require('../services/documentAssignmentService')
+const confidentialAccessService = require('../services/confidentialAccessService')
+const folderPermissionService = require('../services/folderPermissionService')
 const { authenticate, authorize } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
@@ -56,13 +60,20 @@ router.get('/config/settings', authorize('admin'), asyncHandler(async (req, res)
 router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
   const { dateFrom, dateTo, type, owner, search, projectCategoryId, documentTypeId, ownerId } = req.query;
   let documentType = type && type !== 'all' ? type : undefined
+  let resolvedDocumentTypeId
   if (documentTypeId && documentTypeId !== 'all') {
     const docTypes = await configService.getDocumentTypes()
     const match = docTypes.find((dt) => String(dt.id) === String(documentTypeId))
     documentType = match?.name || documentType
+    resolvedDocumentTypeId = match?.id ? parseInt(match.id, 10) : undefined
+  } else if (documentType) {
+    const docTypes = await configService.getDocumentTypes()
+    const match = docTypes.find((dt) => String(dt.name || '').toLowerCase() === String(documentType).toLowerCase())
+    resolvedDocumentTypeId = match?.id ? parseInt(match.id, 10) : undefined
   }
 
   let ownerName = owner && owner !== 'all' ? owner : undefined
+  let resolvedOwnerId
   if (ownerId && ownerId !== 'all') {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(ownerId, 10) },
@@ -70,57 +81,108 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     })
     if (user) {
       ownerName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ownerName
+      resolvedOwnerId = parseInt(ownerId, 10)
     }
   }
-
-  const records = await reportsService.getDocumentRegister({ 
-    documentType, 
-    startDate: dateFrom, 
-    endDate: dateTo,
-    projectCategoryId: projectCategoryId && projectCategoryId !== 'all' ? projectCategoryId : undefined
-  });
-
-  const categoryIds = Array.from(new Set(records.map((r) => r.projectCategoryId).filter((id) => id !== null && id !== undefined)))
-  const categories = categoryIds.length
-    ? await reportsService.getProjectCategoriesByIds(categoryIds)
-    : []
-  const categoryById = new Map(categories.map((c) => [c.id, c]))
-  const fileCodes = Array.from(new Set(records.map((r) => String(r.fileCode || '').trim()).filter(Boolean)))
-  const documents = fileCodes.length
-    ? await prisma.document.findMany({
-      where: { fileCode: { in: fileCodes } },
-      select: {
-        id: true,
-        fileCode: true,
-        title: true,
-        projectCategoryId: true,
-        versions: {
-          select: { fileName: true },
-          orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
-          take: 1
-        }
-      }
+  const roleIds = req.user ? await folderPermissionService.getRoleIdsByNames(req.user.roles || []) : []
+  const where = {
+    AND: [
+      documentAssignmentService.buildAccessWhereClause(req.user.id, roleIds),
+      confidentialAccessService.buildConfidentialWhereClause(req.user, roleIds)
+    ]
+  }
+  if (resolvedDocumentTypeId) where.documentTypeId = resolvedDocumentTypeId
+  if (resolvedOwnerId) where.ownerId = resolvedOwnerId
+  if (projectCategoryId && projectCategoryId !== 'all') {
+    const pcId = parseInt(projectCategoryId, 10)
+    if (!Number.isNaN(pcId)) where.projectCategoryId = pcId
+  }
+  if (dateFrom || dateTo) {
+    where.createdAt = {}
+    if (dateFrom) where.createdAt.gte = new Date(dateFrom)
+    if (dateTo) where.createdAt.lte = new Date(dateTo)
+  }
+  if (search) {
+    where.AND.push({
+      OR: [
+        { fileCode: { contains: search } },
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { versions: { some: { fileName: { contains: search } } } }
+      ]
     })
-    : []
-  const documentByFileCodeAndCategory = new Map(
-    documents.map((doc) => [`${doc.fileCode}::${doc.projectCategoryId ?? ''}`, doc])
-  )
+  }
+
+  const allCandidateDocuments = await prisma.document.findMany({
+    where,
+    include: {
+      documentType: true,
+      projectCategory: true,
+      owner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          department: true
+        }
+      },
+      versions: {
+        select: { fileName: true },
+        orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+        take: 1
+      }
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+  })
+  const documents = allCandidateDocuments.filter((doc) => {
+    const versionSegment = reportsService.extractVersionSegmentFromFileCode(doc.fileCode)
+    return !versionSegment || versionSegment === '01'
+  })
+  // #region debug-point A:new-documents-mapping
+  fetch('http://127.0.0.1:7777/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'master-record-preview-link',
+      runId: 'pre-fix',
+      hypothesisId: 'A',
+      location: 'reports.js:/master-record/new-documents',
+      msg: '[DEBUG] Built master record document mapping',
+      data: {
+        userId: req.user?.id ?? null,
+        roleNames: req.user?.roles || [],
+        totalCandidateDocuments: allCandidateDocuments.length,
+        totalVersion01Documents: documents.length,
+        sampleMappings: documents.slice(0, 10).map((doc) => ({
+          documentId: doc.id,
+          fileCode: doc.fileCode,
+          projectCategoryId: doc.projectCategoryId ?? null,
+          title: doc.title,
+          status: doc.status,
+          fileName: doc.versions?.[0]?.fileName ?? null
+        }))
+      },
+      ts: Date.now()
+    })
+  }).catch(() => {})
+  // #endregion
   
   // Format for frontend
-  let formattedRecords = records.map(record => ({
-    id: record.id,
-    documentId: documentByFileCodeAndCategory.get(`${record.fileCode}::${record.projectCategoryId ?? ''}`)?.id ?? null,
-    fileCode: record.fileCode,
-    title: record.documentTitle,
-    fileName: documentByFileCodeAndCategory.get(`${record.fileCode}::${record.projectCategoryId ?? ''}`)?.versions?.[0]?.fileName || null,
-    type: record.documentType,
-    projectCategoryId: record.projectCategoryId ?? null,
-    projectCategory: categoryById.get(record.projectCategoryId)?.name || '',
-    version: reportsService.extractVersionSegmentFromFileCode(record.fileCode) || record.version,
-    owner: record.owner,
-    department: record.department,
-    status: record.status,
-    registeredDate: record.registeredDate ? new Date(record.registeredDate).toLocaleDateString('en-GB') : ''
+  let formattedRecords = documents.map(doc => ({
+    id: doc.id,
+    documentId: doc.id,
+    fileCode: doc.fileCode,
+    title: doc.title,
+    fileName: doc.versions?.[0]?.fileName || null,
+    type: doc.documentType?.name || documentType || '',
+    projectCategoryId: doc.projectCategoryId ?? null,
+    projectCategory: doc.projectCategory?.name || '',
+    version: reportsService.extractVersionSegmentFromFileCode(doc.fileCode) || doc.version,
+    owner: `${doc.owner?.firstName || ''} ${doc.owner?.lastName || ''}`.trim() || doc.owner?.email || '',
+    department: doc.owner?.department || '',
+    status: doc.status,
+    registeredDate: doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('en-GB') : ''
   }));
   
   // Filter by owner

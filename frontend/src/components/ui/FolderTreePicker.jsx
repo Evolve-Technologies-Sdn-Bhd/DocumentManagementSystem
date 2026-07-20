@@ -18,6 +18,15 @@ const splitPathSegments = (folder) => {
 const buildTreeFromFlatFolders = (folders) => {
   const root = []
   const nodeMap = new Map()
+  const folderByPathKey = new Map()
+
+  ;(Array.isArray(folders) ? folders : []).forEach((folder) => {
+    const folderId = normalizeFolderId(folder?.id)
+    if (!folderId) return
+    const pathSegments = splitPathSegments(folder)
+    if (pathSegments.length === 0) return
+    folderByPathKey.set(pathSegments.join(' / '), folder)
+  })
 
   ;(Array.isArray(folders) ? folders : []).forEach((folder) => {
     const folderId = normalizeFolderId(folder?.id)
@@ -48,6 +57,14 @@ const buildTreeFromFlatFolders = (folders) => {
         }
         nodeMap.set(nodeKey, node)
         currentLevel.push(node)
+      }
+
+      const exactFolder = folderByPathKey.get(nodeKey)
+      if (exactFolder) {
+        node.id = normalizeFolderId(exactFolder?.id)
+        node.selectable = Boolean(node.id)
+        node.icon = exactFolder?.icon || node.icon
+        node.meta = exactFolder
       }
 
       if (index === pathSegments.length - 1) {
@@ -113,6 +130,9 @@ function FolderTreePickerItem({
   const isSelected = normalizeFolderId(selectedId) === normalizeFolderId(node.id)
 
   const handleSelect = () => {
+    // #region debug-point A:folder-tree-click
+    ;(window?.localStorage?.getItem('dms_debug') === '1') && fetch((window?.localStorage?.getItem('dms_debug_server_url') || 'http://127.0.0.1:7777/event'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'attach-folder-empty', runId: 'pre', hypothesisId: 'A', location: 'FolderTreePicker.jsx:handleSelect', msg: '[DEBUG] Folder tree click', data: { nodeId: node?.id || null, selectable: Boolean(node?.selectable), hasChildren: Boolean((node?.children || []).length), level, selectedId: selectedId || null } }) }).catch(() => {})
+    // #endregion
     if (node.selectable && node.id) {
       onSelect(node)
     }
@@ -148,6 +168,12 @@ function FolderTreePickerItem({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+              // #region debug-point A:folder-tree-toggle
+              ;(window?.localStorage?.getItem('dms_debug') === '1') && fetch((window?.localStorage?.getItem('dms_debug_server_url') || 'http://127.0.0.1:7777/event'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'attach-folder-empty', runId: 'pre', hypothesisId: 'A', location: 'FolderTreePicker.jsx:toggle', msg: '[DEBUG] Folder tree toggle click', data: { nodeId: node?.id || null, selectable: Boolean(node?.selectable), hasChildren: Boolean((node?.children || []).length), level } }) }).catch(() => {})
+              // #endregion
+              if (node.selectable && node.id) {
+                onSelect(node)
+              }
               if (!forceExpanded) onToggle(node.key)
             }}
             disabled={forceExpanded}

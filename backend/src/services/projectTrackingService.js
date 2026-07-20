@@ -92,6 +92,7 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 
   return {
     id: true,
+    folderId: true,
     fileCode: true,
     title: true,
     status: true,
@@ -206,9 +207,48 @@ const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
   return false
 }
 
-const serializeLinkedDocumentForUser = (document, user, userRoleIds = []) => {
+const canUserAccessFolderAction = async (folderId, user, roleIds = [], action, cache) => {
+  if (!folderId) return true
+  const userId = Number.isFinite(Number(user?.id)) ? Number(user.id) : null
+  if (!userId) return false
+  const key = `${folderId}:${action}:${userId}`
+  if (cache?.has(key)) return cache.get(key)
+
+  const compute = (async () => {
+    const folder = await folderPermissionService.getFolderById(folderId)
+    const roleNames = user?.roles || []
+    if (String(folder.accessMode || 'PUBLIC').toUpperCase() === 'PUBLIC') return true
+    if (folderPermissionService.isAdminRoleNames(roleNames)) return true
+
+    const folderIds = []
+    let cur = folder
+    while (cur) {
+      folderIds.push(cur.id)
+      if (!cur.inheritPermissions) break
+      if (!cur.parentId) break
+      cur = await folderPermissionService.getFolderById(cur.parentId)
+    }
+
+    const permMap = await folderPermissionService.getEffectivePermissionsMap(folderIds, userId, roleIds)
+    for (const id of folderIds) {
+      const rows = permMap.get(id) || []
+      if (rows.length > 0) {
+        return folderPermissionService.hasActionFromPermRows(rows, action)
+      }
+    }
+    return false
+  })()
+
+  cache?.set(key, compute)
+  return compute
+}
+
+const serializeLinkedDocumentForUser = async (document, user, userRoleIds = [], folderAccessCache) => {
   if (!document) return document
-  const canAccess = canInteractWithLinkedDocument(document, user, userRoleIds)
+  const confidentialOk = canInteractWithLinkedDocument(document, user, userRoleIds)
+  const canViewFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'view', folderAccessCache)
+  const canDownloadFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'download', folderAccessCache)
+  const canAccess = confidentialOk && canViewFolder && canDownloadFolder
   const { ownerId, createdById, confidentialAccess, ...safeDocument } = document
   return {
     ...safeDocument,
@@ -967,17 +1007,23 @@ exports.listIterationItems = async (iterationId, { user }) => {
     })
   )
 
-  const withStageNames = items.map((item) => ({
-    ...item,
-    isConfidentialDefault: Boolean(requirementMap.get(`${item.stageId}:${item.documentTypeId}`)?.isConfidentialDefault),
-    stage: item.stage
-      ? { ...item.stage, name: stageNameMap.get(item.stageId) || item.stage.name }
-      : item.stage,
-    links: (item.links || []).map((link) => ({
-      ...link,
-      document: serializeLinkedDocumentForUser(link.document, user, roleIds)
+  const folderAccessCache = new Map()
+
+  const withStageNames = await Promise.all(
+    items.map(async (item) => ({
+      ...item,
+      isConfidentialDefault: Boolean(requirementMap.get(`${item.stageId}:${item.documentTypeId}`)?.isConfidentialDefault),
+      stage: item.stage
+        ? { ...item.stage, name: stageNameMap.get(item.stageId) || item.stage.name }
+        : item.stage,
+      links: await Promise.all(
+        (item.links || []).map(async (link) => ({
+          ...link,
+          document: await serializeLinkedDocumentForUser(link.document, user, roleIds, folderAccessCache)
+        }))
+      )
     }))
-  }))
+  )
 
   return withStageNames;
 };
@@ -1234,13 +1280,17 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
     orderBy: { linkedAt: 'desc' }
   })
 
-  return links.map((link) => ({
-    ...link,
-    document: serializeLinkedDocumentForUser(link.document, user, roleIds),
-    stage: link.stage
-      ? { ...link.stage, name: stageNameMap.get(link.stageId) || link.stage.name }
-      : link.stage
-  }))
+  const folderAccessCache = new Map()
+
+  return Promise.all(
+    links.map(async (link) => ({
+      ...link,
+      document: await serializeLinkedDocumentForUser(link.document, user, roleIds, folderAccessCache),
+      stage: link.stage
+        ? { ...link.stage, name: stageNameMap.get(link.stageId) || link.stage.name }
+        : link.stage
+    }))
+  )
 }
 
 exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedById }) => {
@@ -1810,7 +1860,7 @@ exports.deleteProjectChangeRequest = async (changeRequestId, { deletedById } = {
   return { id }
 }
 
-exports.searchDocuments = async ({ projectId, q, attachedOnly }, { user }) => {
+exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { user }) => {
   const query = String(q || '').trim()
 
   const normalizeSearchValue = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -1829,6 +1879,9 @@ exports.searchDocuments = async ({ projectId, q, attachedOnly }, { user }) => {
   }
   if (projectId) {
     andWhere.push({ projectLinks: { some: { iteration: { projectId } } } })
+  }
+  if (folderId) {
+    andWhere.push({ folderId })
   }
 
   if (query) {

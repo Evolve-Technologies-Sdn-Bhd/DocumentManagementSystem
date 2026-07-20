@@ -116,10 +116,12 @@ export default function Dashboard() {
       setDashboardMode(nextMode)
 
       if (nextMode === 'admin') {
-        const [dashboardRes, statsRes, expiryRes] = await Promise.allSettled([
+        const [dashboardRes, statsRes, expiryRes, myDocsRes, assignedRes] = await Promise.allSettled([
           api.get('/reports/dashboard'),
           api.get('/reports/dashboard-stats'),
-          api.get('/expiry-tracking/dashboard')
+          api.get('/expiry-tracking/dashboard'),
+          api.get('/documents/my-status'),
+          api.get('/documents/review-approval')
         ])
 
         if (mountedRef && !mountedRef.current) return
@@ -135,13 +137,19 @@ export default function Dashboard() {
         const expiryData = expiryRes.status === 'fulfilled'
           ? (expiryRes.value.data.data?.dashboard || expiryRes.value.data.dashboard || null)
           : null
+        const personalDocuments = myDocsRes.status === 'fulfilled'
+          ? (myDocsRes.value.data.data?.documents || myDocsRes.value.data.documents || [])
+          : []
+        const personalAssigned = assignedRes.status === 'fulfilled'
+          ? (assignedRes.value.data.data?.documents || assignedRes.value.data.documents || [])
+          : []
 
         setAdminMetrics(dashboardData.metrics || null)
         setAdminStats(statsData)
         setExpiryStats(expiryData)
         setRecent(dashboardData.recentActivity || [])
-        setMyDocuments([])
-        setAssignedQueue([])
+        setMyDocuments(personalDocuments)
+        setAssignedQueue(personalAssigned)
 
         if (statsRes.status !== 'fulfilled') {
           console.warn('Failed to load dashboard stats', statsRes.reason)
@@ -149,6 +157,14 @@ export default function Dashboard() {
 
         if (expiryRes.status !== 'fulfilled') {
           console.warn('Expiry dashboard is unavailable for this user', expiryRes.reason)
+        }
+
+        if (myDocsRes.status !== 'fulfilled') {
+          console.warn('Failed to load personal dashboard documents', myDocsRes.reason)
+        }
+
+        if (assignedRes.status !== 'fulfilled') {
+          console.warn('Failed to load personal assigned queue', assignedRes.reason)
         }
 
         return
@@ -436,6 +452,75 @@ export default function Dashboard() {
     : attentionItems
   const activeRecentViewAllLabel = dashboardMode === 'admin' ? t('view_all_logs') : t('dashboard_open_my_documents')
   const activeRecentViewAllTo = dashboardMode === 'admin' ? '/logs' : '/my-documents'
+  const personalMetricCards = [
+    {
+      key: 'drafts',
+      title: t('dashboard_metric_my_drafts'),
+      value: metrics.drafts ?? 0,
+      description: t('dashboard_metric_my_drafts_desc'),
+      icon: DocumentTextIcon,
+      tone: 'indigo'
+    },
+    {
+      key: 'needs-action',
+      title: t('dashboard_metric_needs_action'),
+      value: metrics.needsMyAction ?? 0,
+      description: t('dashboard_metric_needs_action_desc'),
+      icon: ClockIcon,
+      tone: 'warning'
+    },
+    {
+      key: 'waiting',
+      title: t('dashboard_metric_waiting'),
+      value: metrics.awaitingReview ?? 0,
+      description: t('dashboard_metric_waiting_desc'),
+      icon: ClipboardListIcon,
+      tone: 'success'
+    },
+    {
+      key: 'published',
+      title: t('dashboard_metric_published'),
+      value: metrics.published ?? 0,
+      description: t('dashboard_metric_published_desc'),
+      icon: BadgeCheckIcon,
+      tone: 'neutral'
+    }
+  ]
+  const systemMetricCards = [
+    {
+      key: 'drafts',
+      title: t('docs_in_draft'),
+      value: activeMetrics.drafts ?? 0,
+      description: t('draft_desc'),
+      icon: DocumentTextIcon,
+      tone: 'indigo'
+    },
+    {
+      key: 'queue',
+      title: t('dashboard_metric_global_queue'),
+      value: activeMetrics.queue ?? 0,
+      description: t('dashboard_metric_global_queue_desc'),
+      icon: ClockIcon,
+      tone: 'warning'
+    },
+    {
+      key: 'published',
+      title: t('dashboard_metric_global_published'),
+      value: activeMetrics.published ?? 0,
+      description: t('dashboard_metric_global_published_desc'),
+      icon: BadgeCheckIcon,
+      tone: 'success'
+    },
+    {
+      key: 'superseded',
+      title: t('superseded_archived'),
+      value: activeMetrics.superseded ?? 0,
+      description: t('archived_desc'),
+      icon: ArchiveBoxIcon,
+      tone: 'neutral'
+    }
+  ]
+  const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
 
   const expiryItems = [
     {
@@ -476,35 +561,54 @@ export default function Dashboard() {
 
       {!loading && !error && (
         <>
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" data-tour-id="dashboard-metrics">
-            <DashboardMetricCard
-              title={dashboardMode === 'admin' ? t('docs_in_draft') : t('dashboard_metric_my_drafts')}
-              value={activeMetrics.drafts ?? 0}
-              description={dashboardMode === 'admin' ? t('draft_desc') : t('dashboard_metric_my_drafts_desc')}
-              icon={DocumentTextIcon}
-              tone="indigo"
-            />
-            <DashboardMetricCard
-              title={dashboardMode === 'admin' ? t('dashboard_metric_global_queue') : t('dashboard_metric_needs_action')}
-              value={dashboardMode === 'admin' ? (activeMetrics.queue ?? 0) : (activeMetrics.needsMyAction ?? 0)}
-              description={dashboardMode === 'admin' ? t('dashboard_metric_global_queue_desc') : t('dashboard_metric_needs_action_desc')}
-              icon={ClockIcon}
-              tone="warning"
-            />
-            <DashboardMetricCard
-              title={dashboardMode === 'admin' ? t('dashboard_metric_global_published') : t('dashboard_metric_waiting')}
-              value={dashboardMode === 'admin' ? (activeMetrics.published ?? 0) : (activeMetrics.awaitingReview ?? 0)}
-              description={dashboardMode === 'admin' ? t('dashboard_metric_global_published_desc') : t('dashboard_metric_waiting_desc')}
-              icon={dashboardMode === 'admin' ? BadgeCheckIcon : ClipboardListIcon}
-              tone="success"
-            />
-            <DashboardMetricCard
-              title={dashboardMode === 'admin' ? t('superseded_archived') : t('dashboard_metric_published')}
-              value={dashboardMode === 'admin' ? (activeMetrics.superseded ?? 0) : (activeMetrics.published ?? 0)}
-              description={dashboardMode === 'admin' ? t('archived_desc') : t('dashboard_metric_published_desc')}
-              icon={dashboardMode === 'admin' ? ArchiveBoxIcon : BadgeCheckIcon}
-              tone="neutral"
-            />
+          {dashboardMode === 'admin' && (
+            <section className="space-y-3" data-tour-id="dashboard-personal-metrics">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
+                  {t('dashboard_metric_personal_label')}
+                </p>
+                <p className="text-sm text-ink-secondary">
+                  {t('dashboard_metric_personal_desc')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {personalMetricCards.map((card) => (
+                  <DashboardMetricCard
+                    key={card.key}
+                    title={card.title}
+                    value={card.value}
+                    description={card.description}
+                    icon={card.icon}
+                    tone={card.tone}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-3" data-tour-id="dashboard-metrics">
+            {dashboardMode === 'admin' && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
+                  {t('dashboard_metric_system_label')}
+                </p>
+                <p className="text-sm text-ink-secondary">
+                  {t('dashboard_metric_system_desc')}
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {activeMetricCards.map((card) => (
+                <DashboardMetricCard
+                  key={card.key}
+                  title={card.title}
+                  value={card.value}
+                  description={card.description}
+                  icon={card.icon}
+                  tone={card.tone}
+                />
+              ))}
+            </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">

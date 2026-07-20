@@ -17,7 +17,23 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import { isAdmin } from '../utils/permissions'
 
 const MASTER_RECORD_DEBUG_URL = 'http://127.0.0.1:7777/event'
+const getFriendlyMasterRecordDownloadError = (error, doc) => {
+  const statusCode = error?.response?.status
+  const documentStatus = String(doc?.status || '').toUpperCase()
+
+  if (statusCode === 404 && documentStatus === 'ACKNOWLEDGED') {
+    return 'File is not uploaded yet'
+  }
+
+  return error?.response?.data?.message || 'Failed to download document. Please try again.'
+}
+
 const reportMasterRecordDebug = (hypothesisId, location, msg, data = {}, runId = 'pre-fix') => {
+  try {
+    if (localStorage.getItem('dms_debug') !== '1') return
+  } catch {
+    return
+  }
   fetch(MASTER_RECORD_DEBUG_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -121,7 +137,22 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
     setLoading(true)
     try {
       const res = await api.get('/reports/master-record/new-documents', { params: filters })
-      setDocuments(res.data.data?.documents || [])
+      const docs = res.data.data?.documents || []
+      // #region debug-point A:new-documents-response
+      reportMasterRecordDebug('A', 'MasterRecord.jsx:loadDocuments:new-documents', '[DEBUG] Loaded new document register rows', {
+        totalRows: docs.length,
+        sampleRows: docs.slice(0, 10).map((doc) => ({
+          id: doc.id,
+          documentId: doc.documentId ?? null,
+          fileCode: doc.fileCode,
+          projectCategoryId: doc.projectCategoryId ?? null,
+          title: doc.title,
+          status: doc.status
+        })),
+        filters
+      }, 'pre-fix')
+      // #endregion
+      setDocuments(docs)
     } catch (error) {
       console.error('Failed to load documents:', error)
       setDocuments([])
@@ -202,6 +233,16 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   }
 
   const handleView = (doc) => {
+    // #region debug-point B:view-click
+    reportMasterRecordDebug('B', 'MasterRecord.jsx:handleView:new-documents', '[DEBUG] User clicked View on master record row', {
+      id: doc?.id ?? null,
+      documentId: doc?.documentId ?? null,
+      fileCode: doc?.fileCode ?? null,
+      projectCategoryId: doc?.projectCategoryId ?? null,
+      title: doc?.title ?? null,
+      status: doc?.status ?? null
+    }, 'pre-fix')
+    // #endregion
     if (!doc?.documentId && !doc?.id) {
       setAlertModal({
         show: true,
@@ -258,7 +299,7 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
       setAlertModal({
         show: true,
         title: 'Download failed',
-        message: error.response?.data?.message || 'Failed to download document. Please try again.',
+        message: getFriendlyMasterRecordDownloadError(error, doc),
         type: 'error'
       })
     }

@@ -6,7 +6,8 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
-import InlineSpinner from './ui/InlineSpinner'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
 export default function NewVersionRequestModal({ onClose, onSubmit }) {
   // Use dynamic file upload settings
@@ -25,9 +26,13 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
   const [dragActive, setDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [filteredDocuments, setFilteredDocuments] = useState([])
+  const [error, setError] = useState('')
+  const loadProgress = useLoadingProgress(loadingDocuments, { start: 20, max: 74, stepMs: 180 })
+  const submitProgress = useLoadingProgress(loading)
 
   useEffect(() => {
     loadDocuments()
@@ -60,6 +65,7 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
   }, [showDropdown])
 
   const loadDocuments = async () => {
+    setLoadingDocuments(true)
     try {
       // Fetch only published documents
       const res = await api.get('/documents', {
@@ -84,6 +90,9 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
     } catch (error) {
       console.error('Failed to load documents:', error)
       setDocuments([])
+      setError('Failed to load published documents')
+    } finally {
+      setLoadingDocuments(false)
     }
   }
 
@@ -113,6 +122,7 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
   }
 
   const handleDocumentSelect = (doc) => {
+    setError('')
     setSelectedDocument(doc)
     setSearchQuery(doc.fileCode)
     setShowDropdown(false)
@@ -200,20 +210,22 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
     // Validate file using dynamic settings
     const validation = validateFile(file)
     if (!validation.valid) {
-      alert(validation.error)
+      setError(validation.error)
       return
     }
 
+    setError('')
     setSelectedFile(file)
   }
 
   const handleSubmitRequest = async () => {
     if (!formData.documentId || !formData.title || !formData.dateOfDocument) {
-      alert('Please fill in all required fields')
+      setError('Please fill in all required fields')
       return
     }
 
     setLoading(true)
+    setError('')
     try {
       const formDataToSubmit = new FormData()
       formDataToSubmit.append('documentId', formData.documentId)
@@ -232,7 +244,7 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
       handleClose()
     } catch (error) {
       console.error('Error submitting version request:', error)
-      alert('Failed to submit version request')
+      setError(error.response?.data?.message || 'Failed to submit version request')
     } finally {
       setLoading(false)
     }
@@ -252,18 +264,42 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
     setSelectedFile(null)
     setSearchQuery('')
     setShowDropdown(false)
+    setError('')
     onClose()
   }
 
   return (
-    <Modal onClose={handleClose} closeOnBackdrop size="lg">
+    <Modal onClose={loading ? undefined : handleClose} closeOnBackdrop={!loading} size="lg">
       <ModalHeader
         title="New Version Request (NVR)"
         subtitle="Request a new version for an existing controlled document."
-        onClose={handleClose}
+        onClose={loading ? undefined : handleClose}
       />
 
       <ModalBody className="space-y-6">
+            {loadingDocuments ? (
+              <AsyncActionStatus
+                title="Loading published documents"
+                message="Available published documents are being prepared for version selection."
+                progress={loadProgress}
+                busy
+              />
+            ) : null}
+            {loading ? (
+              <AsyncActionStatus
+                title="Submitting version request"
+                message="Your request and optional file are being uploaded for acknowledgment."
+                progress={submitProgress}
+                busy
+              />
+            ) : null}
+            {error ? (
+              <AsyncActionStatus
+                title="Unable to continue"
+                message={error}
+                tone="error"
+              />
+            ) : null}
             {/* Select Document (File Code Search) */}
             <div className="relative document-search">
               <label className="block text-sm font-medium text-ink-secondary mb-2">
@@ -438,10 +474,12 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
         <Button
           type="button"
           onClick={handleSubmitRequest}
-          disabled={loading || !formData.documentId || !formData.title || !formData.dateOfDocument}
+          disabled={loading || loadingDocuments || !formData.documentId || !formData.title || !formData.dateOfDocument}
           className="bg-purple-600 hover:bg-purple-700 text-white"
+          loading={loading}
+          loadingText={`Sending Request... ${submitProgress}%`}
         >
-          {loading ? <><InlineSpinner className="h-4 w-4 border-2 border-white/40 border-t-white" /><span>Sending Request...</span></> : 'Send Request'}
+          Send Request
         </Button>
       </ModalFooter>
     </Modal>

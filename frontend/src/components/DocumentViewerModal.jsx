@@ -9,6 +9,17 @@ import Button from './ui/Button'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
 
+const getFriendlyViewerError = (err, document) => {
+  const statusCode = err?.response?.status
+  const documentStatus = String(document?.status || '').toUpperCase()
+
+  if (statusCode === 404 && documentStatus === 'ACKNOWLEDGED') {
+    return 'File is not uploaded yet'
+  }
+
+  return err?.response?.data?.message || err?.message || 'Failed to load document'
+}
+
 export default function DocumentViewerModal({ document, onClose }) {
   const { t } = usePreferences()
   const [loading, setLoading] = useState(true)
@@ -21,9 +32,11 @@ export default function DocumentViewerModal({ document, onClose }) {
   const docxViewportRef = useRef(null)
   const activeRequestRef = useRef(0)
   const objectUrlRef = useRef(null)
+  const canSendDebugRef = useRef(null)
   const [docxZoomMode, setDocxZoomMode] = useState('fit')
   const effectiveDocumentId = document?.documentId ?? document?.id
   const effectiveVersionId = document?.versionId ?? null
+  const isMissingAcknowledgedUpload = error === 'File is not uploaded yet'
   const { scale: docxScale, refresh: refreshDocxScale } = useDocxFitToWidth({
     enabled: contentType === 'docx' && !!docxBuffer,
     mode: docxZoomMode,
@@ -45,6 +58,13 @@ export default function DocumentViewerModal({ document, onClose }) {
       }
 
       try {
+        if (canSendDebugRef.current === null) {
+          try {
+            canSendDebugRef.current = localStorage.getItem('dms_debug') === '1'
+          } catch {
+            canSendDebugRef.current = false
+          }
+        }
         if (!effectiveDocumentId) {
           revokeObjectUrl()
           setError('Missing document id')
@@ -60,6 +80,35 @@ export default function DocumentViewerModal({ document, onClose }) {
         setDocxBuffer(null)
         setContentType(null)
         setDocxZoomMode('fit')
+        // #region debug-point C:preview-request-start
+        if (canSendDebugRef.current) {
+          fetch('http://127.0.0.1:7777/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'master-record-preview-link',
+              runId: 'pre-fix',
+              hypothesisId: 'C',
+              location: 'DocumentViewerModal.jsx:loadDocument:start',
+              msg: '[DEBUG] Starting preview load',
+              data: {
+                requestId,
+                effectiveDocumentId,
+                effectiveVersionId,
+                incomingDocument: {
+                  id: document?.id ?? null,
+                  documentId: document?.documentId ?? null,
+                  fileCode: document?.fileCode ?? null,
+                  projectCategoryId: document?.projectCategoryId ?? null,
+                  title: document?.title ?? null,
+                  fileName: document?.fileName ?? null
+                }
+              },
+              ts: Date.now()
+            })
+          }).catch(() => {})
+        }
+        // #endregion
         
         const res = await api.get(`/documents/${effectiveDocumentId}/preview`, {
           params: effectiveVersionId ? { versionId: effectiveVersionId } : undefined,
@@ -74,6 +123,30 @@ export default function DocumentViewerModal({ document, onClose }) {
         const mimeType = res.headers['content-type'] || ''
         const fileName = document.fileName || document.title || ''
         const fileExtension = fileName.toLowerCase().split('.').pop()
+        // #region debug-point D:preview-response
+        if (canSendDebugRef.current) {
+          fetch('http://127.0.0.1:7777/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'master-record-preview-link',
+              runId: 'pre-fix',
+              hypothesisId: 'D',
+              location: 'DocumentViewerModal.jsx:loadDocument:response',
+              msg: '[DEBUG] Preview response received',
+              data: {
+                requestId,
+                effectiveDocumentId,
+                effectiveVersionId,
+                mimeType,
+                fileName,
+                fileExtension
+              },
+              ts: Date.now()
+            })
+          }).catch(() => {})
+        }
+        // #endregion
         
         const isDocxLike =
           fileExtension === 'docx' ||
@@ -143,11 +216,34 @@ export default function DocumentViewerModal({ document, onClose }) {
           setContentType('other')
         }
       } catch (err) {
+        // #region debug-point E:preview-error
+        if (canSendDebugRef.current) {
+          fetch('http://127.0.0.1:7777/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'master-record-preview-link',
+              runId: 'pre-fix',
+              hypothesisId: 'E',
+              location: 'DocumentViewerModal.jsx:loadDocument:error',
+              msg: '[DEBUG] Preview request failed',
+              data: {
+                requestId,
+                effectiveDocumentId,
+                effectiveVersionId,
+                status: err?.response?.status ?? null,
+                message: err?.response?.data?.message || err?.message || null
+              },
+              ts: Date.now()
+            })
+          }).catch(() => {})
+        }
+        // #endregion
         if (isStale()) {
           return
         }
         console.error('Failed to load document:', err)
-        setError(err.response?.data?.message || err.message || 'Failed to load document')
+        setError(getFriendlyViewerError(err, document))
       } finally {
         if (!isStale()) {
           setLoading(false)
@@ -301,7 +397,7 @@ export default function DocumentViewerModal({ document, onClose }) {
                 )}
               </div>
             )}
-            {document.canDownload !== false && (
+            {document.canDownload !== false && !isMissingAcknowledgedUpload && (
               <Button
                 type="button"
                 onClick={handleDownload}
@@ -337,7 +433,7 @@ export default function DocumentViewerModal({ document, onClose }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-red-600 mb-4">{error === 'Failed to load document' ? t('failed_load_doc') : error}</p>
-              {document.canDownload !== false && (
+              {document.canDownload !== false && !isMissingAcknowledgedUpload && (
                 <Button onClick={handleDownload} className="mb-2">
                   {t('download')}
                 </Button>

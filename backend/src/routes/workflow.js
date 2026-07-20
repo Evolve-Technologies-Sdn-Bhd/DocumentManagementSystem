@@ -1,6 +1,6 @@
 const express = require('express');
 const workflowController = require('../controllers/workflowController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, authorizePermission } = require('../middleware/auth');
 const { uploadDocument } = require('../middleware/upload');
 
 const router = express.Router();
@@ -44,7 +44,7 @@ router.post(
 
 router.post(
   '/publish/:documentId',
-  authorize('approver', 'admin'),
+  authorizePermission('documents.published', 'publish'),
   workflowController.publishDocument
 );
 

@@ -157,7 +157,8 @@ class WorkflowController {
       parseInt(folderId),
       notes,
       newFileName,
-      expiryInfo
+      expiryInfo,
+      { deferFollowUps: true, syncExpiryInline: true }
     );
 
     // Log publication

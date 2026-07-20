@@ -4,7 +4,8 @@ import { AlertModal } from './ConfirmModal'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import Button from './ui/Button'
 import AppSurface from './ui/AppSurface'
-import InlineSpinner from './ui/InlineSpinner'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
 export default function AssignReviewerModal({ isOpen, onClose, document, onSuccess }) {
   const [availableReviewers, setAvailableReviewers] = useState([])
@@ -12,6 +13,8 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+  const loadingProgress = useLoadingProgress(loading, { start: 18, max: 70, stepMs: 180 })
+  const submittingProgress = useLoadingProgress(submitting)
 
   useEffect(() => {
     if (isOpen) {
@@ -109,11 +112,22 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
 
         <ModalBody className="space-y-4">
           {loading ? (
-            <div className="flex flex-col items-center gap-3 py-8 text-ink-muted">
-              <InlineSpinner />
-              <span>Loading reviewers...</span>
-            </div>
-          ) : availableReviewers.length === 0 ? (
+            <AsyncActionStatus
+              title="Loading reviewers"
+              message="Preparing the reviewer list for this document."
+              progress={loadingProgress}
+              busy
+            />
+          ) : null}
+          {submitting ? (
+            <AsyncActionStatus
+              title="Submitting review assignment"
+              message="Reviewer assignment is being saved and workflow will continue automatically."
+              progress={submittingProgress}
+              busy
+            />
+          ) : null}
+          {!loading && availableReviewers.length === 0 ? (
             <AppSurface variant="muted" padding="md" className="text-center text-sm text-ink-muted">
               No reviewers available
             </AppSurface>
@@ -167,9 +181,14 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
           <Button type="button" variant="secondary" onClick={handleClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={!selectedReviewerId || submitting}>
-            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {submitting ? 'Submitting...' : 'Submit for Review'}
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!selectedReviewerId || submitting}
+            loading={submitting}
+            loadingText={`Submitting... ${submittingProgress}%`}
+          >
+            Submit for Review
           </Button>
         </ModalFooter>
       </Modal>

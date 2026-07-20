@@ -35,13 +35,31 @@ export const getUserPermissions = () => {
 
       // Merge permissions - if ANY role grants a permission, user has it
       Object.keys(permissions).forEach(module => {
+        const modulePermissions = permissions[module]
+
+        if (module === 'all' && modulePermissions === true) {
+          combinedPermissions.all = true
+          return
+        }
+
         if (!combinedPermissions[module]) {
           combinedPermissions[module] = {}
         }
-        
+
+        if (Array.isArray(modulePermissions)) {
+          modulePermissions.forEach(action => {
+            combinedPermissions[module][action] = true
+          })
+          return
+        }
+
+        if (!modulePermissions || typeof modulePermissions !== 'object') {
+          return
+        }
+
         // Merge actions for this module
-        Object.keys(permissions[module]).forEach(action => {
-          if (permissions[module][action]) {
+        Object.keys(modulePermissions).forEach(action => {
+          if (modulePermissions[action]) {
             combinedPermissions[module][action] = true
           }
         })
@@ -63,6 +81,7 @@ export const getUserPermissions = () => {
  */
 export const hasPermission = (module, action) => {
   const permissions = getUserPermissions()
+  if (permissions.all === true) return true
   return !!(permissions[module] && permissions[module][action])
 }
 
@@ -73,6 +92,7 @@ export const hasPermission = (module, action) => {
  */
 export const hasAnyPermission = (module) => {
   const permissions = getUserPermissions()
+  if (permissions.all === true) return true
   if (!permissions[module]) return false
   
   return Object.values(permissions[module]).some(value => value === true)

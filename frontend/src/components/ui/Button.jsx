@@ -1,4 +1,5 @@
 import React from 'react'
+import InlineSpinner from './InlineSpinner'
 
 const sizeMap = {
   sm: 'h-9 px-3 text-sm rounded-2xl',
@@ -19,6 +20,10 @@ export default function Button({
   size = 'md',
   className = '',
   children,
+  loading = false,
+  loadingText = null,
+  spinnerClassName = '',
+  disabled = false,
   ...props
 }) {
   const classes = [
@@ -28,9 +33,20 @@ export default function Button({
     className
   ].filter(Boolean).join(' ')
 
+  const spinnerVariantClass = variant === 'primary' || variant === 'danger'
+    ? 'border-white/30 border-t-white'
+    : 'border-border border-t-brand'
+
   return (
-    <button type={type} className={classes} {...props}>
-      {children}
+    <button type={type} className={classes} disabled={disabled || loading} aria-busy={loading} {...props}>
+      {loading ? (
+        <>
+          <InlineSpinner className={['h-4 w-4 border-2', spinnerVariantClass, spinnerClassName].filter(Boolean).join(' ')} />
+          <span>{loadingText || children}</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   )
 }

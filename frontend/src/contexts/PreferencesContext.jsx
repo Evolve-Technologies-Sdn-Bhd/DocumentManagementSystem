@@ -69,6 +69,10 @@ const translations = {
     'dashboard_metric_waiting_desc': 'Your documents that are moving through review and approval.',
     'dashboard_metric_published': 'Published',
     'dashboard_metric_published_desc': 'Your documents that have already been published.',
+    'dashboard_metric_personal_label': 'Personal View',
+    'dashboard_metric_personal_desc': 'Counts for documents you own and workflow tasks assigned to you.',
+    'dashboard_metric_system_label': 'System-wide View',
+    'dashboard_metric_system_desc': 'Combined counts across all users and documents in the platform.',
     'dashboard_attention_title': 'My Priorities',
     'dashboard_attention_subtitle': 'The most important follow-ups across your documents and assigned workflow tasks.',
     'dashboard_attention_admin_title': 'Operational Priorities',
@@ -192,6 +196,7 @@ const translations = {
     
     // Table Headers
     'file_code': 'File Code',
+    'doc_title': 'Document Title',
     'title': 'Title',
     'project_category': 'Project Category',
     'date': 'Date',
@@ -1310,6 +1315,10 @@ const translations = {
     'dashboard_metric_waiting_desc': 'Dokumen anda yang sedang bergerak dalam proses review dan approval.',
     'dashboard_metric_published': 'Diterbitkan',
     'dashboard_metric_published_desc': 'Dokumen anda yang telah berjaya diterbitkan.',
+    'dashboard_metric_personal_label': 'Paparan Peribadi',
+    'dashboard_metric_personal_desc': 'Kiraan untuk dokumen milik anda dan tugasan workflow yang diassign kepada anda.',
+    'dashboard_metric_system_label': 'Paparan Seluruh Sistem',
+    'dashboard_metric_system_desc': 'Kiraan gabungan merentas semua pengguna dan dokumen dalam platform.',
     'dashboard_attention_title': 'Keutamaan Saya',
     'dashboard_attention_subtitle': 'Susulan paling penting untuk dokumen anda dan tugasan workflow yang diassign kepada anda.',
     'dashboard_attention_admin_title': 'Keutamaan Operasi',
@@ -1433,6 +1442,7 @@ const translations = {
     
     // Table Headers
     'file_code': 'Kod Fail',
+    'doc_title': 'Tajuk Dokumen',
     'title': 'Tajuk',
     'project_category': 'Kategori Projek',
     'date': 'Tarikh',
@@ -2550,6 +2560,10 @@ const translations = {
     'dashboard_metric_waiting_desc': '您提交的、正在经过审核与审批流程的文件。',
     'dashboard_metric_published': '已发布',
     'dashboard_metric_published_desc': '已经成功发布的您的文件。',
+    'dashboard_metric_personal_label': '个人视图',
+    'dashboard_metric_personal_desc': '统计您拥有的文件以及分配给您的流程任务。',
+    'dashboard_metric_system_label': '全局视图',
+    'dashboard_metric_system_desc': '统计平台中所有用户和文件的汇总数量。',
     'dashboard_attention_title': '我的优先事项',
     'dashboard_attention_subtitle': '与您的文件和分配给您的流程任务相关的重点跟进事项。',
     'dashboard_attention_admin_title': '运营优先事项',
@@ -2664,6 +2678,7 @@ const translations = {
     
     // Table Headers
     'file_code': '文件代码',
+    'doc_title': '文件标题',
     'title': '标题',
     'project_category': '项目类别',
     'date': '日期',

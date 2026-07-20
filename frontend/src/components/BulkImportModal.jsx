@@ -43,7 +43,8 @@ function ReminderRecipientsPicker({
         <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
       </div>
       {REMINDER_LEVELS.map((level) => {
-        const selectedIds = new Set(values?.[level.key] || [])
+        const selectedRaw = values?.reminderRecipients?.[level.key] ?? values?.[level.key] ?? []
+        const selectedIds = new Set(selectedRaw)
         const searchTerm = (searchValues?.[level.key] || '').trim().toLowerCase()
         const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
         const filteredUsers = activeUsers.filter((user) => {

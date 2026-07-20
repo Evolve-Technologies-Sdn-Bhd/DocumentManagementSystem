@@ -51,6 +51,22 @@ export default function ReviewAndApproval() {
   const [approveSupersedeModalOpen, setApproveSupersedeModalOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewSubmitError, setReviewSubmitError] = useState('')
+  const [approveSubmitting, setApproveSubmitting] = useState(false)
+  const [approveSubmitError, setApproveSubmitError] = useState('')
+  const canSendDebugRef = useRef(null)
+
+  const canSendDebug = () => {
+    if (canSendDebugRef.current === null) {
+      try {
+        canSendDebugRef.current = localStorage.getItem('dms_debug') === '1'
+      } catch {
+        canSendDebugRef.current = false
+      }
+    }
+    return canSendDebugRef.current
+  }
 
   // Get current user ID for ownership check
   const getCurrentUserId = () => {
@@ -183,8 +199,15 @@ export default function ReviewAndApproval() {
     try {
       // Add timestamp to prevent caching
       const res = await api.get(`/documents/review-approval?_t=${Date.now()}`)
-      // Access nested data structure: res.data.data.documents
-      const docs = res.data.data?.documents || res.data.documents || []
+      // Hide ready-to-publish records unless the user can publish.
+      const rawDocs = res.data.data?.documents || res.data.documents || []
+      const docs = rawDocs.filter((doc) => {
+        const isReadyToPublish =
+          String(doc?.status || '').toUpperCase() === 'READY_TO_PUBLISH' ||
+          String(doc?.stage || '').toUpperCase() === 'READY_TO_PUBLISH'
+
+        return !isReadyToPublish || hasPermission('documents.published', 'publish')
+      })
       setDocuments(docs)
       setFilteredDocuments(docs)
     } catch (error) {
@@ -219,6 +242,34 @@ export default function ReviewAndApproval() {
   const handleDownload = async (doc) => {
     try {
       const downloadId = doc?.documentId ?? doc?.id
+      // #region debug-point A:download-click
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'A',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download requested from review-approval list',
+            data: {
+              downloadId: downloadId ?? null,
+              doc: {
+                id: doc?.id ?? null,
+                documentId: doc?.documentId ?? null,
+                fileCode: doc?.fileCode ?? null,
+                title: doc?.title ?? null,
+                status: doc?.status ?? null,
+                stage: doc?.stage ?? null,
+                fileName: doc?.fileName ?? null
+              }
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
+      // #endregion
       if (!downloadId) {
         setAlertModal({
           show: true,
@@ -232,6 +283,27 @@ export default function ReviewAndApproval() {
       const res = await api.get(`/documents/${downloadId}/download`, {
         responseType: 'blob'
       })
+      // #region debug-point B:download-success
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'B',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download response OK',
+            data: {
+              downloadId,
+              contentType: res.headers?.['content-type'] || null,
+              contentDisposition: res.headers?.['content-disposition'] || null
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
+      // #endregion
 
       const contentDisposition = res.headers?.['content-disposition'] || ''
       const contentTypeHeader = res.headers?.['content-type'] || ''
@@ -263,10 +335,35 @@ export default function ReviewAndApproval() {
     } catch (err) {
       console.error('Failed to download document:', err)
       const apiMessage = err?.response?.data?.message
+      // #region debug-point C:download-error
+      if (canSendDebug()) {
+        fetch('http://127.0.0.1:7777/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'review-approval-title-download',
+            runId: 'pre-fix',
+            hypothesisId: 'C',
+            location: 'ReviewAndApproval.jsx:handleDownload',
+            msg: '[DEBUG] Download response error',
+            data: {
+              status: err?.response?.status ?? null,
+              message: apiMessage || err?.message || null
+            },
+            ts: Date.now()
+          })
+        }).catch(() => {})
+      }
+      // #endregion
+      const status = err?.response?.status
+      const message =
+        status === 403
+          ? 'Anda tidak dibenarkan memuat turun dokumen ini. Jika dokumen masih dalam proses review/approval, hanya reviewer/approver/owner yang dibenarkan.'
+          : (apiMessage || t('failed_load_doc'))
       setAlertModal({
         show: true,
         title: t('failed_load_doc'),
-        message: apiMessage || t('failed_load_doc'),
+        message,
         type: 'error'
       })
     }
@@ -288,6 +385,7 @@ export default function ReviewAndApproval() {
 
   const handleReview = (doc) => {
     setSelectedDocument(doc)
+    setReviewSubmitError('')
     // Check if this is a supersede request
     if (doc.type === 'supersede-request') {
       setReviewSupersedeModalOpen(true)
@@ -297,6 +395,8 @@ export default function ReviewAndApproval() {
   }
 
   const handleReviewSubmit = async (formData) => {
+    setReviewSubmitting(true)
+    setReviewSubmitError('')
     try {
       // Prepare form data for API
       const apiFormData = new FormData()
@@ -337,12 +437,16 @@ export default function ReviewAndApproval() {
       await loadDocuments()
     } catch (error) {
       console.error('Failed to submit review:', error)
+      setReviewSubmitError(error.response?.data?.message || 'Failed to submit review. Please try again.')
       setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit review. Please try again.', type: 'error' })
+    } finally {
+      setReviewSubmitting(false)
     }
   }
 
   const handleApprove = (doc) => {
     setSelectedDocument(doc)
+    setApproveSubmitError('')
     // Check if this is a supersede request
     if (doc.type === 'supersede-request') {
       setApproveSupersedeModalOpen(true)
@@ -352,6 +456,8 @@ export default function ReviewAndApproval() {
   }
 
   const handleApproveSubmit = async (formData) => {
+    setApproveSubmitting(true)
+    setApproveSubmitError('')
     try {
       // Determine if this is first or second approval
       // Support legacy statuses: 'Pending Approval' and stage 'Approval' are treated as first approval
@@ -402,7 +508,10 @@ export default function ReviewAndApproval() {
       await loadDocuments()
     } catch (error) {
       console.error('Failed to submit approval:', error)
+      setApproveSubmitError(error.response?.data?.message || 'Failed to submit approval. Please try again.')
       setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit approval. Please try again.', type: 'error' })
+    } finally {
+      setApproveSubmitting(false)
     }
   }
 
@@ -549,8 +658,8 @@ export default function ReviewAndApproval() {
                 <tr>
                   <Th>{t('file_code')}</Th>
                   <Th>{t('doc_title')}</Th>
+                  <Th>{t('project_category')}</Th>
                   <Th>{t('version')}</Th>
-                  <Th>{t('stage')}</Th>
                   <Th>{t('submitted_by')}</Th>
                   <Th>{t('reviewer')}</Th>
                   <Th>{t('approver')}</Th>
@@ -585,17 +694,31 @@ export default function ReviewAndApproval() {
                 currentDocuments.map((doc) => (
                   <Tr key={doc.id}>
                     <Td>
-                      <a href="#" className="font-medium text-ink hover:text-brand">
+                      <a
+                        href="#"
+                        className="font-medium text-ink hover:text-brand"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDownload(doc)
+                        }}
+                      >
                         {doc.fileCode}
                       </a>
                     </Td>
                     <Td>
-                      <a href="#" className="font-medium text-brand hover:text-brand-hover hover:underline">
+                      <a
+                        href="#"
+                        className="font-medium text-brand hover:text-brand-hover hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleDownload(doc)
+                        }}
+                      >
                         {doc.title}
                       </a>
                     </Td>
+                    <Td>{doc.projectCategory || '-'}</Td>
                     <Td>{doc.version}</Td>
-                    <Td>{doc.stage}</Td>
                     <Td>{doc.submittedBy}</Td>
                     <Td>{doc.reviewerName || '-'}</Td>
                     <Td>{doc.firstApproverName || '-'}</Td>
@@ -626,7 +749,7 @@ export default function ReviewAndApproval() {
                             ? [{ label: t('acknowledge_action'), onClick: () => handleAcknowledge(doc) }]
                             : []
                           ),
-                          ...(doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'create')
+                          ...(doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish')
                             ? [{ label: t('publish_action'), onClick: () => handlePublish(doc) }]
                             : []
                           )
@@ -662,10 +785,26 @@ export default function ReviewAndApproval() {
               <AppSurface key={doc.id} variant="muted" padding="md" className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <a href="#" className="text-ink font-semibold hover:text-brand">
+                    <a
+                      href="#"
+                      className="text-ink font-semibold hover:text-brand"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDownload(doc)
+                      }}
+                    >
                       {doc.fileCode}
                     </a>
-                    <div className="text-sm text-ink-secondary mt-1">{doc.title}</div>
+                    <a
+                      href="#"
+                      className="block text-sm text-ink-secondary mt-1 hover:text-brand hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleDownload(doc)
+                      }}
+                    >
+                      {doc.title}
+                    </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -677,12 +816,12 @@ export default function ReviewAndApproval() {
                     <div className="text-ink font-medium">{doc.version}</div>
                   </div>
                   <div>
-                    <span className="text-ink-muted">{t('stage')}:</span>
-                    <div className="text-ink font-medium">{doc.stage}</div>
-                  </div>
-                  <div>
                     <span className="text-ink-muted">{t('submitted_by')}:</span>
                     <div className="text-ink font-medium">{doc.submittedBy}</div>
+                  </div>
+                  <div>
+                    <span className="text-ink-muted">{t('project_category')}:</span>
+                    <div className="text-ink font-medium">{doc.projectCategory || '-'}</div>
                   </div>
                   <div>
                     <span className="text-ink-muted">{t('reviewer')}:</span>
@@ -742,7 +881,7 @@ export default function ReviewAndApproval() {
                       {t('approve_action')}
                     </Button>
                   )}
-                  {doc.stage === 'Acknowledge' && (
+                  {doc.stage === 'Acknowledge' && hasPermission('documents.published', 'acknowledge') && (
                     <Button
                       onClick={() => handleAcknowledge(doc)}
                       size="sm"
@@ -752,7 +891,7 @@ export default function ReviewAndApproval() {
                       {t('acknowledge_action')}
                     </Button>
                   )}
-                  {doc.status === 'READY_TO_PUBLISH' && (
+                  {doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish') && (
                     <Button
                       onClick={() => handlePublish(doc)}
                       size="sm"
@@ -789,8 +928,11 @@ export default function ReviewAndApproval() {
           onClose={() => {
             setReviewModalOpen(false)
             setSelectedDocument(null)
+            setReviewSubmitError('')
           }}
           onSubmit={handleReviewSubmit}
+          isSubmitting={reviewSubmitting}
+          submitError={reviewSubmitError}
         />
       )}
 
@@ -801,8 +943,11 @@ export default function ReviewAndApproval() {
           onClose={() => {
             setApproveModalOpen(false)
             setSelectedDocument(null)
+            setApproveSubmitError('')
           }}
           onSubmit={handleApproveSubmit}
+          isSubmitting={approveSubmitting}
+          submitError={approveSubmitError}
         />
       )}
 
