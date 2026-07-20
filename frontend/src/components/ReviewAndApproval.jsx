@@ -199,8 +199,15 @@ export default function ReviewAndApproval() {
     try {
       // Add timestamp to prevent caching
       const res = await api.get(`/documents/review-approval?_t=${Date.now()}`)
-      // Access nested data structure: res.data.data.documents
-      const docs = res.data.data?.documents || res.data.documents || []
+      // Hide ready-to-publish records unless the user can publish.
+      const rawDocs = res.data.data?.documents || res.data.documents || []
+      const docs = rawDocs.filter((doc) => {
+        const isReadyToPublish =
+          String(doc?.status || '').toUpperCase() === 'READY_TO_PUBLISH' ||
+          String(doc?.stage || '').toUpperCase() === 'READY_TO_PUBLISH'
+
+        return !isReadyToPublish || hasPermission('documents.published', 'publish')
+      })
       setDocuments(docs)
       setFilteredDocuments(docs)
     } catch (error) {
@@ -651,6 +658,7 @@ export default function ReviewAndApproval() {
                 <tr>
                   <Th>{t('file_code')}</Th>
                   <Th>{t('doc_title')}</Th>
+                  <Th>{t('project_category')}</Th>
                   <Th>{t('version')}</Th>
                   <Th>{t('submitted_by')}</Th>
                   <Th>{t('reviewer')}</Th>
@@ -664,7 +672,7 @@ export default function ReviewAndApproval() {
               <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="py-10">
+                  <td colSpan="11" className="py-10">
                     <div className="flex flex-col items-center gap-2">
                       <InlineSpinner />
                       <span className="text-sm text-ink-muted">{t('loading_docs')}</span>
@@ -673,7 +681,7 @@ export default function ReviewAndApproval() {
                 </tr>
               ) : currentDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="10">
+                  <td colSpan="11">
                     <EmptyState 
                       message={t('no_docs_found')} 
                       description={searchQuery || stageFilter !== 'All' ? t('try_adjusting') : t('no_pending_review')}
@@ -709,6 +717,7 @@ export default function ReviewAndApproval() {
                         {doc.title}
                       </a>
                     </Td>
+                    <Td>{doc.projectCategory || '-'}</Td>
                     <Td>{doc.version}</Td>
                     <Td>{doc.submittedBy}</Td>
                     <Td>{doc.reviewerName || '-'}</Td>
@@ -809,6 +818,10 @@ export default function ReviewAndApproval() {
                   <div>
                     <span className="text-ink-muted">{t('submitted_by')}:</span>
                     <div className="text-ink font-medium">{doc.submittedBy}</div>
+                  </div>
+                  <div>
+                    <span className="text-ink-muted">{t('project_category')}:</span>
+                    <div className="text-ink font-medium">{doc.projectCategory || '-'}</div>
                   </div>
                   <div>
                     <span className="text-ink-muted">{t('reviewer')}:</span>

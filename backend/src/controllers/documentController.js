@@ -1029,8 +1029,7 @@ class DocumentController {
   getReviewApprovalDocuments = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     const userId = req.user.id;
-    const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-    const canViewAllReadyToPublish = roles.includes('admin') || roles.includes('document_controller');
+    const canViewAllReadyToPublish = documentAssignmentService.hasPublishPermission(req.user);
 
     const pagination = {
       page: page ? parseInt(page) : 1,
@@ -1132,6 +1131,8 @@ class DocumentController {
         id: doc.id,
         fileCode: doc.fileCode,
         title: doc.title,
+        projectCategoryId: doc.projectCategoryId || null,
+        projectCategory: doc.projectCategory?.name || '',
         documentType: doc.documentType?.name || '',
         documentTypeId: doc.documentTypeId,
         documentTypeConfig: {

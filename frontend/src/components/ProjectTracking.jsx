@@ -3248,16 +3248,31 @@ function ProjectDetail({ projectId }) {
     } catch (error) {
       console.error('Failed to download linked document:', error)
       const statusCode = error?.response?.status
-      const serverMessage = String(error?.response?.data?.message || '').trim()
-      const isConfidentialPermissionError =
-        statusCode === 403 &&
-        (/confidential/i.test(serverMessage) || /do not have access/i.test(serverMessage))
+      let serverMessage = ''
+      const responseData = error?.response?.data
+
+      if (typeof Blob !== 'undefined' && responseData instanceof Blob) {
+        try {
+          const text = await responseData.text()
+          try {
+            serverMessage = String(JSON.parse(text)?.message || '').trim()
+          } catch {
+            serverMessage = String(text || '').trim()
+          }
+        } catch {
+          serverMessage = ''
+        }
+      } else {
+        serverMessage = String(error?.response?.data?.message || '').trim()
+      }
+
+      const isRestrictedAccessError = statusCode === 403
 
       setAlertModal({
         show: true,
-        title: isConfidentialPermissionError ? 'Access Restricted' : 'Download Failed',
-        message: isConfidentialPermissionError
-          ? 'You are not authorized to view or download this file because it contains confidential information.'
+        title: isRestrictedAccessError ? 'Access Restricted' : 'Download Failed',
+        message: isRestrictedAccessError
+          ? 'Access to this file is restricted. You are not authorized to view or download it.'
           : 'Unable to download this file right now.',
         type: 'warning'
       })
@@ -3406,15 +3421,16 @@ function ProjectDetail({ projectId }) {
   }
 
   const canInteractWithDocument = (document) => {
-    if (!document?.isConfidential) return true
-    return document?.canAccess === true
+    if (document?.canAccess === false) return false
+    if (document?.isConfidential) return document?.canAccess === true
+    return true
   }
 
   const showRestrictedDocumentAlert = (actionLabel = 'interact with this document') => {
     setAlertModal({
       show: true,
-      title: 'Confidential Access Required',
-      message: `You can see this file is uploaded, but you do not have permission to ${actionLabel}.`,
+      title: 'Access Restricted',
+      message: `Access to this file is restricted. You are not authorized to ${actionLabel}.`,
       type: 'warning'
     })
   }
