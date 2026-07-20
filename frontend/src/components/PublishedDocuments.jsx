@@ -32,6 +32,11 @@ export default function PublishedDocuments() {
     const n = parseInt(v, 10)
     return Number.isFinite(n) ? n : null
   }
+  const getItemDisplayName = (item) => {
+    if (!item) return ''
+    if (item.isFolder) return String(item.fileName || item.name || '').trim()
+    return String(item.title || item.fileName || '').trim()
+  }
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedFolder, setSelectedFolder] = useState(null)
@@ -615,16 +620,17 @@ export default function PublishedDocuments() {
       setAlertModal({ show: true, title: 'Permission Denied', message: 'You do not have permission to delete files. Only Admins can delete files.', type: 'warning' })
       return
     }
-    
+
+    const docLabel = getItemDisplayName(doc)
     setConfirmModal({
       show: true,
       title: 'Confirm Admin Delete',
-      message: `Are you sure you want to permanently delete "${doc.fileName}"? This will remove the record from the database. This action cannot be undone.`,
+      message: `Are you sure you want to permanently delete "${docLabel}"? This will remove the record from the database. This action cannot be undone.`,
       onConfirm: async () => {
         setConfirmModal({ show: false })
         try {
           await api.delete(`/documents/${doc.id}/purge`)
-          setAlertModal({ show: true, title: 'Success', message: `${doc.fileName} has been permanently deleted successfully`, type: 'success' })
+          setAlertModal({ show: true, title: 'Success', message: `${docLabel} has been permanently deleted successfully`, type: 'success' })
           loadDocuments()
         } catch (error) {
           console.error('Failed to delete document:', error)
@@ -1921,7 +1927,7 @@ export default function PublishedDocuments() {
                               checked={doc.isFolder ? selectedFolderIds.includes(doc.folderId) : selectedDocumentIds.includes(doc.id)}
                               onChange={(e) => toggleSelectedItem(doc, e.target.checked)}
                               className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                              aria-label={`Select ${doc.fileName}`}
+                              aria-label={`Select ${getItemDisplayName(doc)}`}
                             />
                           </Td>
                         )}
@@ -1931,7 +1937,7 @@ export default function PublishedDocuments() {
                         <Td>
                           <div className="flex items-center">
                             <span className={doc.isFolder ? 'text-ink font-medium' : 'text-brand hover:text-brand-hover font-medium'}>
-                              {doc.fileName}
+                              {getItemDisplayName(doc)}
                             </span>
                             {doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate }) ? (
                               <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
@@ -1959,7 +1965,7 @@ export default function PublishedDocuments() {
                                   : []
                                 ),
                                 ...(hasPermission('documents.published', 'update')
-                                  ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, doc.fileName) }]
+                                  ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, getItemDisplayName(doc)) }]
                                   : []
                                 ),
                                 ...(canEditExpiryTracking
