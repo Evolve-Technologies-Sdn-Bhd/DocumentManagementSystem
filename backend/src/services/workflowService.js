@@ -6,6 +6,40 @@ const projectTrackingService = require('./projectTrackingService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
+  queueSubmitForReviewFollowUps({ documentId, updated, userId }) {
+    setImmediate(async () => {
+      const taskStart = startTimer()
+      const timings = { documentId, userId }
+
+      try {
+        const notifyStart = startTimer()
+        try {
+          console.log(`[WorkflowService] Queueing submit-for-review notifications for document ${documentId}`)
+          const reviewerCount = await notificationService.notifyDocumentSubmittedWithEmail(documentId, updated)
+          timings.notifiedReviewerCount = reviewerCount
+        } catch (error) {
+          console.error('[WorkflowService] Failed to send submit-for-review notifications:', error)
+        } finally {
+          timings.notifyDocumentSubmittedMs = roundMs(getElapsedMs(notifyStart))
+        }
+
+        console.log('[submit-review-followup]', JSON.stringify({
+          success: true,
+          timings,
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      } catch (error) {
+        console.error('[submit-review-followup]', JSON.stringify({
+          success: false,
+          documentId,
+          userId,
+          error: { message: error.message, code: error.code || null },
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      }
+    })
+  }
+
   queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId, skipExpirySync = false }) {
     setImmediate(async () => {
       const taskStart = startTimer()
@@ -147,14 +181,7 @@ class WorkflowService {
       }
     });
 
-    // Send notifications to reviewers
-    try {
-      console.log(`[Notification] Sending document submission notification for document ${documentId}`);
-      const reviewerCount = await notificationService.notifyDocumentSubmittedWithEmail(documentId, updated);
-      console.log(`[Notification] Notified ${reviewerCount} reviewers about document submission`);
-    } catch (error) {
-      console.error('[Notification] Failed to send notification for document submission:', error);
-    }
+    this.queueSubmitForReviewFollowUps({ documentId, updated, userId })
 
     return updated;
   }

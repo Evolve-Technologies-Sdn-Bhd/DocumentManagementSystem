@@ -7,7 +7,6 @@ import DashboardHeader from './dashboard/DashboardHeader'
 import DashboardMetricCard from './dashboard/DashboardMetricCard'
 import DashboardQuickActions from './dashboard/DashboardQuickActions'
 import DashboardActivityTable from './dashboard/DashboardActivityTable'
-import DashboardAttentionPanel from './dashboard/DashboardAttentionPanel'
 import DashboardStatusChart from './dashboard/DashboardStatusChart'
 import DashboardExpiryOverview from './dashboard/DashboardExpiryOverview'
 import DashboardSkeleton from './dashboard/DashboardSkeleton'
@@ -290,68 +289,6 @@ export default function Dashboard() {
     }
   ]
 
-  const attentionItems = [
-    {
-      key: 'assigned-action',
-      label: t('dashboard_attention_assigned'),
-      description: t('dashboard_attention_assigned_desc'),
-      count: assignedQueue.length,
-      tone: 'critical',
-      to: '/review-approval'
-    },
-    {
-      key: 'returned',
-      label: t('dashboard_attention_returned'),
-      description: t('dashboard_attention_returned_desc'),
-      count: returnedCount,
-      tone: 'warning',
-      to: '/my-documents'
-    },
-    {
-      key: 'pending-ack',
-      label: t('dashboard_attention_pending_ack'),
-      description: t('dashboard_attention_pending_ack_desc'),
-      count: pendingAcknowledgmentCount,
-      tone: 'warning',
-      to: '/my-documents'
-    },
-    {
-      key: 'expired',
-      label: t('dashboard_attention_expired'),
-      description: t('dashboard_attention_expired_desc'),
-      count: expiryStats?.expired ?? 0,
-      tone: 'critical',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'expiring-today',
-      label: t('dashboard_attention_expiring_today'),
-      description: t('dashboard_attention_expiring_today_desc'),
-      count: expiryStats?.expiringToday ?? 0,
-      tone: 'critical',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'expiring-soon',
-      label: t('dashboard_attention_expiring_soon'),
-      description: t('dashboard_attention_expiring_soon_desc'),
-      count: expiryStats?.expiringSoon ?? 0,
-      tone: 'info',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'drafts',
-      label: t('dashboard_attention_drafts'),
-      description: t('dashboard_attention_drafts_desc'),
-      count: draftsCount,
-      tone: 'info',
-      to: '/drafts'
-    }
-  ]
-    .filter((item) => item.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
   const documentStats = adminStats?.documents || {}
   const activeMetrics = dashboardMode === 'admin'
     ? {
@@ -395,61 +332,6 @@ export default function Dashboard() {
         }
       ]
     : statusChartItems
-  const activeAttentionItems = dashboardMode === 'admin'
-    ? [
-        {
-          key: 'pending-review',
-          label: t('dashboard_attention_pending_review'),
-          description: t('dashboard_attention_pending_review_desc'),
-          count: documentStats.pendingReview ?? adminMetrics?.pendingReviews ?? 0,
-          tone: 'warning',
-          to: '/review-approval'
-        },
-        {
-          key: 'pending-approval',
-          label: t('dashboard_attention_pending_approval'),
-          description: t('dashboard_attention_pending_approval_desc'),
-          count: documentStats.pendingApproval ?? 0,
-          tone: 'warning',
-          to: '/review-approval'
-        },
-        {
-          key: 'expired',
-          label: t('dashboard_attention_expired'),
-          description: t('dashboard_attention_expired_desc'),
-          count: expiryStats?.expired ?? 0,
-          tone: 'critical',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'expiring-today',
-          label: t('dashboard_attention_expiring_today'),
-          description: t('dashboard_attention_expiring_today_desc'),
-          count: expiryStats?.expiringToday ?? 0,
-          tone: 'critical',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'expiring-soon',
-          label: t('dashboard_attention_expiring_soon'),
-          description: t('dashboard_attention_expiring_soon_desc'),
-          count: expiryStats?.expiringSoon ?? 0,
-          tone: 'info',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'drafts',
-          label: t('dashboard_attention_drafts'),
-          description: t('dashboard_attention_drafts_desc'),
-          count: documentStats.draft ?? adminMetrics?.drafts ?? 0,
-          tone: 'info',
-          to: '/drafts'
-        }
-      ]
-        .filter((item) => item.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-    : attentionItems
   const activeRecentViewAllLabel = dashboardMode === 'admin' ? t('view_all_logs') : t('dashboard_open_my_documents')
   const activeRecentViewAllTo = dashboardMode === 'admin' ? '/logs' : '/my-documents'
   const personalMetricCards = [
@@ -488,20 +370,12 @@ export default function Dashboard() {
   ]
   const systemMetricCards = [
     {
-      key: 'drafts',
-      title: t('docs_in_draft'),
-      value: activeMetrics.drafts ?? 0,
-      description: t('draft_desc'),
-      icon: DocumentTextIcon,
-      tone: 'indigo'
-    },
-    {
       key: 'queue',
       title: t('dashboard_metric_global_queue'),
       value: activeMetrics.queue ?? 0,
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
-      tone: 'warning'
+      tone: 'neutral'
     },
     {
       key: 'published',
@@ -509,7 +383,7 @@ export default function Dashboard() {
       value: activeMetrics.published ?? 0,
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'success'
+      tone: 'neutral'
     },
     {
       key: 'superseded',
@@ -563,16 +437,74 @@ export default function Dashboard() {
         <>
           {dashboardMode === 'admin' && (
             <section className="space-y-3" data-tour-id="dashboard-personal-metrics">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
-                  {t('dashboard_metric_personal_label')}
-                </p>
-                <p className="text-sm text-ink-secondary">
-                  {t('dashboard_metric_personal_desc')}
-                </p>
-              </div>
+              <AppSurface
+                variant="muted"
+                padding="lg"
+                className="border-l-4 border-l-[var(--dms-color-info-ink)]"
+              >
+                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-[var(--dms-color-info-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--dms-color-info-ink)]">
+                        {t('dashboard_metric_personal_label')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-secondary">
+                      {t('dashboard_metric_personal_desc')}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {personalMetricCards.map((card) => (
+                    <DashboardMetricCard
+                      key={card.key}
+                      title={card.title}
+                      value={card.value}
+                      description={card.description}
+                      icon={card.icon}
+                      tone={card.tone}
+                    />
+                  ))}
+                </div>
+              </AppSurface>
+            </section>
+          )}
+
+          <section className="space-y-3" data-tour-id="dashboard-metrics">
+            {dashboardMode === 'admin' ? (
+              <AppSurface
+                variant="muted"
+                padding="lg"
+                className="border-l-4 border-l-[var(--dms-color-border-strong)]"
+              >
+                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                        {t('dashboard_metric_system_label')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-secondary">
+                      {t('dashboard_metric_system_desc')}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {systemMetricCards.map((card) => (
+                    <DashboardMetricCard
+                      key={card.key}
+                      title={card.title}
+                      value={card.value}
+                      description={card.description}
+                      icon={card.icon}
+                      tone={card.tone}
+                    />
+                  ))}
+                </div>
+              </AppSurface>
+            ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {personalMetricCards.map((card) => (
+                {activeMetricCards.map((card) => (
                   <DashboardMetricCard
                     key={card.key}
                     title={card.title}
@@ -583,43 +515,20 @@ export default function Dashboard() {
                   />
                 ))}
               </div>
-            </section>
-          )}
-
-          <section className="space-y-3" data-tour-id="dashboard-metrics">
-            {dashboardMode === 'admin' && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
-                  {t('dashboard_metric_system_label')}
-                </p>
-                <p className="text-sm text-ink-secondary">
-                  {t('dashboard_metric_system_desc')}
-                </p>
-              </div>
             )}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {activeMetricCards.map((card) => (
-                <DashboardMetricCard
-                  key={card.key}
-                  title={card.title}
-                  value={card.value}
-                  description={card.description}
-                  icon={card.icon}
-                  tone={card.tone}
-                />
-              ))}
-            </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div data-tour-id="dashboard-attention-panel">
-              <DashboardAttentionPanel
-                title={dashboardMode === 'admin' ? t('dashboard_attention_admin_title') : t('dashboard_attention_title')}
-                subtitle={dashboardMode === 'admin' ? t('dashboard_attention_admin_subtitle') : t('dashboard_attention_subtitle')}
-                items={activeAttentionItems}
-                emptyTitle={t('dashboard_attention_empty_title')}
-                emptyDescription={t('dashboard_attention_empty_desc')}
-                actionLabel={t('dashboard_attention_action')}
+            <div data-tour-id="dashboard-expiry-overview">
+              <DashboardExpiryOverview
+                title={t('dashboard_expiry_title')}
+                subtitle={t('dashboard_expiry_subtitle')}
+                stats={expiryStats}
+                items={expiryItems}
+                totalLabel={t('dashboard_expiry_total')}
+                actionLabel={t('dashboard_expiry_action')}
+                emptyTitle={t('dashboard_expiry_empty_title')}
+                emptyDescription={t('dashboard_expiry_empty_desc')}
               />
             </div>
             <div data-tour-id="dashboard-status-chart">
@@ -636,19 +545,6 @@ export default function Dashboard() {
 
           <div data-tour-id="dashboard-quick-actions">
             <DashboardQuickActions />
-          </div>
-
-          <div data-tour-id="dashboard-expiry-overview">
-            <DashboardExpiryOverview
-              title={t('dashboard_expiry_title')}
-              subtitle={t('dashboard_expiry_subtitle')}
-              stats={expiryStats}
-              items={expiryItems}
-              totalLabel={t('dashboard_expiry_total')}
-              actionLabel={t('dashboard_expiry_action')}
-              emptyTitle={t('dashboard_expiry_empty_title')}
-              emptyDescription={t('dashboard_expiry_empty_desc')}
-            />
           </div>
 
           <div data-tour-id="dashboard-recent-activity">
