@@ -3247,10 +3247,18 @@ function ProjectDetail({ projectId }) {
       window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to download linked document:', error)
+      const statusCode = error?.response?.status
+      const serverMessage = String(error?.response?.data?.message || '').trim()
+      const isConfidentialPermissionError =
+        statusCode === 403 &&
+        (/confidential/i.test(serverMessage) || /do not have access/i.test(serverMessage))
+
       setAlertModal({
         show: true,
-        title: 'Download Failed',
-        message: 'Unable to download this file right now.',
+        title: isConfidentialPermissionError ? 'Access Restricted' : 'Download Failed',
+        message: isConfidentialPermissionError
+          ? 'You are not authorized to view or download this file because it contains confidential information.'
+          : 'Unable to download this file right now.',
         type: 'warning'
       })
     }

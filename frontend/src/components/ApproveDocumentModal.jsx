@@ -8,8 +8,10 @@ import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
-export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
+export default function ApproveDocumentModal({ document, onClose, onSubmit, isSubmitting = false, submitError = '' }) {
   const { t } = usePreferences()
   // Determine if this is first or second approval based on document status and stage
   const isFirstApproval = 
@@ -37,6 +39,8 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
   const [isDragging, setIsDragging] = useState(false)
   const [approversList, setApproversList] = useState([])
   const [loadingApprovers, setLoadingApprovers] = useState(true)
+  const [formError, setFormError] = useState('')
+  const submitProgress = useLoadingProgress(isSubmitting)
 
   // Fetch list of approvers from the API
   useEffect(() => {
@@ -109,11 +113,13 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (formError) setFormError('')
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target
+    if (formError) setFormError('')
     setFormData(prev => ({
       ...prev,
       approvalDecision: checked ? value : ''
@@ -121,6 +127,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
   }
 
   const handleSecondApproverSelect = (approverId) => {
+    if (formError) setFormError('')
     setFormData(prev => ({
       ...prev,
       assignedSecondApprover: approverId ? parseInt(approverId) : null
@@ -130,6 +137,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (formError) setFormError('')
       setFormData(prev => ({ ...prev, approvedFile: file }))
     }
   }
@@ -149,6 +157,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
     setIsDragging(false)
     const file = e.dataTransfer.files?.[0]
     if (file) {
+      if (formError) setFormError('')
       setFormData(prev => ({ ...prev, approvedFile: file }))
     }
   }
@@ -158,29 +167,53 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
     
     // Validation
     if (!formData.approvalDecision) {
-      alert('Please select an approval decision')
+      setFormError('Please select an approval decision')
       return
     }
 
     // Require comments when returning for amendments
     if (formData.approvalDecision === 'amendments' && !formData.comments.trim()) {
-      alert('Please provide comments explaining why the document needs amendments')
+      setFormError('Please provide comments explaining why the document needs amendments')
       return
     }
 
+    setFormError('')
     onSubmit(formData)
   }
 
   return (
-    <Modal onClose={onClose} size="lg">
+    <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="lg">
       <form onSubmit={handleSubmit}>
         <ModalHeader
           title={isFirstApproval ? t('first_approval') : isSecondApproval ? t('second_approval_title') : t('approve_document')}
           subtitle={isFirstApproval ? t('first_approval_desc') : isSecondApproval ? t('second_approval_desc') : t('approve_pub_desc')}
-          onClose={onClose}
+          onClose={isSubmitting ? undefined : onClose}
         />
 
         <ModalBody className="space-y-4">
+            {loadingApprovers ? (
+              <AsyncActionStatus
+                title="Loading approver options"
+                message="Please wait while available approvers are being prepared."
+                progress={32}
+                busy
+              />
+            ) : null}
+            {isSubmitting ? (
+              <AsyncActionStatus
+                title="Submitting approval"
+                message="Approval decision, comments, and file updates are being processed."
+                progress={submitProgress}
+                busy
+              />
+            ) : null}
+            {submitError || formError ? (
+              <AsyncActionStatus
+                title="Unable to continue"
+                message={submitError || formError}
+                tone="error"
+              />
+            ) : null}
             {/* File Code */}
             <div>
               <label className="block text-sm font-medium text-ink-secondary mb-1">
@@ -372,10 +405,10 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit }) {
         </ModalBody>
 
         <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('cancel')}
           </Button>
-          <Button type="submit">
+          <Button type="submit" loading={isSubmitting} loadingText={`Submitting... ${submitProgress}%`}>
             {t('submit')}
           </Button>
         </ModalFooter>

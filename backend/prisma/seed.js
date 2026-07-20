@@ -13,15 +13,15 @@ async function main() {
   // ============================================
   console.log('📋 Seeding roles...');
   
-  // Complete permissions for Administrator - all 80 permissions
+  // Complete permissions for Administrator
   const adminPermissions = {
     // Dashboard (1 permission)
     dashboard: { view: true },
     
-    // Document Management (20 permissions)
+    // Document Management
     'documents.draft': { view: true, create: true, update: true },
     'documents.review': { view: true, read: true, review: true, approve: true, reject: true },
-    'documents.published': { view: true, read: true, create: true, update: true, delete: true, download: true },
+    'documents.published': { view: true, read: true, create: true, publish: true, update: true, delete: true, download: true },
     'documents.superseded': { view: true, read: true, create: true, update: true, download: true },
     
     // New Document Request (3 permissions)
@@ -80,7 +80,7 @@ async function main() {
         dashboard: { view: true },
         'documents.draft': { view: true, create: true, update: true },
         'documents.review': { view: true, read: true, review: true, approve: true, reject: true },
-        'documents.published': { view: true, read: true, create: true, update: true, delete: true, download: true },
+        'documents.published': { view: true, read: true, create: true, publish: true, update: true, delete: true, download: true },
         'documents.superseded': { view: true, read: true, create: true, update: true, download: true },
         newDocumentRequest: { view: true, create: true, acknowledge: true },
         myDocumentsStatus: { view: true },

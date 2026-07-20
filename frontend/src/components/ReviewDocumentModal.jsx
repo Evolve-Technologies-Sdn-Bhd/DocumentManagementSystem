@@ -8,8 +8,10 @@ import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
-export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
+export default function ReviewDocumentModal({ document, onClose, onSubmit, isSubmitting = false, submitError = '' }) {
   const { t } = usePreferences()
   const [formData, setFormData] = useState({
     fileCode: document?.fileCode || '',
@@ -26,6 +28,8 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
   const [isDragging, setIsDragging] = useState(false)
   const [approversList, setApproversList] = useState([])
   const [loadingApprovers, setLoadingApprovers] = useState(true)
+  const [formError, setFormError] = useState('')
+  const submitProgress = useLoadingProgress(isSubmitting)
 
   // Fetch list of approvers from the API
   useEffect(() => {
@@ -108,11 +112,13 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (formError) setFormError('')
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target
+    if (formError) setFormError('')
     setFormData(prev => ({
       ...prev,
       reviewDecision: checked ? value : '',
@@ -121,6 +127,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
   }
 
   const handleApproverSelect = (approverId) => {
+    if (formError) setFormError('')
     setFormData(prev => ({
       ...prev,
       assignedApprover: approverId ? parseInt(approverId) : null
@@ -129,6 +136,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
 
   const handleSkipApprovalChange = (e) => {
     const checked = e.target.checked
+    if (formError) setFormError('')
     setFormData(prev => ({
       ...prev,
       skipApproval: checked,
@@ -139,6 +147,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (formError) setFormError('')
       setFormData(prev => ({ ...prev, reviewedFile: file }))
     }
   }
@@ -158,6 +167,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
     setIsDragging(false)
     const file = e.dataTransfer.files?.[0]
     if (file) {
+      if (formError) setFormError('')
       setFormData(prev => ({ ...prev, reviewedFile: file }))
     }
   }
@@ -167,35 +177,59 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
     
     // Validation
     if (!formData.reviewDecision) {
-      alert('Please select a review decision')
+      setFormError('Please select a review decision')
       return
     }
 
     // Require comments when returning for amendments
     if (formData.reviewDecision === 'amendments' && !formData.comments.trim()) {
-      alert('Please provide comments explaining why the document needs amendments')
+      setFormError('Please provide comments explaining why the document needs amendments')
       return
     }
 
     // Require approver assignment when document is reviewed
     if (formData.reviewDecision === 'reviewed' && !formData.skipApproval && !formData.assignedApprover) {
-      alert('Please assign an approver for the reviewed document')
+      setFormError('Please assign an approver for the reviewed document')
       return
     }
 
+    setFormError('')
     onSubmit(formData)
   }
 
   return (
-    <Modal onClose={onClose} size="lg">
+    <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="lg">
       <form onSubmit={handleSubmit}>
         <ModalHeader
           title={t('review_document')}
           subtitle={t('modal_draft_desc')}
-          onClose={onClose}
+          onClose={isSubmitting ? undefined : onClose}
         />
 
         <ModalBody className="space-y-4">
+            {loadingApprovers ? (
+              <AsyncActionStatus
+                title="Loading approver options"
+                message="Please wait while the approver list is being prepared."
+                progress={32}
+                busy
+              />
+            ) : null}
+            {isSubmitting ? (
+              <AsyncActionStatus
+                title="Submitting review"
+                message="Review decision, comments, and file updates are being processed."
+                progress={submitProgress}
+                busy
+              />
+            ) : null}
+            {submitError || formError ? (
+              <AsyncActionStatus
+                title="Unable to continue"
+                message={submitError || formError}
+                tone="error"
+              />
+            ) : null}
             {/* File Code */}
             <div>
               <label className="block text-sm font-medium text-ink-secondary mb-1">
@@ -404,10 +438,10 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit }) {
         </ModalBody>
 
         <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('cancel')}
           </Button>
-          <Button type="submit">
+          <Button type="submit" loading={isSubmitting} loadingText={`Submitting... ${submitProgress}%`}>
             {t('submit')}
           </Button>
         </ModalFooter>

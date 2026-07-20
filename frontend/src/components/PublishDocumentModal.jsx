@@ -6,6 +6,8 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import FolderTreePicker from './ui/FolderTreePicker'
+import AsyncActionStatus from './ui/AsyncActionStatus'
+import useLoadingProgress from '../hooks/useLoadingProgress'
 
 const REMINDER_LEVELS = [
   { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
@@ -41,6 +43,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   const [newFileName, setNewFileName] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
   const [error, setError] = useState('')
   const [recipientSearch, setRecipientSearch] = useState({
     reminder1: '',
@@ -73,9 +76,12 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
       reminder4: []
     }
   })
+  const dataProgress = useLoadingProgress(isLoadingData, { start: 18, max: 72, stepMs: 180 })
+  const submitProgress = useLoadingProgress(loading)
 
   useEffect(() => {
     if (!isOpen) return
+    let cancelled = false
     const requiresExpiryTracking = Boolean(document?.documentTypeConfig?.requiresExpiryTracking)
     setSelectedFolder('')
     setNewFileName(document?.fileName || '')
@@ -105,11 +111,18 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
         reminder4: []
       }
     })
-    void fetchFolders()
-    void fetchExpirySettings()
-    void fetchUsers()
+    const loadData = async () => {
+      setIsLoadingData(true)
+      await Promise.allSettled([fetchFolders(), fetchExpirySettings(), fetchUsers()])
+      if (!cancelled) {
+        setIsLoadingData(false)
+      }
+    }
+    void loadData()
+    return () => {
+      cancelled = true
+    }
   }, [isOpen, document])
-
   const ownerId = document?.ownerId || document?.owner?.id || null
   const ownerName = document?.ownerName
     || formatUserLabel(document?.owner)
@@ -227,18 +240,36 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   if (!isOpen) return null
 
   return (
-    <Modal onClose={onClose} closeOnBackdrop size="lg">
+    <Modal onClose={loading ? undefined : onClose} closeOnBackdrop={!loading} size="lg">
       <ModalHeader
         title="Publish Document"
         subtitle="Finalize publication destination and optional expiry tracking setup."
-        onClose={onClose}
+        onClose={loading ? undefined : onClose}
       />
       <form onSubmit={handleSubmit}>
         <ModalBody className="space-y-6">
+          {isLoadingData ? (
+            <AsyncActionStatus
+              title="Loading publication options"
+              message="Folders, expiry settings, and recipients are being prepared."
+              progress={dataProgress}
+              busy
+            />
+          ) : null}
+          {loading ? (
+            <AsyncActionStatus
+              title="Publishing document"
+              message="The document is being published and the remaining background follow-up tasks will continue automatically."
+              progress={submitProgress}
+              busy
+            />
+          ) : null}
           {error ? (
-            <AppSurface padding="md" variant="panel" className="border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)]/40 text-sm text-[var(--dms-color-danger-ink)]">
-              {error}
-            </AppSurface>
+            <AsyncActionStatus
+              title="Unable to continue"
+              message={error}
+              tone="error"
+            />
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -272,7 +303,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                   selectedLabel="Selected destination"
                   treeClassName="max-h-64"
                   mode="nested"
-                  disabled={loading}
+                  disabled={loading || isLoadingData}
                 />
               </Field>
             </div>
@@ -455,7 +486,9 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
         </ModalBody>
         <ModalFooter>
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
-          <Button type="submit" disabled={loading}>{loading ? 'Publishing...' : 'Publish Document'}</Button>
+          <Button type="submit" disabled={loading || isLoadingData} loading={loading} loadingText={`Publishing... ${submitProgress}%`}>
+            Publish Document
+          </Button>
         </ModalFooter>
       </form>
     </Modal>

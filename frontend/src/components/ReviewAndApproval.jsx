@@ -51,6 +51,10 @@ export default function ReviewAndApproval() {
   const [approveSupersedeModalOpen, setApproveSupersedeModalOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewSubmitError, setReviewSubmitError] = useState('')
+  const [approveSubmitting, setApproveSubmitting] = useState(false)
+  const [approveSubmitError, setApproveSubmitError] = useState('')
   const canSendDebugRef = useRef(null)
 
   const canSendDebug = () => {
@@ -374,6 +378,7 @@ export default function ReviewAndApproval() {
 
   const handleReview = (doc) => {
     setSelectedDocument(doc)
+    setReviewSubmitError('')
     // Check if this is a supersede request
     if (doc.type === 'supersede-request') {
       setReviewSupersedeModalOpen(true)
@@ -383,6 +388,8 @@ export default function ReviewAndApproval() {
   }
 
   const handleReviewSubmit = async (formData) => {
+    setReviewSubmitting(true)
+    setReviewSubmitError('')
     try {
       // Prepare form data for API
       const apiFormData = new FormData()
@@ -423,12 +430,16 @@ export default function ReviewAndApproval() {
       await loadDocuments()
     } catch (error) {
       console.error('Failed to submit review:', error)
+      setReviewSubmitError(error.response?.data?.message || 'Failed to submit review. Please try again.')
       setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit review. Please try again.', type: 'error' })
+    } finally {
+      setReviewSubmitting(false)
     }
   }
 
   const handleApprove = (doc) => {
     setSelectedDocument(doc)
+    setApproveSubmitError('')
     // Check if this is a supersede request
     if (doc.type === 'supersede-request') {
       setApproveSupersedeModalOpen(true)
@@ -438,6 +449,8 @@ export default function ReviewAndApproval() {
   }
 
   const handleApproveSubmit = async (formData) => {
+    setApproveSubmitting(true)
+    setApproveSubmitError('')
     try {
       // Determine if this is first or second approval
       // Support legacy statuses: 'Pending Approval' and stage 'Approval' are treated as first approval
@@ -488,7 +501,10 @@ export default function ReviewAndApproval() {
       await loadDocuments()
     } catch (error) {
       console.error('Failed to submit approval:', error)
+      setApproveSubmitError(error.response?.data?.message || 'Failed to submit approval. Please try again.')
       setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit approval. Please try again.', type: 'error' })
+    } finally {
+      setApproveSubmitting(false)
     }
   }
 
@@ -724,7 +740,7 @@ export default function ReviewAndApproval() {
                             ? [{ label: t('acknowledge_action'), onClick: () => handleAcknowledge(doc) }]
                             : []
                           ),
-                          ...(doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'create')
+                          ...(doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish')
                             ? [{ label: t('publish_action'), onClick: () => handlePublish(doc) }]
                             : []
                           )
@@ -852,7 +868,7 @@ export default function ReviewAndApproval() {
                       {t('approve_action')}
                     </Button>
                   )}
-                  {doc.stage === 'Acknowledge' && (
+                  {doc.stage === 'Acknowledge' && hasPermission('documents.published', 'acknowledge') && (
                     <Button
                       onClick={() => handleAcknowledge(doc)}
                       size="sm"
@@ -862,7 +878,7 @@ export default function ReviewAndApproval() {
                       {t('acknowledge_action')}
                     </Button>
                   )}
-                  {doc.status === 'READY_TO_PUBLISH' && (
+                  {doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish') && (
                     <Button
                       onClick={() => handlePublish(doc)}
                       size="sm"
@@ -899,8 +915,11 @@ export default function ReviewAndApproval() {
           onClose={() => {
             setReviewModalOpen(false)
             setSelectedDocument(null)
+            setReviewSubmitError('')
           }}
           onSubmit={handleReviewSubmit}
+          isSubmitting={reviewSubmitting}
+          submitError={reviewSubmitError}
         />
       )}
 
@@ -911,8 +930,11 @@ export default function ReviewAndApproval() {
           onClose={() => {
             setApproveModalOpen(false)
             setSelectedDocument(null)
+            setApproveSubmitError('')
           }}
           onSubmit={handleApproveSubmit}
+          isSubmitting={approveSubmitting}
+          submitError={approveSubmitError}
         />
       )}
 

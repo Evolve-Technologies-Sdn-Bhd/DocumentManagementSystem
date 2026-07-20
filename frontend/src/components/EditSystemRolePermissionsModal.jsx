@@ -36,7 +36,7 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
         {
           id: 'documents.published',
           name: 'Published Documents',
-          actions: ['view', 'read', 'create', 'update', 'delete', 'download']
+          actions: ['view', 'read', 'create', 'publish', 'update', 'delete', 'download']
         },
         {
           id: 'documents.superseded',

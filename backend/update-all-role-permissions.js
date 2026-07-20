@@ -4,12 +4,12 @@ const prisma = new PrismaClient();
 
 // All role permissions - must match EditSystemRolePermissionsModal.jsx
 const rolePermissions = {
-  // Administrator - all 80 permissions
+  // Administrator
   admin: {
     dashboard: { view: true },
     'documents.draft': { view: true, create: true, update: true },
     'documents.review': { view: true, read: true, review: true, approve: true, reject: true },
-    'documents.published': { view: true, read: true, create: true, update: true, delete: true, download: true },
+    'documents.published': { view: true, read: true, create: true, publish: true, update: true, delete: true, download: true },
     'documents.superseded': { view: true, read: true, create: true, update: true, download: true },
     newDocumentRequest: { view: true, create: true, acknowledge: true },
     myDocumentsStatus: { view: true },
@@ -39,7 +39,7 @@ const rolePermissions = {
     dashboard: { view: true },
     'documents.draft': { view: true, create: true, update: true },
     'documents.review': { view: true, read: true, review: true, approve: true, reject: true },
-    'documents.published': { view: true, read: true, create: true, update: true, delete: true, download: true },
+    'documents.published': { view: true, read: true, create: true, publish: true, update: true, delete: true, download: true },
     'documents.superseded': { view: true, read: true, create: true, update: true, download: true },
     newDocumentRequest: { view: true, create: true, acknowledge: true },
     myDocumentsStatus: { view: true },
