@@ -13,10 +13,12 @@ export default function DashboardMetricCard({
   value,
   description,
   icon: Icon,
-  tone = 'indigo'
+  tone = 'indigo',
+  surfaceClassName = '',
+  surfaceStyle
 }) {
   return (
-    <AppSurface variant="interactive" padding="md" className="h-full">
+    <AppSurface variant="interactive" padding="md" className={['h-full', surfaceClassName].filter(Boolean).join(' ')} style={surfaceStyle}>
       <div className="flex h-full flex-col">
         <div className="mb-4 flex items-start gap-3">
           <div className={['flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', toneMap[tone] || toneMap.indigo].join(' ')}>

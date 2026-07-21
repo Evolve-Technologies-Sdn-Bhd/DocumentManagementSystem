@@ -341,7 +341,8 @@ export default function Dashboard() {
       value: metrics.drafts ?? 0,
       description: t('dashboard_metric_my_drafts_desc'),
       icon: DocumentTextIcon,
-      tone: 'indigo'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'needs-action',
@@ -349,7 +350,8 @@ export default function Dashboard() {
       value: metrics.needsMyAction ?? 0,
       description: t('dashboard_metric_needs_action_desc'),
       icon: ClockIcon,
-      tone: 'warning'
+      tone: 'warning',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'waiting',
@@ -357,7 +359,8 @@ export default function Dashboard() {
       value: metrics.awaitingReview ?? 0,
       description: t('dashboard_metric_waiting_desc'),
       icon: ClipboardListIcon,
-      tone: 'success'
+      tone: 'success',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'published',
@@ -365,7 +368,8 @@ export default function Dashboard() {
       value: metrics.published ?? 0,
       description: t('dashboard_metric_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'neutral'
+      tone: 'neutral',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     }
   ]
   const systemMetricCards = [
@@ -375,7 +379,8 @@ export default function Dashboard() {
       value: activeMetrics.queue ?? 0,
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
-      tone: 'neutral'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'published',
@@ -383,7 +388,8 @@ export default function Dashboard() {
       value: activeMetrics.published ?? 0,
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'neutral'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'superseded',
@@ -391,7 +397,8 @@ export default function Dashboard() {
       value: activeMetrics.superseded ?? 0,
       description: t('archived_desc'),
       icon: ArchiveBoxIcon,
-      tone: 'neutral'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     }
   ]
   const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
@@ -463,6 +470,7 @@ export default function Dashboard() {
                       description={card.description}
                       icon={card.icon}
                       tone={card.tone}
+                      surfaceStyle={card.surfaceStyle}
                     />
                   ))}
                 </div>
@@ -498,6 +506,7 @@ export default function Dashboard() {
                       description={card.description}
                       icon={card.icon}
                       tone={card.tone}
+                      surfaceStyle={card.surfaceStyle}
                     />
                   ))}
                 </div>
@@ -512,6 +521,7 @@ export default function Dashboard() {
                     description={card.description}
                     icon={card.icon}
                     tone={card.tone}
+                    surfaceStyle={card.surfaceStyle}
                   />
                 ))}
               </div>

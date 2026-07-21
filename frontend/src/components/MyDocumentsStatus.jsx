@@ -15,19 +15,19 @@ import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
+const workflowStages = [
+  { id: 'ndr', label: 'NDR' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'review', label: 'Review' },
+  { id: 'approval', label: 'Approval' },
+  { id: 'publish', label: 'Published' },
+  { id: 'superseded', label: 'Archived' }
+]
+
 // Progress Tracker Component
 function ProgressTracker({ currentStage, trackingId }) {
   const { t } = usePreferences()
-  const stages = [
-    { id: 'ndr', label: 'NDR' },
-    { id: 'draft', label: 'Draft' },
-    { id: 'review', label: 'Review' },
-    { id: 'approval', label: 'Approval' },
-    { id: 'publish', label: 'Published' },
-    { id: 'superseded', label: 'Archived' }
-  ]
-
-  const currentIndex = stages.findIndex(s => s.id === currentStage)
+  const currentIndex = workflowStages.findIndex((s) => s.id === currentStage)
 
   return (
     <AppSurface padding="lg" className="space-y-4">
@@ -36,10 +36,10 @@ function ProgressTracker({ currentStage, trackingId }) {
       </h2>
 
       <div className="hidden md:flex items-center gap-0.5 overflow-x-auto">
-        {stages.map((stage, index) => {
+        {workflowStages.map((stage, index) => {
           const isActive = index <= currentIndex
           const isFirst = index === 0
-          const isLast = index === stages.length - 1
+          const isLast = index === workflowStages.length - 1
 
           return (
             <div
@@ -62,7 +62,7 @@ function ProgressTracker({ currentStage, trackingId }) {
       </div>
 
       <div className="md:hidden space-y-2">
-        {stages.map((stage, index) => {
+        {workflowStages.map((stage, index) => {
           const isActive = index <= currentIndex
 
           return (
@@ -74,6 +74,103 @@ function ProgressTracker({ currentStage, trackingId }) {
             >
               {stage.label}
             </div>
+          )
+        })}
+      </div>
+    </AppSurface>
+  )
+}
+
+function StageFilterBar({ documents, stageFilter, onStageFilterChange, onClear }) {
+  const stageCounts = workflowStages.reduce((acc, stage) => {
+    acc[stage.id] = documents.filter((doc) => mapStatusToStage(doc.status, doc.stage, doc.reviewedAt, doc.approvedAt, doc.publishedAt) === stage.id).length
+    return acc
+  }, {})
+  const activeStage = workflowStages.find((stage) => stage.id === stageFilter)
+
+  return (
+    <AppSurface padding="lg" className="space-y-4 border border-brand/15 bg-brand/5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-ink">Filter List By Workflow Stage</h3>
+          <p className="mt-1 text-sm text-ink-muted">Tracker atas kekal untuk selected document, bar ini tapis senarai di bawah.</p>
+          {activeStage && (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-brand/12 px-3 py-1 text-xs font-medium text-[var(--dms-color-info-ink)] ring-1 ring-brand/15">
+              <span className="text-ink-muted">Filtered by:</span>
+              <span>{activeStage.label}</span>
+            </div>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={onClear}
+          disabled={stageFilter === 'all'}
+        >
+          Clear Filter
+        </Button>
+      </div>
+
+      <div className="hidden md:flex items-center gap-0.5 overflow-x-auto">
+        {workflowStages.map((stage, index) => {
+          const isActive = stageFilter === stage.id
+          const isFirst = index === 0
+          const isLast = index === workflowStages.length - 1
+
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => onStageFilterChange(stageFilter === stage.id ? 'all' : stage.id)}
+              className={`relative flex h-12 flex-1 items-center justify-center text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-brand text-ink-inverse shadow-dms-soft'
+                  : 'bg-brand/10 text-[var(--dms-color-info-ink)] hover:bg-brand/15'
+              } ${
+                isFirst ? 'rounded-l-lg' : ''
+              } ${
+                isLast ? 'rounded-r-lg' : !isLast ? 'clip-arrow-right' : ''
+              } ${
+                !isFirst ? 'clip-arrow-left' : ''
+              }`}
+              style={{ minWidth: isLast ? '180px' : '120px' }}
+            >
+              <span className="px-2 text-center">
+                {stage.label}
+                <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  isActive
+                    ? 'bg-white/20 text-ink-inverse'
+                    : 'bg-white/70 text-[var(--dms-color-info-ink)]'
+                }`}>
+                  {stageCounts[stage.id] ?? 0}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 md:hidden">
+        {workflowStages.map((stage) => {
+          const isActive = stageFilter === stage.id
+
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => onStageFilterChange(stageFilter === stage.id ? 'all' : stage.id)}
+              className={`rounded-2xl p-3 text-left text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-brand text-ink-inverse shadow-dms-soft'
+                  : 'bg-brand/10 text-[var(--dms-color-info-ink)]'
+              }`}
+            >
+              <div>{stage.label}</div>
+              <div className={`mt-1 text-xs ${isActive ? 'text-white/80' : 'text-[var(--dms-color-info-ink)]/80'}`}>
+                {stageCounts[stage.id] ?? 0} docs
+              </div>
+            </button>
           )
         })}
       </div>
@@ -141,12 +238,12 @@ const summaryCards = (t) => [
 ]
 
 const summaryToneClassMap = {
-  warning: 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-border-default)]',
-  neutral: 'bg-surface-muted text-ink-secondary border-border',
-  info: 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-border-default)]',
-  brand: 'bg-brand/10 text-brand border-brand/20',
-  success: 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] border-[var(--dms-color-border-default)]',
-  danger: 'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)] border-[var(--dms-color-border-default)]'
+  warning: 'bg-brand/8 text-[var(--dms-color-info-ink)] border-brand/15 hover:bg-brand/12',
+  neutral: 'bg-brand/10 text-[var(--dms-color-info-ink)] border-brand/20 hover:bg-brand/14',
+  info: 'bg-brand/12 text-[var(--dms-color-info-ink)] border-brand/25 hover:bg-brand/16',
+  brand: 'bg-brand/14 text-[var(--dms-color-info-ink)] border-brand/30 hover:bg-brand/18',
+  success: 'bg-brand/16 text-[var(--dms-color-info-ink)] border-brand/35 hover:bg-brand/20',
+  danger: 'bg-brand/18 text-[var(--dms-color-info-ink)] border-brand/40 hover:bg-brand/22'
 }
 
 const getDisplayFileCode = (doc) => (
@@ -167,6 +264,7 @@ export default function MyDocumentsStatus() {
   const [selectedDocDetails, setSelectedDocDetails] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [stageFilter, setStageFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [showDetailsPanel, setShowDetailsPanel] = useState(false)
@@ -210,18 +308,32 @@ export default function MyDocumentsStatus() {
     return status === filterValue
   }
 
+  const matchesStageFilter = (doc, filterValue) => {
+    if (filterValue === 'all') return true
+    return mapStatusToStage(doc.status, doc.stage, doc.reviewedAt, doc.approvedAt, doc.publishedAt) === filterValue
+  }
+
+  const clearListFilters = () => {
+    setStatusFilter('All')
+    setStageFilter('all')
+  }
+
   // Filter and search documents
   useEffect(() => {
     let filtered = documents
 
     // Apply status filter
     if (statusFilter !== 'All') {
-      filtered = filtered.filter(doc => matchesStatusFilter(doc, statusFilter))
+      filtered = filtered.filter((doc) => matchesStatusFilter(doc, statusFilter))
+    }
+
+    if (stageFilter !== 'all') {
+      filtered = filtered.filter((doc) => matchesStageFilter(doc, stageFilter))
     }
 
     // Apply search
     if (searchQuery) {
-      filtered = filtered.filter(doc =>
+      filtered = filtered.filter((doc) =>
         doc.fileCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
@@ -229,7 +341,7 @@ export default function MyDocumentsStatus() {
 
     setFilteredDocuments(filtered)
     setCurrentPage(1) // Reset to first page when filtering
-  }, [documents, statusFilter, searchQuery])
+  }, [documents, statusFilter, stageFilter, searchQuery])
 
   const loadDocuments = async () => {
     setLoading(true)
@@ -587,7 +699,8 @@ export default function MyDocumentsStatus() {
                   padding="md"
                   className={[
                     'text-left transition-all',
-                    isActive ? summaryToneClassMap[item.tone] : 'border-border hover:border-brand/20 hover:bg-surface-muted'
+                    summaryToneClassMap[item.tone],
+                    isActive ? 'shadow-dms-soft ring-1 ring-brand/20' : 'hover:-translate-y-0.5'
                   ].join(' ')}
                 >
                   <div className="text-2xl font-semibold text-ink">{count}</div>
@@ -599,14 +712,30 @@ export default function MyDocumentsStatus() {
         )}
 
         {currentTracking ? (
-          <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
-        ) : (
-          <AppSurface padding="lg">
-            <EmptyPanelState
-              title={t('select_doc_track')}
-              description={t('click_doc_view')}
+          <div className="space-y-4">
+            <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
+            <StageFilterBar
+              documents={documents}
+              stageFilter={stageFilter}
+              onStageFilterChange={setStageFilter}
+              onClear={() => setStageFilter('all')}
             />
-          </AppSurface>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <AppSurface padding="lg">
+              <EmptyPanelState
+                title={t('select_doc_track')}
+                description={t('click_doc_view')}
+              />
+            </AppSurface>
+            <StageFilterBar
+              documents={documents}
+              stageFilter={stageFilter}
+              onStageFilterChange={setStageFilter}
+              onClear={() => setStageFilter('all')}
+            />
+          </div>
         )}
 
         <AppSurface padding="lg" className="space-y-6" data-tour-id="my-docs-list-card">
@@ -690,9 +819,9 @@ export default function MyDocumentsStatus() {
                       <td colSpan="7" className="px-4 py-4">
                         <EmptyState
                           message={t('no_docs_found')}
-                          description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
-                          actionLabel={searchQuery ? t('clear_search') : (statusFilter !== 'All' ? t('clear_filter') : null)}
-                          onAction={searchQuery ? () => setSearchQuery('') : (statusFilter !== 'All' ? () => setStatusFilter('All') : null)}
+                          description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
+                          actionLabel={searchQuery ? t('clear_search') : ((statusFilter !== 'All' || stageFilter !== 'all') ? t('clear_filter') : null)}
+                          onAction={searchQuery ? () => setSearchQuery('') : ((statusFilter !== 'All' || stageFilter !== 'all') ? clearListFilters : null)}
                         />
                       </td>
                     </tr>
@@ -750,9 +879,9 @@ export default function MyDocumentsStatus() {
             ) : currentDocuments.length === 0 ? (
               <EmptyState
                 message={t('no_docs_found')}
-                description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
-                actionLabel={searchQuery ? t('clear_search') : null}
-                onAction={searchQuery ? () => setSearchQuery('') : null}
+                description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
+                actionLabel={searchQuery ? t('clear_search') : ((statusFilter !== 'All' || stageFilter !== 'all') ? t('clear_filter') : null)}
+                onAction={searchQuery ? () => setSearchQuery('') : ((statusFilter !== 'All' || stageFilter !== 'all') ? clearListFilters : null)}
               />
             ) : (
               currentDocuments.map((doc) => (
