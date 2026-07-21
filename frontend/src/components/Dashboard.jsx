@@ -466,7 +466,7 @@ export default function Dashboard() {
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     },
     {
       key: 'published',
@@ -475,7 +475,7 @@ export default function Dashboard() {
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     },
     {
       key: 'superseded',
@@ -484,7 +484,7 @@ export default function Dashboard() {
       description: t('archived_desc'),
       icon: ArchiveBoxIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     }
   ]
   const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
