@@ -68,12 +68,9 @@ function DashboardMetricsPanel({
             <span className={['inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', badgeClassName].join(' ')}>
               {label}
             </span>
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-ink">{label}</h2>
-              <p className="max-w-2xl text-sm leading-6 text-ink-secondary">
-                {description}
-              </p>
-            </div>
+            <p className="max-w-2xl text-sm leading-6 text-ink-secondary">
+              {description}
+            </p>
           </div>
 
           {summaryItems.length > 0 && (
@@ -89,11 +86,6 @@ function DashboardMetricsPanel({
                   <div className={['mt-2 text-2xl font-semibold leading-none', summaryValueClassName].join(' ')}>
                     {item.value}
                   </div>
-                  {item.caption ? (
-                    <div className="mt-2 text-xs leading-5 text-ink-secondary">
-                      {item.caption}
-                    </div>
-                  ) : null}
                 </div>
               ))}
             </div>
@@ -499,28 +491,24 @@ export default function Dashboard() {
     {
       key: 'total-personal',
       label: t('dashboard_status_total'),
-      value: personalMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0),
-      caption: t('dashboard_metric_personal_desc')
+      value: personalMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
     },
     {
       key: 'needs-action',
       label: t('dashboard_metric_needs_action'),
-      value: metrics.needsMyAction ?? 0,
-      caption: t('dashboard_metric_needs_action_desc')
+      value: metrics.needsMyAction ?? 0
     }
   ]
   const systemSummaryItems = [
     {
       key: 'system-total',
       label: t('dashboard_status_total'),
-      value: systemMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0),
-      caption: t('dashboard_metric_system_desc')
+      value: systemMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
     },
     {
       key: 'system-published',
       label: t('dashboard_metric_global_published'),
-      value: activeMetrics.published ?? 0,
-      caption: t('dashboard_metric_global_published_desc')
+      value: activeMetrics.published ?? 0
     }
   ]
 
