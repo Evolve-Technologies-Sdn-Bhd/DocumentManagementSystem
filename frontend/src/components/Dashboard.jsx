@@ -492,11 +492,6 @@ export default function Dashboard() {
       key: 'total-personal',
       label: t('dashboard_status_total'),
       value: personalMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
-    },
-    {
-      key: 'needs-action',
-      label: t('dashboard_metric_needs_action'),
-      value: metrics.needsMyAction ?? 0
     }
   ]
   const systemSummaryItems = [
@@ -504,11 +499,6 @@ export default function Dashboard() {
       key: 'system-total',
       label: t('dashboard_status_total'),
       value: systemMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
-    },
-    {
-      key: 'system-published',
-      label: t('dashboard_metric_global_published'),
-      value: activeMetrics.published ?? 0
     }
   ]
 
