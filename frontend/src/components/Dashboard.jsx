@@ -33,7 +33,8 @@ function DashboardMetricsPanel({
   description,
   cards,
   summaryItems = [],
-  tone = 'personal'
+  tone = 'personal',
+  gridClassName = 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
 }) {
   const isPersonal = tone === 'personal'
   const panelClassName = isPersonal
@@ -74,11 +75,11 @@ function DashboardMetricsPanel({
           </div>
 
           {summaryItems.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[320px]">
+            <div className="flex w-full lg:w-auto lg:justify-end">
               {summaryItems.map((item) => (
                 <div
                   key={item.key}
-                  className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                  className="min-w-[132px] rounded-2xl border border-white/60 bg-white/78 px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
                 >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                     {item.label}
@@ -93,7 +94,7 @@ function DashboardMetricsPanel({
         </div>
 
         <div className="rounded-[24px] border border-white/55 bg-white/38 p-1.5 backdrop-blur-sm">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className={['grid gap-4', gridClassName].join(' ')}>
             {cards.map((card) => (
               <DashboardMetricCard
                 key={card.key}
@@ -549,6 +550,7 @@ export default function Dashboard() {
                 cards={personalMetricCards}
                 summaryItems={personalSummaryItems}
                 tone="personal"
+                gridClassName="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
               />
             </section>
           )}
@@ -561,6 +563,7 @@ export default function Dashboard() {
                 cards={systemMetricCards}
                 summaryItems={systemSummaryItems}
                 tone="system"
+                gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
               />
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
