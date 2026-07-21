@@ -228,24 +228,6 @@ const mapStatusToStage = (status, stage, reviewedAt, approvedAt, publishedAt) =>
   return 'draft'
 }
 
-const summaryCards = (t) => [
-  { label: t('status_pending_ack'), status: 'Pending Acknowledgment', tone: 'warning' },
-  { label: t('status_draft'), status: 'Draft', tone: 'neutral' },
-  { label: t('status_in_review'), status: 'Waiting for Review', tone: 'info' },
-  { label: t('status_in_approval'), status: 'Waiting for Approval', tone: 'brand' },
-  { label: t('status_published'), status: 'Published', tone: 'success' },
-  { label: t('status_archived'), status: 'Obsolete', tone: 'danger' }
-]
-
-const summaryToneClassMap = {
-  warning: 'bg-brand/8 text-[var(--dms-color-info-ink)] border-brand/15 hover:bg-brand/12',
-  neutral: 'bg-brand/10 text-[var(--dms-color-info-ink)] border-brand/20 hover:bg-brand/14',
-  info: 'bg-brand/12 text-[var(--dms-color-info-ink)] border-brand/25 hover:bg-brand/16',
-  brand: 'bg-brand/14 text-[var(--dms-color-info-ink)] border-brand/30 hover:bg-brand/18',
-  success: 'bg-brand/16 text-[var(--dms-color-info-ink)] border-brand/35 hover:bg-brand/20',
-  danger: 'bg-brand/18 text-[var(--dms-color-info-ink)] border-brand/40 hover:bg-brand/22'
-}
-
 const getDisplayFileCode = (doc) => (
   doc.rawStatus === 'PENDING_ACKNOWLEDGMENT' || (doc.fileCode && doc.fileCode.startsWith('PENDING-'))
     ? '-'
@@ -684,33 +666,6 @@ export default function MyDocumentsStatus() {
           </AppSurface>
         )}
 
-        {!loading && documents.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            {summaryCards(t).map((item) => {
-              const count = documents.filter((doc) => matchesStatusFilter(doc, item.status)).length
-              const isActive = statusFilter === item.status
-
-              return (
-                <AppSurface
-                  key={item.status}
-                  as="button"
-                  type="button"
-                  onClick={() => setStatusFilter(item.status)}
-                  padding="md"
-                  className={[
-                    'text-left transition-all',
-                    summaryToneClassMap[item.tone],
-                    isActive ? 'shadow-dms-soft ring-1 ring-brand/20' : 'hover:-translate-y-0.5'
-                  ].join(' ')}
-                >
-                  <div className="text-2xl font-semibold text-ink">{count}</div>
-                  <div className="mt-1 text-xs text-ink-muted">{item.label}</div>
-                </AppSurface>
-              )
-            })}
-          </div>
-        )}
-
         {currentTracking ? (
           <div className="space-y-4">
             <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
@@ -718,7 +673,7 @@ export default function MyDocumentsStatus() {
               documents={documents}
               stageFilter={stageFilter}
               onStageFilterChange={setStageFilter}
-              onClear={() => setStageFilter('all')}
+              onClear={clearListFilters}
             />
           </div>
         ) : (
@@ -733,7 +688,7 @@ export default function MyDocumentsStatus() {
               documents={documents}
               stageFilter={stageFilter}
               onStageFilterChange={setStageFilter}
-              onClear={() => setStageFilter('all')}
+              onClear={clearListFilters}
             />
           </div>
         )}

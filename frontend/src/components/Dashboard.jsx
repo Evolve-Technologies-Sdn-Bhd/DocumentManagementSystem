@@ -28,6 +28,99 @@ const ClipboardListIcon = (props) => (
   <svg {...props} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 104 0M9 5a2 2 0 014 0m-6 5h6m-6 4h6m-6 4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 )
 
+function DashboardMetricsPanel({
+  label,
+  description,
+  cards,
+  summaryItems = [],
+  tone = 'personal'
+}) {
+  const isPersonal = tone === 'personal'
+  const panelClassName = isPersonal
+    ? 'border border-[var(--dms-color-info-ink)]/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(232,244,255,0.98)_48%,rgba(217,236,255,0.98)_100%)] shadow-[0_18px_40px_rgba(20,81,123,0.14)]'
+    : 'border border-[var(--dms-color-border-strong)]/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(242,247,252,0.98)_45%,rgba(229,238,248,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
+  const badgeClassName = isPersonal
+    ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/10'
+    : 'bg-surface text-ink ring-1 ring-[var(--dms-color-border-strong)]/15'
+  const accentClassName = isPersonal
+    ? 'from-[var(--dms-color-info-default)]/20 via-[var(--dms-color-info-ink)]/10 to-transparent'
+    : 'from-slate-400/20 via-slate-500/10 to-transparent'
+  const secondaryAccentClassName = isPersonal
+    ? 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),rgba(255,255,255,0))]'
+    : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.88),rgba(255,255,255,0))]'
+  const cardClassName = isPersonal
+    ? 'border border-white/70 bg-white/72 backdrop-blur-sm shadow-[0_12px_30px_rgba(26,87,140,0.10)] hover:border-[var(--dms-color-info-ink)]/15 hover:shadow-[0_16px_34px_rgba(26,87,140,0.15)]'
+    : 'border border-white/70 bg-white/76 backdrop-blur-sm shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:border-[var(--dms-color-border-strong)]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]'
+  const summaryValueClassName = isPersonal ? 'text-[var(--dms-color-info-ink)]' : 'text-ink'
+
+  return (
+    <AppSurface
+      variant="muted"
+      padding="lg"
+      className={['relative overflow-hidden rounded-[28px]', panelClassName].join(' ')}
+    >
+      <div className={['pointer-events-none absolute inset-0 bg-gradient-to-br', accentClassName].join(' ')} />
+      <div className={['pointer-events-none absolute inset-x-8 top-0 h-28 blur-3xl', secondaryAccentClassName].join(' ')} />
+
+      <div className="relative z-10 space-y-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <span className={['inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', badgeClassName].join(' ')}>
+              {label}
+            </span>
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-ink">{label}</h2>
+              <p className="max-w-2xl text-sm leading-6 text-ink-secondary">
+                {description}
+              </p>
+            </div>
+          </div>
+
+          {summaryItems.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:min-w-[320px]">
+              {summaryItems.map((item) => (
+                <div
+                  key={item.key}
+                  className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                    {item.label}
+                  </div>
+                  <div className={['mt-2 text-2xl font-semibold leading-none', summaryValueClassName].join(' ')}>
+                    {item.value}
+                  </div>
+                  {item.caption ? (
+                    <div className="mt-2 text-xs leading-5 text-ink-secondary">
+                      {item.caption}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-[24px] border border-white/55 bg-white/38 p-1.5 backdrop-blur-sm">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {cards.map((card) => (
+              <DashboardMetricCard
+                key={card.key}
+                title={card.title}
+                value={card.value}
+                description={card.description}
+                icon={card.icon}
+                tone={card.tone}
+                surfaceClassName={cardClassName}
+                surfaceStyle={card.surfaceStyle}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </AppSurface>
+  )
+}
+
 const getCurrentUserFromStorage = () => {
   try {
     const raw = localStorage.getItem('user')
@@ -402,6 +495,34 @@ export default function Dashboard() {
     }
   ]
   const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
+  const personalSummaryItems = [
+    {
+      key: 'total-personal',
+      label: t('dashboard_status_total'),
+      value: personalMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0),
+      caption: t('dashboard_metric_personal_desc')
+    },
+    {
+      key: 'needs-action',
+      label: t('dashboard_metric_needs_action'),
+      value: metrics.needsMyAction ?? 0,
+      caption: t('dashboard_metric_needs_action_desc')
+    }
+  ]
+  const systemSummaryItems = [
+    {
+      key: 'system-total',
+      label: t('dashboard_status_total'),
+      value: systemMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0),
+      caption: t('dashboard_metric_system_desc')
+    },
+    {
+      key: 'system-published',
+      label: t('dashboard_metric_global_published'),
+      value: activeMetrics.published ?? 0,
+      caption: t('dashboard_metric_global_published_desc')
+    }
+  ]
 
   const expiryItems = [
     {
@@ -444,73 +565,25 @@ export default function Dashboard() {
         <>
           {dashboardMode === 'admin' && (
             <section className="space-y-3" data-tour-id="dashboard-personal-metrics">
-              <AppSurface
-                variant="muted"
-                padding="lg"
-                className="border-l-4 border-l-[var(--dms-color-info-ink)]"
-              >
-                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-[var(--dms-color-info-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--dms-color-info-ink)]">
-                        {t('dashboard_metric_personal_label')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-ink-secondary">
-                      {t('dashboard_metric_personal_desc')}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {personalMetricCards.map((card) => (
-                    <DashboardMetricCard
-                      key={card.key}
-                      title={card.title}
-                      value={card.value}
-                      description={card.description}
-                      icon={card.icon}
-                      tone={card.tone}
-                      surfaceStyle={card.surfaceStyle}
-                    />
-                  ))}
-                </div>
-              </AppSurface>
+              <DashboardMetricsPanel
+                label={t('dashboard_metric_personal_label')}
+                description={t('dashboard_metric_personal_desc')}
+                cards={personalMetricCards}
+                summaryItems={personalSummaryItems}
+                tone="personal"
+              />
             </section>
           )}
 
           <section className="space-y-3" data-tour-id="dashboard-metrics">
             {dashboardMode === 'admin' ? (
-              <AppSurface
-                variant="muted"
-                padding="lg"
-                className="border-l-4 border-l-[var(--dms-color-border-strong)]"
-              >
-                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-surface-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                        {t('dashboard_metric_system_label')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-ink-secondary">
-                      {t('dashboard_metric_system_desc')}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                  {systemMetricCards.map((card) => (
-                    <DashboardMetricCard
-                      key={card.key}
-                      title={card.title}
-                      value={card.value}
-                      description={card.description}
-                      icon={card.icon}
-                      tone={card.tone}
-                      surfaceStyle={card.surfaceStyle}
-                    />
-                  ))}
-                </div>
-              </AppSurface>
+              <DashboardMetricsPanel
+                label={t('dashboard_metric_system_label')}
+                description={t('dashboard_metric_system_desc')}
+                cards={systemMetricCards}
+                summaryItems={systemSummaryItems}
+                tone="system"
+              />
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {activeMetricCards.map((card) => (
