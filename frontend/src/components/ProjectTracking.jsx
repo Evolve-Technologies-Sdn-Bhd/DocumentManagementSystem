@@ -26,6 +26,7 @@ import SectionHeader from './ui/SectionHeader'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import IconButton from './ui/IconButton'
+import ActionMenu from './ActionMenu'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -920,6 +921,51 @@ function PhaseModal({ mode, phase, nextPhaseNo, onClose, onSubmit }) {
           </Button>
         </div>
       </form>
+    </ModalShell>
+  )
+}
+
+function PhasePickerModal({ phases, selectedIterationId, onClose, onSelect }) {
+  return (
+    <ModalShell title="Project Phases" onClose={onClose} maxWidthClass="max-w-3xl">
+      <div className="space-y-4">
+        <div className="text-sm text-ink-muted">Switch between iterations under the same project and review each stage flow separately.</div>
+        <div className="space-y-2">
+          {phases.map((phase) => {
+            const isSelected = phase.id === selectedIterationId
+            return (
+              <button
+                key={phase.id}
+                type="button"
+                onClick={() => onSelect(phase)}
+                className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                  isSelected
+                    ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
+                    : 'border-border bg-surface hover:border-border-strong hover:bg-surface-muted'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">{`Phase ${phase.iterationNo}`}</div>
+                    <div className="mt-1 truncate text-sm font-semibold text-ink" title={phase.name || ''}>
+                      {phase.name || 'Project Phase'}
+                    </div>
+                    <div className="mt-2 text-xs text-ink-secondary">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${isSelected ? 'bg-brand text-ink-inverse' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
+                    {isSelected ? 'Active' : 'Open'}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
     </ModalShell>
   )
 }
@@ -2419,9 +2465,9 @@ function ProjectStageBulletTimeline({
   const [expandedStageIds, setExpandedStageIds] = useState([])
 
   useEffect(() => {
-    const defaultStage = currentIndex >= 0 ? ordered[currentIndex] : ordered[0]
-    setExpandedStageIds(defaultStage?.id != null ? [String(defaultStage.id)] : [])
-  }, [currentIndex, orderedStageIds])
+    const valid = new Set(ordered.map((stage) => String(stage.id)))
+    setExpandedStageIds((prev) => prev.filter((id) => valid.has(String(id))))
+  }, [orderedStageIds])
 
   if (ordered.length === 0) {
     return <div className="text-sm text-ink-muted">No stages configured for this project.</div>
@@ -2448,10 +2494,26 @@ function ProjectStageBulletTimeline({
                 : 'upcoming'
             : 'upcoming'
 
+        const prevState =
+          currentIndex >= 0
+            ? index - 1 < currentIndex
+              ? 'done'
+              : index - 1 === currentIndex
+                ? 'current'
+                : 'upcoming'
+            : 'upcoming'
+
         const lineTone =
           state === 'done'
             ? 'var(--dms-color-success-ink)'
             : state === 'current'
+              ? 'var(--dms-color-brand)'
+              : 'var(--dms-color-border)'
+
+        const lineToneAbove =
+          prevState === 'done'
+            ? 'var(--dms-color-success-ink)'
+            : prevState === 'current'
               ? 'var(--dms-color-brand)'
               : 'var(--dms-color-border)'
 
@@ -2460,6 +2522,13 @@ function ProjectStageBulletTimeline({
             ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]/35'
             : state === 'current'
               ? 'border-brand/25 bg-[var(--dms-color-info-soft)]/40 shadow-[0_0_0_1px_rgba(59,130,246,0.08)]'
+              : 'border-border bg-surface-muted'
+
+        const notchTone =
+          state === 'done'
+            ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]/35'
+            : state === 'current'
+              ? 'border-brand/25 bg-[var(--dms-color-info-soft)]/40'
               : 'border-border bg-surface-muted'
 
         const badgeTone =
@@ -2497,21 +2566,28 @@ function ProjectStageBulletTimeline({
             key={stage.id}
             sx={{
               alignItems: 'stretch',
-              minHeight: 'unset',
-              '&:not(:last-child)': {
-                pb: 2
-              }
+              minHeight: 'unset'
             }}
           >
-            <TimelineSeparator sx={{ mr: 2, minWidth: '20px' }}>
+            <TimelineSeparator sx={{ mr: 2, minWidth: '34px', alignItems: 'center' }}>
+              {index > 0 ? (
+                <TimelineConnector
+                  sx={{
+                    width: '3px',
+                    borderRadius: '9999px',
+                    backgroundColor: lineToneAbove,
+                    opacity: prevState === 'upcoming' ? 0.18 : 0.46
+                  }}
+                />
+              ) : null}
               <TimelineDot
                 variant={dotVariant}
                 sx={{
-                  my: 0.5,
+                  my: 0.75,
                   mx: 0,
                   p: 0,
-                  width: '14px',
-                  height: '14px',
+                  width: '16px',
+                  height: '16px',
                   borderWidth: '2px',
                   ...dotSx
                 }}
@@ -2519,32 +2595,35 @@ function ProjectStageBulletTimeline({
               {index < ordered.length - 1 ? (
                 <TimelineConnector
                   sx={{
-                    width: '2px',
+                    width: '3px',
                     borderRadius: '9999px',
                     backgroundColor: lineTone,
-                    opacity: state === 'upcoming' ? 0.6 : 0.28
+                    opacity: state === 'upcoming' ? 0.18 : 0.46
                   }}
                 />
               ) : null}
             </TimelineSeparator>
-            <TimelineContent sx={{ py: 0, px: 0, minWidth: 0 }}>
-              <div className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${cardTone}`}>
-                <div>
-                  <div className="text-sm font-semibold text-ink">{stage.label}</div>
-                  <div className="mt-1 text-xs text-ink-muted">
-                    {state === 'done'
-                      ? 'This stage is completed.'
-                      : state === 'current'
-                        ? 'This is the current active stage.'
-                        : 'This stage has not started yet.'}
+            <TimelineContent sx={{ py: 0, px: 0, minWidth: 0, pb: index < ordered.length - 1 ? 2.5 : 0 }}>
+              <div className={`relative rounded-2xl border px-4 py-3 ${cardTone}`}>
+                <div className={`absolute left-0 top-5 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-l border-b ${notchTone}`} />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-ink">{stage.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">
+                      {state === 'done'
+                        ? 'This stage is completed.'
+                        : state === 'current'
+                          ? 'This is the current active stage.'
+                          : 'This stage has not started yet.'}
+                    </div>
+                    <div className="mt-2 text-xs font-medium text-ink-secondary">
+                      {`${stageDocuments.length} attached document${stageDocuments.length === 1 ? '' : 's'}`}
+                    </div>
                   </div>
-                  <div className="mt-2 text-xs font-medium text-ink-secondary">
-                    {`${stageDocuments.length} attached document${stageDocuments.length === 1 ? '' : 's'}`}
-                  </div>
+                  <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${badgeTone}`}>
+                    {badgeLabel}
+                  </span>
                 </div>
-                <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${badgeTone}`}>
-                  {badgeLabel}
-                </span>
               </div>
 
               <div className="pl-0">
@@ -2563,7 +2642,7 @@ function ProjectStageBulletTimeline({
                 </button>
 
                 {isExpanded && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
                     {documentsLoading ? (
                       <div className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-3 py-3 text-xs text-ink-muted">
                         <InlineSpinner className="h-3.5 w-3.5" />
@@ -3155,8 +3234,7 @@ function ProjectDetail({ projectId }) {
     return overallDocsPageSizeOptions.find((option) => option > numericValue) || overallDocsPageSizeOptions[overallDocsPageSizeOptions.length - 1]
   }, [overallDocsPageSizeOptions])
   const [overallDocsPage, setOverallDocsPage] = useState(1)
-  const [overallDocsPageSize, setOverallDocsPageSize] = useState(() => normalizeOverallDocsPageSize(itemsPerPage))
-  const [focusRequiredItemId, setFocusRequiredItemId] = useState('')
+  const [overallDocsPageSize, setOverallDocsPageSize] = useState(() => normalizeOverallDocsPageSize(5))
   const [requiredDocumentAssignments, setRequiredDocumentAssignments] = useState({})
   const [canAssignRequiredDocumentPic, setCanAssignRequiredDocumentPic] = useState(false)
   const [showAssignRequiredDocumentPic, setShowAssignRequiredDocumentPic] = useState(null)
@@ -3173,6 +3251,7 @@ function ProjectDetail({ projectId }) {
   const [isChangeLogExpanded, setIsChangeLogExpanded] = useState(false)
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false)
   const [editChangeRequest, setEditChangeRequest] = useState(null)
+  const [showPhasePickerModal, setShowPhasePickerModal] = useState(false)
 
   const loadProject = async (preferredIterationId = null) => {
     setLoading(true)
@@ -3190,10 +3269,6 @@ function ProjectDetail({ projectId }) {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    setOverallDocsPageSize(normalizeOverallDocsPageSize(itemsPerPage))
-  }, [itemsPerPage, normalizeOverallDocsPageSize])
 
   useEffect(() => {
     setOverallDocsPage(1)
@@ -3467,8 +3542,12 @@ function ProjectDetail({ projectId }) {
     currentStageItems.filter((item) => String(item.status || '').toUpperCase() === 'PENDING')
   ), [currentStageItems])
 
+  const currentStageFocusItems = useMemo(() => (
+    currentStagePendingItems.filter((item) => (Array.isArray(item.links) ? item.links : []).length === 0)
+  ), [currentStagePendingItems])
+
   const currentStageBlockingItems = useMemo(() => {
-    return currentStagePendingItems.map((item) => {
+    return currentStageFocusItems.map((item) => {
       const links = Array.isArray(item.links) ? item.links : []
       const publishedLinks = links.filter((link) => String(link.document?.status || '').toUpperCase() === 'PUBLISHED')
       const draftLinks = links.filter((link) => String(link.document?.status || '').toUpperCase() === 'DRAFT')
@@ -3497,27 +3576,10 @@ function ProjectDetail({ projectId }) {
         reason
       }
     })
-  }, [currentStagePendingItems])
+  }, [currentStageFocusItems])
 
   const currentStageHasChecklist = currentStageItems.length > 0
   const currentStageReadyToAdvance = currentStageHasChecklist && currentStagePendingItems.length === 0
-
-  useEffect(() => {
-    const nextFirstId = currentStageBlockingItems[0]?.id != null ? String(currentStageBlockingItems[0].id) : ''
-    setFocusRequiredItemId((prev) => {
-      if (!prev) return nextFirstId
-      const stillExists = currentStageBlockingItems.some((entry) => String(entry.id) === String(prev))
-      return stillExists ? prev : nextFirstId
-    })
-  }, [currentStageBlockingItems])
-
-  const focusBlockingEntry = useMemo(() => {
-    if (!focusRequiredItemId) return currentStageBlockingItems[0] || null
-    return currentStageBlockingItems.find((entry) => String(entry.id) === String(focusRequiredItemId)) || currentStageBlockingItems[0] || null
-  }, [currentStageBlockingItems, focusRequiredItemId])
-
-  const focusBlockingItem = focusBlockingEntry?.item || null
-  const focusBlockingDraftDocument = focusBlockingEntry?.accessibleDraftLink?.document || null
 
   const consolidatedDocuments = useMemo(() => {
     const byDocumentId = new Map()
@@ -4022,12 +4084,46 @@ function ProjectDetail({ projectId }) {
 
               {currentStageBlockingItems.length > 0 ? (
                 <div className="grid gap-3 md:grid-cols-2">
-                  {currentStageBlockingItems.slice(0, 4).map((entry) => (
-                    <div key={entry.id} className="rounded-xl border border-border bg-surface px-4 py-3">
-                      <div className="text-sm font-semibold text-ink">{entry.label}</div>
-                      <div className="mt-1 text-xs text-ink-muted">{entry.reason}</div>
-                    </div>
-                  ))}
+                  {currentStageBlockingItems.slice(0, 4).map((entry) => {
+                    const actions = []
+
+                    if (canLink && isProjectActive) {
+                      actions.push({
+                        label: 'Attach Evidence',
+                        onClick: () => setShowLink(entry.item)
+                      })
+                    }
+
+                    if (canCreate && isProjectActive) {
+                      actions.push({
+                        label: 'Create Draft',
+                        onClick: () => setShowCreateDoc(entry.item)
+                      })
+                    }
+
+                    if (entry.accessibleDraftLink?.document) {
+                      actions.push({
+                        label: 'Open Draft',
+                        onClick: () => openDocumentWorkspace(entry.accessibleDraftLink.document)
+                      })
+                    }
+
+                    return (
+                      <div key={entry.id} className="group rounded-xl border border-border bg-surface px-4 py-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-sm font-semibold text-ink">{entry.label}</div>
+                          <div className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                            <ActionMenu actions={actions} />
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs text-ink-muted">{entry.reason}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : currentStagePendingItems.length > 0 ? (
+                <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-ink-secondary">
+                  All pending required items already have evidence linked. Review them in Current Stage.
                 </div>
               ) : null}
             </div>
@@ -4037,30 +4133,6 @@ function ProjectDetail({ projectId }) {
               {currentStageId && activeStageTab !== currentStageId ? (
                 <Button size="sm" variant="secondary" onClick={() => setActiveStageTab(currentStageId)}>
                   Open Current Stage
-                </Button>
-              ) : null}
-              {canLink && isProjectActive && focusBlockingItem ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowLink(focusBlockingItem)}
-                  title={focusBlockingItem?.documentType?.name ? `Attach evidence for: ${focusBlockingItem.documentType.name}` : 'Attach evidence'}
-                >
-                  Attach Evidence
-                </Button>
-              ) : null}
-              {canCreate && isProjectActive && focusBlockingItem ? (
-                <Button
-                  size="sm"
-                  onClick={() => setShowCreateDoc(focusBlockingItem)}
-                  title={focusBlockingItem?.documentType?.name ? `Create draft for: ${focusBlockingItem.documentType.name}` : 'Create draft'}
-                >
-                  Create Draft
-                </Button>
-              ) : null}
-              {focusBlockingDraftDocument ? (
-                <Button size="sm" variant="secondary" onClick={() => openDocumentWorkspace(focusBlockingDraftDocument)}>
-                  Open Draft
                 </Button>
               ) : null}
               {canMoveToNextStage && currentStageReadyToAdvance && isProjectActive ? (
@@ -4079,34 +4151,6 @@ function ProjectDetail({ projectId }) {
                 </Button>
               ) : null}
               </div>
-              {focusBlockingItem ? (
-                <div className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-ink-secondary">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Actions apply to</div>
-                  <div className="mt-1 text-sm font-semibold text-ink">{focusBlockingItem.documentType?.name || 'Required document'}</div>
-                  {currentStagePendingItems.length > 1 ? (
-                    <div className="mt-1 text-xs text-ink-muted">{`${currentStagePendingItems.length} pending required items in this stage`}</div>
-                  ) : null}
-                  {currentStageBlockingItems.length > 1 ? (
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Pick item</span>
-                      <SelectField
-                        value={focusRequiredItemId || String(currentStageBlockingItems[0]?.id || '')}
-                        onChange={(e) => setFocusRequiredItemId(e.target.value)}
-                        className="h-9"
-                      >
-                        {currentStageBlockingItems.map((entry) => (
-                          <option key={entry.id} value={String(entry.id)}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </div>
-                  ) : null}
-                  {focusBlockingEntry?.reason ? (
-                    <div className="mt-2 text-xs text-ink-muted">{focusBlockingEntry.reason}</div>
-                  ) : null}
-                </div>
-              ) : null}
             </div>
           </div>
         </AppSurface>
@@ -4115,17 +4159,40 @@ function ProjectDetail({ projectId }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AppSurface padding="lg" className="h-full">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Selected Phase</div>
-          <div className="mt-2 text-lg font-semibold text-ink">{selectedPhase ? getPhaseTitle(selectedPhase, '-') : '-'}</div>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <div className="text-lg font-semibold text-ink">{selectedPhase ? getPhaseTitle(selectedPhase, '-') : '-'}</div>
+            {canEdit && selectedPhase ? (
+              <IconButton
+                size="sm"
+                onClick={() => setShowEditPhase(selectedPhase)}
+                aria-label="Rename phase"
+                title="Rename phase"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-4 w-4">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16.862 3.487a2.1 2.1 0 0 1 2.97 2.97L8.25 18.039 4 19l.961-4.25L16.862 3.487z"
+                  />
+                </svg>
+              </IconButton>
+            ) : null}
+          </div>
           <div className="mt-2 text-sm text-ink-secondary">{selectedPhase?.currentStage?.name || 'No current stage set'}</div>
-          {canEdit && selectedPhase && (
-            <button
-              type="button"
-              onClick={() => setShowEditPhase(selectedPhase)}
-              className="mt-3 text-sm font-medium text-brand hover:underline"
-            >
-              Rename Phase
-            </button>
-          )}
+          {selectedPhase ? (
+            <div className="mt-3">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowPhasePickerModal(true)}
+                disabled={phases.length <= 1}
+                title={phases.length <= 1 ? 'No other phases available' : 'Switch phase'}
+              >
+                Switch Phase
+              </Button>
+            </div>
+          ) : null}
         </AppSurface>
         <AppSurface padding="lg" className="h-full">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Required Completion</div>
@@ -4363,10 +4430,10 @@ function ProjectDetail({ projectId }) {
                 onClick={() => openStage(stage.id)}
                 className={`flex min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
               >
-                <div className="text-base font-semibold text-ink">{stage.name}</div>
-                <div className="mt-2">
+                <div>
                   <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${isActiveTab ? 'bg-brand text-ink-inverse' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
                 </div>
+                <div className="mt-2 text-base font-semibold text-ink">{stage.name}</div>
                 <div className="mt-2 text-sm font-medium text-ink">
                   {stage.metrics ? `Required: ${stage.metrics.complete}/${stage.metrics.total}` : 'No checklist'}
                 </div>
@@ -5084,6 +5151,18 @@ function ProjectDetail({ projectId }) {
           onSubmit={async (payload) => {
             await renameIteration(showEditPhase.id, payload)
             setShowEditPhase(null)
+          }}
+        />
+      )}
+
+      {showPhasePickerModal && (
+        <PhasePickerModal
+          phases={phases}
+          selectedIterationId={selectedIterationId}
+          onClose={() => setShowPhasePickerModal(false)}
+          onSelect={(phase) => {
+            setSelectedIterationId(phase.id)
+            setShowPhasePickerModal(false)
           }}
         />
       )}
