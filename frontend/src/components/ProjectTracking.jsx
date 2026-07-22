@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Timeline from '@mui/lab/Timeline'
 import TimelineConnector from '@mui/lab/TimelineConnector'
 import TimelineContent from '@mui/lab/TimelineContent'
@@ -2953,6 +2953,7 @@ function ProjectDetail({ projectId }) {
   const canViewActivityLogs = hasPermission('projectTracking', 'activityLogs') || hasPermission('projectTracking', 'view')
   const canKeyInChangeRequest = hasPermission('projectTracking', 'keyInChangeRequest') || canEdit
   const canEditProject = hasPermission('projectTracking', 'editProject') || canEdit
+  const canOpenMoreActions = canOpenProjectControls || canViewActivityLogs || canKeyInChangeRequest || canEditProject
   const canAddNextPhase = hasPermission('projectTracking', 'addNextPhase') || canCreate
   const canMoveToNextStage = hasPermission('projectTracking', 'moveToNextStage') || canAdvance
 
@@ -3168,6 +3169,61 @@ function ProjectDetail({ projectId }) {
     return stages.find((stage) => stage.id === activeStageTab) || null
   }, [activeStageTab, stages])
 
+  const canInteractWithDocument = (document) => {
+    if (document?.canAccess === false) return false
+    if (document?.isConfidential) return document?.canAccess === true
+    return true
+  }
+
+  const currentStageId = selectedPhase?.currentStage?.id || null
+
+  const currentStageItems = useMemo(() => {
+    if (!currentStageId) return []
+    return itemsByStage.get(currentStageId) || []
+  }, [currentStageId, itemsByStage])
+
+  const currentStagePendingItems = useMemo(() => (
+    currentStageItems.filter((item) => String(item.status || '').toUpperCase() === 'PENDING')
+  ), [currentStageItems])
+
+  const currentStageBlockingItems = useMemo(() => {
+    return currentStagePendingItems.map((item) => {
+      const links = Array.isArray(item.links) ? item.links : []
+      const publishedLinks = links.filter((link) => String(link.document?.status || '').toUpperCase() === 'PUBLISHED')
+      const draftLinks = links.filter((link) => String(link.document?.status || '').toUpperCase() === 'DRAFT')
+      const reviewLinks = links.filter((link) => ['PENDING_REVIEW', 'IN_REVIEW'].includes(String(link.document?.status || '').toUpperCase()))
+      const accessibleDraftLink = draftLinks.find((link) => canInteractWithDocument(link.document)) || null
+
+      let reason = 'Waiting for published evidence.'
+      if (links.length === 0) {
+        reason = 'No linked document yet.'
+      } else if (accessibleDraftLink) {
+        reason = 'Draft available and still needs completion.'
+      } else if (reviewLinks.length > 0) {
+        reason = 'Document is in review and not published yet.'
+      } else if (publishedLinks.length > 0) {
+        reason = 'Published evidence exists but checklist has not refreshed yet.'
+      } else if (links.some((link) => link.document?.isConfidential && !canInteractWithDocument(link.document))) {
+        reason = 'Linked document is confidential and access is restricted.'
+      }
+
+      return {
+        id: item.id,
+        item,
+        label: item.documentType?.name || 'Required document',
+        links,
+        accessibleDraftLink,
+        reason
+      }
+    })
+  }, [currentStagePendingItems])
+
+  const currentStageHasChecklist = currentStageItems.length > 0
+  const currentStageReadyToAdvance = currentStageHasChecklist && currentStagePendingItems.length === 0
+
+  const firstBlockingItem = currentStageBlockingItems[0]?.item || null
+  const firstBlockingDraftDocument = currentStageBlockingItems.find((entry) => entry.accessibleDraftLink)?.accessibleDraftLink?.document || null
+
   const consolidatedDocuments = useMemo(() => {
     const byDocumentId = new Map()
 
@@ -3285,14 +3341,7 @@ function ProjectDetail({ projectId }) {
       showRestrictedDocumentAlert('view this file')
       return
     }
-
-    const currentStatus = String(document.status || '').toUpperCase()
-    if (currentStatus === 'DRAFT') {
-      navigate(`/drafts?docId=${document.id}&origin=project-tracking`)
-      return
-    }
-
-    await downloadDocument(document)
+    navigate(`/documents/${document.id}`)
   }
 
   const openDocumentDirectory = async (document) => {
@@ -3411,20 +3460,9 @@ function ProjectDetail({ projectId }) {
     }
   }
 
-  const getDocumentWorkspaceLabel = (document) => (
-    String(document?.status || '').toUpperCase() === 'DRAFT' ? 'Continue Draft' : 'View File'
-  )
+  const getDocumentWorkspaceLabel = () => 'Open Document'
 
-  const getDocumentDirectoryLabel = (document) => {
-    const currentStage = String(document?.stage || document?.status || '').toUpperCase()
-    return currentStage === 'DRAFT' ? 'Continue Draft' : 'Go to File Directory'
-  }
-
-  const canInteractWithDocument = (document) => {
-    if (document?.canAccess === false) return false
-    if (document?.isConfidential) return document?.canAccess === true
-    return true
-  }
+  const getDocumentDirectoryLabel = () => 'Open Location'
 
   const showRestrictedDocumentAlert = (actionLabel = 'interact with this document') => {
     setAlertModal({
@@ -3543,31 +3581,12 @@ function ProjectDetail({ projectId }) {
           subtitle="Track required documents, stage evidence, and confidential access for each phase."
           actions={(
             <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
-              {canOpenProjectControls ? (
+              {canOpenMoreActions ? (
                 <Button size="sm" variant="secondary" onClick={() => setShowProjectControls(true)}>
-                  Project Controls
+                  More Actions
                 </Button>
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
-                {canViewActivityLogs ? (
-                  <Button size="sm" variant="secondary" onClick={() => setShowActivity(true)}>Activity Logs</Button>
-                ) : null}
-                {canKeyInChangeRequest ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setEditChangeRequest(null)
-                      setShowChangeRequestModal(true)
-                    }}
-                    disabled={!selectedIterationId}
-                  >
-                    Key In Change Request
-                  </Button>
-                ) : null}
-                {canEditProject ? (
-                  <Button size="sm" variant="secondary" onClick={() => setShowEditProject(true)}>Edit</Button>
-                ) : null}
                 {canAddNextPhase ? (
                   <Button size="sm" variant="primary" onClick={() => setShowCreatePhase(true)} disabled={!isProjectActive}>
                     Add Next Phase
@@ -3585,7 +3604,7 @@ function ProjectDetail({ projectId }) {
                         onConfirm: advanceStage
                       })
                     }
-                    disabled={advancing || !selectedIterationId || !isProjectActive}
+                    disabled={advancing || !selectedIterationId || !isProjectActive || currentStagePendingItems.length > 0}
                   >
                     {advancing ? <><InlineSpinner className="h-4 w-4" />Moving...</> : 'Move To Next Stage'}
                   </Button>
@@ -3624,6 +3643,114 @@ function ProjectDetail({ projectId }) {
             </div>
           </div>
         </div>
+
+        <AppSurface
+          padding="lg"
+          className={`border ${
+            !selectedPhase
+              ? 'border-border bg-surface'
+              : isProjectFrozen
+                ? 'border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35'
+                : currentStageReadyToAdvance
+                  ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]/35'
+                  : 'border-[var(--dms-color-info-ink)]/15 bg-[var(--dms-color-info-soft)]/35'
+          }`}
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                  !selectedPhase
+                    ? 'bg-surface-muted text-ink-secondary'
+                    : isProjectFrozen
+                      ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
+                      : currentStageReadyToAdvance
+                        ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]'
+                        : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
+                }`}>
+                  {!selectedPhase
+                    ? 'No Active Phase'
+                    : isProjectFrozen
+                      ? 'Progress Paused'
+                      : currentStageReadyToAdvance
+                        ? 'Ready To Move'
+                        : `${currentStagePendingItems.length} Blocking Item${currentStagePendingItems.length === 1 ? '' : 's'}`}
+                </span>
+                {selectedPhase ? (
+                  <span className="text-xs font-medium text-ink-secondary">
+                    {`${getPhaseTitle(selectedPhase, 'Phase')} • ${currentStageLabel}`}
+                  </span>
+                ) : null}
+              </div>
+
+              <div>
+                <div className="text-lg font-semibold text-ink">Current Focus</div>
+                <div className="mt-1 text-sm text-ink-secondary">
+                  {!selectedPhase
+                    ? 'Select a project phase to review the current stage and required evidence.'
+                    : isProjectClosed
+                      ? 'This project is closed. Review linked evidence if needed, but no further progress action is expected.'
+                      : isProjectOnHold
+                        ? 'This project is on hold. Resume the project before continuing document completion or stage progression.'
+                        : !currentStageHasChecklist
+                          ? 'No required checklist items are configured for the current stage yet. You can still review linked stage documents below.'
+                          : currentStageReadyToAdvance
+                            ? 'All required items for the current stage are complete. The phase is ready to move forward.'
+                            : `The current stage is blocked by ${currentStagePendingItems.length} pending required item${currentStagePendingItems.length === 1 ? '' : 's'}.`}
+                </div>
+              </div>
+
+              {currentStageBlockingItems.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {currentStageBlockingItems.slice(0, 4).map((entry) => (
+                    <div key={entry.id} className="rounded-xl border border-border bg-surface px-4 py-3">
+                      <div className="text-sm font-semibold text-ink">{entry.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted">{entry.reason}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
+              {currentStageId && activeStageTab !== currentStageId ? (
+                <Button size="sm" variant="secondary" onClick={() => setActiveStageTab(currentStageId)}>
+                  Open Current Stage
+                </Button>
+              ) : null}
+              {canLink && isProjectActive && firstBlockingItem ? (
+                <Button size="sm" variant="secondary" onClick={() => setShowLink(firstBlockingItem)}>
+                  Attach Evidence
+                </Button>
+              ) : null}
+              {canCreate && isProjectActive && firstBlockingItem ? (
+                <Button size="sm" onClick={() => setShowCreateDoc(firstBlockingItem)}>
+                  Create Draft
+                </Button>
+              ) : null}
+              {firstBlockingDraftDocument ? (
+                <Button size="sm" variant="secondary" onClick={() => openDocumentWorkspace(firstBlockingDraftDocument)}>
+                  Open Draft
+                </Button>
+              ) : null}
+              {canMoveToNextStage && currentStageReadyToAdvance && isProjectActive ? (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    setConfirmModal({
+                      show: true,
+                      title: 'Move To Next Stage',
+                      message: 'Move the current phase to the next stage? All required items in the current stage are already complete.',
+                      onConfirm: advanceStage
+                    })
+                  }
+                >
+                  Move To Next Stage
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </AppSurface>
 
         <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
           <SectionHeader
@@ -4032,7 +4159,7 @@ function ProjectDetail({ projectId }) {
                         {canInteractWithDocument(entry.document) ? (
                           <button
                             type="button"
-                            onClick={() => downloadDocument(entry.document)}
+                            onClick={() => openDocumentWorkspace(entry.document)}
                             className="font-medium text-brand hover:underline"
                           >
                             {getDocumentCodeLabel(entry.document)}
@@ -4044,7 +4171,7 @@ function ProjectDetail({ projectId }) {
                           {canInteractWithDocument(entry.document) ? (
                             <button
                               type="button"
-                              onClick={() => downloadDocument(entry.document)}
+                              onClick={() => openDocumentWorkspace(entry.document)}
                               className="text-left text-ink-secondary hover:underline"
                             >
                               {getDocumentTitleLabel(entry.document)}
@@ -4070,6 +4197,12 @@ function ProjectDetail({ projectId }) {
                       <Td align="right">
                         {canInteractWithDocument(entry.document) ? (
                           <div className="inline-flex items-center justify-end gap-3">
+                            <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
+                              {getDocumentWorkspaceLabel(entry.document)}
+                            </button>
+                            <button type="button" onClick={() => downloadDocument(entry.document)} className="text-ink-secondary hover:text-ink hover:underline">
+                              Download
+                            </button>
                             <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
                               {getDocumentDirectoryLabel(entry.document)}
                             </button>
@@ -4202,14 +4335,14 @@ function ProjectDetail({ projectId }) {
                                         <>
                                           <button
                                             type="button"
-                                            onClick={() => downloadDocument(l.document)}
+                                            onClick={() => openDocumentWorkspace(l.document)}
                                             className="font-medium text-brand hover:underline"
                                           >
                                             {getDocumentCodeLabel(l.document)}
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => downloadDocument(l.document)}
+                                            onClick={() => openDocumentWorkspace(l.document)}
                                             className="text-left text-ink-muted hover:underline"
                                           >
                                             {getDocumentTitleLabel(l.document)}
@@ -4277,6 +4410,13 @@ function ProjectDetail({ projectId }) {
                                           className="font-medium text-ink-secondary hover:text-ink hover:underline"
                                         >
                                           {getDocumentWorkspaceLabel(l.document)}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => downloadDocument(l.document)}
+                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                        >
+                                          Download
                                         </button>
                                         <button
                                           type="button"
@@ -4356,14 +4496,14 @@ function ProjectDetail({ projectId }) {
                                       <>
                                         <button
                                           type="button"
-                                          onClick={() => downloadDocument(l.document)}
+                                          onClick={() => openDocumentWorkspace(l.document)}
                                           className="font-medium text-brand hover:underline"
                                         >
                                           {getDocumentCodeLabel(l.document)}
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => downloadDocument(l.document)}
+                                          onClick={() => openDocumentWorkspace(l.document)}
                                           className="text-left text-ink-muted hover:underline"
                                         >
                                           {getDocumentTitleLabel(l.document)}
@@ -4411,6 +4551,13 @@ function ProjectDetail({ projectId }) {
                                         className="font-medium text-ink-secondary hover:text-ink hover:underline"
                                       >
                                         {getDocumentWorkspaceLabel(l.document)}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadDocument(l.document)}
+                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                                      >
+                                        Download
                                       </button>
                                       <button
                                         type="button"
@@ -4567,10 +4714,55 @@ function ProjectDetail({ projectId }) {
       )}
 
       {showProjectControls && (
-        <ModalShell title="Project Controls" onClose={() => setShowProjectControls(false)} maxWidthClass="max-w-lg">
+        <ModalShell title="More Actions" onClose={() => setShowProjectControls(false)} maxWidthClass="max-w-lg">
           <div className="space-y-4">
-            <div className="text-sm text-ink-muted">Choose the project status or control action you want to run.</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="text-sm text-ink-muted">Open supporting project actions or update the project lifecycle.</div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Project Actions</div>
+              <div className="flex flex-wrap gap-2">
+                {canViewActivityLogs ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowProjectControls(false)
+                      setShowActivity(true)
+                    }}
+                  >
+                    Activity Logs
+                  </Button>
+                ) : null}
+                {canKeyInChangeRequest ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowProjectControls(false)
+                      setEditChangeRequest(null)
+                      setShowChangeRequestModal(true)
+                    }}
+                    disabled={!selectedIterationId}
+                  >
+                    Key In Change Request
+                  </Button>
+                ) : null}
+                {canEditProject ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowProjectControls(false)
+                      setShowEditProject(true)
+                    }}
+                  >
+                    Edit Project
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Lifecycle Controls</div>
+              <div className="flex flex-wrap gap-2">
               {canEdit && isProjectActive ? (
                 <Button
                   size="sm"
@@ -4655,6 +4847,7 @@ function ProjectDetail({ projectId }) {
                   Delete Project
                 </Button>
               ) : null}
+              </div>
             </div>
           </div>
         </ModalShell>
@@ -4799,12 +4992,14 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
 }
 
 function DocumentsSearch() {
+  const navigate = useNavigate()
   const [projects, setProjects] = useState([])
   const [projectId, setProjectId] = useState('')
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [results, setResults] = useState([])
+  const [notice, setNotice] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -4821,6 +5016,7 @@ function DocumentsSearch() {
   const search = async () => {
     setLoading(true)
     setHasSearched(true)
+    setNotice(null)
     try {
       const params = { q, attachedOnly: true }
       if (projectId) params.projectId = projectId
@@ -4834,6 +5030,55 @@ function DocumentsSearch() {
   useEffect(() => {
     search()
   }, [projectId])
+
+  const openSearchDocument = async (document) => {
+    if (!document?.id) return
+    const canAccess = document?.canAccess !== false && (!document?.isConfidential || document?.canAccess === true)
+    if (!canAccess) {
+      setNotice({
+        tone: 'warning',
+        message: 'You do not have permission to open this confidential document.'
+      })
+      return
+    }
+    setNotice(null)
+    navigate(`/documents/${document.id}`)
+  }
+
+  const downloadSearchDocument = async (document) => {
+    if (!document?.id) return
+    const canAccess = document?.canAccess !== false && (!document?.isConfidential || document?.canAccess === true)
+    if (!canAccess) {
+      setNotice({
+        tone: 'warning',
+        message: 'You do not have permission to download this confidential document.'
+      })
+      return
+    }
+    try {
+      setNotice(null)
+      const res = await api.get(`/documents/${document.id}/download`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: res.headers?.['content-type'] || undefined }))
+      const link = window.document.createElement('a')
+      link.href = url
+      link.setAttribute('download', document.fileName || document.title || document.fileCode || `document-${document.id}`)
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      const status = error?.response?.status
+      const serverMessage = error?.response?.data?.message
+      setNotice({
+        tone: status === 403 ? 'warning' : 'error',
+        message: serverMessage || (status === 403
+          ? 'You do not have permission to download this document.'
+          : 'Download failed. Please try again or open the document first.')
+      })
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -4859,6 +5104,17 @@ function DocumentsSearch() {
         </Button>
       </AppSurface>
 
+      {notice ? (
+        <AppSurface
+          padding="md"
+          className={notice.tone === 'warning'
+            ? 'border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35'
+            : 'border border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-soft)]/35'}
+        >
+          <div className="text-sm font-medium text-ink">{notice.message}</div>
+        </AppSurface>
+      ) : null}
+
       {loading ? (
         <AppSurface padding="lg" className="flex items-center gap-3">
           <InlineSpinner className="h-4 w-4" />
@@ -4878,22 +5134,42 @@ function DocumentsSearch() {
                   <Th>Project</Th>
                   <Th>Iteration</Th>
                   <Th>Stage</Th>
+                  <Th>Action</Th>
                 </Tr>
               </thead>
               <tbody>
                 {results.map((r) => (
                   <Tr key={r.id} className="hover:bg-surface-muted">
                     <Td>
-                      <Link to={`/documents/${r.document.id}`} className="text-brand hover:underline">
+                      <button type="button" onClick={() => openSearchDocument(r.document)} className="text-brand hover:underline">
                         {r.document.fileCode}
-                      </Link>
-                      <div className="text-ink-muted">{r.document.title}</div>
+                      </button>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-ink-muted">
+                        <span>{r.document.title}</span>
+                        <ConfidentialBadge isConfidential={r.document.isConfidential} />
+                      </div>
                     </Td>
                     <Td className="text-ink-secondary">
                       {r.iteration?.project ? `${r.iteration.project.code} • ${r.iteration.project.name}` : '-'}
                     </Td>
                     <Td className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</Td>
                     <Td className="text-ink-secondary">{r.stage?.name || '-'}</Td>
+                    <Td>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        {r.document?.canAccess === false ? (
+                          <span className="font-medium text-[var(--dms-color-warning-ink)]">Access Restricted</span>
+                        ) : (
+                          <>
+                            <button type="button" onClick={() => openSearchDocument(r.document)} className="font-medium text-brand hover:underline">
+                              Open Document
+                            </button>
+                            <button type="button" onClick={() => downloadSearchDocument(r.document)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                              Download
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </Td>
                   </Tr>
                 ))}
               </tbody>
@@ -5118,6 +5394,12 @@ function Setup() {
   }, [stages])
 
   const activeStageCount = useMemo(() => sortedStages.filter((s) => s.isEnabled).length, [sortedStages])
+  const isProjectScope = Boolean(selectedProjectId)
+  const selectedProject = useMemo(
+    () => projects.find((project) => String(project.id) === String(selectedProjectId)) || null,
+    [projects, selectedProjectId]
+  )
+  const scopeLabel = isProjectScope ? 'Project Override' : 'Default Template'
 
   const requirementsByStage = useMemo(() => {
     const grouped = new Map()
@@ -5176,6 +5458,32 @@ function Setup() {
           </div>
         </div>
 
+        <div className={`mt-4 rounded-2xl border px-4 py-4 ${
+          isProjectScope
+            ? 'border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-soft)]/45'
+            : 'border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35'
+        }`}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-ink">
+                {isProjectScope ? 'Editing Project-Specific Override' : 'Editing Default Setup For All Projects'}
+              </div>
+              <div className="mt-1 text-sm text-ink-secondary">
+                {isProjectScope
+                  ? `Changes here apply only to ${selectedProject?.code || 'the selected project'}${selectedProject?.name ? ` • ${selectedProject.name}` : ''} and will not change the default template.`
+                  : 'Changes here become the default setup for all projects unless a project has its own override.'}
+              </div>
+            </div>
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+              isProjectScope
+                ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
+                : 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
+            }`}>
+              {scopeLabel}
+            </span>
+          </div>
+        </div>
+
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
             <div className="text-xs font-medium text-ink-muted">Total Stages</div>
@@ -5202,8 +5510,12 @@ function Setup() {
           <AppSurface padding="lg">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-ink">Stage Flow</div>
-                <div className="mt-1 text-xs text-ink-muted">Rename stage labels, turn stages on or off, and reorder the flow using the move buttons.</div>
+                <div className="text-sm font-semibold text-ink">{`Stage Flow - ${scopeLabel}`}</div>
+                <div className="mt-1 text-xs text-ink-muted">
+                  {isProjectScope
+                    ? 'Adjust only this project override by renaming stage labels, turning stages on or off, or reordering the flow.'
+                    : 'Adjust the shared default template by renaming stage labels, turning stages on or off, or reordering the flow.'}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -5217,7 +5529,7 @@ function Setup() {
                   onClick={saveStages}
                   disabled={savingStages}
                 >
-                  {savingStages ? 'Saving...' : 'Save Stage Flow'}
+                  {savingStages ? 'Saving...' : isProjectScope ? 'Save Project Override' : 'Save Default Stage Flow'}
                 </Button>
               </div>
             </div>
@@ -5290,8 +5602,12 @@ function Setup() {
 
           <AppSurface padding="none" className="overflow-hidden">
             <div className="border-b border-border bg-surface-muted px-6 py-4">
-              <div className="text-sm font-semibold text-ink">Required Documents By Stage</div>
-              <div className="mt-1 text-xs text-ink-muted">Add document types that must appear in the checklist when a new project phase is created.</div>
+              <div className="text-sm font-semibold text-ink">{`Required Documents By Stage - ${scopeLabel}`}</div>
+              <div className="mt-1 text-xs text-ink-muted">
+                {isProjectScope
+                  ? 'Add document types that should appear only for this project override when a new phase is created.'
+                  : 'Add document types that should appear in the default checklist whenever a new project phase is created.'}
+              </div>
             </div>
 
             <div className="border-b border-border bg-surface p-5">

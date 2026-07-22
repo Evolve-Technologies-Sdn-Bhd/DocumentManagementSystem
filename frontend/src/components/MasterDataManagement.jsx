@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import ActionMenu from './ActionMenu'
@@ -12,13 +12,14 @@ import TextArea from './ui/TextArea'
 import AppSurface from './ui/AppSurface'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 
-const VALID_MASTERDATA_TABS = ['departments', 'project-categories', 'document-types']
+const VALID_MASTERDATA_TABS = ['departments', 'divisions', 'project-categories', 'document-types']
 
 // Tab Navigation for Master Data
 function MasterDataTabs({ activeTab, onTabChange }) {
   const { t } = usePreferences()
   const tabs = [
     { id: 'departments', label: t('mdm_departments') },
+    { id: 'divisions', label: t('mdm_divisions') },
     { id: 'project-categories', label: t('mdm_project_categories') },
     { id: 'document-types', label: t('mdm_doc_types') }
   ]
@@ -43,6 +44,20 @@ function MasterDataTabs({ activeTab, onTabChange }) {
       </nav>
     </div>
   )
+}
+
+function flattenFolderTree(nodes, depth = 0, parentPath = '') {
+  return (nodes || []).flatMap((node) => {
+    const label = parentPath ? `${parentPath} / ${node.name}` : node.name
+    return [
+      {
+        ...node,
+        depth,
+        pathLabel: label
+      },
+      ...flattenFolderTree(node.children || [], depth + 1, label)
+    ]
+  })
 }
 
 // Add/Edit Modal for Document Type
@@ -907,6 +922,200 @@ function DepartmentModal({ isOpen, onClose, onSubmit, initialData }) {
   )
 }
 
+function DivisionModal({ isOpen, onClose, onSubmit, initialData }) {
+  const { t } = usePreferences()
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    isActive: true
+  })
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: initialData.name || '',
+        code: initialData.code || '',
+        isActive: initialData.isActive !== false
+      })
+    } else {
+      setFormData({
+        name: '',
+        code: '',
+        isActive: true
+      })
+    }
+  }, [initialData, isOpen])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <Modal onClose={onClose} closeOnBackdrop size="sm">
+      <ModalHeader title={initialData ? t('mdm_edit_division') : t('mdm_add_division')} onClose={onClose} />
+      <form onSubmit={handleSubmit}>
+        <ModalBody>
+          <div className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
+              </label>
+              <TextInput
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Quality Assurance"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                {t('mdm_code')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
+              </label>
+              <TextInput
+                type="text"
+                required
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                placeholder="e.g., QA"
+              />
+              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_code_division_help')}</p>
+            </div>
+
+            <label className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
+              <input
+                type="checkbox"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+              />
+              <div>
+                <span className="block text-sm font-medium text-ink">{t('mdm_active')}</span>
+                <span className="mt-1 block text-xs text-ink-soft">{t('mdm_division_active_help')}</span>
+              </div>
+            </label>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
+          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+  )
+}
+
+function DivisionAssignmentModal({
+  isOpen,
+  onClose,
+  onSave,
+  loading,
+  saving,
+  title,
+  description,
+  items,
+  selectedIds,
+  itemType
+}) {
+  const { t } = usePreferences()
+  const [query, setQuery] = useState('')
+  const [draftSelection, setDraftSelection] = useState([])
+
+  useEffect(() => {
+    setDraftSelection(Array.isArray(selectedIds) ? selectedIds : [])
+  }, [selectedIds, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) setQuery('')
+  }, [isOpen])
+
+  const filteredItems = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return items || []
+    return (items || []).filter((item) => {
+      const label = String(item.label || '').toLowerCase()
+      const secondary = String(item.secondary || '').toLowerCase()
+      return label.includes(normalizedQuery) || secondary.includes(normalizedQuery)
+    })
+  }, [items, query])
+
+  const toggleSelection = (id) => {
+    setDraftSelection((prev) => (
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    ))
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <Modal onClose={onClose} closeOnBackdrop size="lg">
+      <ModalHeader title={title} onClose={onClose} />
+      <ModalBody>
+        <div className="space-y-4">
+          <p className="text-sm text-ink-soft">{description}</p>
+          <div className="rounded-2xl border border-border bg-surface p-4">
+            <TextInput
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={itemType === 'folder' ? t('mdm_search_folder') : t('mdm_search_user')}
+            />
+            <div className="mt-3 flex items-center justify-between text-xs text-ink-soft">
+              <span>{t('mdm_selected_count', { count: draftSelection.length })}</span>
+              <button
+                type="button"
+                onClick={() => setDraftSelection(filteredItems.map((item) => item.id))}
+                className="font-medium text-brand hover:text-brand/80"
+              >
+                {t('mdm_select_filtered')}
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-border bg-white">
+            {loading ? (
+              <div className="flex items-center justify-center py-12 text-sm text-ink-soft">{t('loading')}</div>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex items-center justify-center py-12 text-sm text-ink-soft">{t('no_records')}</div>
+            ) : (
+              filteredItems.map((item) => {
+                const checked = draftSelection.includes(item.id)
+                return (
+                  <label
+                    key={item.id}
+                    className="flex cursor-pointer items-start gap-3 border-b border-border px-4 py-3 last:border-b-0 hover:bg-[var(--dms-color-info-soft)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelection(item.id)}
+                      className="mt-1 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-ink">{item.label}</div>
+                      {item.secondary ? <div className="mt-1 text-xs text-ink-soft">{item.secondary}</div> : null}
+                    </div>
+                  </label>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
+        <Button type="button" onClick={() => onSave(draftSelection)} disabled={saving}>
+          {saving ? t('saving') : t('mdm_save_assignments')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
 // Departments Management
 function DepartmentsManagement() {
   const { t, itemsPerPage } = usePreferences()
@@ -1158,10 +1367,343 @@ function DepartmentsManagement() {
   )
 }
 
+function DivisionsManagement() {
+  const { t, itemsPerPage } = usePreferences()
+  const [divisions, setDivisions] = useState([])
+  const [users, setUsers] = useState([])
+  const [folders, setFolders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
+  const [assignmentModal, setAssignmentModal] = useState({ open: false, type: 'users', division: null, selectedIds: [] })
+  const [assignmentLoading, setAssignmentLoading] = useState(false)
+  const [assignmentSaving, setAssignmentSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(itemsPerPage || 10)
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
+
+  useEffect(() => {
+    setPageSize(itemsPerPage || 10)
+  }, [itemsPerPage])
+
+  useEffect(() => {
+    loadAllData()
+  }, [])
+
+  const loadAllData = async () => {
+    setLoading(true)
+    try {
+      const [divisionsRes, usersRes, foldersRes] = await Promise.all([
+        api.get('/divisions'),
+        api.get('/users'),
+        api.get('/folders')
+      ])
+
+      setDivisions(divisionsRes.data.data?.divisions || [])
+      setUsers(usersRes.data.data?.users || [])
+      setFolders(flattenFolderTree(foldersRes.data.data?.folders || []))
+    } catch (error) {
+      console.error('Failed to load divisions data:', error)
+      setAlertModal({ show: true, title: 'Error', message: 'Failed to load divisions data', type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const refreshDivisions = async () => {
+    const divisionsRes = await api.get('/divisions')
+    setDivisions(divisionsRes.data.data?.divisions || [])
+  }
+
+  const handleAdd = () => {
+    setEditingItem(null)
+    setShowModal(true)
+  }
+
+  const handleEdit = (item) => {
+    setEditingItem(item)
+    setShowModal(true)
+  }
+
+  const handleSubmit = async (formData) => {
+    try {
+      if (editingItem) {
+        await api.put(`/divisions/${editingItem.id}`, formData)
+        setAlertModal({ show: true, title: 'Success', message: 'Division updated successfully', type: 'success' })
+      } else {
+        await api.post('/divisions', formData)
+        setAlertModal({ show: true, title: 'Success', message: 'Division created successfully', type: 'success' })
+      }
+      setShowModal(false)
+      setEditingItem(null)
+      await refreshDivisions()
+    } catch (error) {
+      console.error('Failed to save division:', error)
+      setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to save division', type: 'error' })
+    }
+  }
+
+  const handleDelete = (item) => {
+    setConfirmModal({
+      show: true,
+      title: t('mdm_confirm_delete'),
+      message: t('mdm_confirm_delete_division'),
+      onConfirm: async () => {
+        setConfirmModal({ show: false })
+        try {
+          await api.delete(`/divisions/${item.id}`)
+          setAlertModal({ show: true, title: 'Success', message: 'Division deleted successfully', type: 'success' })
+          await refreshDivisions()
+        } catch (error) {
+          console.error('Failed to delete division:', error)
+          setAlertModal({
+            show: true,
+            title: 'Error',
+            message: error.response?.data?.message || 'Failed to delete division',
+            type: 'error'
+          })
+        }
+      }
+    })
+  }
+
+  const openAssignments = async (division, type) => {
+    setAssignmentLoading(true)
+    setAssignmentModal({ open: true, type, division, selectedIds: [] })
+    try {
+      const res = await api.get(`/divisions/${division.id}/${type}`)
+      const key = type === 'users' ? 'users' : 'folders'
+      const selectedIds = (res.data.data?.[key] || []).map((item) => item.id)
+      setAssignmentModal({ open: true, type, division, selectedIds })
+    } catch (error) {
+      console.error(`Failed to load division ${type}:`, error)
+      setAssignmentModal({ open: false, type, division: null, selectedIds: [] })
+      setAlertModal({ show: true, title: 'Error', message: `Failed to load division ${type}`, type: 'error' })
+    } finally {
+      setAssignmentLoading(false)
+    }
+  }
+
+  const handleSaveAssignments = async (selectedIds) => {
+    if (!assignmentModal.division) return
+    setAssignmentSaving(true)
+    try {
+      if (assignmentModal.type === 'users') {
+        await api.put(`/divisions/${assignmentModal.division.id}/users`, { userIds: selectedIds })
+      } else {
+        await api.put(`/divisions/${assignmentModal.division.id}/folders`, { folderIds: selectedIds })
+      }
+      setAlertModal({
+        show: true,
+        title: 'Success',
+        message: assignmentModal.type === 'users' ? 'Division users updated successfully' : 'Division folders updated successfully',
+        type: 'success'
+      })
+      setAssignmentModal({ open: false, type: 'users', division: null, selectedIds: [] })
+      await refreshDivisions()
+    } catch (error) {
+      console.error('Failed to save division assignments:', error)
+      setAlertModal({
+        show: true,
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to save division assignments',
+        type: 'error'
+      })
+    } finally {
+      setAssignmentSaving(false)
+    }
+  }
+
+  const filteredItems = divisions.filter((item) => {
+    const matchesActive = showInactive ? true : item.isActive
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesActive && matchesSearch
+  })
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, showInactive])
+
+  const totalRecords = filteredItems.length
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize))
+  const pageItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const assignmentItems = assignmentModal.type === 'users'
+    ? users.map((user) => ({
+        id: user.id,
+        label: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        secondary: [user.email, user.department].filter(Boolean).join(' | ')
+      }))
+    : folders.map((folder) => ({
+        id: folder.id,
+        label: folder.pathLabel,
+        secondary: `ID: ${folder.id}${folder.inheritPermissions ? ' | Inherit enabled' : ''}`
+      }))
+
+  return (
+    <div className="space-y-6">
+      <ConfirmModal
+        show={confirmModal.show}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type="danger"
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ show: false })}
+      />
+      <AlertModal
+        show={alertModal.show}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ show: false })}
+      />
+      <DivisionModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false)
+          setEditingItem(null)
+        }}
+        onSubmit={handleSubmit}
+        initialData={editingItem}
+      />
+      <DivisionAssignmentModal
+        isOpen={assignmentModal.open}
+        onClose={() => setAssignmentModal({ open: false, type: 'users', division: null, selectedIds: [] })}
+        onSave={handleSaveAssignments}
+        loading={assignmentLoading}
+        saving={assignmentSaving}
+        title={assignmentModal.type === 'users' ? t('mdm_assign_users') : t('mdm_assign_folders')}
+        description={
+          assignmentModal.division
+            ? (assignmentModal.type === 'users'
+                ? t('mdm_assign_users_desc', { division: assignmentModal.division.name })
+                : t('mdm_assign_folders_desc', { division: assignmentModal.division.name }))
+            : ''
+        }
+        items={assignmentItems}
+        selectedIds={assignmentModal.selectedIds}
+        itemType={assignmentModal.type === 'users' ? 'user' : 'folder'}
+      />
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">{t('mdm_divisions')}</h3>
+          <p className="mt-1 text-sm text-gray-600">{t('mdm_division_desc')}</p>
+        </div>
+        <button
+          onClick={handleAdd}
+          className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          {t('mdm_add_division')}
+        </button>
+      </div>
+
+      <AppSurface variant="panel" padding="md" className="space-y-4">
+        <p className="text-sm text-ink-soft">{t('mdm_division_help')}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextInput
+            type="text"
+            placeholder={t('mdm_search_name_code')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            {t('show_inactive')}
+          </label>
+        </div>
+      </AppSurface>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('mdm_name')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('mdm_code')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('users')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('folders')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('status')}</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700">{t('action')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan="6" className="py-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                    <span>{t('loading')}</span>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredItems.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="py-8 text-center text-gray-500">{t('mdm_no_divisions')}</td>
+              </tr>
+            ) : (
+              pageItems.map((item) => (
+                <tr key={item.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                  <td className="px-4 py-4 font-medium text-gray-900">{item.name}</td>
+                  <td className="px-4 py-4">
+                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 font-mono text-sm font-semibold text-blue-700">
+                      {item.code}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-gray-700">{item._count?.users || 0}</td>
+                  <td className="px-4 py-4 text-gray-700">{item._count?.folders || 0}</td>
+                  <td className="px-4 py-4">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                      item.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {item.isActive ? t('mdm_active') : t('mdm_inactive')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <ActionMenu
+                      actions={[
+                        { label: t('rp_edit'), onClick: () => handleEdit(item) },
+                        { label: t('mdm_assign_users'), onClick: () => openAssignments(item, 'users') },
+                        { label: t('mdm_assign_folders'), onClick: () => openAssignments(item, 'folders') },
+                        { label: t('rp_delete'), onClick: () => handleDelete(item), variant: 'destructive' }
+                      ]}
+                    />
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1) }}
+      />
+    </div>
+  )
+}
+
 // Main Component
 export default function MasterDataManagement() {
   const { t } = usePreferences()
   const location = useLocation()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState(() => {
     const tab = new URLSearchParams(location.search).get('mdTab')
     return tab && VALID_MASTERDATA_TABS.includes(tab) ? tab : 'departments'
@@ -1173,6 +1715,13 @@ export default function MasterDataManagement() {
       setActiveTab(tab)
     }
   }, [location.search, activeTab])
+
+  const handleTabChange = (nextTab) => {
+    setActiveTab(nextTab)
+    const params = new URLSearchParams(location.search)
+    params.set('mdTab', nextTab)
+    navigate({ pathname: location.pathname, search: `?${params.toString()}` })
+  }
 
   return (
     <div className="space-y-6">
@@ -1186,9 +1735,10 @@ export default function MasterDataManagement() {
 
       {/* Content */}
       <div className="card p-6">
-        <MasterDataTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <MasterDataTabs activeTab={activeTab} onTabChange={handleTabChange} />
         
         {activeTab === 'departments' && <DepartmentsManagement />}
+        {activeTab === 'divisions' && <DivisionsManagement />}
         {activeTab === 'project-categories' && <ProjectCategoriesManagement />}
         {activeTab === 'document-types' && <DocumentTypesManagement />}
       </div>

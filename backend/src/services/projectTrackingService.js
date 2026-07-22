@@ -1971,6 +1971,7 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
       title: doc.title,
       status: doc.status,
       isConfidential: doc.isConfidential,
+      canAccess: true,
       updatedAt: doc.updatedAt,
       documentTypeId: doc.documentTypeId,
       documentType: doc.documentType,
@@ -1980,6 +1981,7 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         title: doc.title,
         status: doc.status,
         isConfidential: doc.isConfidential,
+        canAccess: true,
         updatedAt: doc.updatedAt,
         documentTypeId: doc.documentTypeId,
         documentType: doc.documentType

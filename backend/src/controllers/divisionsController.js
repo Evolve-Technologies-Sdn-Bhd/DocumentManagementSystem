@@ -5,6 +5,14 @@ const asyncHandler = require('../utils/asyncHandler')
 class DivisionsController {
   listDivisions = asyncHandler(async (req, res) => {
     const divisions = await prisma.division.findMany({
+      include: {
+        _count: {
+          select: {
+            users: true,
+            folders: true
+          }
+        }
+      },
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }, { id: 'asc' }]
     })
 
@@ -185,9 +193,128 @@ class DivisionsController {
       'Folder divisions updated successfully'
     )
   })
+
+  getDivisionUsers = asyncHandler(async (req, res) => {
+    const divisionId = Number.parseInt(req.params.id, 10)
+    if (Number.isNaN(divisionId)) {
+      return ResponseFormatter.error(res, 'Invalid division id', 400)
+    }
+
+    const rows = await prisma.userDivision.findMany({
+      where: { divisionId },
+      include: {
+        user: {
+          include: {
+            roles: {
+              include: {
+                role: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [{ userId: 'asc' }]
+    })
+
+    return ResponseFormatter.success(
+      res,
+      { users: rows.map((r) => r.user) },
+      'Division users retrieved successfully'
+    )
+  })
+
+  setDivisionUsers = asyncHandler(async (req, res) => {
+    const divisionId = Number.parseInt(req.params.id, 10)
+    if (Number.isNaN(divisionId)) {
+      return ResponseFormatter.error(res, 'Invalid division id', 400)
+    }
+
+    const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds : null
+    if (!userIds) {
+      return ResponseFormatter.error(res, 'userIds must be an array', 400)
+    }
+
+    const normalizedUserIds = [...new Set(userIds.map((v) => Number.parseInt(v, 10)).filter((v) => Number.isFinite(v)))]
+
+    await prisma.$transaction(async (tx) => {
+      await tx.userDivision.deleteMany({ where: { divisionId } })
+      if (normalizedUserIds.length > 0) {
+        await tx.userDivision.createMany({
+          data: normalizedUserIds.map((userId) => ({ divisionId, userId })),
+          skipDuplicates: true
+        })
+      }
+    })
+
+    const rows = await prisma.userDivision.findMany({
+      where: { divisionId },
+      include: { user: true },
+      orderBy: [{ userId: 'asc' }]
+    })
+
+    return ResponseFormatter.success(
+      res,
+      { users: rows.map((r) => r.user) },
+      'Division users updated successfully'
+    )
+  })
+
+  getDivisionFolders = asyncHandler(async (req, res) => {
+    const divisionId = Number.parseInt(req.params.id, 10)
+    if (Number.isNaN(divisionId)) {
+      return ResponseFormatter.error(res, 'Invalid division id', 400)
+    }
+
+    const rows = await prisma.folderDivision.findMany({
+      where: { divisionId },
+      include: { folder: true },
+      orderBy: [{ folderId: 'asc' }]
+    })
+
+    return ResponseFormatter.success(
+      res,
+      { folders: rows.map((r) => r.folder) },
+      'Division folders retrieved successfully'
+    )
+  })
+
+  setDivisionFolders = asyncHandler(async (req, res) => {
+    const divisionId = Number.parseInt(req.params.id, 10)
+    if (Number.isNaN(divisionId)) {
+      return ResponseFormatter.error(res, 'Invalid division id', 400)
+    }
+
+    const folderIds = Array.isArray(req.body?.folderIds) ? req.body.folderIds : null
+    if (!folderIds) {
+      return ResponseFormatter.error(res, 'folderIds must be an array', 400)
+    }
+
+    const normalizedFolderIds = [...new Set(folderIds.map((v) => Number.parseInt(v, 10)).filter((v) => Number.isFinite(v)))]
+
+    await prisma.$transaction(async (tx) => {
+      await tx.folderDivision.deleteMany({ where: { divisionId } })
+      if (normalizedFolderIds.length > 0) {
+        await tx.folderDivision.createMany({
+          data: normalizedFolderIds.map((folderId) => ({ divisionId, folderId })),
+          skipDuplicates: true
+        })
+      }
+    })
+
+    const rows = await prisma.folderDivision.findMany({
+      where: { divisionId },
+      include: { folder: true },
+      orderBy: [{ folderId: 'asc' }]
+    })
+
+    return ResponseFormatter.success(
+      res,
+      { folders: rows.map((r) => r.folder) },
+      'Division folders updated successfully'
+    )
+  })
 }
 
 module.exports = {
   divisionsController: new DivisionsController()
 }
-
