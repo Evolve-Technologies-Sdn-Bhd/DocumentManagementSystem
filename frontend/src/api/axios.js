@@ -73,6 +73,8 @@ api.interceptors.response.use(
     const url = String(original.url || '')
     const isAuthEndpoint =
       url.includes('/auth/login') ||
+      url.includes('/auth/forgot-password') ||
+      url.includes('/auth/reset-password') ||
       url.includes('/auth/refresh-token') ||
       url.includes('/auth/verify-2fa') ||
       url.includes('/auth/resend-2fa')

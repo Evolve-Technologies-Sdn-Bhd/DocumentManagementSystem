@@ -1,11 +1,17 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const config = require('../config/app');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const { UnauthorizedError, NotFoundError, BadRequestError } = require('../utils/errors');
 const { generateEmployeeId } = require('../utils/employeeIdGenerator');
 const securityService = require('./securityService');
 
 class AuthService {
+  buildPasswordResetSecret(user) {
+    return `${config.jwtSecret}:${user.password}`;
+  }
+
   stripSensitiveUser(user) {
     const hasAuthenticator = Boolean(user.twoFactorSecret)
     const {
@@ -434,6 +440,83 @@ class AuthService {
       where: { id: userId },
       data: { password: hashedPassword }
     });
+  }
+
+  async createPasswordResetToken(email) {
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) {
+      throw new BadRequestError('Email is required');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    });
+
+    if (!user || user.status !== 'ACTIVE') {
+      return null;
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        purpose: 'password-reset'
+      },
+      this.buildPasswordResetSecret(user),
+      {
+        expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '30m'
+      }
+    );
+
+    return { user, token };
+  }
+
+  async verifyPasswordResetToken(token) {
+    const decoded = jwt.decode(token);
+    if (!decoded?.userId || decoded?.purpose !== 'password-reset') {
+      throw new UnauthorizedError('Invalid or expired reset link');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(decoded.userId, 10) }
+    });
+
+    if (!user || user.status !== 'ACTIVE') {
+      throw new UnauthorizedError('Invalid or expired reset link');
+    }
+
+    try {
+      jwt.verify(token, this.buildPasswordResetSecret(user));
+    } catch (error) {
+      throw new UnauthorizedError('Invalid or expired reset link');
+    }
+
+    return user;
+  }
+
+  async resetPasswordWithToken(token, newPassword) {
+    const user = await this.verifyPasswordResetToken(token);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          failedAttempts: 0,
+          lockedUntil: null,
+          twoFactorCode: null,
+          twoFactorCodeExpiry: null
+        }
+      }),
+      prisma.userSession.deleteMany({
+        where: { userId: user.id }
+      }),
+      prisma.trustedDevice.deleteMany({
+        where: { userId: user.id }
+      })
+    ]);
+
+    return user;
   }
 
   /**

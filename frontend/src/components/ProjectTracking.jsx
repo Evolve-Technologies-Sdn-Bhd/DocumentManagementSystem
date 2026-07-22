@@ -3059,32 +3059,34 @@ function ProjectDetail({ projectId }) {
     return (project?.iterations || []).find((it) => it.id === selectedIterationId) || null
   }, [project, selectedIterationId])
 
+  const enabledStageIds = useMemo(
+    () => (project?.enabledStages || []).map((stage) => stage.stageId),
+    [project?.enabledStages]
+  )
+  const hasEnabledStageConfig = Array.isArray(project?.enabledStages)
+
+  const visibleItems = useMemo(() => {
+    if (!hasEnabledStageConfig) return items
+    if (!enabledStageIds.length) return []
+    return items.filter((item) => enabledStageIds.includes(item.stageId))
+  }, [items, enabledStageIds, hasEnabledStageConfig])
+
+  const visibleStageDocuments = useMemo(() => {
+    if (!hasEnabledStageConfig) return stageDocuments
+    if (!enabledStageIds.length) return []
+    return stageDocuments.filter((link) => enabledStageIds.includes(link.stageId))
+  }, [stageDocuments, enabledStageIds, hasEnabledStageConfig])
+
   const stages = useMemo(() => {
-    const map = new Map()
-    ;(project?.enabledStages || []).forEach((stage) => {
-      map.set(stage.stageId, {
+    return (project?.enabledStages || [])
+      .map((stage) => ({
         id: stage.stageId,
         stageId: stage.stageId,
         name: stage.name,
         sortOrder: stage.sortOrder
-      })
-    })
-    items.forEach((it) => {
-      if (!it.stage) return
-      map.set(it.stageId, { ...map.get(it.stageId), ...it.stage })
-    })
-    stageDocuments.forEach((link) => {
-      if (!link.stage) return
-      map.set(link.stageId, { ...map.get(link.stageId), ...link.stage })
-    })
-    if (selectedPhase?.currentStage) {
-      map.set(selectedPhase.currentStage.id, {
-        ...map.get(selectedPhase.currentStage.id),
-        ...selectedPhase.currentStage
-      })
-    }
-    return Array.from(map.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-  }, [items, project?.enabledStages, selectedPhase?.currentStage, stageDocuments])
+      }))
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+  }, [project?.enabledStages])
 
   useEffect(() => {
     setActiveStageTab(consolidatedTabId)
@@ -3105,23 +3107,23 @@ function ProjectDetail({ projectId }) {
 
   const stageDocumentsByStage = useMemo(() => {
     const grouped = new Map()
-    stageDocuments.forEach((l) => {
+    visibleStageDocuments.forEach((l) => {
       const sid = l.stageId
       if (!grouped.has(sid)) grouped.set(sid, [])
       grouped.get(sid).push(l)
     })
     return grouped
-  }, [stageDocuments])
+  }, [visibleStageDocuments])
 
   const itemsByStage = useMemo(() => {
     const grouped = new Map()
-    items.forEach((it) => {
+    visibleItems.forEach((it) => {
       const key = it.stageId
       if (!grouped.has(key)) grouped.set(key, [])
       grouped.get(key).push(it)
     })
     return grouped
-  }, [items])
+  }, [visibleItems])
 
   const phases = useMemo(() => {
     return [...(project?.iterations || [])].sort((a, b) => (a.iterationNo || 0) - (b.iterationNo || 0))
@@ -3505,13 +3507,13 @@ function ProjectDetail({ projectId }) {
   }
 
   const overallStats = useMemo(() => {
-    const total = items.length
-    const complete = items.filter((x) => String(x.status).toUpperCase() === 'COMPLETE').length
-    const pending = items.filter((x) => String(x.status).toUpperCase() === 'PENDING').length
-    const waived = items.filter((x) => String(x.status).toUpperCase() === 'WAIVED').length
+    const total = visibleItems.length
+    const complete = visibleItems.filter((x) => String(x.status).toUpperCase() === 'COMPLETE').length
+    const pending = visibleItems.filter((x) => String(x.status).toUpperCase() === 'PENDING').length
+    const waived = visibleItems.filter((x) => String(x.status).toUpperCase() === 'WAIVED').length
     const pct = total > 0 ? Math.round((complete / total) * 100) : 0
     return { total, complete, pending, waived, pct }
-  }, [items])
+  }, [visibleItems])
 
   const projectStatus = String(project?.status || 'ACTIVE').toUpperCase()
   const isProjectActive = projectStatus === 'ACTIVE'
@@ -5181,6 +5183,15 @@ function DocumentsSearch() {
   )
 }
 
+const buildSetupStageSignature = (stageList = []) => JSON.stringify(
+  stageList.map((stage) => ({
+    stageId: stage.stageId,
+    displayName: stage.displayName || '',
+    sortOrder: stage.sortOrder,
+    isEnabled: Boolean(stage.isEnabled)
+  }))
+)
+
 function Setup() {
   const [documentTypes, setDocumentTypes] = useState([])
   const [projects, setProjects] = useState([])
@@ -5199,6 +5210,9 @@ function Setup() {
   const [subjectResults, setSubjectResults] = useState({ users: [], roles: [] })
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [savingAccess, setSavingAccess] = useState(false)
+  const [setupStep, setSetupStep] = useState('scope')
+  const [selectedRequirementStageId, setSelectedRequirementStageId] = useState('')
+  const [savedStageSignature, setSavedStageSignature] = useState('[]')
 
   const filteredDocumentTypes = useMemo(() => {
     const keyword = String(documentTypeSearch || '').trim().toLowerCase()
@@ -5224,7 +5238,9 @@ function Setup() {
         api.get(isProjectScope ? `/project-tracking/projects/${projectId}/setup/stages` : '/project-tracking/setup/stages'),
         api.get(isProjectScope ? `/project-tracking/projects/${projectId}/setup/requirements` : '/project-tracking/setup/requirements')
       ])
-      setStages(st?.data?.data?.stages || [])
+      const nextStages = st?.data?.data?.stages || []
+      setStages(nextStages)
+      setSavedStageSignature(buildSetupStageSignature(nextStages))
       setRequirements(req?.data?.data?.requirements || [])
     } finally {
       setLoading(false)
@@ -5255,7 +5271,9 @@ function Setup() {
         isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/stages` : '/project-tracking/setup/stages',
         payload
       )
-      setStages(res?.data?.data?.stages || [])
+      const nextStages = res?.data?.data?.stages || []
+      setStages(nextStages)
+      setSavedStageSignature(buildSetupStageSignature(nextStages))
     } finally {
       setSavingStages(false)
     }
@@ -5270,7 +5288,8 @@ function Setup() {
 
   const addRequirement = async (e) => {
     e.preventDefault()
-    if (!newReq.stageId || !(newReq.documentTypeIds || []).length) return
+    const targetStageId = newReq.stageId || selectedRequirementStageId
+    if (!targetStageId || !(newReq.documentTypeIds || []).length) return
     setAddingReq(true)
     try {
       const isProjectScope = !!selectedProjectId
@@ -5278,14 +5297,14 @@ function Setup() {
       await Promise.all(
         (newReq.documentTypeIds || []).map((documentTypeId) =>
           api.post(endpoint, {
-            stageId: Number(newReq.stageId),
+            stageId: Number(targetStageId),
             documentTypeId: Number(documentTypeId),
             isRequired: Boolean(newReq.isRequired),
             isConfidentialDefault: Boolean(newReq.isConfidentialDefault)
           })
         )
       )
-      setNewReq({ stageId: '', documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
+      setNewReq({ stageId: String(targetStageId), documentTypeIds: [], isRequired: true, isConfidentialDefault: false })
       setDocumentTypeSearch('')
       await loadSetup(selectedProjectId)
     } finally {
@@ -5294,6 +5313,7 @@ function Setup() {
   }
 
   const deleteRequirement = async (id) => {
+    if (!window.confirm('Remove this requirement from the setup?')) return
     const isProjectScope = !!selectedProjectId
     await api.delete(
       isProjectScope ? `/project-tracking/projects/${selectedProjectId}/setup/requirements/${id}` : `/project-tracking/setup/requirements/${id}`
@@ -5400,6 +5420,15 @@ function Setup() {
     [projects, selectedProjectId]
   )
   const scopeLabel = isProjectScope ? 'Project Override' : 'Default Template'
+  const currentStageSignature = useMemo(() => buildSetupStageSignature(stages), [stages])
+  const hasStageChanges = currentStageSignature !== savedStageSignature
+
+  const setupSteps = useMemo(() => ([
+    { id: 'scope', label: '1. Scope', description: 'Choose default template or project override.' },
+    { id: 'stages', label: '2. Stage Flow', description: 'Arrange the stage order and labels.' },
+    { id: 'requirements', label: '3. Required Documents', description: 'Assign required documents for each stage.' },
+    { id: 'review', label: '4. Review', description: 'Preview the generated setup before use.' }
+  ]), [])
 
   const requirementsByStage = useMemo(() => {
     const grouped = new Map()
@@ -5411,6 +5440,63 @@ function Setup() {
     })
     return grouped
   }, [requirements, sortedStages])
+
+  const isRequiredRequirement = (req) => Boolean(req?.isRequired !== false && req?.isExcluded !== true)
+
+  const requiredDocumentsCount = useMemo(() => {
+    return sortedStages.reduce((sum, stage) => {
+      const stageReqs = requirementsByStage.get(stage.stageId) || []
+      return sum + stageReqs.filter(isRequiredRequirement).length
+    }, 0)
+  }, [requirementsByStage, sortedStages])
+
+  const orphanRequirementsCount = useMemo(() => {
+    const stageIdSet = new Set(sortedStages.map((s) => String(s.stageId)))
+    return requirements.filter((r) => !stageIdSet.has(String(r.stageId))).length
+  }, [requirements, sortedStages])
+
+  const focusedStageId = String(newReq.stageId || selectedRequirementStageId || stageOptions.find((s) => {
+    const stage = sortedStages.find((row) => String(row.stageId) === String(s.id))
+    return stage?.isEnabled
+  })?.id || stageOptions[0]?.id || '')
+
+  const focusedStage = useMemo(
+    () => sortedStages.find((stage) => String(stage.stageId) === focusedStageId) || null,
+    [focusedStageId, sortedStages]
+  )
+
+  const focusedStageRequirements = useMemo(
+    () => (focusedStage ? requirementsByStage.get(focusedStage.stageId) || [] : []),
+    [focusedStage, requirementsByStage]
+  )
+
+  const enabledStages = useMemo(() => sortedStages.filter((stage) => stage.isEnabled), [sortedStages])
+
+  useEffect(() => {
+    if (!stageOptions.length) {
+      setSelectedRequirementStageId('')
+      return
+    }
+
+    const fallbackStageId = String(
+      enabledStages[0]?.stageId ||
+      sortedStages[0]?.stageId ||
+      stageOptions[0]?.id ||
+      ''
+    )
+
+    if (!fallbackStageId) return
+
+    const currentExists = stageOptions.some((option) => String(option.id) === String(selectedRequirementStageId))
+    if (!currentExists) {
+      setSelectedRequirementStageId(fallbackStageId)
+    }
+
+    const newReqExists = stageOptions.some((option) => String(option.id) === String(newReq.stageId))
+    if (!newReq.stageId || !newReqExists) {
+      setNewReq((prev) => ({ ...prev, stageId: fallbackStageId }))
+    }
+  }, [stageOptions, enabledStages, sortedStages, selectedRequirementStageId, newReq.stageId])
 
   const updateStage = (stageId, patch) => {
     setStages((prev) => prev.map((x) => (x.stageId === stageId ? { ...x, ...patch } : x)))
@@ -5435,10 +5521,66 @@ function Setup() {
     )
   }
 
+  const selectRequirementStage = (stageId) => {
+    const normalizedStageId = String(stageId || '')
+    setSelectedRequirementStageId(normalizedStageId)
+    setNewReq((prev) => ({ ...prev, stageId: normalizedStageId }))
+  }
+
+  const handleScopeChange = (nextProjectId) => {
+    if (String(nextProjectId) === String(selectedProjectId)) return
+    if (hasStageChanges) {
+      const confirmed = window.confirm('You have unsaved stage flow changes. Switch scope and discard those stage edits?')
+      if (!confirmed) return
+    }
+    setSelectedProjectId(nextProjectId)
+    setSetupStep('scope')
+  }
+
   return (
     <div className="space-y-4">
       <AppSurface padding="lg">
-        <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-sm font-medium text-ink-secondary">Project Setup</div>
+            <div className="mt-1 text-xl font-semibold text-ink">Configure stage flow and required documents with a guided setup.</div>
+            <div className="mt-2 text-sm text-ink-muted">
+              Follow the setup steps from scope to review. Stage flow changes need to be saved, while requirement changes are applied immediately after add, remove, or access updates.
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
+            <div className="text-xs font-medium text-ink-muted">Current Step</div>
+            <div className="mt-1 text-sm font-semibold text-ink">
+              {(setupSteps.find((step) => step.id === setupStep)?.label || '1. Scope').replace(/^\d+\.\s*/, '')}
+            </div>
+            <div className="mt-1 text-xs text-ink-muted">
+              {setupSteps.find((step) => step.id === setupStep)?.description}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-4">
+          {setupSteps.map((step) => {
+            const isActive = setupStep === step.id
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => setSetupStep(step.id)}
+                className={`rounded-2xl border px-4 py-4 text-left transition ${
+                  isActive
+                    ? 'border-brand bg-[var(--dms-color-info-soft)]/45 shadow-sm'
+                    : 'border-border bg-surface hover:border-brand/40 hover:bg-surface-muted'
+                }`}
+              >
+                <div className="text-sm font-semibold text-ink">{step.label}</div>
+                <div className="mt-1 text-xs text-ink-muted">{step.description}</div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="mt-5 flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="flex-1">
             <div className="text-sm font-medium text-ink-secondary">Setup Scope</div>
             <div className="mt-1 text-xs text-ink-muted">
@@ -5448,7 +5590,7 @@ function Setup() {
           <div className="w-full lg:w-80">
             <SelectField
               value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
+              onChange={(e) => handleScopeChange(e.target.value)}
             >
               <option value="">Default (All Projects)</option>
               {projects.map((p) => (
@@ -5495,9 +5637,27 @@ function Setup() {
           </div>
           <div className="rounded-xl border border-border bg-surface-muted px-4 py-3">
             <div className="text-xs font-medium text-ink-muted">Required Documents</div>
-            <div className="text-lg font-semibold text-ink">{requirements.length}</div>
+            <div className="text-lg font-semibold text-ink">{requiredDocumentsCount}</div>
           </div>
         </div>
+
+        {orphanRequirementsCount > 0 ? (
+          <div className="mt-4 rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35 px-4 py-3">
+            <div className="text-sm font-semibold text-ink">Some setup rules need attention</div>
+            <div className="mt-1 text-xs text-ink-secondary">
+              {`${orphanRequirementsCount} requirement${orphanRequirementsCount === 1 ? '' : 's'} are linked to stages that are not present in the current stage flow.`}
+            </div>
+          </div>
+        ) : null}
+
+        {hasStageChanges ? (
+          <div className="mt-4 rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35 px-4 py-3">
+            <div className="text-sm font-semibold text-ink">Stage flow has unsaved changes</div>
+            <div className="mt-1 text-xs text-ink-secondary">
+              Save the stage flow before switching scope or handing this setup to end users.
+            </div>
+          </div>
+        ) : null}
       </AppSurface>
 
       {loading ? (
@@ -5507,219 +5667,451 @@ function Setup() {
         </AppSurface>
       ) : (
         <div className="space-y-4">
-          <AppSurface padding="lg">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-ink">{`Stage Flow - ${scopeLabel}`}</div>
-                <div className="mt-1 text-xs text-ink-muted">
-                  {isProjectScope
-                    ? 'Adjust only this project override by renaming stage labels, turning stages on or off, or reordering the flow.'
-                    : 'Adjust the shared default template by renaming stage labels, turning stages on or off, or reordering the flow.'}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  onClick={() => setShowAddStage(true)}
-                  variant="secondary"
-                >
-                  Add Stage
-                </Button>
-                <Button
-                  onClick={saveStages}
-                  disabled={savingStages}
-                >
-                  {savingStages ? 'Saving...' : isProjectScope ? 'Save Project Override' : 'Save Default Stage Flow'}
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-              {sortedStages.map((s, idx) => {
-                const displayLabel = s.displayName || s.stage?.name || '-'
-                return (
-                  <div
-                    key={s.stageId}
-                    className={`min-w-[250px] rounded-xl border p-4 ${
-                      s.isEnabled ? 'border-brand bg-[var(--dms-color-info-soft)]/70' : 'border-border bg-surface-muted'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-wide text-ink-muted">{`Stage ${idx + 1}`}</div>
-                        <div className="mt-1 text-sm font-semibold text-ink">{s.stage?.name || '-'}</div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.isEnabled ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'border border-border bg-surface text-ink-secondary'}`}>
-                        {s.isEnabled ? 'Active' : 'Hidden'}
-                      </span>
-                    </div>
-
-                    <div className="mt-4">
-                      <label className="mb-1 block text-xs font-medium text-ink-muted">Display Label</label>
-                      <TextInput
-                        value={s.displayName || ''}
-                        onChange={(e) => updateStage(s.stageId, { displayName: e.target.value })}
-                        placeholder={s.stage?.name || 'Enter label'}
-                      />
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
-                        <input
-                          type="checkbox"
-                          checked={!!s.isEnabled}
-                          onChange={(e) => updateStage(s.stageId, { isEnabled: e.target.checked })}
-                          className="rounded border-border text-brand focus-visible:ring-brand/30"
-                        />
-                        Active in flow
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          onClick={() => moveStage(s.stageId, 'up')}
-                          disabled={idx === 0}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          Up
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => moveStage(s.stageId, 'down')}
-                          disabled={idx === sortedStages.length - 1}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          Down
-                        </Button>
-                      </div>
-                    </div>
+          {setupStep === 'scope' ? (
+            <AppSurface padding="lg">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-2xl">
+                  <div className="text-sm font-semibold text-ink">Choose the setup mode first</div>
+                  <div className="mt-2 text-sm text-ink-secondary">
+                    Use the default template when most projects follow the same stage flow and document checklist. Choose a project override only when one project needs its own setup without changing everyone else.
                   </div>
-                )
-              })}
-            </div>
-          </AppSurface>
-
-          <AppSurface padding="none" className="overflow-hidden">
-            <div className="border-b border-border bg-surface-muted px-6 py-4">
-              <div className="text-sm font-semibold text-ink">{`Required Documents By Stage - ${scopeLabel}`}</div>
-              <div className="mt-1 text-xs text-ink-muted">
-                {isProjectScope
-                  ? 'Add document types that should appear only for this project override when a new phase is created.'
-                  : 'Add document types that should appear in the default checklist whenever a new project phase is created.'}
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" onClick={() => setSetupStep('stages')}>
+                    Continue To Stage Flow
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className="border-b border-border bg-surface p-5">
-              <form onSubmit={addRequirement} className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.2fr_auto_auto] gap-3 items-end">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-ink-muted">Stage</label>
-                  <SelectField
-                    value={newReq.stageId}
-                    onChange={(e) => setNewReq((p) => ({ ...p, stageId: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select stage</option>
-                    {stageOptions.map((s) => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </SelectField>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
-                  <SearchableSelectField
-                    values={newReq.documentTypeIds}
-                    options={filteredDocumentTypes}
-                    onChange={(values) => setNewReq((p) => ({ ...p, documentTypeIds: values }))}
-                    searchValue={documentTypeSearch}
-                    onSearchChange={setDocumentTypeSearch}
-                    placeholder="Select one or more document types"
-                    noResultsLabel="No document type found"
-                  />
-                </div>
-                <label className="flex h-10 items-center gap-2 px-1 text-sm text-ink-secondary">
-                  <input
-                    type="checkbox"
-                    checked={!!newReq.isConfidentialDefault}
-                    onChange={(e) => setNewReq((p) => ({ ...p, isConfidentialDefault: e.target.checked }))}
-                    className="rounded border-border text-brand focus-visible:ring-brand/30"
-                  />
-                  Confidential
-                </label>
-                <Button
-                  disabled={addingReq || !newReq.stageId || !(newReq.documentTypeIds || []).length}
-                  type="submit"
+              <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleScopeChange('')}
+                  className={`rounded-2xl border px-5 py-5 text-left ${
+                    !isProjectScope ? 'border-brand bg-[var(--dms-color-warning-soft)]/35' : 'border-border bg-surface hover:border-brand/30'
+                  }`}
                 >
-                  {addingReq
-                    ? 'Adding...'
-                    : `Add${(newReq.documentTypeIds || []).length ? ` ${(newReq.documentTypeIds || []).length}` : ''} Requirement${(newReq.documentTypeIds || []).length > 1 ? 's' : ''}`}
-                </Button>
-              </form>
-            </div>
+                  <div className="text-sm font-semibold text-ink">Default Template</div>
+                  <div className="mt-2 text-sm text-ink-secondary">
+                    Best when every new project should inherit the same stage order and required documents.
+                  </div>
+                </button>
+                <div className={`rounded-2xl border px-5 py-5 ${isProjectScope ? 'border-brand bg-[var(--dms-color-info-soft)]/35' : 'border-border bg-surface'}`}>
+                  <div className="text-sm font-semibold text-ink">Project Override</div>
+                  <div className="mt-2 text-sm text-ink-secondary">
+                    Best when one project needs a different stage flow or different required documents from the shared template.
+                  </div>
+                  <div className="mt-4">
+                    <SelectField
+                      value={selectedProjectId}
+                      onChange={(e) => handleScopeChange(e.target.value)}
+                    >
+                      <option value="">Select project override</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
+                      ))}
+                    </SelectField>
+                  </div>
+                </div>
+              </div>
+            </AppSurface>
+          ) : null}
 
-            <div className="p-5">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                {sortedStages.map((s) => {
-                  const stageRequirements = requirementsByStage.get(s.stageId) || []
-                  const stageLabel = s.displayName || s.stage?.name || '-'
+          {setupStep === 'stages' ? (
+            <AppSurface padding="lg">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-ink">{`Stage Flow - ${scopeLabel}`}</div>
+                  <div className="mt-1 text-xs text-ink-muted">
+                    {isProjectScope
+                      ? 'Adjust only this project override by renaming stage labels, turning stages on or off, or reordering the flow.'
+                      : 'Adjust the shared default template by renaming stage labels, turning stages on or off, or reordering the flow.'}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setShowAddStage(true)}
+                    variant="secondary"
+                  >
+                    Add Stage
+                  </Button>
+                  <Button
+                    onClick={saveStages}
+                    disabled={savingStages}
+                  >
+                    {savingStages ? 'Saving...' : isProjectScope ? 'Save Project Override' : 'Save Default Stage Flow'}
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setSetupStep('requirements')}>
+                    Continue To Required Documents
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+                {sortedStages.map((s, idx) => {
+                  const displayLabel = s.displayName || s.stage?.name || '-'
+                  const stageRequirementCount = (requirementsByStage.get(s.stageId) || []).filter(isRequiredRequirement).length
                   return (
-                    <div key={s.stageId} className="overflow-hidden rounded-xl border border-border bg-surface">
-                      <div className={`border-b border-border px-4 py-3 ${s.isEnabled ? 'bg-surface' : 'bg-surface-muted'}`}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-semibold text-ink">{stageLabel}</div>
-                            <div className="mt-1 text-xs text-ink-muted">
-                              {s.isEnabled ? 'Active stage in project flow' : 'Hidden stage in project flow'}
-                            </div>
-                          </div>
-                          <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-secondary">
-                            {`${stageRequirements.length} required`}
-                          </span>
+                    <div
+                      key={s.stageId}
+                      className={`min-w-[270px] rounded-xl border p-4 ${
+                        s.isEnabled ? 'border-brand bg-[var(--dms-color-info-soft)]/70' : 'border-border bg-surface-muted'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-medium uppercase tracking-wide text-ink-muted">{`Stage ${idx + 1}`}</div>
+                          <div className="mt-1 text-sm font-semibold text-ink">{s.stage?.name || '-'}</div>
+                          <div className="mt-1 text-xs text-ink-muted">{`${stageRequirementCount} required document${stageRequirementCount === 1 ? '' : 's'}`}</div>
                         </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.isEnabled ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'border border-border bg-surface text-ink-secondary'}`}>
+                          {s.isEnabled ? 'Active' : 'Hidden'}
+                        </span>
                       </div>
 
-                      <div className="p-4">
-                        {stageRequirements.length === 0 ? (
-                          <div className="text-sm text-ink-muted">No required document type added for this stage yet.</div>
-                        ) : (
-                          <div className="space-y-2">
-                            {stageRequirements.map((r) => (
-                              <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-3 py-2">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-ink">{r.documentType?.name || '-'}</div>
-                                  <div className="mt-1 text-xs text-ink-muted">
-                                    {r.isConfidentialDefault ? 'Confidential by default' : 'Standard visibility'}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  {r.isConfidentialDefault && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openRequirementAccess(r)}
-                                      className="text-sm text-brand hover:underline"
-                                    >
-                                      Access
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteRequirement(r.id)}
-                                    className="text-sm text-red-600 hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div className="mt-4">
+                        <label className="mb-1 block text-xs font-medium text-ink-muted">Display Label</label>
+                        <TextInput
+                          value={s.displayName || ''}
+                          onChange={(e) => updateStage(s.stageId, { displayName: e.target.value })}
+                          placeholder={s.stage?.name || 'Enter label'}
+                        />
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+                          <input
+                            type="checkbox"
+                            checked={!!s.isEnabled}
+                            onChange={(e) => updateStage(s.stageId, { isEnabled: e.target.checked })}
+                            className="rounded border-border text-brand focus-visible:ring-brand/30"
+                          />
+                          Active in flow
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            onClick={() => moveStage(s.stageId, 'up')}
+                            disabled={idx === 0}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Up
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => moveStage(s.stageId, 'down')}
+                            disabled={idx === sortedStages.length - 1}
+                            variant="secondary"
+                            size="sm"
+                          >
+                            Down
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          </AppSurface>
+            </AppSurface>
+          ) : null}
+
+          {setupStep === 'requirements' ? (
+            <AppSurface padding="none" className="overflow-hidden">
+              <div className="border-b border-border bg-surface-muted px-6 py-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-ink">{`Required Documents By Stage - ${scopeLabel}`}</div>
+                    <div className="mt-1 text-xs text-ink-muted">
+                      Pick a stage, add the document types that must appear in the checklist, and mark confidential requirements only when needed.
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" onClick={() => setSetupStep('stages')}>
+                      Back To Stage Flow
+                    </Button>
+                    <Button type="button" onClick={() => setSetupStep('review')}>
+                      Continue To Review
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b border-border bg-surface px-5 py-4">
+                <div className="text-xs font-medium text-ink-muted">Choose stage to configure</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {sortedStages.map((s) => {
+                    const stageLabel = s.displayName || s.stage?.name || '-'
+                    const active = String(s.stageId) === String(focusedStageId)
+                    const reqCount = (requirementsByStage.get(s.stageId) || []).filter(isRequiredRequirement).length
+                    return (
+                      <button
+                        key={s.stageId}
+                        type="button"
+                        onClick={() => selectRequirementStage(s.stageId)}
+                        className={`rounded-full border px-3 py-2 text-sm ${
+                          active
+                            ? 'border-brand bg-[var(--dms-color-info-soft)] text-ink'
+                            : 'border-border bg-surface hover:border-brand/30'
+                        }`}
+                      >
+                        {`${stageLabel} (${reqCount})`}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 p-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-ink">{focusedStage?.displayName || focusedStage?.stage?.name || 'Select a stage'}</div>
+                        <div className="mt-1 text-xs text-ink-muted">
+                          {focusedStage?.isEnabled
+                            ? 'New phases will show these required documents in this active stage.'
+                            : 'This stage is currently hidden in the flow. You can still prepare its requirements here.'}
+                        </div>
+                      </div>
+                      {focusedStage ? (
+                        <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-secondary">
+                          {`${focusedStageRequirements.length} required`}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <form onSubmit={addRequirement} className="mt-4 grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-ink-muted">Document Type</label>
+                        <SearchableSelectField
+                          values={newReq.documentTypeIds}
+                          options={filteredDocumentTypes}
+                          onChange={(values) => setNewReq((p) => ({ ...p, documentTypeIds: values, stageId: focusedStageId }))}
+                          searchValue={documentTypeSearch}
+                          onSearchChange={setDocumentTypeSearch}
+                          placeholder={focusedStage ? `Select document type for ${focusedStage.displayName || focusedStage.stage?.name || 'this stage'}` : 'Select one or more document types'}
+                          noResultsLabel="No document type found"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-4 py-3">
+                        <label className="flex items-center gap-2 text-sm text-ink-secondary">
+                          <input
+                            type="checkbox"
+                            checked={!!newReq.isConfidentialDefault}
+                            onChange={(e) => setNewReq((p) => ({ ...p, isConfidentialDefault: e.target.checked, stageId: focusedStageId }))}
+                            className="rounded border-border text-brand focus-visible:ring-brand/30"
+                          />
+                          Mark as confidential by default
+                        </label>
+                        <Button
+                          disabled={addingReq || !focusedStageId || !(newReq.documentTypeIds || []).length}
+                          type="submit"
+                        >
+                          {addingReq
+                            ? 'Adding...'
+                            : `Add${(newReq.documentTypeIds || []).length ? ` ${(newReq.documentTypeIds || []).length}` : ''} Requirement${(newReq.documentTypeIds || []).length > 1 ? 's' : ''}`}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <div className="text-sm font-semibold text-ink">Requirements for this stage</div>
+                    <div className="mt-1 text-xs text-ink-muted">
+                      Review, adjust confidential access when required, and remove items you no longer want in the checklist.
+                    </div>
+                    <div className="mt-4">
+                      {!focusedStage ? (
+                        <div className="text-sm text-ink-muted">Select a stage to manage its required documents.</div>
+                      ) : focusedStageRequirements.filter(isRequiredRequirement).length === 0 ? (
+                        <div className="text-sm text-ink-muted">No required document type added for this stage yet.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {focusedStageRequirements.filter(isRequiredRequirement).map((r) => (
+                            <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted px-3 py-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-ink">{r.documentType?.name || '-'}</div>
+                                <div className="mt-1 text-xs text-ink-muted">
+                                  {r.isConfidentialDefault ? 'Confidential by default' : 'Standard visibility'}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {r.isConfidentialDefault ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openRequirementAccess(r)}
+                                    className="text-sm text-brand hover:underline"
+                                  >
+                                    Access
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => deleteRequirement(r.id)}
+                                  className="text-sm text-red-600 hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <div className="text-sm font-semibold text-ink">Checklist Preview</div>
+                    <div className="mt-1 text-xs text-ink-muted">
+                      This shows what a new phase will receive based on the current setup.
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {enabledStages.length === 0 ? (
+                        <div className="text-sm text-ink-muted">No active stages in the flow yet. Enable at least one stage first.</div>
+                      ) : (
+                        enabledStages.map((stage, index) => {
+                          const stageLabel = stage.displayName || stage.stage?.name || '-'
+                          const stageRequirements = (requirementsByStage.get(stage.stageId) || []).filter(isRequiredRequirement)
+                          return (
+                            <div key={stage.stageId} className="rounded-lg border border-border bg-surface-muted px-3 py-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm font-semibold text-ink">{`Stage ${index + 1}: ${stageLabel}`}</div>
+                                <span className="text-xs text-ink-muted">{`${stageRequirements.length} required`}</span>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {stageRequirements.length === 0 ? (
+                                  <span className="text-xs text-ink-muted">No requirements yet</span>
+                                ) : (
+                                  stageRequirements.map((req) => (
+                                    <span
+                                      key={req.id}
+                                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                        req.isConfidentialDefault
+                                          ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
+                                          : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
+                                      }`}
+                                    >
+                                      {req.documentType?.name || '-'}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-surface p-4">
+                    <div className="text-sm font-semibold text-ink">Good practice</div>
+                    <div className="mt-2 space-y-2 text-xs text-ink-muted">
+                      <div>Keep only business-critical requirements in the default template.</div>
+                      <div>Use project override only when one project genuinely needs a different setup.</div>
+                      <div>Use confidential defaults only for evidence that truly needs restricted visibility.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AppSurface>
+          ) : null}
+
+          {setupStep === 'review' ? (
+            <AppSurface padding="lg">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-ink">Review Setup Before Hand-Off</div>
+                  <div className="mt-1 text-xs text-ink-muted">
+                    Confirm the stage flow, required documents, and confidential defaults before end users start creating new phases.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => setSetupStep('requirements')}>
+                    Back To Required Documents
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setSetupStep('stages')}>
+                    Open Stage Flow
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="space-y-4">
+                  {sortedStages.map((stage, index) => {
+                    const stageLabel = stage.displayName || stage.stage?.name || '-'
+                    const stageRequirements = (requirementsByStage.get(stage.stageId) || []).filter(isRequiredRequirement)
+                    return (
+                      <div key={stage.stageId} className="rounded-xl border border-border bg-surface p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="text-sm font-semibold text-ink">{`Stage ${index + 1}: ${stageLabel}`}</div>
+                            <div className="mt-1 text-xs text-ink-muted">
+                              {stage.isEnabled ? 'Included in the active flow.' : 'Hidden from the active flow.'}
+                            </div>
+                          </div>
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stage.isEnabled ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
+                            {stage.isEnabled ? 'Active' : 'Hidden'}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {stageRequirements.length === 0 ? (
+                            <span className="text-xs text-ink-muted">No required documents configured.</span>
+                          ) : (
+                            stageRequirements.map((req) => (
+                              <span
+                                key={req.id}
+                                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  req.isConfidentialDefault
+                                    ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
+                                    : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]'
+                                }`}
+                              >
+                                {req.documentType?.name || '-'}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-border bg-surface-muted px-4 py-4">
+                    <div className="text-sm font-semibold text-ink">Review Checklist</div>
+                    <div className="mt-3 space-y-2 text-xs text-ink-muted">
+                      <div>{hasStageChanges ? 'Stage flow still has unsaved edits.' : 'Stage flow is saved.'}</div>
+                      <div>{`${activeStageCount} active stage${activeStageCount === 1 ? '' : 's'} in flow.`}</div>
+                      <div>{`${requiredDocumentsCount} required document rule${requiredDocumentsCount === 1 ? '' : 's'} configured.`}</div>
+                      <div>{isProjectScope ? 'This setup only affects the selected project.' : 'This setup affects all projects without override.'}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-surface px-4 py-4">
+                    <div className="text-sm font-semibold text-ink">Next Action</div>
+                    <div className="mt-2 text-sm text-ink-secondary">
+                      {hasStageChanges
+                        ? 'Save the stage flow before handing this setup to users.'
+                        : 'Setup is ready for end-user validation. New phases will use this configuration immediately.'}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button type="button" onClick={saveStages} disabled={savingStages || !hasStageChanges}>
+                        {savingStages ? 'Saving...' : 'Save Stage Flow'}
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => setSetupStep('requirements')}>
+                        Edit Required Documents
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AppSurface>
+          ) : null}
         </div>
       )}
 

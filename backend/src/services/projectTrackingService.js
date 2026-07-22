@@ -512,7 +512,7 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
     select: { id: true, stageId: true, documentTypeId: true, status: true, isManualOverride: true }
   })
 
-  const toWaiveIds = []
+  const toDeleteIds = []
   const toPendingIds = []
 
   for (const item of existingItems) {
@@ -521,14 +521,17 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
     const isRequired = requiredKeys.has(key)
     const status = String(item.status || '').toUpperCase()
 
-    if (!isRequired && status === 'PENDING') toWaiveIds.push(item.id)
+    if (!isRequired) {
+      toDeleteIds.push(item.id)
+      continue
+    }
+
     if (isRequired && status === 'WAIVED') toPendingIds.push(item.id)
   }
 
-  if (toWaiveIds.length > 0) {
-    await db.projectIterationDocumentItem.updateMany({
-      where: { id: { in: toWaiveIds } },
-      data: { status: 'WAIVED', completedAt: new Date() }
+  if (toDeleteIds.length > 0) {
+    await db.projectIterationDocumentItem.deleteMany({
+      where: { id: { in: toDeleteIds } }
     })
   }
 
@@ -2484,6 +2487,31 @@ exports.updateProjectSetupStages = async (projectId, stages, { updatedById }) =>
         stageId: { notIn: Array.from(stageIdSet) }
       }
     })
+
+    const enabledRows = await getEnabledStagesForProject(projectId, tx)
+    const enabledStageIds = new Set(enabledRows.map((row) => row.stageId))
+    const projectIterations = await tx.projectIteration.findMany({
+      where: { projectId },
+      include: { currentStage: true }
+    })
+
+    for (const iteration of projectIterations) {
+      if (iteration.currentStageId && enabledStageIds.has(iteration.currentStageId)) continue
+
+      const currentSort = iteration.currentStage?.sortOrder ?? -1
+      const replacement =
+        enabledRows.find((row) => (row.sortOrder ?? row.stage?.sortOrder ?? 0) > currentSort) ||
+        enabledRows[enabledRows.length - 1] ||
+        null
+
+      const nextStageId = replacement?.stageId || null
+      if (nextStageId === (iteration.currentStageId || null)) continue
+
+      await tx.projectIteration.update({
+        where: { id: iteration.id },
+        data: { currentStageId: nextStageId }
+      })
+    }
 
     await tx.auditLog.create({
       data: {

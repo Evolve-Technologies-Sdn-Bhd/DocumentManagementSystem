@@ -4,6 +4,7 @@ const securityService = require('../services/securityService');
 const twoFactorService = require('../services/twoFactorService');
 const trustedDeviceService = require('../services/trustedDeviceService');
 const auditSettingsService = require('../services/auditSettingsService');
+const emailService = require('../services/emailService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
 const prisma = require('../config/database');
@@ -227,6 +228,53 @@ class AuthController {
   });
 
   /**
+   * Request password reset link
+   * POST /api/auth/forgot-password
+   */
+  forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'email', message: 'Email is required' }
+      ]);
+    }
+
+    const resetPayload = await authService.createPasswordResetToken(email);
+
+    if (resetPayload?.user?.email && resetPayload?.token) {
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+      const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetPayload.token)}`;
+
+      try {
+        await emailService.sendPasswordResetEmail(resetPayload.user.email, {
+          firstName: resetPayload.user.firstName,
+          resetLink,
+          expiresInMinutes: parseInt(process.env.PASSWORD_RESET_LINK_MINUTES || '30', 10) || 30
+        });
+      } catch (error) {
+        console.error('Failed to send password reset email:', error);
+        return ResponseFormatter.error(
+          res,
+          'Unable to send reset email at the moment. Please try again later.',
+          500
+        );
+      }
+
+      await auditLogService.logAuth(resetPayload.user.id, 'PASSWORD_RESET_REQUESTED', req, {
+        email: resetPayload.user.email
+      });
+    }
+
+    return ResponseFormatter.success(
+      res,
+      null,
+      'If the email is registered, a password reset link has been sent.',
+      200
+    );
+  });
+
+  /**
    * Logout user
    * POST /api/auth/logout
    */
@@ -325,6 +373,42 @@ class AuthController {
       res,
       null,
       'Password changed successfully'
+    );
+  });
+
+  /**
+   * Complete password reset using emailed token
+   * POST /api/auth/reset-password
+   */
+  resetPassword = asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    const errors = [];
+    if (!token) errors.push({ field: 'token', message: 'Reset token is required' });
+    if (!newPassword) errors.push({ field: 'newPassword', message: 'New password is required' });
+
+    if (errors.length > 0) {
+      return ResponseFormatter.validationError(res, errors);
+    }
+
+    const passwordValidation = await securityService.validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return ResponseFormatter.validationError(
+        res,
+        passwordValidation.errors.map((err) => ({ field: 'newPassword', message: err }))
+      );
+    }
+
+    const user = await authService.resetPasswordWithToken(token, newPassword);
+
+    await auditLogService.logAuth(user.id, 'PASSWORD_RESET_COMPLETED', req, {
+      email: user.email
+    });
+
+    return ResponseFormatter.success(
+      res,
+      null,
+      'Password reset successfully'
     );
   });
 

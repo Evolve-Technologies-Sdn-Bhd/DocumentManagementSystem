@@ -170,6 +170,41 @@ class EmailService {
     }
   }
 
+  async sendPasswordResetEmail(to, data = {}) {
+    const {
+      firstName,
+      resetLink,
+      expiresInMinutes = 30
+    } = data;
+
+    const greetingName = firstName || 'there';
+
+    await this.sendEmail({
+      to,
+      subject: 'DMS - Reset Your Password',
+      text: `Hello ${greetingName}, use this link to reset your password: ${resetLink}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
+          <h2 style="color: #0f6fcf; margin-bottom: 8px;">Reset your password</h2>
+          <p>Hello ${greetingName},</p>
+          <p>We received a request to reset your password for your Document Management System account.</p>
+          <p style="margin: 24px 0;">
+            <a href="${resetLink}" style="display: inline-block; padding: 12px 22px; background: #0f6fcf; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Reset Password
+            </a>
+          </p>
+          <p>This link will expire in ${expiresInMinutes} minute(s).</p>
+          <p>If you did not request this, you can ignore this email and your password will remain unchanged.</p>
+          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="color: #6b7280; font-size: 12px;">
+            If the button does not work, copy and paste this link into your browser:<br />
+            <span style="word-break: break-all;">${resetLink}</span>
+          </p>
+        </div>
+      `
+    });
+  }
+
   /**
    * Send notification email for document events
    */

@@ -1049,6 +1049,22 @@ function DivisionAssignmentModal({
     ))
   }
 
+  const handleSelectFiltered = () => {
+    setDraftSelection((prev) => {
+      const next = new Set(prev)
+      filteredItems.forEach((item) => next.add(item.id))
+      return [...next]
+    })
+  }
+
+  const handleSelectAll = () => {
+    setDraftSelection((items || []).map((item) => item.id))
+  }
+
+  const handleClearAll = () => {
+    setDraftSelection([])
+  }
+
   if (!isOpen) return null
 
   return (
@@ -1066,13 +1082,29 @@ function DivisionAssignmentModal({
             />
             <div className="mt-3 flex items-center justify-between text-xs text-ink-soft">
               <span>{t('mdm_selected_count', { count: draftSelection.length })}</span>
-              <button
-                type="button"
-                onClick={() => setDraftSelection(filteredItems.map((item) => item.id))}
-                className="font-medium text-brand hover:text-brand/80"
-              >
-                {t('mdm_select_filtered')}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="font-medium text-brand hover:text-brand/80"
+                >
+                  {t('mdm_select_all')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectFiltered}
+                  className="font-medium text-brand hover:text-brand/80"
+                >
+                  {t('mdm_select_filtered')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="font-medium text-ink-soft hover:text-ink"
+                >
+                  {t('mdm_clear_all')}
+                </button>
+              </div>
             </div>
           </div>
 

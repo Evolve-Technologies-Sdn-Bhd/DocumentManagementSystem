@@ -16,6 +16,7 @@ import MasterRecord from './pages/MasterRecord'
 import ProfileSettings from './pages/ProfileSettings'
 import DocumentLink from './pages/DocumentLink'
 import PublicShare from './pages/PublicShare'
+import ResetPassword from './pages/ResetPassword'
 import Login from './components/Login'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/diagnostic" element={<DiagnosticPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/documents/:id" element={<DocumentLink />} />
           <Route path="/share/:token" element={<PublicShare />} />
           
