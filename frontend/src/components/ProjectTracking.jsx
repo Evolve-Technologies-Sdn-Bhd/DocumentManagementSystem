@@ -25,6 +25,7 @@ import FolderTreePicker from './ui/FolderTreePicker'
 import SectionHeader from './ui/SectionHeader'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import IconButton from './ui/IconButton'
+import ProjectRequiredDocumentsTab from './ProjectRequiredDocumentsTab'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -6229,9 +6230,7 @@ export default function ProjectTracking() {
   }
 
   useEffect(() => {
-    if (projectId && activeTab !== 'projects') {
-      setTab('projects')
-    }
+    if (projectId && !['projects', 'required-documents'].includes(activeTab)) setTab('projects')
   }, [projectId])
 
   const tabs = useMemo(() => {
@@ -6241,11 +6240,14 @@ export default function ProjectTracking() {
       base.push({ id: 'projects', label: 'Project Lists' })
       base.push({ id: 'search', label: 'Search Documents' })
     }
+    if (projectId && canViewProjectDetail) {
+      base.push({ id: 'required-documents', label: 'Required Documents' })
+    }
     if (canOpenProjectSetup) {
       base.push({ id: 'setup', label: 'Project Setup' })
     }
     return base
-  }, [canOpenProjectSetup, canSearchProjects])
+  }, [canOpenProjectSetup, canSearchProjects, canViewProjectDetail, projectId])
 
   const fallbackTab = tabs[0]?.id || 'dashboard'
 
@@ -6297,6 +6299,10 @@ export default function ProjectTracking() {
           ) : activeTab === 'search' && canSearchProjects ? (
             <div data-tour-id="pt-search-panel">
               <DocumentsSearch />
+            </div>
+          ) : activeTab === 'required-documents' && projectId && canViewProjectDetail ? (
+            <div data-tour-id="pt-required-documents-panel">
+              <ProjectRequiredDocumentsTab projectId={Number(projectId)} />
             </div>
           ) : projectId && canViewProjectDetail ? (
             <div data-tour-id="pt-detail-panel">

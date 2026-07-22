@@ -155,6 +155,31 @@ exports.getProject = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { project }, 'Project retrieved successfully');
 });
 
+exports.listProjectRequiredDocuments = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const result = await projectTrackingService.listProjectRequiredDocuments(projectId, { user: req.user })
+  return ResponseFormatter.success(res, result, 'Required documents retrieved successfully')
+})
+
+exports.setProjectRequiredDocumentPic = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const documentTypeId = req.body?.documentTypeId ? Number(req.body.documentTypeId) : null
+  if (!documentTypeId) throw new ValidationError('documentTypeId is required')
+
+  const picUserId = req.body?.picUserId ? Number(req.body.picUserId) : null
+
+  const result = await projectTrackingService.setProjectRequiredDocumentPic(projectId, {
+    documentTypeId,
+    picUserId,
+    assignedById: req.user.id
+  })
+  return ResponseFormatter.success(res, result, 'PIC assignment updated successfully')
+})
+
 exports.getProjectActivityLogs = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')

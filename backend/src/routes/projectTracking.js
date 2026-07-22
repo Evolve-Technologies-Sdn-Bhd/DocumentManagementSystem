@@ -30,6 +30,8 @@ const requireAnyPermission = (moduleKey, actions) => {
 router.get('/projects', requireAnyPermission('projectTracking', ['searchProject', 'projectSetup']), projectTrackingController.listProjects);
 router.post('/projects', requirePermission('projectTracking', 'create'), projectTrackingController.createProject);
 router.get('/projects/:projectId', requirePermission('projectTracking', 'view'), projectTrackingController.getProject);
+router.get('/projects/:projectId/required-documents', requirePermission('projectTracking', 'view'), projectTrackingController.listProjectRequiredDocuments)
+router.post('/projects/:projectId/required-documents/pic', requirePermission('projectTracking', 'view'), projectTrackingController.setProjectRequiredDocumentPic)
 router.get('/projects/:projectId/activity-logs', requireAnyPermission('projectTracking', ['view', 'activityLogs']), projectTrackingController.getProjectActivityLogs);
 router.get('/projects/:projectId/change-requests', requireAnyPermission('projectTracking', ['view', 'keyInChangeRequest']), projectTrackingController.listProjectChangeRequests);
 router.post('/projects/:projectId/change-requests', requireAnyPermission('projectTracking', ['create', 'keyInChangeRequest']), projectTrackingController.createProjectChangeRequest);

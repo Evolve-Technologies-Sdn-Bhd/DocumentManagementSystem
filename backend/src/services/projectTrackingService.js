@@ -862,6 +862,183 @@ exports.getProject = async (projectId, { user } = {}) => {
   };
 };
 
+exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, managerId: true }
+  })
+  if (!project) throw new NotFoundError('Project')
+
+  const canAssign = Boolean(user?.id && user.id === project.managerId)
+
+  const items = await prisma.projectIterationDocumentItem.findMany({
+    where: { iteration: { projectId } },
+    select: { documentTypeId: true }
+  })
+  const documentTypeIds = Array.from(new Set(items.map((it) => it.documentTypeId))).filter(Boolean)
+  if (documentTypeIds.length === 0) {
+    return { canAssign, requiredDocuments: [] }
+  }
+
+  const [documentTypes, assignments, links] = await Promise.all([
+    prisma.documentType.findMany({
+      where: { id: { in: documentTypeIds } },
+      select: { id: true, name: true, prefix: true, isActive: true }
+    }),
+    prisma.projectRequiredDocumentPicAssignment.findMany({
+      where: { projectId, documentTypeId: { in: documentTypeIds } },
+      include: {
+        picUser: { select: { id: true, email: true, firstName: true, lastName: true } },
+        assignedBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    }),
+    prisma.projectDocumentLink.findMany({
+      where: {
+        iteration: { projectId },
+        document: { documentTypeId: { in: documentTypeIds } }
+      },
+      select: {
+        linkedAt: true,
+        document: { select: { documentTypeId: true } }
+      }
+    })
+  ])
+
+  const assignmentByDocType = new Map(assignments.map((a) => [a.documentTypeId, a]))
+  const linkStatsByDocType = new Map()
+  links.forEach((l) => {
+    const dtid = l.document?.documentTypeId
+    if (!dtid) return
+    const current = linkStatsByDocType.get(dtid) || { responded: false, lastLinkedAt: null }
+    const nextLast = !current.lastLinkedAt || l.linkedAt > current.lastLinkedAt ? l.linkedAt : current.lastLinkedAt
+    linkStatsByDocType.set(dtid, { responded: true, lastLinkedAt: nextLast })
+  })
+
+  const requiredDocuments = documentTypes
+    .slice()
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+    .map((dt) => {
+      const assignment = assignmentByDocType.get(dt.id) || null
+      const stats = linkStatsByDocType.get(dt.id) || { responded: false, lastLinkedAt: null }
+      return {
+        documentType: dt,
+        assignment: assignment
+          ? {
+              id: assignment.id,
+              picUser: assignment.picUser,
+              assignedBy: assignment.assignedBy,
+              assignedAt: assignment.assignedAt
+            }
+          : null,
+        status: {
+          responded: Boolean(stats.responded),
+          lastLinkedAt: stats.lastLinkedAt
+        }
+      }
+    })
+
+  return { canAssign, requiredDocuments }
+}
+
+exports.setProjectRequiredDocumentPic = async (
+  projectId,
+  { documentTypeId, picUserId, assignedById }
+) => {
+  if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!documentTypeId) throw new ValidationError('documentTypeId is required')
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, managerId: true }
+  })
+  if (!project) throw new NotFoundError('Project')
+
+  if (assignedById !== project.managerId) {
+    throw new ForbiddenError("Only the Project PIC can assign PIC for required documents")
+  }
+
+  const docType = await prisma.documentType.findUnique({
+    where: { id: documentTypeId },
+    select: { id: true, name: true }
+  })
+  if (!docType) throw new NotFoundError('Document type')
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.projectRequiredDocumentPicAssignment.findUnique({
+      where: { projectId_documentTypeId: { projectId, documentTypeId } },
+      select: { id: true, picUserId: true }
+    })
+
+    if (!picUserId) {
+      await tx.projectRequiredDocumentPicAssignment.deleteMany({
+        where: { projectId, documentTypeId }
+      })
+
+      await tx.auditLog.create({
+        data: {
+          userId: assignedById,
+          action: 'DELETE',
+          entity: 'ProjectRequiredDocumentPicAssignment',
+          entityId: existing?.id || null,
+          description: `projectId=${projectId} unassigned PIC for documentTypeId=${documentTypeId}`,
+          metadata: {
+            projectId,
+            documentTypeId,
+            previousPicUserId: existing?.picUserId || null
+          }
+        }
+      })
+
+      return { assignment: null }
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: picUserId },
+      select: { id: true }
+    })
+    if (!user) throw new NotFoundError('User')
+
+    const now = new Date()
+    const assignment = await tx.projectRequiredDocumentPicAssignment.upsert({
+      where: { projectId_documentTypeId: { projectId, documentTypeId } },
+      update: {
+        picUserId,
+        assignedById,
+        assignedAt: now
+      },
+      create: {
+        projectId,
+        documentTypeId,
+        picUserId,
+        assignedById,
+        assignedAt: now
+      },
+      include: {
+        picUser: { select: { id: true, email: true, firstName: true, lastName: true } },
+        assignedBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: assignedById,
+        action: existing ? 'UPDATE' : 'CREATE',
+        entity: 'ProjectRequiredDocumentPicAssignment',
+        entityId: assignment.id,
+        description: `projectId=${projectId} set PIC for documentTypeId=${documentTypeId} to userId=${picUserId}`,
+        metadata: {
+          projectId,
+          documentTypeId,
+          previousPicUserId: existing?.picUserId || null,
+          picUserId
+        }
+      }
+    })
+
+    return { assignment }
+  })
+}
+
 exports.createIteration = async (projectId, { name, createdById }) => {
   const project = await prisma.project.findUnique({
     where: { id: projectId },

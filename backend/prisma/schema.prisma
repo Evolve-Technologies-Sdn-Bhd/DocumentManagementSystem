@@ -84,6 +84,8 @@ model User {
   expiryReminderRecipients  DocumentExpiryReminderRecipient[]
   createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
   divisions                  UserDivision[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicUser")
+  projectRequiredDocumentPicAssignedActions ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicAssignedBy")
 
   @@index([email])
   @@index([employeeId])
@@ -228,6 +230,7 @@ model DocumentType {
   projectItems        ProjectIterationDocumentItem[]
   projectSetupDefaultRequirements ProjectSetupDocumentRequirementDefault[]
   projectSetupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 }
 
 model ProjectCategory {
@@ -561,6 +564,7 @@ model Project {
   setupStageOverrides ProjectSetupStageOverride[]
   setupRequirementOverrides ProjectSetupDocumentRequirementOverride[]
   changeRequests  ProjectChangeRequest[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
   @@index([projectCategoryId])
   @@index([managerId])
@@ -888,6 +892,28 @@ model ProjectDocumentLink {
   @@index([itemId])
   @@index([documentId])
   @@index([linkedById])
+}
+
+model ProjectRequiredDocumentPicAssignment {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  documentTypeId Int
+  picUserId      Int
+  assignedById   Int
+  assignedAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  picUser      User         @relation("ProjectRequiredDocumentPicUser", fields: [picUserId], references: [id], onDelete: Restrict)
+  assignedBy   User         @relation("ProjectRequiredDocumentPicAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, documentTypeId], map: "PRDPICA_pid_dtid_key")
+  @@index([projectId])
+  @@index([documentTypeId])
+  @@index([picUserId])
+  @@index([assignedById])
+  @@index([assignedAt])
 }
 
 model DocumentVersion {

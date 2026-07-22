@@ -51,8 +51,8 @@ export const DEFAULT_LOGIN_FORM_COPY = {
   passwordLabel: 'Password',
   passwordPlaceholder: 'Enter your password',
   rememberMeLabel: 'Keep me logged in',
-  showForgotPassword: false,
-  forgotPasswordText: 'Change Password?',
+  showForgotPassword: true,
+  forgotPasswordText: 'Forgot Password?',
   showRequiredAsterisk: true,
   loginButtonLabel: 'Sign In',
   backToHomeText: 'Back to home'
