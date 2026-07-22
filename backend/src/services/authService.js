@@ -442,7 +442,7 @@ class AuthService {
     });
   }
 
-  async createPasswordResetToken(email) {
+  async createPasswordResetCode(email) {
     const normalizedEmail = String(email || '').trim();
     if (!normalizedEmail) {
       throw new BadRequestError('Email is required');
@@ -456,46 +456,94 @@ class AuthService {
       return null;
     }
 
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        purpose: 'password-reset'
-      },
-      this.buildPasswordResetSecret(user),
-      {
-        expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '30m'
+    const expiresInMinutes = parseInt(process.env.PASSWORD_RESET_CODE_MINUTES || '10', 10) || 10;
+    const cooldownSeconds = parseInt(process.env.PASSWORD_RESET_CODE_RESEND_COOLDOWN_SECONDS || '60', 10) || 60;
+
+    const existing = await prisma.passwordResetCode.findUnique({
+      where: { userId: user.id }
+    });
+
+    const now = new Date();
+    if (existing?.lastSentAt) {
+      const cooldownUntil = new Date(existing.lastSentAt.getTime() + cooldownSeconds * 1000);
+      if (cooldownUntil > now) {
+        return { user, code: null, expiresInMinutes, cooldownSeconds };
       }
-    );
-
-    return { user, token };
-  }
-
-  async verifyPasswordResetToken(token) {
-    const decoded = jwt.decode(token);
-    if (!decoded?.userId || decoded?.purpose !== 'password-reset') {
-      throw new UnauthorizedError('Invalid or expired reset link');
     }
 
+    const code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+
+    await prisma.passwordResetCode.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+        consumedAt: null
+      },
+      update: {
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+        consumedAt: null
+      }
+    });
+
+    return { user, code, expiresInMinutes, cooldownSeconds };
+  }
+
+  async verifyPasswordResetCode(email, code) {
+    const normalizedEmail = String(email || '').trim();
+    const normalizedCode = String(code || '').trim();
+    if (!normalizedEmail || !normalizedCode) {
+      return { ok: false };
+    }
+
+    const maxAttempts = parseInt(process.env.PASSWORD_RESET_CODE_MAX_ATTEMPTS || '5', 10) || 5;
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(decoded.userId, 10) }
+      where: { email: normalizedEmail }
     });
 
     if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedError('Invalid or expired reset link');
+      return { ok: false };
     }
 
-    try {
-      jwt.verify(token, this.buildPasswordResetSecret(user));
-    } catch (error) {
-      throw new UnauthorizedError('Invalid or expired reset link');
+    const record = await prisma.passwordResetCode.findUnique({
+      where: { userId: user.id }
+    });
+
+    const now = new Date();
+    if (!record) return { ok: false };
+    if (record.consumedAt) return { ok: false };
+    if (record.expiresAt <= now) return { ok: false };
+    if (record.attempts >= maxAttempts) return { ok: false };
+
+    const match = await bcrypt.compare(normalizedCode, record.codeHash);
+    if (!match) {
+      await prisma.passwordResetCode.update({
+        where: { userId: user.id },
+        data: { attempts: { increment: 1 } }
+      });
+      return { ok: false };
     }
 
-    return user;
+    return { ok: true, user };
   }
 
-  async resetPasswordWithToken(token, newPassword) {
-    const user = await this.verifyPasswordResetToken(token);
+  async resetPasswordWithCode(email, code, newPassword) {
+    const verification = await this.verifyPasswordResetCode(email, code);
+    if (!verification.ok || !verification.user) {
+      throw new UnauthorizedError('Invalid or expired reset code');
+    }
+
+    const user = verification.user;
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const now = new Date();
 
     await prisma.$transaction([
       prisma.user.update({
@@ -513,6 +561,10 @@ class AuthService {
       }),
       prisma.trustedDevice.deleteMany({
         where: { userId: user.id }
+      }),
+      prisma.passwordResetCode.update({
+        where: { userId: user.id },
+        data: { consumedAt: now }
       })
     ]);
 

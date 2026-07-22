@@ -170,35 +170,35 @@ class EmailService {
     }
   }
 
-  async sendPasswordResetEmail(to, data = {}) {
+  async sendPasswordResetCodeEmail(to, data = {}) {
     const {
       firstName,
-      resetLink,
-      expiresInMinutes = 30
+      code,
+      expiresInMinutes = 10
     } = data;
 
     const greetingName = firstName || 'there';
 
     await this.sendEmail({
       to,
-      subject: 'DMS - Reset Your Password',
-      text: `Hello ${greetingName}, use this link to reset your password: ${resetLink}`,
+      subject: 'DMS - Password Reset Code',
+      text: `Hello ${greetingName}, your password reset code is: ${code}. This code expires in ${expiresInMinutes} minute(s).`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #111827;">
           <h2 style="color: #0f6fcf; margin-bottom: 8px;">Reset your password</h2>
           <p>Hello ${greetingName},</p>
           <p>We received a request to reset your password for your Document Management System account.</p>
-          <p style="margin: 24px 0;">
-            <a href="${resetLink}" style="display: inline-block; padding: 12px 22px; background: #0f6fcf; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">
-              Reset Password
-            </a>
-          </p>
-          <p>This link will expire in ${expiresInMinutes} minute(s).</p>
+          <p style="margin: 18px 0 10px; color: #374151;">Enter this verification code on the login page:</p>
+          <div style="margin: 0 0 18px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f9fafb;">
+            <div style="font-size: 28px; letter-spacing: 6px; font-weight: 700; text-align: center; color: #111827;">
+              ${code}
+            </div>
+          </div>
+          <p>This code will expire in ${expiresInMinutes} minute(s).</p>
           <p>If you did not request this, you can ignore this email and your password will remain unchanged.</p>
           <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
           <p style="color: #6b7280; font-size: 12px;">
-            If the button does not work, copy and paste this link into your browser:<br />
-            <span style="word-break: break-all;">${resetLink}</span>
+            For your security, do not share this code with anyone.
           </p>
         </div>
       `
@@ -216,6 +216,7 @@ class EmailService {
         documentCreated: 'DOCUMENT_CREATED',
         documentSubmitted: 'DOCUMENT_SUBMITTED',
         reviewAssigned: 'REVIEW_ASSIGNED',
+        requiredDocumentPicAssigned: 'REQUIRED_DOCUMENT_PIC_ASSIGNED',
         reviewCompleted: 'REVIEW_COMPLETED',
         approvalRequest: 'APPROVAL_REQUEST',
         documentApproved: 'DOCUMENT_APPROVED',
@@ -309,6 +310,23 @@ class EmailService {
               <p><strong>Assigned By:</strong> ${d.assignedBy}</p>
             </div>
             <a href="${d.link}" style="display: inline-block; padding: 10px 20px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 5px;">Start Review</a>
+          </div>
+        `
+      },
+      REQUIRED_DOCUMENT_PIC_ASSIGNED: {
+        subject: '📌 Required Document PIC Assigned',
+        html: (d) => `
+          <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+            <h2 style="color: #0f6fcf;">Required Document PIC Assigned</h2>
+            <p>You have been assigned as PIC for a required document in Project Tracking.</p>
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>Project:</strong> ${d.projectName || 'N/A'}</p>
+              <p><strong>Project Code:</strong> ${d.projectCode || 'N/A'}</p>
+              <p><strong>Stage:</strong> ${d.stageName || 'N/A'}</p>
+              <p><strong>Document Type:</strong> ${d.documentType || 'N/A'}</p>
+              <p><strong>Assigned By:</strong> ${d.assignedBy || 'N/A'}</p>
+            </div>
+            <a href="${d.link}" style="display: inline-block; padding: 10px 20px; background: #0f6fcf; color: white; text-decoration: none; border-radius: 5px;">Open Project</a>
           </div>
         `
       },

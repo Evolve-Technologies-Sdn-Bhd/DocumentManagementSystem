@@ -925,6 +925,24 @@ function PhaseModal({ mode, phase, nextPhaseNo, onClose, onSubmit }) {
 }
 
 function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClose, onSaved }) {
+  const makeCreateRow = (phaseValue = phase) => {
+    const phaseLabel = phaseValue?.iterationNo ? `Phase ${phaseValue.iterationNo}` : ''
+    return {
+      key: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      mode: 'create',
+      serverId: null,
+      changeId: '',
+      phaseRef: phaseLabel,
+      description: '',
+      impact: '',
+      authorizedBy: '',
+      complianceSignOff: '',
+      dateApproved: '',
+      saving: false,
+      error: null
+    }
+  }
+
   const initialRow = useMemo(() => {
     if (initialItem) {
       return {
@@ -942,46 +960,62 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
         error: null
       }
     }
-
-    const phaseLabel = phase?.iterationNo ? `Phase ${phase.iterationNo}` : ''
-    return {
-      key: `new-${Date.now()}`,
-      mode: 'create',
-      serverId: null,
-      changeId: '',
-      phaseRef: phaseLabel,
-      description: '',
-      impact: '',
-      authorizedBy: '',
-      complianceSignOff: '',
-      dateApproved: '',
-      saving: false,
-      error: null
-    }
+    return makeCreateRow(phase)
   }, [initialItem, phase])
 
   const [rows, setRows] = useState([initialRow])
+  const [loadingExisting, setLoadingExisting] = useState(false)
+  const [loadingExistingError, setLoadingExistingError] = useState('')
 
   useEffect(() => {
-    setRows([initialRow])
-  }, [initialRow])
+    let active = true
+    const loadExisting = async () => {
+      if (initialItem) {
+        setRows([initialRow])
+        return
+      }
+
+      setLoadingExisting(true)
+      setLoadingExistingError('')
+      try {
+        const res = await api.get(`/project-tracking/projects/${projectId}/change-requests`, {
+          params: iterationId ? { iterationId: Number(iterationId) } : undefined
+        })
+        if (!active) return
+        const changeRequests = res?.data?.data?.changeRequests || []
+        const mapped = changeRequests.map((cr) => ({
+          key: `saved-${cr.id}`,
+          mode: 'edit',
+          serverId: cr.id,
+          changeId: cr.changeId || '',
+          phaseRef: cr.phaseRef || '',
+          description: cr.description || '',
+          impact: cr.impact || '',
+          authorizedBy: cr.authorizedBy || '',
+          complianceSignOff: cr.complianceSignOff || '',
+          dateApproved: toDateInputValue(cr.dateApproved),
+          saving: false,
+          error: null
+        }))
+        setRows(mapped.concat([makeCreateRow(phase)]))
+      } catch (e) {
+        if (!active) return
+        const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to load change requests'
+        setLoadingExistingError(msg)
+        setRows([makeCreateRow(phase)])
+      } finally {
+        if (active) setLoadingExisting(false)
+      }
+    }
+
+    loadExisting()
+    return () => {
+      active = false
+    }
+  }, [initialItem, initialRow, iterationId, phase, projectId])
 
   const addRow = () => {
-    const phaseLabel = phase?.iterationNo ? `Phase ${phase.iterationNo}` : ''
-    setRows((prev) => prev.concat({
-      key: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      mode: 'create',
-      serverId: null,
-      changeId: '',
-      phaseRef: phaseLabel,
-      description: '',
-      impact: '',
-      authorizedBy: '',
-      complianceSignOff: '',
-      dateApproved: '',
-      saving: false,
-      error: null
-    }))
+    setRows((prev) => prev.concat(makeCreateRow(phase)))
   }
 
   const updateRow = (key, patch) => {
@@ -1032,9 +1066,39 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
       }
 
       if (row.mode === 'edit' && row.serverId) {
-        await api.put(`/project-tracking/change-requests/${row.serverId}`, payload)
+        const res = await api.put(`/project-tracking/change-requests/${row.serverId}`, payload)
+        const saved = res?.data?.data?.changeRequest
+        if (saved?.id) {
+          updateRow(row.key, {
+            serverId: saved.id,
+            mode: 'edit',
+            changeId: saved.changeId || row.changeId,
+            phaseRef: saved.phaseRef || row.phaseRef,
+            description: saved.description || row.description,
+            impact: saved.impact || row.impact,
+            authorizedBy: saved.authorizedBy || row.authorizedBy,
+            complianceSignOff: saved.complianceSignOff || row.complianceSignOff,
+            dateApproved: toDateInputValue(saved.dateApproved),
+            error: null
+          })
+        }
       } else {
-        await api.post(`/project-tracking/projects/${projectId}/change-requests`, payload)
+        const res = await api.post(`/project-tracking/projects/${projectId}/change-requests`, payload)
+        const saved = res?.data?.data?.changeRequest
+        if (saved?.id) {
+          updateRow(row.key, {
+            serverId: saved.id,
+            mode: 'edit',
+            changeId: saved.changeId || row.changeId,
+            phaseRef: saved.phaseRef || row.phaseRef,
+            description: saved.description || row.description,
+            impact: saved.impact || row.impact,
+            authorizedBy: saved.authorizedBy || row.authorizedBy,
+            complianceSignOff: saved.complianceSignOff || row.complianceSignOff,
+            dateApproved: toDateInputValue(saved.dateApproved),
+            error: null
+          })
+        }
       }
 
       await onSaved?.()
@@ -1042,7 +1106,15 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
       if (row.mode === 'edit') {
         onClose?.()
       } else {
-        removeRow(row.key)
+        setRows((prev) => {
+          const hasEmptyCreateRow = prev.some((r) => (
+            r.mode === 'create' &&
+            !r.serverId &&
+            !String(r.changeId || '').trim() &&
+            !String(r.description || '').trim()
+          ))
+          return hasEmptyCreateRow ? prev : prev.concat(makeCreateRow(phase))
+        })
       }
     } catch (e) {
       const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to save change request'
@@ -1058,6 +1130,11 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
         <div className="text-sm text-ink-muted">
           Add approved changes for the selected project phase. Each row can be saved individually.
         </div>
+        {loadingExistingError ? (
+          <div className="rounded-2xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-4 py-3 text-sm text-[var(--dms-color-danger-ink)]">
+            {loadingExistingError}
+          </div>
+        ) : null}
         <TableContainer className="max-h-[60vh] overflow-y-auto">
           <Table className="table-fixed">
             <thead>
@@ -1073,6 +1150,16 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
               </Tr>
             </thead>
             <tbody>
+              {loadingExisting ? (
+                <Tr>
+                  <Td colSpan={8} className="py-6">
+                    <div className="flex items-center gap-2 text-sm text-ink-muted">
+                      <InlineSpinner className="h-4 w-4" />
+                      <span>Loading change requests...</span>
+                    </div>
+                  </Td>
+                </Tr>
+              ) : null}
               {rows.map((r) => {
                 const changeIdTrim = String(r.changeId || '').trim()
                 const descriptionTrim = String(r.description || '').trim()
@@ -2297,9 +2384,9 @@ function ProjectsList({ onOpenProject }) {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
-              itemsPerPage={pageSize}
-              onItemsPerPageChange={setPageSize}
-              totalItems={totalItems}
+              totalRecords={totalItems}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
           )}
         </AppSurface>
@@ -2904,9 +2991,9 @@ function ProjectDashboard({ onOpenProject }) {
                   currentPage={currentPage}
                   totalPages={totalPages}
                   onPageChange={setCurrentPage}
-                  itemsPerPage={pageSize}
-                  onItemsPerPageChange={setPageSize}
-                  totalItems={totalItems}
+                  totalRecords={totalItems}
+                  pageSize={pageSize}
+                  onPageSizeChange={setPageSize}
                 />
               </div>
             )}
@@ -3021,6 +3108,7 @@ function ProjectDetail({ projectId }) {
   const navigate = useNavigate()
   const uiVersionStamp = 'PT-20260617-R3'
   const consolidatedTabId = '__consolidated__'
+  const { itemsPerPage } = usePreferences()
   const canCreate = hasPermission('projectTracking', 'create')
   const canLink = hasPermission('projectTracking', 'linkDocument')
   const canAdvance = hasPermission('projectTracking', 'advanceStage')
@@ -3054,6 +3142,9 @@ function ProjectDetail({ projectId }) {
   const [showEditProject, setShowEditProject] = useState(false)
   const [showProjectControls, setShowProjectControls] = useState(false)
   const [showShareDocument, setShowShareDocument] = useState(null)
+  const [showProjectInfo, setShowProjectInfo] = useState(false)
+  const [overallDocsPage, setOverallDocsPage] = useState(1)
+  const [overallDocsPageSize, setOverallDocsPageSize] = useState(itemsPerPage)
   const [requiredDocumentAssignments, setRequiredDocumentAssignments] = useState({})
   const [canAssignRequiredDocumentPic, setCanAssignRequiredDocumentPic] = useState(false)
   const [showAssignRequiredDocumentPic, setShowAssignRequiredDocumentPic] = useState(null)
@@ -3087,6 +3178,14 @@ function ProjectDetail({ projectId }) {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setOverallDocsPageSize(itemsPerPage)
+  }, [itemsPerPage])
+
+  useEffect(() => {
+    setOverallDocsPage(1)
+  }, [selectedIterationId])
 
   const loadItems = async (iterationId) => {
     if (!iterationId) return
@@ -3430,6 +3529,18 @@ function ProjectDetail({ projectId }) {
     return Array.from(byDocumentId.values()).sort((a, b) => new Date(b.linkedAt || 0).getTime() - new Date(a.linkedAt || 0).getTime())
   }, [items, stageDocuments])
 
+  const overallDocsTotalRecords = consolidatedDocuments.length
+  const overallDocsTotalPages = Math.max(1, Math.ceil(overallDocsTotalRecords / Math.max(1, Number(overallDocsPageSize) || 1)))
+  const overallDocsPaginated = useMemo(() => {
+    const pageSize = Math.max(1, Number(overallDocsPageSize) || 1)
+    const currentPage = Math.min(Math.max(1, overallDocsPage), overallDocsTotalPages)
+    return consolidatedDocuments.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  }, [consolidatedDocuments, overallDocsPage, overallDocsPageSize, overallDocsTotalPages])
+
+  useEffect(() => {
+    if (overallDocsPage > overallDocsTotalPages) setOverallDocsPage(overallDocsTotalPages)
+  }, [overallDocsPage, overallDocsTotalPages])
+
   const getFileNameFromContentDisposition = (value) => {
     const headerValue = String(value || '')
     const utf8Match = headerValue.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)
@@ -3751,6 +3862,9 @@ function ProjectDetail({ projectId }) {
           subtitle="Track required documents, stage evidence, and confidential access for each phase."
           actions={(
             <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setShowProjectInfo(true)}>
+                Project Info
+              </Button>
               {canOpenMoreActions ? (
                 <Button size="sm" variant="secondary" onClick={() => setShowProjectControls(true)}>
                   More Actions
@@ -3882,19 +3996,38 @@ function ProjectDetail({ projectId }) {
               ) : null}
             </div>
 
-            <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
+            <div className="flex w-full flex-col items-stretch gap-2 xl:max-w-sm xl:items-end">
+              {firstBlockingItem ? (
+                <div className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-ink-secondary">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Actions apply to</div>
+                  <div className="mt-1 text-sm font-semibold text-ink">{firstBlockingItem.documentType?.name || 'Required document'}</div>
+                  {currentStagePendingItems.length > 1 ? (
+                    <div className="mt-1 text-xs text-ink-muted">{`${currentStagePendingItems.length} pending required items in this stage`}</div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2 xl:justify-end">
               {currentStageId && activeStageTab !== currentStageId ? (
                 <Button size="sm" variant="secondary" onClick={() => setActiveStageTab(currentStageId)}>
                   Open Current Stage
                 </Button>
               ) : null}
               {canLink && isProjectActive && firstBlockingItem ? (
-                <Button size="sm" variant="secondary" onClick={() => setShowLink(firstBlockingItem)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowLink(firstBlockingItem)}
+                  title={firstBlockingItem?.documentType?.name ? `Attach evidence for: ${firstBlockingItem.documentType.name}` : 'Attach evidence'}
+                >
                   Attach Evidence
                 </Button>
               ) : null}
               {canCreate && isProjectActive && firstBlockingItem ? (
-                <Button size="sm" onClick={() => setShowCreateDoc(firstBlockingItem)}>
+                <Button
+                  size="sm"
+                  onClick={() => setShowCreateDoc(firstBlockingItem)}
+                  title={firstBlockingItem?.documentType?.name ? `Create draft for: ${firstBlockingItem.documentType.name}` : 'Create draft'}
+                >
                   Create Draft
                 </Button>
               ) : null}
@@ -3918,96 +4051,26 @@ function ProjectDetail({ projectId }) {
                   Move To Next Stage
                 </Button>
               ) : null}
+              </div>
             </div>
           </div>
         </AppSurface>
 
         <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
-          <SectionHeader
-            title="Project Information"
-            subtitle="All details captured in the project form, arranged for quick reference."
-            actions={(
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-ink">Project Information</div>
+              <div className="mt-1 text-sm text-ink-muted">Open a popup to review all project form fields without crowding this page.</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-secondary">
                 {`Lifecycle: ${formatLifecycleStatus(project.status)}`}
               </span>
-            )}
-          />
-
-          <div className="mt-4 space-y-4">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Overview</div>
-            <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Code / Reference Number</div>
-                <div className="mt-2 font-mono text-sm text-ink">{project.code || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Client Name</div>
-                <div className="mt-2 text-sm font-medium text-ink">{project.clientName || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Client PIC</div>
-                <div className="mt-2 text-sm font-medium text-ink">{project.clientPic || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Internal Project Manager</div>
-                <div className="mt-2 text-sm font-medium text-ink">{managerLabel}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Category</div>
-                <div className="mt-2 text-sm font-medium text-ink">{project.projectCategory?.name || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Current Stage</div>
-                <div className="mt-2 text-sm font-medium text-ink">{selectedPhase?.currentStage?.name || 'Not set'}</div>
-              </div>
+              <Button size="sm" variant="secondary" onClick={() => setShowProjectInfo(true)}>
+                View Info
+              </Button>
             </div>
           </div>
-
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Dates</div>
-            <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Start Date</div>
-                <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.startDate)}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Planned Completion Date</div>
-                <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.plannedCompletionDate)}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Actual Completion Date</div>
-                <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.actualCompletionDate)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Team</div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Team Members</div>
-                <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.teamMembers || '-'}</div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Scope</div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Scope</div>
-                <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.scope || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Objective</div>
-                <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.objective || '-'}</div>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Deliverables</div>
-                <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.deliverables || '-'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
         </div>
       </AppSurface>
 
@@ -4174,7 +4237,7 @@ function ProjectDetail({ projectId }) {
           </div>
           <div className="hidden rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary sm:inline-flex">{`${phases.length} phase${phases.length === 1 ? '' : 's'}`}</div>
         </div>
-        <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 dms-scrollbar">
             {phases.map((phase) => {
               const isSelected = phase.id === selectedIterationId
               return (
@@ -4182,7 +4245,7 @@ function ProjectDetail({ projectId }) {
                   key={phase.id}
                   type="button"
                   onClick={() => setSelectedIterationId(phase.id)}
-                  className={`min-w-[250px] rounded-2xl border p-5 text-left transition ${
+                  className={`min-w-[190px] rounded-2xl border px-4 py-3 text-left transition ${
                     isSelected
                       ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
                       : 'border-border bg-surface hover:border-border-strong hover:bg-surface-muted'
@@ -4190,14 +4253,14 @@ function ProjectDetail({ projectId }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">{`Phase ${phase.iterationNo}`}</div>
-                      <div className="mt-2 text-base font-semibold text-ink">{phase.name || 'Project Phase'}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">{`Phase ${phase.iterationNo}`}</div>
+                      <div className="mt-1 truncate text-sm font-semibold text-ink" title={phase.name || ''}>{phase.name || 'Project Phase'}</div>
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${isSelected ? 'bg-brand text-ink-inverse' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
                       {isSelected ? 'Active' : 'Open'}
                     </span>
                   </div>
-                  <div className="mt-4 text-sm text-ink-secondary">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
+                  <div className="mt-2 text-xs text-ink-secondary">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
                 </button>
               )
             })}
@@ -4311,88 +4374,104 @@ function ProjectDetail({ projectId }) {
           {consolidatedDocuments.length === 0 ? (
             <div className="px-6 py-8 text-sm text-ink-muted">No linked documents found for this project phase yet.</div>
           ) : (
-            <TableContainer>
-              <Table>
-                <thead>
-                  <Tr>
-                    <Th>Document</Th>
-                    <Th>Stage</Th>
-                    <Th>Context</Th>
-                    <Th>Status</Th>
-                    <Th align="right">Action</Th>
-                  </Tr>
-                </thead>
-                <tbody>
-                  {consolidatedDocuments.map((entry) => (
-                    <Tr key={entry.id} className="hover:bg-surface-muted">
-                      <Td>
-                        {canInteractWithDocument(entry.document) ? (
-                          <button
-                            type="button"
-                            onClick={() => openDocumentWorkspace(entry.document)}
-                            className="font-medium text-brand hover:underline"
-                          >
-                            {getDocumentCodeLabel(entry.document)}
-                          </button>
-                        ) : (
-                          <span className="font-medium text-ink">{getDocumentCodeLabel(entry.document)}</span>
-                        )}
-                        <div className="mt-1">
+            <>
+              <TableContainer>
+                <Table>
+                  <thead>
+                    <Tr>
+                      <Th>Document</Th>
+                      <Th>Stage</Th>
+                      <Th>Context</Th>
+                      <Th>Status</Th>
+                      <Th align="right">Action</Th>
+                    </Tr>
+                  </thead>
+                  <tbody>
+                    {overallDocsPaginated.map((entry) => (
+                      <Tr key={entry.id} className="hover:bg-surface-muted">
+                        <Td>
                           {canInteractWithDocument(entry.document) ? (
                             <button
                               type="button"
                               onClick={() => openDocumentWorkspace(entry.document)}
-                              className="text-left text-ink-secondary hover:underline"
+                              className="font-medium text-brand hover:underline"
                             >
-                              {getDocumentTitleLabel(entry.document)}
+                              {getDocumentCodeLabel(entry.document)}
                             </button>
                           ) : (
-                            <span className="text-left text-ink-secondary">{getDocumentTitleLabel(entry.document)}</span>
+                            <span className="font-medium text-ink">{getDocumentCodeLabel(entry.document)}</span>
                           )}
-                        </div>
-                        <div className="mt-2 inline-flex items-center gap-2">
-                          <ConfidentialBadge isConfidential={entry.document.isConfidential} />
-                          <DocumentStatusBadge status={entry.document.status} />
-                        </div>
-                      </Td>
-                      <Td className="text-ink-secondary">{entry.stageName}</Td>
-                      <Td className="text-ink-secondary">
-                        <div>{entry.source}</div>
-                        <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
-                        {entry.itemStatus ? <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div> : null}
-                      </Td>
-                      <Td>
-                        <DocumentStatusBadge status={entry.document.status} />
-                      </Td>
-                      <Td align="right">
-                        {canInteractWithDocument(entry.document) ? (
-                          <div className="inline-flex items-center justify-end gap-3">
-                            <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
-                              {getDocumentWorkspaceLabel(entry.document)}
-                            </button>
-                            <button type="button" onClick={() => downloadDocument(entry.document)} className="text-ink-secondary hover:text-ink hover:underline">
-                              Download
-                            </button>
-                            <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
-                              {getDocumentDirectoryLabel(entry.document)}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setShowShareDocument(entry.document)}
-                              className="text-ink-secondary hover:text-ink hover:underline"
-                            >
-                              Share
-                            </button>
+                          <div className="mt-1">
+                            {canInteractWithDocument(entry.document) ? (
+                              <button
+                                type="button"
+                                onClick={() => openDocumentWorkspace(entry.document)}
+                                className="text-left text-ink-secondary hover:underline"
+                              >
+                                {getDocumentTitleLabel(entry.document)}
+                              </button>
+                            ) : (
+                              <span className="text-left text-ink-secondary">{getDocumentTitleLabel(entry.document)}</span>
+                            )}
                           </div>
-                        ) : (
-                          <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            </TableContainer>
+                          <div className="mt-2 inline-flex items-center gap-2">
+                            <ConfidentialBadge isConfidential={entry.document.isConfidential} />
+                            <DocumentStatusBadge status={entry.document.status} />
+                          </div>
+                        </Td>
+                        <Td className="text-ink-secondary">{entry.stageName}</Td>
+                        <Td className="text-ink-secondary">
+                          <div>{entry.source}</div>
+                          <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
+                          {entry.itemStatus ? <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div> : null}
+                        </Td>
+                        <Td>
+                          <DocumentStatusBadge status={entry.document.status} />
+                        </Td>
+                        <Td align="right">
+                          {canInteractWithDocument(entry.document) ? (
+                            <div className="inline-flex items-center justify-end gap-3">
+                              <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
+                                {getDocumentWorkspaceLabel(entry.document)}
+                              </button>
+                              <button type="button" onClick={() => downloadDocument(entry.document)} className="text-ink-secondary hover:text-ink hover:underline">
+                                Download
+                              </button>
+                              <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
+                                {getDocumentDirectoryLabel(entry.document)}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowShareDocument(entry.document)}
+                                className="text-ink-secondary hover:text-ink hover:underline"
+                              >
+                                Share
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+                          )}
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableContainer>
+              {overallDocsTotalPages > 1 ? (
+                <Pagination
+                  currentPage={Math.min(Math.max(1, overallDocsPage), overallDocsTotalPages)}
+                  totalPages={overallDocsTotalPages}
+                  totalRecords={overallDocsTotalRecords}
+                  pageSize={overallDocsPageSize}
+                  onPageChange={setOverallDocsPage}
+                  onPageSizeChange={(nextSize) => {
+                    setOverallDocsPageSize(nextSize)
+                    setOverallDocsPage(1)
+                  }}
+                  pageSizeOptions={[10, 20, 50]}
+                />
+              ) : null}
+            </>
           )}
         </AppSurface>
       ) : (
@@ -4811,6 +4890,96 @@ function ProjectDetail({ projectId }) {
             })
           }}
         />
+      )}
+
+      {showProjectInfo && (
+        <Modal onClose={() => setShowProjectInfo(false)} size="xl">
+          <ModalHeader
+            title="Project Information"
+            subtitle={project?.code ? `${project.code} • ${project.name}` : project?.name || 'Project'}
+            onClose={() => setShowProjectInfo(false)}
+          />
+          <ModalBody className="space-y-5">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Overview</div>
+              <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Code / Reference Number</div>
+                  <div className="mt-2 font-mono text-sm text-ink">{project.code || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Client Name</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{project.clientName || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Client PIC</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{project.clientPic || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Internal Project Manager</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{managerLabel}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Category</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{project.projectCategory?.name || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Current Stage</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{selectedPhase?.currentStage?.name || 'Not set'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Dates</div>
+              <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Start Date</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.startDate)}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Planned Completion Date</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.plannedCompletionDate)}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Actual Completion Date</div>
+                  <div className="mt-2 text-sm font-medium text-ink">{formatDateLabel(project.actualCompletionDate)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Team</div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Team Members</div>
+                  <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.teamMembers || '-'}</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">Scope</div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Scope</div>
+                  <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.scope || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Objective</div>
+                  <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.objective || '-'}</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Project Deliverables</div>
+                  <div className="mt-2 whitespace-pre-line text-sm text-ink">{project.deliverables || '-'}</div>
+                </div>
+              </div>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => setShowProjectInfo(false)}>
+              Close
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
 
       {showCreateDoc && (

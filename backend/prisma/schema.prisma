@@ -44,6 +44,7 @@ model User {
   roles                     UserRole[]
   sessions                  UserSession[]
   trustedDevices            TrustedDevice[]
+  passwordResetCode         PasswordResetCode?
   preferences               UserPreference?
   createdDocuments          Document[]                 @relation("DocumentCreator")
   ownedDocuments            Document[]                 @relation("DocumentOwner")
@@ -89,6 +90,23 @@ model User {
 
   @@index([email])
   @@index([employeeId])
+}
+
+model PasswordResetCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @unique
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  lastSentAt DateTime  @default(now())
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([consumedAt])
 }
 
 enum UserStatus {

@@ -35,10 +35,16 @@ export default function Login() {
   const [loginPageSettings, setLoginPageSettings] = useState(() => normalizeLoginPageSettings(initialLoginPageSettings))
   const [settingsReady, setSettingsReady] = useState(() => !!initialLoginPageSettings)
   const [showPassword, setShowPassword] = useState(false)
-  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [authPanel, setAuthPanel] = useState('login')
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [forgotPasswordCode, setForgotPasswordCode] = useState('')
+  const [forgotNewPassword, setForgotNewPassword] = useState('')
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('')
+  const [forgotShowNewPassword, setForgotShowNewPassword] = useState(false)
+  const [forgotShowConfirmPassword, setForgotShowConfirmPassword] = useState(false)
   const [forgotPasswordFeedback, setForgotPasswordFeedback] = useState(null)
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotResendTimer, setForgotResendTimer] = useState(0)
   const navigate = useNavigate()
 
   // Resend Timer
@@ -51,6 +57,16 @@ export default function Login() {
     }
     return () => clearInterval(interval)
   }, [resendTimer])
+
+  useEffect(() => {
+    let interval
+    if (forgotResendTimer > 0) {
+      interval = setInterval(() => {
+        setForgotResendTimer((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [forgotResendTimer])
 
   useEffect(() => {
     setBranding(readBranding())
@@ -91,15 +107,14 @@ export default function Login() {
     }
   }, [])
 
-  async function submit(e) {
-    e.preventDefault()
+  async function loginWithCredentials(nextEmail, nextPassword) {
     setError(null)
     setLoading(true)
     
     try {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
-      const res = await api.post('/auth/login', { email, password })
+      const res = await api.post('/auth/login', { email: nextEmail, password: nextPassword })
       // Backend returns: { success: true, message: "...", data: { user, accessToken, refreshToken } }
       
       // Check for 2FA Requirement
@@ -155,6 +170,11 @@ export default function Login() {
       setLoading(false)
       console.error(err)
     }
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    await loginWithCredentials(email, password)
   }
 
   // 2FA Handlers
@@ -251,13 +271,93 @@ export default function Login() {
 
       setForgotPasswordFeedback({
         type: 'success',
-        message: res.data?.message || 'If the email is registered, a password reset link has been sent.'
+        message: res.data?.message || 'If the email is registered, a reset code has been sent.'
       })
+      setAuthPanel('forgot_code')
+      setForgotResendTimer(60)
     } catch (err) {
       setForgotPasswordFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Failed to send reset link. Please try again.'
+        message: err.response?.data?.message || 'Failed to send reset code. Please try again.'
       })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleResendForgotCode() {
+    if (forgotResendTimer > 0) return
+    setError(null)
+    setForgotPasswordFeedback(null)
+    setForgotPasswordLoading(true)
+
+    try {
+      const res = await api.post('/auth/forgot-password', {
+        email: forgotPasswordEmail.trim()
+      })
+
+      setForgotPasswordFeedback({
+        type: 'success',
+        message: res.data?.message || 'If the email is registered, a reset code has been sent.'
+      })
+      setForgotResendTimer(60)
+    } catch (err) {
+      setForgotPasswordFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to resend reset code. Please try again.'
+      })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleVerifyForgotCode(e) {
+    e.preventDefault()
+    setError(null)
+    setForgotPasswordFeedback(null)
+    setForgotPasswordLoading(true)
+
+    try {
+      await api.post('/auth/verify-reset-code', {
+        email: forgotPasswordEmail.trim(),
+        code: forgotPasswordCode.trim()
+      })
+      setAuthPanel('forgot_new')
+    } catch (err) {
+      const nextMessage = err.response?.data?.message || 'Invalid or expired reset code'
+      setForgotPasswordFeedback({ type: 'error', message: nextMessage })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleResetPasswordWithCode(e) {
+    e.preventDefault()
+    setError(null)
+    setForgotPasswordFeedback(null)
+
+    const nextNewPassword = forgotNewPassword
+    const nextConfirm = forgotConfirmPassword
+    if (nextNewPassword !== nextConfirm) {
+      setForgotPasswordFeedback({ type: 'error', message: 'Passwords do not match' })
+      return
+    }
+
+    setForgotPasswordLoading(true)
+    try {
+      await api.post('/auth/reset-password-code', {
+        email: forgotPasswordEmail.trim(),
+        code: forgotPasswordCode.trim(),
+        newPassword: nextNewPassword
+      })
+
+      setEmail(forgotPasswordEmail.trim())
+      setPassword(nextNewPassword)
+      setAuthPanel('login')
+      await loginWithCredentials(forgotPasswordEmail.trim(), nextNewPassword)
+    } catch (err) {
+      const nextMessage = err.response?.data?.message || 'Failed to reset password'
+      setForgotPasswordFeedback({ type: 'error', message: nextMessage })
     } finally {
       setForgotPasswordLoading(false)
     }
@@ -543,7 +643,7 @@ export default function Login() {
                     </button>
                   </div>
                 </form>
-              ) : !showChangePassword ? (
+              ) : authPanel === 'login' ? (
               <form onSubmit={submit} className="space-y-5">
                 {/* Email/Username Input */}
                 <div>
@@ -614,7 +714,11 @@ export default function Login() {
                       onClick={() => {
                         setError(null)
                         setForgotPasswordFeedback(null)
-                        setShowChangePassword(true)
+                        setAuthPanel('forgot_email')
+                        setForgotPasswordEmail(email)
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
                       }}
                       className="whitespace-nowrap text-sm font-medium text-blue-600 transition-colors hover:text-blue-800"
                     >
@@ -648,12 +752,12 @@ export default function Login() {
                   {loading ? t('logging_in') : formCopy.loginButtonLabel}
                 </button>
               </form>
-              ) : (
+              ) : authPanel === 'forgot_email' ? (
                 <form onSubmit={handleForgotPassword} className="space-y-5">
                   <div>
                     <h3 className="mb-2 text-xl font-semibold text-gray-900">Forgot Password</h3>
                     <p className="mb-4 text-sm text-gray-600">
-                      Enter your registered email address and we will send you a secure reset link.
+                      Enter your registered email address and we will send you a 6-digit reset code.
                     </p>
                   </div>
 
@@ -710,15 +814,233 @@ export default function Login() {
                         }
                       }}
                     >
-                      {forgotPasswordLoading ? 'Sending reset link...' : 'Send reset link'}
+                      {forgotPasswordLoading ? 'Sending code...' : 'Send code'}
                     </button>
 
                     <button
                       type="button"
                       onClick={() => {
                         setError(null)
-                        setShowChangePassword(false)
+                        setAuthPanel('login')
                         setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                        setForgotPasswordFeedback(null)
+                      }}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      {t('back_to_login')}
+                    </button>
+                  </div>
+                </form>
+              ) : authPanel === 'forgot_code' ? (
+                <form onSubmit={handleVerifyForgotCode} className="space-y-5">
+                  <div>
+                    <h3 className="mb-2 text-xl font-semibold text-gray-900">Verify Reset Code</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                      Enter the 6-digit code sent to your email.
+                    </p>
+                  </div>
+
+                  {forgotPasswordFeedback ? (
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        forgotPasswordFeedback.type === 'error'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm ${
+                          forgotPasswordFeedback.type === 'error' ? 'text-red-800' : 'text-green-800'
+                        }`}
+                      >
+                        {forgotPasswordFeedback.message}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label htmlFor="forgotPasswordCode" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Reset Code
+                    </label>
+                    <input
+                      type="text"
+                      id="forgotPasswordCode"
+                      value={forgotPasswordCode}
+                      onChange={(e) => setForgotPasswordCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-5 py-4 text-center font-mono text-2xl tracking-[0.5em] text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
+                      placeholder="000000"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="space-y-2.5 pt-2">
+                    <button
+                      type="submit"
+                      disabled={forgotPasswordLoading || forgotPasswordCode.length !== 6}
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold transition-colors focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        backgroundColor: 'var(--dms-login-btn-bg, #2563EB)',
+                        color: 'var(--dms-login-btn-text, #FFFFFF)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-hover, #1D4ED8)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-bg, #2563EB)'
+                        }
+                      }}
+                    >
+                      {forgotPasswordLoading ? 'Verifying...' : 'Verify code'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResendForgotCode}
+                      disabled={forgotResendTimer > 0 || forgotPasswordLoading}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {forgotResendTimer > 0 ? `Resend code (${forgotResendTimer}s)` : 'Resend code'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setAuthPanel('login')
+                        setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                        setForgotPasswordFeedback(null)
+                      }}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      {t('back_to_login')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPasswordWithCode} className="space-y-5">
+                  <div>
+                    <h3 className="mb-2 text-xl font-semibold text-gray-900">Set New Password</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                      Enter a new password for your account.
+                    </p>
+                  </div>
+
+                  {forgotPasswordFeedback ? (
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        forgotPasswordFeedback.type === 'error'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm ${
+                          forgotPasswordFeedback.type === 'error' ? 'text-red-800' : 'text-green-800'
+                        }`}
+                      >
+                        {forgotPasswordFeedback.message}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label htmlFor="forgotNewPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={forgotShowNewPassword ? 'text' : 'password'}
+                        id="forgotNewPassword"
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        required
+                        className={passwordInputClass}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForgotShowNewPassword(!forgotShowNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                      >
+                        {forgotShowNewPassword ? (
+                          <EyeSlashIcon className="h-4.5 w-4.5" />
+                        ) : (
+                          <EyeIcon className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="forgotConfirmPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={forgotShowConfirmPassword ? 'text' : 'password'}
+                        id="forgotConfirmPassword"
+                        value={forgotConfirmPassword}
+                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        required
+                        className={passwordInputClass}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForgotShowConfirmPassword(!forgotShowConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                      >
+                        {forgotShowConfirmPassword ? (
+                          <EyeSlashIcon className="h-4.5 w-4.5" />
+                        ) : (
+                          <EyeIcon className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2">
+                    <button
+                      type="submit"
+                      disabled={forgotPasswordLoading}
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold transition-colors focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        backgroundColor: 'var(--dms-login-btn-bg, #2563EB)',
+                        color: 'var(--dms-login-btn-text, #FFFFFF)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-hover, #1D4ED8)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-bg, #2563EB)'
+                        }
+                      }}
+                    >
+                      {forgotPasswordLoading ? 'Updating password...' : 'Reset password & sign in'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setAuthPanel('login')
+                        setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
                         setForgotPasswordFeedback(null)
                       }}
                       className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"

@@ -4,6 +4,7 @@ const documentService = require('./documentService');
 const documentAssignmentService = require('./documentAssignmentService')
 const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
+const notificationService = require('./notificationService')
 
 // #region debug-point A:runtime-reporter
 const __ptDebugReport = (payload) => {
@@ -40,6 +41,46 @@ const assertProjectCanProgress = (project, actionLabel) => {
   }
 
   throw new ValidationError(`This project is ${status.toLowerCase()}. Update the project status before you can ${actionLabel}.`)
+}
+
+const formatUserDisplayName = (user) => {
+  if (!user) return ''
+  return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
+}
+
+const notifyRequiredDocumentPicAssigned = async ({
+  projectId,
+  projectName,
+  projectCode,
+  stageName,
+  documentTypeName,
+  picUserId,
+  assignedBy
+}) => {
+  if (!picUserId) return
+
+  const link = `/project-tracking/${projectId}?tab=projects`
+  const title = 'Required Document PIC Assigned'
+  const assignedByLabel = formatUserDisplayName(assignedBy) || 'Project PIC'
+  const message = `You have been assigned as PIC for ${documentTypeName} in ${stageName} under project ${projectName}.`
+
+  await notificationService.sendNotification(
+    picUserId,
+    'requiredDocumentPicAssigned',
+    title,
+    message,
+    link,
+    {
+      title,
+      message,
+      projectName,
+      projectCode,
+      stageName,
+      documentType: documentTypeName,
+      assignedBy: assignedByLabel,
+      link: notificationService.buildAbsoluteLink(link)
+    }
+  )
 }
 
 const resolveEffectiveRequirementForStageDocument = async (db, { projectId, projectCategoryId, stageId, documentTypeId }) => {
@@ -972,7 +1013,7 @@ exports.setProjectRequiredDocumentPic = async (
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { id: true, managerId: true }
+    select: { id: true, managerId: true, name: true, code: true }
   })
   if (!project) throw new NotFoundError('Project')
 
@@ -986,6 +1027,12 @@ exports.setProjectRequiredDocumentPic = async (
   })
   if (!docType) throw new NotFoundError('Document type')
 
+  const stage = await prisma.projectStageDefinition.findUnique({
+    where: { id: stageId },
+    select: { id: true, name: true }
+  })
+  if (!stage) throw new NotFoundError('Project stage')
+
   const requirementExists = await prisma.projectIterationDocumentItem.findFirst({
     where: {
       iteration: { projectId },
@@ -998,7 +1045,7 @@ exports.setProjectRequiredDocumentPic = async (
     throw new ValidationError('Required document row not found for this project stage')
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.projectRequiredDocumentPicAssignment.findUnique({
       where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
       select: { id: true, picUserId: true }
@@ -1030,9 +1077,14 @@ exports.setProjectRequiredDocumentPic = async (
 
     const user = await tx.user.findUnique({
       where: { id: picUserId },
-      select: { id: true }
+      select: { id: true, email: true, firstName: true, lastName: true }
     })
     if (!user) throw new NotFoundError('User')
+
+    const assignedBy = await tx.user.findUnique({
+      where: { id: assignedById },
+      select: { id: true, email: true, firstName: true, lastName: true }
+    })
 
     const now = new Date()
     const assignment = await tx.projectRequiredDocumentPicAssignment.upsert({
@@ -1073,8 +1125,26 @@ exports.setProjectRequiredDocumentPic = async (
       }
     })
 
-    return { assignment }
+    return { assignment, notificationContext: { picUserId, assignedBy } }
   })
+
+  if (result?.notificationContext?.picUserId) {
+    try {
+      await notifyRequiredDocumentPicAssigned({
+        projectId,
+        projectName: project.name,
+        projectCode: project.code,
+        stageName: stage.name,
+        documentTypeName: docType.name,
+        picUserId: result.notificationContext.picUserId,
+        assignedBy: result.notificationContext.assignedBy
+      })
+    } catch (error) {
+      console.error('Failed to send required document PIC assignment notification:', error)
+    }
+  }
+
+  return { assignment: result.assignment }
 }
 
 exports.createIteration = async (projectId, { name, createdById }) => {

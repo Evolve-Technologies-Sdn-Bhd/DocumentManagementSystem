@@ -18,27 +18,6 @@ class AuthController {
     return getClientIp(req) || 'Unknown'
   }
 
-  getFrontendUrl(req) {
-    const explicitUrl = String(process.env.FRONTEND_URL || '').trim()
-    if (explicitUrl) {
-      return explicitUrl.replace(/\/$/, '')
-    }
-
-    const originHeader = String(req.get('origin') || '').trim()
-    if (originHeader) {
-      return originHeader.replace(/\/$/, '')
-    }
-
-    const refererHeader = String(req.get('referer') || '').trim()
-    if (refererHeader) {
-      try {
-        return new URL(refererHeader).origin.replace(/\/$/, '')
-      } catch {}
-    }
-
-    return null
-  }
-
   /**
    * Login user
    * POST /api/auth/login
@@ -249,7 +228,7 @@ class AuthController {
   });
 
   /**
-   * Request password reset link
+   * Request password reset code via email
    * POST /api/auth/forgot-password
    */
   forgotPassword = asyncHandler(async (req, res) => {
@@ -261,41 +240,52 @@ class AuthController {
       ]);
     }
 
-    const resetPayload = await authService.createPasswordResetToken(email);
+    const resetPayload = await authService.createPasswordResetCode(email);
 
-    if (resetPayload?.user?.email && resetPayload?.token) {
-      const frontendUrl = this.getFrontendUrl(req);
-      if (!frontendUrl) {
-        return ResponseFormatter.error(
-          res,
-          'Password reset is not configured. Please set FRONTEND_URL on the server.',
-          500
-        );
-      }
-
-      const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetPayload.token)}`;
-
-      // Send email in the background so the UI does not wait for SMTP round-trips.
+    if (resetPayload?.user?.email && resetPayload?.code) {
       Promise.resolve().then(async () => {
-        await emailService.sendPasswordResetEmail(resetPayload.user.email, {
+        await emailService.sendPasswordResetCodeEmail(resetPayload.user.email, {
           firstName: resetPayload.user.firstName,
-          resetLink,
-          expiresInMinutes: parseInt(process.env.PASSWORD_RESET_LINK_MINUTES || '30', 10) || 30
+          code: resetPayload.code,
+          expiresInMinutes: resetPayload.expiresInMinutes
         });
+
         await auditLogService.logAuth(resetPayload.user.id, 'PASSWORD_RESET_REQUESTED', req, {
           email: resetPayload.user.email
         });
       }).catch((error) => {
-        console.error('Failed to send password reset email:', error);
+        console.error('Failed to send password reset code email:', error);
       });
     }
 
     return ResponseFormatter.success(
       res,
       null,
-      'If the email is registered, a password reset link has been sent.',
+      'If the email is registered, a reset code has been sent.',
       200
     );
+  });
+
+  /**
+   * Verify reset code
+   * POST /api/auth/verify-reset-code
+   */
+  verifyResetCode = asyncHandler(async (req, res) => {
+    const { email, code } = req.body;
+
+    const errors = [];
+    if (!email) errors.push({ field: 'email', message: 'Email is required' });
+    if (!code) errors.push({ field: 'code', message: 'Reset code is required' });
+    if (errors.length > 0) {
+      return ResponseFormatter.validationError(res, errors);
+    }
+
+    const verification = await authService.verifyPasswordResetCode(email, code);
+    if (!verification.ok) {
+      return ResponseFormatter.error(res, 'Invalid or expired reset code', 400);
+    }
+
+    return ResponseFormatter.success(res, null, 'Reset code verified', 200);
   });
 
   /**
@@ -401,14 +391,15 @@ class AuthController {
   });
 
   /**
-   * Complete password reset using emailed token
-   * POST /api/auth/reset-password
+   * Complete password reset using emailed code
+   * POST /api/auth/reset-password-code
    */
-  resetPassword = asyncHandler(async (req, res) => {
-    const { token, newPassword } = req.body;
+  resetPasswordWithCode = asyncHandler(async (req, res) => {
+    const { email, code, newPassword } = req.body;
 
     const errors = [];
-    if (!token) errors.push({ field: 'token', message: 'Reset token is required' });
+    if (!email) errors.push({ field: 'email', message: 'Email is required' });
+    if (!code) errors.push({ field: 'code', message: 'Reset code is required' });
     if (!newPassword) errors.push({ field: 'newPassword', message: 'New password is required' });
 
     if (errors.length > 0) {
@@ -423,7 +414,7 @@ class AuthController {
       );
     }
 
-    const user = await authService.resetPasswordWithToken(token, newPassword);
+    const user = await authService.resetPasswordWithCode(email, code, newPassword);
 
     await auditLogService.logAuth(user.id, 'PASSWORD_RESET_COMPLETED', req, {
       email: user.email

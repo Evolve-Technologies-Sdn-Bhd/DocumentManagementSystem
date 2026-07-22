@@ -74,7 +74,8 @@ api.interceptors.response.use(
     const isAuthEndpoint =
       url.includes('/auth/login') ||
       url.includes('/auth/forgot-password') ||
-      url.includes('/auth/reset-password') ||
+      url.includes('/auth/verify-reset-code') ||
+      url.includes('/auth/reset-password-code') ||
       url.includes('/auth/refresh-token') ||
       url.includes('/auth/verify-2fa') ||
       url.includes('/auth/resend-2fa')
