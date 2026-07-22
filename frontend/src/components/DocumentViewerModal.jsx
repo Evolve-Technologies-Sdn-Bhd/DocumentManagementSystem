@@ -357,7 +357,7 @@ export default function DocumentViewerModal({ document, onClose }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4" onClick={onClose}>
       <AppSurface padding="none" className="w-[95vw] max-w-[1400px] h-[95vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted">

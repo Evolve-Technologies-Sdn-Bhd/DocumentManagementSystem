@@ -753,7 +753,7 @@ const HomePage = () => {
 
       {/* PDF Viewer Modal */}
       {pdfModal.isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-75 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closePdfModal(); }}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closePdfModal(); }}>
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200" role="dialog" aria-modal="true" aria-labelledby="landing-pdf-title">

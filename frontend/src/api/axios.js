@@ -5,6 +5,11 @@ import {
   startUploadProgress,
   updateUploadProgress
 } from '../utils/uploadProgressStore'
+import {
+  failGlobalLoading,
+  finishGlobalLoading,
+  startGlobalLoading
+} from '../utils/globalLoadingStore'
 
 const baseURL = import.meta.env.VITE_API_URL || '/api'
 
@@ -32,6 +37,13 @@ const getUploadLabel = (cfg) => {
   return 'Uploading...'
 }
 
+const getActionLabel = (cfg) => {
+  const method = String(cfg?.method || 'get').toLowerCase()
+  if (method === 'delete') return 'Deleting...'
+  if (method === 'post' || method === 'put' || method === 'patch') return 'Saving...'
+  return 'Loading...'
+}
+
 api.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
@@ -50,12 +62,25 @@ api.interceptors.request.use((cfg) => {
       }
     }
   }
+
+  const method = String(cfg?.method || 'get').toLowerCase()
+  const showGlobalLoading =
+    typeof cfg.showGlobalLoading === 'boolean'
+      ? cfg.showGlobalLoading
+      : method !== 'get' && method !== 'head'
+
+  if (showGlobalLoading && !cfg.skipGlobalLoading && !cfg._isUpload && !cfg._globalLoadingStarted) {
+    cfg._globalLoadingStarted = true
+    startGlobalLoading(getActionLabel(cfg))
+  }
+
   return cfg
 })
 
 api.interceptors.response.use(
   (res) => {
     if (res?.config?._isUpload) finishUploadProgress()
+    if (res?.config?._globalLoadingStarted) finishGlobalLoading()
     return res
   },
   async (error) => {
@@ -66,11 +91,14 @@ api.interceptors.response.use(
       failUploadProgress()
     }
 
-    if (!original || status !== 401) {
-      return Promise.reject(error)
+    const finishGlobalOnce = () => {
+      if (original?._globalLoadingStarted && !original._globalLoadingFinished) {
+        original._globalLoadingFinished = true
+        failGlobalLoading()
+      }
     }
 
-    const url = String(original.url || '')
+    const url = String(original?.url || '')
     const isAuthEndpoint =
       url.includes('/auth/login') ||
       url.includes('/auth/forgot-password') ||
@@ -80,10 +108,20 @@ api.interceptors.response.use(
       url.includes('/auth/verify-2fa') ||
       url.includes('/auth/resend-2fa')
 
+    const shouldHandle401Refresh = Boolean(original && status === 401 && !isAuthEndpoint && !original._retry)
+    if (original?._globalLoadingStarted && !shouldHandle401Refresh) {
+      finishGlobalOnce()
+    }
+
+    if (!original || status !== 401) {
+      return Promise.reject(error)
+    }
+
     if (isAuthEndpoint || original._retry) {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
+      finishGlobalOnce()
       return Promise.reject(error)
     }
 
@@ -91,6 +129,7 @@ api.interceptors.response.use(
     if (!refreshToken) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      finishGlobalOnce()
       return Promise.reject(error)
     }
 
@@ -132,6 +171,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
+      finishGlobalOnce()
       return Promise.reject(refreshErr)
     }
   }

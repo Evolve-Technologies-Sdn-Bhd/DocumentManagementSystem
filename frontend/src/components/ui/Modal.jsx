@@ -45,7 +45,7 @@ export default function Modal({
   ...props
 }) {
   const modal = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay p-4">
       <div className="fixed inset-0" onClick={closeOnBackdrop ? onClose : undefined} />
       <AppSurface
         padding="none"

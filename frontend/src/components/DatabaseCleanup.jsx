@@ -567,8 +567,8 @@ function StatCard({ label, value, icon, highlight }) {
 function Modal({ title, children, onClose, danger }) {
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose}></div>
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-overlay z-[90]" onClick={onClose}></div>
+      <div className="fixed inset-0 flex items-center justify-center z-[91] p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
           <div className={`px-6 py-4 border-b ${danger ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
             <h3 className={`text-lg font-semibold ${danger ? 'text-red-900' : 'text-gray-900'}`}>

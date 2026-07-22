@@ -8,7 +8,6 @@ import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import AsyncActionStatus from './ui/AsyncActionStatus'
-import useLoadingProgress from '../hooks/useLoadingProgress'
 
 export default function UploadFileModal({ isOpen, onClose, document, onSuccess, canManageAccess = false }) {
   const [selectedFile, setSelectedFile] = useState(null)
@@ -19,7 +18,6 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
   const [showDocumentAccess, setShowDocumentAccess] = useState(false)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const fileInputRef = useRef(null)
-  const uploadProgress = useLoadingProgress(uploading)
   
   // Use dynamic file upload settings
   const { validateFile, getAcceptString, getAllowedTypesDisplay } = useFileUploadSettings()
@@ -166,7 +164,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                 <AsyncActionStatus
                   title="Uploading file"
                   message="Your draft file is being uploaded and validated before the next workflow step."
-                  progress={uploadProgress}
+                  progress={null}
                   busy
                 />
               ) : null}

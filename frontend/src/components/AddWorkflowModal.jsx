@@ -133,7 +133,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full my-8">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg z-10">

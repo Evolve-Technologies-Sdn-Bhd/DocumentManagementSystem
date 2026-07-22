@@ -643,7 +643,7 @@ export default function MyDocumentsStatus() {
       {/* Overlay when details panel is open */}
       {showDetailsPanel && (
         <div 
-          className="fixed inset-0 z-40 bg-black/50 transition-opacity"
+          className="fixed inset-0 z-40 bg-overlay transition-opacity"
           onClick={() => setShowDetailsPanel(false)}
         />
       )}
