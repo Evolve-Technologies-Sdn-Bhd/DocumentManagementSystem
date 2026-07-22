@@ -3109,6 +3109,7 @@ function ProjectDetail({ projectId }) {
   const uiVersionStamp = 'PT-20260617-R3'
   const consolidatedTabId = '__consolidated__'
   const { itemsPerPage } = usePreferences()
+  const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canCreate = hasPermission('projectTracking', 'create')
   const canLink = hasPermission('projectTracking', 'linkDocument')
   const canAdvance = hasPermission('projectTracking', 'advanceStage')
@@ -3144,7 +3145,8 @@ function ProjectDetail({ projectId }) {
   const [showShareDocument, setShowShareDocument] = useState(null)
   const [showProjectInfo, setShowProjectInfo] = useState(false)
   const [overallDocsPage, setOverallDocsPage] = useState(1)
-  const [overallDocsPageSize, setOverallDocsPageSize] = useState(itemsPerPage)
+  const [overallDocsPageSize, setOverallDocsPageSize] = useState(Math.max(5, Number(itemsPerPage) || 0))
+  const [focusRequiredItemId, setFocusRequiredItemId] = useState('')
   const [requiredDocumentAssignments, setRequiredDocumentAssignments] = useState({})
   const [canAssignRequiredDocumentPic, setCanAssignRequiredDocumentPic] = useState(false)
   const [showAssignRequiredDocumentPic, setShowAssignRequiredDocumentPic] = useState(null)
@@ -3180,7 +3182,7 @@ function ProjectDetail({ projectId }) {
   }
 
   useEffect(() => {
-    setOverallDocsPageSize(itemsPerPage)
+    setOverallDocsPageSize(Math.max(5, Number(itemsPerPage) || 0))
   }, [itemsPerPage])
 
   useEffect(() => {
@@ -3490,8 +3492,22 @@ function ProjectDetail({ projectId }) {
   const currentStageHasChecklist = currentStageItems.length > 0
   const currentStageReadyToAdvance = currentStageHasChecklist && currentStagePendingItems.length === 0
 
-  const firstBlockingItem = currentStageBlockingItems[0]?.item || null
-  const firstBlockingDraftDocument = currentStageBlockingItems.find((entry) => entry.accessibleDraftLink)?.accessibleDraftLink?.document || null
+  useEffect(() => {
+    const nextFirstId = currentStageBlockingItems[0]?.id != null ? String(currentStageBlockingItems[0].id) : ''
+    setFocusRequiredItemId((prev) => {
+      if (!prev) return nextFirstId
+      const stillExists = currentStageBlockingItems.some((entry) => String(entry.id) === String(prev))
+      return stillExists ? prev : nextFirstId
+    })
+  }, [currentStageBlockingItems])
+
+  const focusBlockingEntry = useMemo(() => {
+    if (!focusRequiredItemId) return currentStageBlockingItems[0] || null
+    return currentStageBlockingItems.find((entry) => String(entry.id) === String(focusRequiredItemId)) || currentStageBlockingItems[0] || null
+  }, [currentStageBlockingItems, focusRequiredItemId])
+
+  const focusBlockingItem = focusBlockingEntry?.item || null
+  const focusBlockingDraftDocument = focusBlockingEntry?.accessibleDraftLink?.document || null
 
   const consolidatedDocuments = useMemo(() => {
     const byDocumentId = new Map()
@@ -3530,12 +3546,13 @@ function ProjectDetail({ projectId }) {
   }, [items, stageDocuments])
 
   const overallDocsTotalRecords = consolidatedDocuments.length
-  const overallDocsTotalPages = Math.max(1, Math.ceil(overallDocsTotalRecords / Math.max(1, Number(overallDocsPageSize) || 1)))
+  const overallDocsEffectivePageSize = Math.max(5, Number(overallDocsPageSize) || 0)
+  const overallDocsTotalPages = Math.max(1, Math.ceil(overallDocsTotalRecords / overallDocsEffectivePageSize))
   const overallDocsPaginated = useMemo(() => {
-    const pageSize = Math.max(1, Number(overallDocsPageSize) || 1)
+    const pageSize = overallDocsEffectivePageSize
     const currentPage = Math.min(Math.max(1, overallDocsPage), overallDocsTotalPages)
     return consolidatedDocuments.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  }, [consolidatedDocuments, overallDocsPage, overallDocsPageSize, overallDocsTotalPages])
+  }, [consolidatedDocuments, overallDocsEffectivePageSize, overallDocsPage, overallDocsTotalPages])
 
   useEffect(() => {
     if (overallDocsPage > overallDocsTotalPages) setOverallDocsPage(overallDocsTotalPages)
@@ -3862,6 +3879,15 @@ function ProjectDetail({ projectId }) {
           subtitle="Track required documents, stage evidence, and confidential access for each phase."
           actions={(
             <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
+              {canOpenProjectSetup ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => navigate(`/project-tracking?tab=setup&projectId=${encodeURIComponent(String(projectId))}&step=requirements`)}
+                >
+                  Project Setup
+                </Button>
+              ) : null}
               <Button size="sm" variant="secondary" onClick={() => setShowProjectInfo(true)}>
                 Project Info
               </Button>
@@ -3997,12 +4023,31 @@ function ProjectDetail({ projectId }) {
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 xl:max-w-sm xl:items-end">
-              {firstBlockingItem ? (
+              {focusBlockingItem ? (
                 <div className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-ink-secondary">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Actions apply to</div>
-                  <div className="mt-1 text-sm font-semibold text-ink">{firstBlockingItem.documentType?.name || 'Required document'}</div>
+                  <div className="mt-1 text-sm font-semibold text-ink">{focusBlockingItem.documentType?.name || 'Required document'}</div>
                   {currentStagePendingItems.length > 1 ? (
                     <div className="mt-1 text-xs text-ink-muted">{`${currentStagePendingItems.length} pending required items in this stage`}</div>
+                  ) : null}
+                  {currentStageBlockingItems.length > 1 ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Pick item</span>
+                      <SelectField
+                        value={focusRequiredItemId || String(currentStageBlockingItems[0]?.id || '')}
+                        onChange={(e) => setFocusRequiredItemId(e.target.value)}
+                        className="h-9"
+                      >
+                        {currentStageBlockingItems.map((entry) => (
+                          <option key={entry.id} value={String(entry.id)}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </div>
+                  ) : null}
+                  {focusBlockingEntry?.reason ? (
+                    <div className="mt-2 text-xs text-ink-muted">{focusBlockingEntry.reason}</div>
                   ) : null}
                 </div>
               ) : null}
@@ -4012,27 +4057,27 @@ function ProjectDetail({ projectId }) {
                   Open Current Stage
                 </Button>
               ) : null}
-              {canLink && isProjectActive && firstBlockingItem ? (
+              {canLink && isProjectActive && focusBlockingItem ? (
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => setShowLink(firstBlockingItem)}
-                  title={firstBlockingItem?.documentType?.name ? `Attach evidence for: ${firstBlockingItem.documentType.name}` : 'Attach evidence'}
+                  onClick={() => setShowLink(focusBlockingItem)}
+                  title={focusBlockingItem?.documentType?.name ? `Attach evidence for: ${focusBlockingItem.documentType.name}` : 'Attach evidence'}
                 >
                   Attach Evidence
                 </Button>
               ) : null}
-              {canCreate && isProjectActive && firstBlockingItem ? (
+              {canCreate && isProjectActive && focusBlockingItem ? (
                 <Button
                   size="sm"
-                  onClick={() => setShowCreateDoc(firstBlockingItem)}
-                  title={firstBlockingItem?.documentType?.name ? `Create draft for: ${firstBlockingItem.documentType.name}` : 'Create draft'}
+                  onClick={() => setShowCreateDoc(focusBlockingItem)}
+                  title={focusBlockingItem?.documentType?.name ? `Create draft for: ${focusBlockingItem.documentType.name}` : 'Create draft'}
                 >
                   Create Draft
                 </Button>
               ) : null}
-              {firstBlockingDraftDocument ? (
-                <Button size="sm" variant="secondary" onClick={() => openDocumentWorkspace(firstBlockingDraftDocument)}>
+              {focusBlockingDraftDocument ? (
+                <Button size="sm" variant="secondary" onClick={() => openDocumentWorkspace(focusBlockingDraftDocument)}>
                   Open Draft
                 </Button>
               ) : null}
@@ -4055,23 +4100,6 @@ function ProjectDetail({ projectId }) {
             </div>
           </div>
         </AppSurface>
-
-        <div className="rounded-2xl border border-border bg-surface-muted/40 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-ink">Project Information</div>
-              <div className="mt-1 text-sm text-ink-muted">Open a popup to review all project form fields without crowding this page.</div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-secondary">
-                {`Lifecycle: ${formatLifecycleStatus(project.status)}`}
-              </span>
-              <Button size="sm" variant="secondary" onClick={() => setShowProjectInfo(true)}>
-                View Info
-              </Button>
-            </div>
-          </div>
-        </div>
       </AppSurface>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -4281,7 +4309,7 @@ function ProjectDetail({ projectId }) {
           <button
             type="button"
             onClick={() => setActiveStageTab(consolidatedTabId)}
-            className={`flex min-h-[152px] min-w-[210px] max-w-[210px] flex-col rounded-2xl border px-4 py-4 text-left transition hover:border-border-strong hover:shadow-dms-soft ${
+            className={`flex min-h-[112px] min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${
               activeStageTab === consolidatedTabId
                 ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
                 : 'border-border bg-surface'
@@ -4293,14 +4321,7 @@ function ProjectDetail({ projectId }) {
                 {`${consolidatedDocuments.length} docs`}
               </span>
             </div>
-            <div className="mt-2 text-sm font-medium text-ink">Cross-stage view</div>
-            <div className="mt-2 text-sm text-ink-secondary">
-              Cross-stage view of all required and extra documents linked in this project phase.
-            </div>
-            <div className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-medium text-ink-muted">
-              <span>{activeStageTab === consolidatedTabId ? 'Viewing overall project documents' : 'Open overall project documents'}</span>
-              <span aria-hidden="true">→</span>
-            </div>
+            <div className="mt-2 text-sm text-ink-secondary">Overall list (all stages).</div>
           </button>
           {stageFlow.map((stage) => {
             const isActiveTab = activeStageTab === stage.id
@@ -4330,29 +4351,14 @@ function ProjectDetail({ projectId }) {
                 key={stage.id}
                 type="button"
                 onClick={() => openStage(stage.id)}
-                className={`flex min-h-[152px] min-w-[210px] max-w-[210px] flex-col rounded-2xl border px-4 py-4 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
+                className={`flex min-h-[112px] min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-base font-semibold text-ink">{stage.name}</div>
                   <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${isActiveTab ? 'bg-brand text-ink-inverse' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
                 </div>
                 <div className="mt-2 text-sm font-medium text-ink">
-                  {stage.metrics
-                    ? `Required documents completed: ${stage.metrics.complete}/${stage.metrics.total}`
-                    : 'Checklist not configured yet'}
-                </div>
-                <div className="mt-2 text-sm text-ink-secondary">
-                  {stage.metrics
-                    ? stage.state === 'done'
-                      ? 'This stage is completed and ready for review.'
-                      : stage.state === 'current'
-                        ? 'Only documents under this stage are shown when this tab is active.'
-                        : 'Prepare documents linked to this stage before it becomes active.'
-                    : 'No checklist configured for this stage yet.'}
-                </div>
-                <div className="mt-auto inline-flex items-center gap-1 pt-4 text-xs font-medium text-ink-muted">
-                  <span>{isActiveTab ? 'Viewing this stage' : 'Open stage tab'}</span>
-                  <span aria-hidden="true">→</span>
+                  {stage.metrics ? `Required: ${stage.metrics.complete}/${stage.metrics.total}` : 'No checklist'}
                 </div>
               </button>
             )
@@ -4457,20 +4463,18 @@ function ProjectDetail({ projectId }) {
                   </tbody>
                 </Table>
               </TableContainer>
-              {overallDocsTotalPages > 1 ? (
-                <Pagination
-                  currentPage={Math.min(Math.max(1, overallDocsPage), overallDocsTotalPages)}
-                  totalPages={overallDocsTotalPages}
-                  totalRecords={overallDocsTotalRecords}
-                  pageSize={overallDocsPageSize}
-                  onPageChange={setOverallDocsPage}
-                  onPageSizeChange={(nextSize) => {
-                    setOverallDocsPageSize(nextSize)
-                    setOverallDocsPage(1)
-                  }}
-                  pageSizeOptions={[10, 20, 50]}
-                />
-              ) : null}
+              <Pagination
+                currentPage={Math.min(Math.max(1, overallDocsPage), overallDocsTotalPages)}
+                totalPages={overallDocsTotalPages}
+                totalRecords={overallDocsTotalRecords}
+                pageSize={overallDocsEffectivePageSize}
+                onPageChange={setOverallDocsPage}
+                onPageSizeChange={(nextSize) => {
+                  setOverallDocsPageSize(Math.max(5, Number(nextSize) || 0))
+                  setOverallDocsPage(1)
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
             </>
           )}
         </AppSurface>
@@ -5570,6 +5574,7 @@ const buildSetupStageSignature = (stageList = []) => JSON.stringify(
 )
 
 function Setup() {
+  const [searchParams] = useSearchParams()
   const [documentTypes, setDocumentTypes] = useState([])
   const [projects, setProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
@@ -5590,6 +5595,10 @@ function Setup() {
   const [setupStep, setSetupStep] = useState('scope')
   const [selectedRequirementStageId, setSelectedRequirementStageId] = useState('')
   const [savedStageSignature, setSavedStageSignature] = useState('[]')
+  const appliedInitialScopeRef = useRef(false)
+
+  const initialProjectIdParam = String(searchParams.get('projectId') || '')
+  const initialSetupStepParam = String(searchParams.get('step') || '')
 
   const filteredDocumentTypes = useMemo(() => {
     const keyword = String(documentTypeSearch || '').trim().toLowerCase()
@@ -5627,6 +5636,17 @@ function Setup() {
   useEffect(() => {
     loadBase()
   }, [])
+
+  useEffect(() => {
+    if (appliedInitialScopeRef.current) return
+    if (!initialProjectIdParam) return
+    if (!projects.length) return
+    const exists = projects.some((p) => String(p.id) === initialProjectIdParam)
+    if (!exists) return
+    appliedInitialScopeRef.current = true
+    setSelectedProjectId(initialProjectIdParam)
+    if (initialSetupStepParam) setSetupStep(initialSetupStepParam)
+  }, [initialProjectIdParam, initialSetupStepParam, projects])
 
   useEffect(() => {
     loadSetup(selectedProjectId)
