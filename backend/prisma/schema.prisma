@@ -83,6 +83,7 @@ model User {
   expiryWatchers            DocumentExpiryWatcher[]
   expiryReminderRecipients  DocumentExpiryReminderRecipient[]
   createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
+  divisions                  UserDivision[]
 
   @@index([email])
   @@index([employeeId])
@@ -256,6 +257,32 @@ model Department {
   updatedAt   DateTime @updatedAt
 }
 
+model Division {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   UserDivision[]
+  folders FolderDivision[]
+}
+
+model UserDivision {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, divisionId])
+  @@index([userId])
+  @@index([divisionId])
+}
+
 model Folder {
   id                 Int      @id @default(autoincrement())
   name               String
@@ -272,9 +299,24 @@ model Folder {
   documents   Document[]
   createdBy   User               @relation("FolderCreator", fields: [createdById], references: [id])
   permissions FolderPermission[]
+  divisions   FolderDivision[]
 
   @@index([parentId])
   @@index([createdById])
+}
+
+model FolderDivision {
+  id         Int      @id @default(autoincrement())
+  folderId   Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  folder   Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, divisionId])
+  @@index([folderId])
+  @@index([divisionId])
 }
 
 model FolderPermission {
