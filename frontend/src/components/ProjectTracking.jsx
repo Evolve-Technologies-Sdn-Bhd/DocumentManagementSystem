@@ -3144,8 +3144,18 @@ function ProjectDetail({ projectId }) {
   const [showProjectControls, setShowProjectControls] = useState(false)
   const [showShareDocument, setShowShareDocument] = useState(null)
   const [showProjectInfo, setShowProjectInfo] = useState(false)
+  const overallDocsPageSizeOptions = useMemo(() => [5, 10, 20, 50], [])
+  const normalizeOverallDocsPageSize = useCallback((value) => {
+    const numericValue = Number(value)
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      return overallDocsPageSizeOptions[0]
+    }
+    const exactMatch = overallDocsPageSizeOptions.find((option) => option === numericValue)
+    if (exactMatch) return exactMatch
+    return overallDocsPageSizeOptions.find((option) => option > numericValue) || overallDocsPageSizeOptions[overallDocsPageSizeOptions.length - 1]
+  }, [overallDocsPageSizeOptions])
   const [overallDocsPage, setOverallDocsPage] = useState(1)
-  const [overallDocsPageSize, setOverallDocsPageSize] = useState(Math.max(5, Number(itemsPerPage) || 0))
+  const [overallDocsPageSize, setOverallDocsPageSize] = useState(() => normalizeOverallDocsPageSize(itemsPerPage))
   const [focusRequiredItemId, setFocusRequiredItemId] = useState('')
   const [requiredDocumentAssignments, setRequiredDocumentAssignments] = useState({})
   const [canAssignRequiredDocumentPic, setCanAssignRequiredDocumentPic] = useState(false)
@@ -3160,7 +3170,7 @@ function ProjectDetail({ projectId }) {
   const [advancing, setAdvancing] = useState(false)
   const [changeRequests, setChangeRequests] = useState([])
   const [changeRequestsLoading, setChangeRequestsLoading] = useState(false)
-  const [isChangeLogExpanded, setIsChangeLogExpanded] = useState(true)
+  const [isChangeLogExpanded, setIsChangeLogExpanded] = useState(false)
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false)
   const [editChangeRequest, setEditChangeRequest] = useState(null)
 
@@ -3182,8 +3192,8 @@ function ProjectDetail({ projectId }) {
   }
 
   useEffect(() => {
-    setOverallDocsPageSize(Math.max(5, Number(itemsPerPage) || 0))
-  }, [itemsPerPage])
+    setOverallDocsPageSize(normalizeOverallDocsPageSize(itemsPerPage))
+  }, [itemsPerPage, normalizeOverallDocsPageSize])
 
   useEffect(() => {
     setOverallDocsPage(1)
@@ -3546,7 +3556,7 @@ function ProjectDetail({ projectId }) {
   }, [items, stageDocuments])
 
   const overallDocsTotalRecords = consolidatedDocuments.length
-  const overallDocsEffectivePageSize = Math.max(5, Number(overallDocsPageSize) || 0)
+  const overallDocsEffectivePageSize = normalizeOverallDocsPageSize(overallDocsPageSize)
   const overallDocsTotalPages = Math.max(1, Math.ceil(overallDocsTotalRecords / overallDocsEffectivePageSize))
   const overallDocsPaginated = useMemo(() => {
     const pageSize = overallDocsEffectivePageSize
@@ -4023,34 +4033,6 @@ function ProjectDetail({ projectId }) {
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 xl:max-w-sm xl:items-end">
-              {focusBlockingItem ? (
-                <div className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-ink-secondary">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Actions apply to</div>
-                  <div className="mt-1 text-sm font-semibold text-ink">{focusBlockingItem.documentType?.name || 'Required document'}</div>
-                  {currentStagePendingItems.length > 1 ? (
-                    <div className="mt-1 text-xs text-ink-muted">{`${currentStagePendingItems.length} pending required items in this stage`}</div>
-                  ) : null}
-                  {currentStageBlockingItems.length > 1 ? (
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Pick item</span>
-                      <SelectField
-                        value={focusRequiredItemId || String(currentStageBlockingItems[0]?.id || '')}
-                        onChange={(e) => setFocusRequiredItemId(e.target.value)}
-                        className="h-9"
-                      >
-                        {currentStageBlockingItems.map((entry) => (
-                          <option key={entry.id} value={String(entry.id)}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </SelectField>
-                    </div>
-                  ) : null}
-                  {focusBlockingEntry?.reason ? (
-                    <div className="mt-2 text-xs text-ink-muted">{focusBlockingEntry.reason}</div>
-                  ) : null}
-                </div>
-              ) : null}
               <div className="flex flex-wrap gap-2 xl:justify-end">
               {currentStageId && activeStageTab !== currentStageId ? (
                 <Button size="sm" variant="secondary" onClick={() => setActiveStageTab(currentStageId)}>
@@ -4097,6 +4079,34 @@ function ProjectDetail({ projectId }) {
                 </Button>
               ) : null}
               </div>
+              {focusBlockingItem ? (
+                <div className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-ink-secondary">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Actions apply to</div>
+                  <div className="mt-1 text-sm font-semibold text-ink">{focusBlockingItem.documentType?.name || 'Required document'}</div>
+                  {currentStagePendingItems.length > 1 ? (
+                    <div className="mt-1 text-xs text-ink-muted">{`${currentStagePendingItems.length} pending required items in this stage`}</div>
+                  ) : null}
+                  {currentStageBlockingItems.length > 1 ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">Pick item</span>
+                      <SelectField
+                        value={focusRequiredItemId || String(currentStageBlockingItems[0]?.id || '')}
+                        onChange={(e) => setFocusRequiredItemId(e.target.value)}
+                        className="h-9"
+                      >
+                        {currentStageBlockingItems.map((entry) => (
+                          <option key={entry.id} value={String(entry.id)}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </SelectField>
+                    </div>
+                  ) : null}
+                  {focusBlockingEntry?.reason ? (
+                    <div className="mt-2 text-xs text-ink-muted">{focusBlockingEntry.reason}</div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </AppSurface>
@@ -4309,7 +4319,7 @@ function ProjectDetail({ projectId }) {
           <button
             type="button"
             onClick={() => setActiveStageTab(consolidatedTabId)}
-            className={`flex min-h-[112px] min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${
+            className={`flex min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${
               activeStageTab === consolidatedTabId
                 ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
                 : 'border-border bg-surface'
@@ -4351,11 +4361,11 @@ function ProjectDetail({ projectId }) {
                 key={stage.id}
                 type="button"
                 onClick={() => openStage(stage.id)}
-                className={`flex min-h-[112px] min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
+                className={`flex min-w-[190px] max-w-[190px] flex-col rounded-2xl border px-4 py-3 text-left transition hover:border-border-strong hover:shadow-dms-soft ${tone}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="text-base font-semibold text-ink">{stage.name}</div>
-                  <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${isActiveTab ? 'bg-brand text-ink-inverse' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
+                <div className="text-base font-semibold text-ink">{stage.name}</div>
+                <div className="mt-2">
+                  <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${isActiveTab ? 'bg-brand text-ink-inverse' : badgeTone}`}>{isActiveTab ? 'Active Tab' : badgeLabel}</span>
                 </div>
                 <div className="mt-2 text-sm font-medium text-ink">
                   {stage.metrics ? `Required: ${stage.metrics.complete}/${stage.metrics.total}` : 'No checklist'}
@@ -4470,10 +4480,10 @@ function ProjectDetail({ projectId }) {
                 pageSize={overallDocsEffectivePageSize}
                 onPageChange={setOverallDocsPage}
                 onPageSizeChange={(nextSize) => {
-                  setOverallDocsPageSize(Math.max(5, Number(nextSize) || 0))
+                  setOverallDocsPageSize(normalizeOverallDocsPageSize(nextSize))
                   setOverallDocsPage(1)
                 }}
-                pageSizeOptions={[5, 10, 20, 50]}
+                pageSizeOptions={overallDocsPageSizeOptions}
               />
             </>
           )}
