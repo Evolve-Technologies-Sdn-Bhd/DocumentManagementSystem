@@ -153,8 +153,18 @@ app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access
 const configService = require('./services/configService');
-const { authenticate } = require('./middleware/auth');
+const { authenticate, authorizePermission } = require('./middleware/auth');
 const asyncHandler = require('./utils/asyncHandler');
+const documentController = require('./controllers/documentController');
+const { uploadDocument } = require('./middleware/upload');
+
+app.post(
+  '/api/files/upload',
+  authenticate,
+  authorizePermission('documents.published', 'create'),
+  uploadDocument.array('files'),
+  documentController.bulkImportPublished
+);
 
 app.get('/api/workflows', authenticate, asyncHandler(async (req, res) => {
   const workflows = await configService.getWorkflows();

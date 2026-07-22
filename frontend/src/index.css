@@ -108,8 +108,8 @@ body {
   --dms-font-size-xl: 20px;
   --dms-font-size-2xl: 28px;
   --dms-layout-topbar-height: 56px;
-  --dms-layout-sidebar-width: 240px;
-  --dms-layout-sidebar-width-lg: 256px;
+  --dms-layout-sidebar-width: 216px;
+  --dms-layout-sidebar-width-lg: 232px;
   --dms-layout-sidebar-collapsed: 72px;
   --dms-layout-rightpanel-width: 320px;
   --dms-layout-page-max: 1440px;

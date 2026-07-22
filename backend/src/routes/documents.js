@@ -32,7 +32,6 @@ router.delete('/version-requests/:id', versionRequestController.deleteRequest);
 
 router.post(
   '/bulk-import',
-  authorizePermission('documents.published', 'publish'),
   authorizePermission('documents.published', 'create'),
   uploadDocument.array('files'),
   documentController.bulkImportPublished

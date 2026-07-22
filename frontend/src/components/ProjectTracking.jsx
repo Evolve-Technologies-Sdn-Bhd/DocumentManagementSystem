@@ -1,11 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import Timeline from '@mui/lab/Timeline'
-import TimelineConnector from '@mui/lab/TimelineConnector'
-import TimelineContent from '@mui/lab/TimelineContent'
-import TimelineDot from '@mui/lab/TimelineDot'
-import TimelineItem, { timelineItemClasses } from '@mui/lab/TimelineItem'
-import TimelineSeparator from '@mui/lab/TimelineSeparator'
 import api from '../api/axios'
 import Pagination from './Pagination'
 import EmptyState from './EmptyState'
@@ -2474,16 +2468,7 @@ function ProjectStageBulletTimeline({
   }
 
   return (
-    <Timeline
-      sx={{
-        p: 0,
-        m: 0,
-        [`& .${timelineItemClasses.root}:before`]: {
-          flex: 0,
-          padding: 0
-        }
-      }}
-    >
+    <div className="flex flex-col">
       {ordered.map((stage, index) => {
         const state =
           currentIndex >= 0
@@ -2503,32 +2488,32 @@ function ProjectStageBulletTimeline({
                 : 'upcoming'
             : 'upcoming'
 
+        const dotSize = 14
+        const dotBorder = 2
+        const dotTop = 16
+        const dotCenter = dotTop + dotSize / 2
+        const lineWidth = 3
+        const gapAfter = index < ordered.length - 1 ? 18 : 0
+
         const lineTone =
           state === 'done'
             ? 'var(--dms-color-success-ink)'
             : state === 'current'
-              ? 'var(--dms-color-brand)'
-              : 'var(--dms-color-border)'
+              ? 'var(--dms-color-brand-secondary)'
+              : 'var(--dms-color-border-default)'
 
         const lineToneAbove =
           prevState === 'done'
             ? 'var(--dms-color-success-ink)'
             : prevState === 'current'
-              ? 'var(--dms-color-brand)'
-              : 'var(--dms-color-border)'
+              ? 'var(--dms-color-brand-secondary)'
+              : 'var(--dms-color-border-default)'
 
         const cardTone =
           state === 'done'
             ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]/35'
             : state === 'current'
               ? 'border-brand/25 bg-[var(--dms-color-info-soft)]/40 shadow-[0_0_0_1px_rgba(59,130,246,0.08)]'
-              : 'border-border bg-surface-muted'
-
-        const notchTone =
-          state === 'done'
-            ? 'border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-soft)]/35'
-            : state === 'current'
-              ? 'border-brand/25 bg-[var(--dms-color-info-soft)]/40'
               : 'border-border bg-surface-muted'
 
         const badgeTone =
@@ -2541,8 +2526,7 @@ function ProjectStageBulletTimeline({
         const badgeLabel = state === 'done' ? 'Completed' : state === 'current' ? 'Current' : 'Upcoming'
         const stageDocuments = documentsByStage.get(stage.id) || []
         const isExpanded = expandedStageIds.includes(String(stage.id))
-        const dotVariant = state === 'upcoming' ? 'outlined' : 'filled'
-        const dotSx =
+        const dotStyle =
           state === 'done'
             ? {
                 borderColor: 'var(--dms-color-success-ink)',
@@ -2551,62 +2535,74 @@ function ProjectStageBulletTimeline({
               }
             : state === 'current'
               ? {
-                  borderColor: 'var(--dms-color-brand)',
-                  backgroundColor: 'var(--dms-color-brand)',
+                  borderColor: 'var(--dms-color-brand-secondary)',
+                  backgroundColor: 'var(--dms-color-brand-secondary)',
                   boxShadow: '0 0 0 6px rgba(59,130,246,0.12)'
                 }
               : {
                   borderColor: 'var(--dms-color-border-strong)',
-                  backgroundColor: 'var(--dms-color-surface)',
+                  backgroundColor: 'var(--dms-color-bg-surface)',
                   boxShadow: 'none'
                 }
 
         return (
-          <TimelineItem
+          <div
             key={stage.id}
-            sx={{
-              alignItems: 'stretch',
-              minHeight: 'unset'
-            }}
+            className="grid grid-cols-[32px_1fr] gap-3"
+            style={{ marginBottom: gapAfter }}
           >
-            <TimelineSeparator sx={{ mr: 2, minWidth: '34px', alignItems: 'center' }}>
+            <div className="relative">
               {index > 0 ? (
-                <TimelineConnector
-                  sx={{
-                    width: '3px',
-                    borderRadius: '9999px',
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    top: 0,
+                    height: dotCenter,
+                    width: lineWidth,
+                    borderRadius: 9999,
                     backgroundColor: lineToneAbove,
                     opacity: prevState === 'upcoming' ? 0.18 : 0.46
                   }}
                 />
               ) : null}
-              <TimelineDot
-                variant={dotVariant}
-                sx={{
-                  my: 0.75,
-                  mx: 0,
-                  p: 0,
-                  width: '16px',
-                  height: '16px',
-                  borderWidth: '2px',
-                  ...dotSx
-                }}
-              />
+
               {index < ordered.length - 1 ? (
-                <TimelineConnector
-                  sx={{
-                    width: '3px',
-                    borderRadius: '9999px',
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    top: dotCenter,
+                    bottom: -gapAfter,
+                    width: lineWidth,
+                    borderRadius: 9999,
                     backgroundColor: lineTone,
                     opacity: state === 'upcoming' ? 0.18 : 0.46
                   }}
                 />
               ) : null}
-            </TimelineSeparator>
-            <TimelineContent sx={{ py: 0, px: 0, minWidth: 0, pb: index < ordered.length - 1 ? 2.5 : 0 }}>
-              <div className={`relative rounded-2xl border px-4 py-3 ${cardTone}`}>
-                <div className={`absolute left-0 top-5 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-l border-b ${notchTone}`} />
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  top: dotTop,
+                  width: dotSize,
+                  height: dotSize,
+                  borderRadius: 9999,
+                  borderWidth: dotBorder,
+                  borderStyle: 'solid',
+                  ...dotStyle
+                }}
+              />
+            </div>
+
+            <div className="min-w-0">
+              <div className={`rounded-2xl border ${cardTone}`}>
+                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-sm font-semibold text-ink">{stage.label}</div>
                     <div className="mt-1 text-xs text-ink-muted">
@@ -2624,72 +2620,72 @@ function ProjectStageBulletTimeline({
                     {badgeLabel}
                   </span>
                 </div>
-              </div>
 
-              <div className="pl-0">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExpandedStageIds((prev) =>
-                      prev.includes(String(stage.id))
-                        ? prev.filter((id) => id !== String(stage.id))
-                        : [...prev, String(stage.id)]
-                    )
-                  }
-                  className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-brand hover:underline"
-                >
-                  {isExpanded ? 'Collapse documents' : `Expand documents (${stageDocuments.length})`}
-                </button>
+                <div className="px-4 pb-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedStageIds((prev) =>
+                        prev.includes(String(stage.id))
+                          ? prev.filter((id) => id !== String(stage.id))
+                          : [...prev, String(stage.id)]
+                      )
+                    }
+                    className="mt-1 inline-flex items-center gap-2 text-xs font-semibold text-brand hover:underline"
+                  >
+                    {isExpanded ? 'Collapse documents' : `Expand documents (${stageDocuments.length})`}
+                  </button>
 
-                {isExpanded && (
-                  <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
-                    {documentsLoading ? (
-                      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-3 py-3 text-xs text-ink-muted">
-                        <InlineSpinner className="h-3.5 w-3.5" />
-                        <span>Loading attached documents...</span>
-                      </div>
-                    ) : documentsError ? (
-                      <div className="rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/40 px-3 py-3 text-xs text-[var(--dms-color-warning-ink)]">
-                        {documentsError}
-                      </div>
-                    ) : stageDocuments.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-border bg-surface px-3 py-3 text-xs text-ink-muted">
-                        No documents attached to this stage yet.
-                      </div>
-                    ) : (
-                      stageDocuments.map((entry) => (
-                        <div key={entry.id} className="rounded-xl border border-border bg-surface px-3 py-3">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold text-ink">{getDocumentCodeLabel(entry.document)}</span>
-                                <DocumentStatusBadge status={entry.document?.status} />
-                                <ConfidentialBadge isConfidential={entry.document?.isConfidential} />
-                              </div>
-                              <div className="mt-1 text-sm text-ink-secondary">{getDocumentTitleLabel(entry.document)}</div>
-                              <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
-                              {entry.itemStatus ? (
-                                <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div>
-                              ) : null}
-                              {entry.document?.isConfidential && entry.document?.canAccess !== true ? (
-                                <div className="mt-1 text-xs font-medium text-ink-muted">Confidential access required for full document access.</div>
-                              ) : null}
-                            </div>
-                            <span className="inline-flex w-fit rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-secondary">
-                              {entry.source}
-                            </span>
-                          </div>
+                  {isExpanded && (
+                    <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
+                      {documentsLoading ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-surface px-3 py-3 text-xs text-ink-muted">
+                          <InlineSpinner className="h-3.5 w-3.5" />
+                          <span>Loading attached documents...</span>
                         </div>
-                      ))
-                    )}
-                  </div>
-                )}
+                      ) : documentsError ? (
+                        <div className="rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/40 px-3 py-3 text-xs text-[var(--dms-color-warning-ink)]">
+                          {documentsError}
+                        </div>
+                      ) : stageDocuments.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border bg-surface px-3 py-3 text-xs text-ink-muted">
+                          No documents attached to this stage yet.
+                        </div>
+                      ) : (
+                        stageDocuments.map((entry) => (
+                          <div key={entry.id} className="rounded-xl border border-border bg-surface px-3 py-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-semibold text-ink">{getDocumentCodeLabel(entry.document)}</span>
+                                  <DocumentStatusBadge status={entry.document?.status} />
+                                  <ConfidentialBadge isConfidential={entry.document?.isConfidential} />
+                                </div>
+                                <div className="mt-1 text-sm text-ink-secondary">{getDocumentTitleLabel(entry.document)}</div>
+                                <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
+                                {entry.itemStatus ? (
+                                  <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div>
+                                ) : null}
+                                {entry.document?.isConfidential && entry.document?.canAccess !== true ? (
+                                  <div className="mt-1 text-xs font-medium text-ink-muted">Confidential access required for full document access.</div>
+                                ) : null}
+                              </div>
+                              <span className="inline-flex w-fit rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-secondary">
+                                {entry.source}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </TimelineContent>
-          </TimelineItem>
+            </div>
+          </div>
         )
       })}
-    </Timeline>
+    </div>
   )
 }
 
@@ -3997,7 +3993,7 @@ function ProjectDetail({ projectId }) {
         />
 
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="relative overflow-hidden rounded-2xl border border-[var(--dms-color-success-soft)] bg-[linear-gradient(135deg,var(--dms-color-success-soft),var(--dms-color-surface))] px-5 py-4 shadow-sm">
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--dms-color-success-soft)] bg-[linear-gradient(135deg,var(--dms-color-success-soft),var(--dms-color-bg-surface))] px-5 py-4 shadow-sm">
             <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 -translate-y-8 translate-x-8 rounded-full bg-white/20 blur-2xl" />
             <div className="relative flex h-full flex-col justify-between gap-4">
               <div className="space-y-1">
@@ -4009,7 +4005,7 @@ function ProjectDetail({ projectId }) {
               </div>
             </div>
           </div>
-          <div className="relative overflow-hidden rounded-2xl border border-[var(--dms-color-info-soft)] bg-[linear-gradient(135deg,var(--dms-color-info-soft),var(--dms-color-surface))] px-5 py-4 shadow-sm">
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--dms-color-info-soft)] bg-[linear-gradient(135deg,var(--dms-color-info-soft),var(--dms-color-bg-surface))] px-5 py-4 shadow-sm">
             <div className="pointer-events-none absolute bottom-0 right-0 h-24 w-24 translate-x-8 translate-y-8 rounded-full bg-white/20 blur-2xl" />
             <div className="relative flex h-full flex-col justify-between gap-4">
               <div className="space-y-1">
@@ -4331,44 +4327,6 @@ function ProjectDetail({ projectId }) {
               </Table>
             </TableContainer>
           )}
-        </div>
-      </AppSurface>
-
-      <AppSurface padding="lg">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold text-ink">Project Phases</div>
-            <div className="mt-1 text-sm text-ink-muted">Switch between iterations under the same project and review each stage flow separately.</div>
-          </div>
-          <div className="hidden rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary sm:inline-flex">{`${phases.length} phase${phases.length === 1 ? '' : 's'}`}</div>
-        </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 dms-scrollbar">
-            {phases.map((phase) => {
-              const isSelected = phase.id === selectedIterationId
-              return (
-                <button
-                  key={phase.id}
-                  type="button"
-                  onClick={() => setSelectedIterationId(phase.id)}
-                  className={`min-w-[190px] rounded-2xl border px-4 py-3 text-left transition ${
-                    isSelected
-                      ? 'border-brand bg-[var(--dms-color-info-soft)] shadow-dms-soft ring-1 ring-brand/10'
-                      : 'border-border bg-surface hover:border-border-strong hover:bg-surface-muted'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-muted">{`Phase ${phase.iterationNo}`}</div>
-                      <div className="mt-1 truncate text-sm font-semibold text-ink" title={phase.name || ''}>{phase.name || 'Project Phase'}</div>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${isSelected ? 'bg-brand text-ink-inverse' : 'border border-border bg-surface-muted text-ink-secondary'}`}>
-                      {isSelected ? 'Active' : 'Open'}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-ink-secondary">{`Current Stage: ${phase.currentStage?.name || '-'}`}</div>
-                </button>
-              )
-            })}
         </div>
       </AppSurface>
 
