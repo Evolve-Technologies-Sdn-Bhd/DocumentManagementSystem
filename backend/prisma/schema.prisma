@@ -648,6 +648,7 @@ model ProjectStageDefinition {
   setupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
   items               ProjectIterationDocumentItem[]
   links               ProjectDocumentLink[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -897,6 +898,7 @@ model ProjectDocumentLink {
 model ProjectRequiredDocumentPicAssignment {
   id             Int      @id @default(autoincrement())
   projectId      Int
+  stageId        Int
   documentTypeId Int
   picUserId      Int
   assignedById   Int
@@ -904,12 +906,14 @@ model ProjectRequiredDocumentPicAssignment {
   updatedAt      DateTime @updatedAt
 
   project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage        ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
   documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
   picUser      User         @relation("ProjectRequiredDocumentPicUser", fields: [picUserId], references: [id], onDelete: Restrict)
   assignedBy   User         @relation("ProjectRequiredDocumentPicAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
 
-  @@unique([projectId, documentTypeId], map: "PRDPICA_pid_dtid_key")
+  @@unique([projectId, stageId, documentTypeId], map: "PRDPICA_pid_sid_dtid_key")
   @@index([projectId])
+  @@index([stageId])
   @@index([documentTypeId])
   @@index([picUserId])
   @@index([assignedById])

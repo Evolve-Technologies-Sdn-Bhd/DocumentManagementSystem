@@ -873,21 +873,31 @@ exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
 
   const items = await prisma.projectIterationDocumentItem.findMany({
     where: { iteration: { projectId } },
-    select: { documentTypeId: true }
+    select: {
+      stageId: true,
+      documentTypeId: true,
+      stage: { select: { id: true, name: true } },
+      documentType: { select: { id: true, name: true, prefix: true, isActive: true } }
+    }
   })
-  const documentTypeIds = Array.from(new Set(items.map((it) => it.documentTypeId))).filter(Boolean)
-  if (documentTypeIds.length === 0) {
+  const requiredEntries = Array.from(
+    new Map(
+      items
+        .filter((it) => it.stageId && it.documentTypeId)
+        .map((it) => [`${it.stageId}:${it.documentTypeId}`, it])
+    ).values()
+  )
+  if (requiredEntries.length === 0) {
     return { canAssign, requiredDocuments: [] }
   }
+  const stageIds = Array.from(new Set(requiredEntries.map((it) => it.stageId)))
+  const documentTypeIds = Array.from(new Set(requiredEntries.map((it) => it.documentTypeId)))
 
-  const [documentTypes, assignments, links] = await Promise.all([
-    prisma.documentType.findMany({
-      where: { id: { in: documentTypeIds } },
-      select: { id: true, name: true, prefix: true, isActive: true }
-    }),
+  const [assignments, links] = await Promise.all([
     prisma.projectRequiredDocumentPicAssignment.findMany({
-      where: { projectId, documentTypeId: { in: documentTypeIds } },
+      where: { projectId, stageId: { in: stageIds }, documentTypeId: { in: documentTypeIds } },
       include: {
+        stage: { select: { id: true, name: true } },
         picUser: { select: { id: true, email: true, firstName: true, lastName: true } },
         assignedBy: { select: { id: true, email: true, firstName: true, lastName: true } }
       }
@@ -895,36 +905,48 @@ exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
     prisma.projectDocumentLink.findMany({
       where: {
         iteration: { projectId },
+        stageId: { in: stageIds },
         document: { documentTypeId: { in: documentTypeIds } }
       },
       select: {
+        stageId: true,
         linkedAt: true,
         document: { select: { documentTypeId: true } }
       }
     })
   ])
 
-  const assignmentByDocType = new Map(assignments.map((a) => [a.documentTypeId, a]))
-  const linkStatsByDocType = new Map()
+  const buildKey = (stageId, documentTypeId) => `${stageId}:${documentTypeId}`
+  const assignmentByStageAndDocType = new Map(assignments.map((a) => [buildKey(a.stageId, a.documentTypeId), a]))
+  const linkStatsByStageAndDocType = new Map()
   links.forEach((l) => {
+    const stageId = l.stageId
     const dtid = l.document?.documentTypeId
-    if (!dtid) return
-    const current = linkStatsByDocType.get(dtid) || { responded: false, lastLinkedAt: null }
+    if (!stageId || !dtid) return
+    const key = buildKey(stageId, dtid)
+    const current = linkStatsByStageAndDocType.get(key) || { responded: false, lastLinkedAt: null }
     const nextLast = !current.lastLinkedAt || l.linkedAt > current.lastLinkedAt ? l.linkedAt : current.lastLinkedAt
-    linkStatsByDocType.set(dtid, { responded: true, lastLinkedAt: nextLast })
+    linkStatsByStageAndDocType.set(key, { responded: true, lastLinkedAt: nextLast })
   })
 
-  const requiredDocuments = documentTypes
+  const requiredDocuments = requiredEntries
     .slice()
-    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
-    .map((dt) => {
-      const assignment = assignmentByDocType.get(dt.id) || null
-      const stats = linkStatsByDocType.get(dt.id) || { responded: false, lastLinkedAt: null }
+    .sort((a, b) => {
+      const stageCompare = String(a.stage?.name || '').localeCompare(String(b.stage?.name || ''))
+      if (stageCompare !== 0) return stageCompare
+      return String(a.documentType?.name || '').localeCompare(String(b.documentType?.name || ''))
+    })
+    .map((entry) => {
+      const assignment = assignmentByStageAndDocType.get(buildKey(entry.stageId, entry.documentTypeId)) || null
+      const stats = linkStatsByStageAndDocType.get(buildKey(entry.stageId, entry.documentTypeId)) || { responded: false, lastLinkedAt: null }
       return {
-        documentType: dt,
+        stage: entry.stage,
+        stageId: entry.stageId,
+        documentType: entry.documentType,
         assignment: assignment
           ? {
               id: assignment.id,
+              stage: assignment.stage,
               picUser: assignment.picUser,
               assignedBy: assignment.assignedBy,
               assignedAt: assignment.assignedAt
@@ -942,9 +964,10 @@ exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
 
 exports.setProjectRequiredDocumentPic = async (
   projectId,
-  { documentTypeId, picUserId, assignedById }
+  { stageId, documentTypeId, picUserId, assignedById }
 ) => {
   if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!stageId) throw new ValidationError('stageId is required')
   if (!documentTypeId) throw new ValidationError('documentTypeId is required')
 
   const project = await prisma.project.findUnique({
@@ -963,15 +986,27 @@ exports.setProjectRequiredDocumentPic = async (
   })
   if (!docType) throw new NotFoundError('Document type')
 
+  const requirementExists = await prisma.projectIterationDocumentItem.findFirst({
+    where: {
+      iteration: { projectId },
+      stageId,
+      documentTypeId
+    },
+    select: { id: true }
+  })
+  if (!requirementExists) {
+    throw new ValidationError('Required document row not found for this project stage')
+  }
+
   return prisma.$transaction(async (tx) => {
     const existing = await tx.projectRequiredDocumentPicAssignment.findUnique({
-      where: { projectId_documentTypeId: { projectId, documentTypeId } },
+      where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
       select: { id: true, picUserId: true }
     })
 
     if (!picUserId) {
       await tx.projectRequiredDocumentPicAssignment.deleteMany({
-        where: { projectId, documentTypeId }
+        where: { projectId, stageId, documentTypeId }
       })
 
       await tx.auditLog.create({
@@ -980,9 +1015,10 @@ exports.setProjectRequiredDocumentPic = async (
           action: 'DELETE',
           entity: 'ProjectRequiredDocumentPicAssignment',
           entityId: existing?.id || null,
-          description: `projectId=${projectId} unassigned PIC for documentTypeId=${documentTypeId}`,
+          description: `projectId=${projectId} unassigned PIC for stageId=${stageId} documentTypeId=${documentTypeId}`,
           metadata: {
             projectId,
+            stageId,
             documentTypeId,
             previousPicUserId: existing?.picUserId || null
           }
@@ -1000,7 +1036,7 @@ exports.setProjectRequiredDocumentPic = async (
 
     const now = new Date()
     const assignment = await tx.projectRequiredDocumentPicAssignment.upsert({
-      where: { projectId_documentTypeId: { projectId, documentTypeId } },
+      where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
       update: {
         picUserId,
         assignedById,
@@ -1008,6 +1044,7 @@ exports.setProjectRequiredDocumentPic = async (
       },
       create: {
         projectId,
+        stageId,
         documentTypeId,
         picUserId,
         assignedById,
@@ -1025,9 +1062,10 @@ exports.setProjectRequiredDocumentPic = async (
         action: existing ? 'UPDATE' : 'CREATE',
         entity: 'ProjectRequiredDocumentPicAssignment',
         entityId: assignment.id,
-        description: `projectId=${projectId} set PIC for documentTypeId=${documentTypeId} to userId=${picUserId}`,
+        description: `projectId=${projectId} set PIC for stageId=${stageId} documentTypeId=${documentTypeId} to userId=${picUserId}`,
         metadata: {
           projectId,
+          stageId,
           documentTypeId,
           previousPicUserId: existing?.picUserId || null,
           picUserId

@@ -23,9 +23,9 @@ import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
 import FolderTreePicker from './ui/FolderTreePicker'
 import SectionHeader from './ui/SectionHeader'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import IconButton from './ui/IconButton'
-import ProjectRequiredDocumentsTab from './ProjectRequiredDocumentsTab'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -48,6 +48,83 @@ function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
         <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
       </div>
     </div>
+  )
+}
+
+function formatPersonLabel(user) {
+  if (!user) return '-'
+  const name = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+  return name || user.email || '-'
+}
+
+function AssignRequiredDocumentPicModal({
+  requirement,
+  loading,
+  query,
+  onQueryChange,
+  onSearch,
+  searching,
+  userResults,
+  selectedUser,
+  onSelectUser,
+  onClose,
+  onSave,
+  onUnassign
+}) {
+  return (
+    <Modal onClose={onClose} size="md">
+      <ModalHeader title="Assign PIC" subtitle={requirement?.documentType?.name || 'Required Document'} onClose={onClose} />
+      <ModalBody className="space-y-4">
+        <div className="rounded-dms border border-border bg-surface-muted p-3">
+          <div className="text-xs text-ink-muted">Document Type</div>
+          <div className="mt-1 text-sm font-medium text-ink">{requirement?.documentType?.name || '-'}</div>
+        </div>
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-ink">Search user</div>
+          <div className="flex gap-2">
+            <TextInput value={query} onChange={(e) => onQueryChange(e.target.value)} placeholder="Type name or email" />
+            <Button type="button" variant="secondary" onClick={onSearch} disabled={searching}>
+              {searching ? 'Searching...' : 'Search'}
+            </Button>
+          </div>
+          {userResults.length > 0 ? (
+            <div className="max-h-56 overflow-auto rounded-dms border border-border bg-surface">
+              {userResults.map((user) => {
+                const isSelected = String(selectedUser?.id || '') === String(user.id)
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => onSelectUser(user)}
+                    className={[
+                      'w-full px-3 py-2 text-left text-sm transition-colors',
+                      isSelected ? 'bg-brand/10 text-brand' : 'hover:bg-surface-muted'
+                    ].join(' ')}
+                  >
+                    {formatPersonLabel(user)}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
+        <div className="rounded-dms border border-border bg-surface-muted p-3">
+          <div className="text-xs text-ink-muted">Selected PIC</div>
+          <div className="mt-1 text-sm font-medium text-ink">{formatPersonLabel(selectedUser)}</div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="secondary" onClick={onClose} disabled={loading}>
+          Cancel
+        </Button>
+        <Button variant="danger" onClick={onUnassign} disabled={loading}>
+          Unassign
+        </Button>
+        <Button onClick={onSave} disabled={loading || !selectedUser?.id}>
+          {loading ? 'Saving...' : 'Save'}
+        </Button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
@@ -2977,6 +3054,14 @@ function ProjectDetail({ projectId }) {
   const [showEditProject, setShowEditProject] = useState(false)
   const [showProjectControls, setShowProjectControls] = useState(false)
   const [showShareDocument, setShowShareDocument] = useState(null)
+  const [requiredDocumentAssignments, setRequiredDocumentAssignments] = useState({})
+  const [canAssignRequiredDocumentPic, setCanAssignRequiredDocumentPic] = useState(false)
+  const [showAssignRequiredDocumentPic, setShowAssignRequiredDocumentPic] = useState(null)
+  const [assignPicQuery, setAssignPicQuery] = useState('')
+  const [assignPicResults, setAssignPicResults] = useState([])
+  const [assignPicSearching, setAssignPicSearching] = useState(false)
+  const [selectedRequirementPicUser, setSelectedRequirementPicUser] = useState(null)
+  const [savingRequirementPic, setSavingRequirementPic] = useState(false)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [advancing, setAdvancing] = useState(false)
@@ -3032,8 +3117,30 @@ function ProjectDetail({ projectId }) {
     }
   }
 
+  const loadRequiredDocumentAssignments = async () => {
+    try {
+      const res = await api.get(`/project-tracking/projects/${projectId}/required-documents`)
+      const rows = res?.data?.data?.requiredDocuments || []
+      const assignmentMap = rows.reduce((acc, row) => {
+        if (row?.stageId && row?.documentType?.id) {
+          acc[`${row.stageId}:${row.documentType.id}`] = row.assignment || null
+        }
+        return acc
+      }, {})
+      setRequiredDocumentAssignments(assignmentMap)
+      setCanAssignRequiredDocumentPic(Boolean(res?.data?.data?.canAssign))
+    } catch {
+      setRequiredDocumentAssignments({})
+      setCanAssignRequiredDocumentPic(false)
+    }
+  }
+
   useEffect(() => {
     loadProject()
+  }, [projectId])
+
+  useEffect(() => {
+    loadRequiredDocumentAssignments()
   }, [projectId])
 
   useEffect(() => {
@@ -3168,6 +3275,64 @@ function ProjectDetail({ projectId }) {
     setActiveStageTab(stageId)
   }
 
+  const openAssignRequiredDocumentPic = (item) => {
+    const currentAssignment = requiredDocumentAssignments[`${item.stageId}:${item.documentTypeId}`] || null
+    setShowAssignRequiredDocumentPic(item)
+    setAssignPicQuery('')
+    setAssignPicResults([])
+    setSelectedRequirementPicUser(currentAssignment?.picUser || null)
+  }
+
+  const closeAssignRequiredDocumentPic = () => {
+    if (savingRequirementPic) return
+    setShowAssignRequiredDocumentPic(null)
+    setAssignPicQuery('')
+    setAssignPicResults([])
+    setSelectedRequirementPicUser(null)
+  }
+
+  const searchAssignableUsers = async () => {
+    const q = String(assignPicQuery || '').trim()
+    if (!q) return
+    setAssignPicSearching(true)
+    try {
+      const res = await api.get('/folders/access/subjects', { params: { q } })
+      setAssignPicResults(res?.data?.data?.users || [])
+    } finally {
+      setAssignPicSearching(false)
+    }
+  }
+
+  const saveRequiredDocumentPic = async (picUserId = null) => {
+    if (!showAssignRequiredDocumentPic?.documentTypeId || !showAssignRequiredDocumentPic?.stageId) return
+    const assignmentKey = `${showAssignRequiredDocumentPic.stageId}:${showAssignRequiredDocumentPic.documentTypeId}`
+    if (picUserId === null && !requiredDocumentAssignments[assignmentKey]) {
+      closeAssignRequiredDocumentPic()
+      return
+    }
+    setSavingRequirementPic(true)
+    try {
+      await api.post(`/project-tracking/projects/${projectId}/required-documents/pic`, {
+        stageId: showAssignRequiredDocumentPic.stageId,
+        documentTypeId: showAssignRequiredDocumentPic.documentTypeId,
+        picUserId
+      })
+      await loadRequiredDocumentAssignments()
+      closeAssignRequiredDocumentPic()
+      setAlertModal({
+        show: true,
+        title: 'Success',
+        message: picUserId ? 'Required document PIC updated successfully.' : 'Required document PIC unassigned successfully.',
+        type: 'success'
+      })
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to update required document PIC'
+      setAlertModal({ show: true, title: 'Unable to update PIC', message: msg, type: 'warning' })
+    } finally {
+      setSavingRequirementPic(false)
+    }
+  }
+
   const activeStage = useMemo(() => {
     return stages.find((stage) => stage.id === activeStageTab) || null
   }, [activeStageTab, stages])
@@ -3177,6 +3342,8 @@ function ProjectDetail({ projectId }) {
     if (document?.isConfidential) return document?.canAccess === true
     return true
   }
+
+  const getRequiredDocumentAssignment = (stageId, documentTypeId) => requiredDocumentAssignments[`${stageId}:${documentTypeId}`] || null
 
   const currentStageId = selectedPhase?.currentStage?.id || null
 
@@ -4276,13 +4443,14 @@ function ProjectDetail({ projectId }) {
                         <Th>Document Type</Th>
                         <Th>Status</Th>
                         <Th>Completed Documents</Th>
+                        <Th>Assigned PIC</Th>
                         <Th>Action</Th>
                       </Tr>
                     </thead>
                     <tbody>
                       {stageItems.length === 0 ? (
                         <Tr>
-                          <Td colSpan={4} className="px-6 py-8 text-sm text-ink-muted">
+                          <Td colSpan={5} className="px-6 py-8 text-sm text-ink-muted">
                             No required checklist items for this stage yet. Add requirements in Project Setup, or attach extra documents using the buttons below.
                           </Td>
                         </Tr>
@@ -4383,6 +4551,28 @@ function ProjectDetail({ projectId }) {
                                 </div>
                               ) : null}
                             </div>
+                          </Td>
+                          <Td className="min-w-[180px] text-sm text-ink-secondary">
+                            {(() => {
+                              const assignment = getRequiredDocumentAssignment(it.stageId, it.documentTypeId)
+                              return (
+                                <div className="space-y-2">
+                                  <div className="font-medium text-ink">{formatPersonLabel(assignment?.picUser)}</div>
+                                  <div className="text-xs text-ink-muted">
+                                    {assignment?.assignedAt ? `Assigned ${new Date(assignment.assignedAt).toLocaleDateString()}` : 'Not assigned'}
+                                  </div>
+                                  {canAssignRequiredDocumentPic ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAssignRequiredDocumentPic(it)}
+                                      className="text-xs font-medium text-brand hover:underline"
+                                    >
+                                      {assignment?.picUser ? 'Reassign PIC' : 'Assign PIC'}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              )
+                            })()}
                           </Td>
                           <Td className="min-w-[220px] text-sm">
                             {it.links?.length ? (
@@ -4632,6 +4822,23 @@ function ProjectDetail({ projectId }) {
             setShowCreateDoc(null)
             await handoffCreatedDraft(result)
           }}
+        />
+      )}
+
+      {showAssignRequiredDocumentPic && (
+        <AssignRequiredDocumentPicModal
+          requirement={showAssignRequiredDocumentPic}
+          loading={savingRequirementPic}
+          query={assignPicQuery}
+          onQueryChange={setAssignPicQuery}
+          onSearch={searchAssignableUsers}
+          searching={assignPicSearching}
+          userResults={assignPicResults}
+          selectedUser={selectedRequirementPicUser}
+          onSelectUser={setSelectedRequirementPicUser}
+          onClose={closeAssignRequiredDocumentPic}
+          onSave={() => saveRequiredDocumentPic(selectedRequirementPicUser?.id || null)}
+          onUnassign={() => saveRequiredDocumentPic(null)}
         />
       )}
 
@@ -6230,7 +6437,7 @@ export default function ProjectTracking() {
   }
 
   useEffect(() => {
-    if (projectId && !['projects', 'required-documents'].includes(activeTab)) setTab('projects')
+    if (projectId && activeTab !== 'projects') setTab('projects')
   }, [projectId])
 
   const tabs = useMemo(() => {
@@ -6240,14 +6447,11 @@ export default function ProjectTracking() {
       base.push({ id: 'projects', label: 'Project Lists' })
       base.push({ id: 'search', label: 'Search Documents' })
     }
-    if (projectId && canViewProjectDetail) {
-      base.push({ id: 'required-documents', label: 'Required Documents' })
-    }
     if (canOpenProjectSetup) {
       base.push({ id: 'setup', label: 'Project Setup' })
     }
     return base
-  }, [canOpenProjectSetup, canSearchProjects, canViewProjectDetail, projectId])
+  }, [canOpenProjectSetup, canSearchProjects])
 
   const fallbackTab = tabs[0]?.id || 'dashboard'
 
@@ -6299,10 +6503,6 @@ export default function ProjectTracking() {
           ) : activeTab === 'search' && canSearchProjects ? (
             <div data-tour-id="pt-search-panel">
               <DocumentsSearch />
-            </div>
-          ) : activeTab === 'required-documents' && projectId && canViewProjectDetail ? (
-            <div data-tour-id="pt-required-documents-panel">
-              <ProjectRequiredDocumentsTab projectId={Number(projectId)} />
             </div>
           ) : projectId && canViewProjectDetail ? (
             <div data-tour-id="pt-detail-panel">

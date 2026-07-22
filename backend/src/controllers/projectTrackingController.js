@@ -167,12 +167,16 @@ exports.setProjectRequiredDocumentPic = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  const stageId = req.body?.stageId ? Number(req.body.stageId) : null
+  if (!stageId) throw new ValidationError('stageId is required')
+
   const documentTypeId = req.body?.documentTypeId ? Number(req.body.documentTypeId) : null
   if (!documentTypeId) throw new ValidationError('documentTypeId is required')
 
   const picUserId = req.body?.picUserId ? Number(req.body.picUserId) : null
 
   const result = await projectTrackingService.setProjectRequiredDocumentPic(projectId, {
+    stageId,
     documentTypeId,
     picUserId,
     assignedById: req.user.id

@@ -18,6 +18,27 @@ class AuthController {
     return getClientIp(req) || 'Unknown'
   }
 
+  getFrontendUrl(req) {
+    const explicitUrl = String(process.env.FRONTEND_URL || '').trim()
+    if (explicitUrl) {
+      return explicitUrl.replace(/\/$/, '')
+    }
+
+    const originHeader = String(req.get('origin') || '').trim()
+    if (originHeader) {
+      return originHeader.replace(/\/$/, '')
+    }
+
+    const refererHeader = String(req.get('referer') || '').trim()
+    if (refererHeader) {
+      try {
+        return new URL(refererHeader).origin.replace(/\/$/, '')
+      } catch {}
+    }
+
+    return null
+  }
+
   /**
    * Login user
    * POST /api/auth/login
@@ -243,26 +264,29 @@ class AuthController {
     const resetPayload = await authService.createPasswordResetToken(email);
 
     if (resetPayload?.user?.email && resetPayload?.token) {
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+      const frontendUrl = this.getFrontendUrl(req);
+      if (!frontendUrl) {
+        return ResponseFormatter.error(
+          res,
+          'Password reset is not configured. Please set FRONTEND_URL on the server.',
+          500
+        );
+      }
+
       const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(resetPayload.token)}`;
 
-      try {
+      // Send email in the background so the UI does not wait for SMTP round-trips.
+      Promise.resolve().then(async () => {
         await emailService.sendPasswordResetEmail(resetPayload.user.email, {
           firstName: resetPayload.user.firstName,
           resetLink,
           expiresInMinutes: parseInt(process.env.PASSWORD_RESET_LINK_MINUTES || '30', 10) || 30
         });
-      } catch (error) {
+        await auditLogService.logAuth(resetPayload.user.id, 'PASSWORD_RESET_REQUESTED', req, {
+          email: resetPayload.user.email
+        });
+      }).catch((error) => {
         console.error('Failed to send password reset email:', error);
-        return ResponseFormatter.error(
-          res,
-          'Unable to send reset email at the moment. Please try again later.',
-          500
-        );
-      }
-
-      await auditLogService.logAuth(resetPayload.user.id, 'PASSWORD_RESET_REQUESTED', req, {
-        email: resetPayload.user.email
       });
     }
 
