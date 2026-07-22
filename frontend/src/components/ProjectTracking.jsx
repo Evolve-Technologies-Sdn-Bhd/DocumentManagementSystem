@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Timeline from '@mui/lab/Timeline'
 import TimelineConnector from '@mui/lab/TimelineConnector'
@@ -4554,6 +4554,9 @@ function ProjectDetail({ projectId }) {
                           <Td className="whitespace-nowrap text-sm">
                             <div className="flex flex-col items-start gap-2">
                               <ItemStatusBadge status={it.status} />
+                              {it.isManualOverride ? (
+                                <span className="text-[11px] font-medium text-ink-muted">Manual override</span>
+                              ) : null}
                               {canEdit && isProjectActive ? (
                                 String(it.status || '').toUpperCase() === 'PENDING' ? (
                                   <button
