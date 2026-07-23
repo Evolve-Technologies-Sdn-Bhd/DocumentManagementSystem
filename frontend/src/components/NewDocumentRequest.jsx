@@ -15,6 +15,7 @@ import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 
 // Calendar icon
@@ -695,26 +696,18 @@ export default function NewDocumentRequest() {
       />
 
       {templatePicker.show && (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
-          <AppSurface padding="none" className="max-w-lg w-full overflow-hidden rounded-[18px]">
-            <div className="px-6 py-4 border-b border-border bg-surface-muted flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-ink">{t('select_template')}</h3>
-                <p className="text-sm text-ink-muted mt-1">{templatePicker.documentTypeName}</p>
-              </div>
-              <IconButton
-                type="button"
-                size="sm"
-                onClick={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
-                aria-label={t('close')}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </IconButton>
-            </div>
-
-            <div className="px-6 py-4">
+        <Modal
+          onClose={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
+          closeOnBackdrop
+          size="sm"
+          className="max-w-lg"
+        >
+          <ModalHeader
+            title={t('select_template')}
+            subtitle={templatePicker.documentTypeName}
+            onClose={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
+          />
+          <ModalBody>
               <div className="dms-scrollbar space-y-3 max-h-72 overflow-auto pr-1">
                 {templatePicker.templates.map((tpl) => (
                   <label key={tpl.id} className="flex items-start gap-3 p-3 border border-border rounded-2xl cursor-pointer bg-surface hover:bg-surface-muted transition-colors">
@@ -735,9 +728,8 @@ export default function NewDocumentRequest() {
                   </label>
                 ))}
               </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-border flex justify-end gap-3 bg-surface">
+          </ModalBody>
+          <ModalFooter>
               <Button
                 type="button"
                 onClick={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
@@ -752,9 +744,8 @@ export default function NewDocumentRequest() {
               >
                 {t('download')}
               </Button>
-            </div>
-          </AppSurface>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
 
       <PageHeader
@@ -1338,23 +1329,9 @@ export default function NewDocumentRequest() {
 
       {/* Reject Request Modal */}
       {showRejectModal && rejectingRequest && (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Reject Document Request</h3>
-              <button
-                onClick={closeRejectModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
+        <Modal onClose={closeRejectModal} closeOnBackdrop size="sm">
+          <ModalHeader title="Reject Document Request" onClose={closeRejectModal} />
+          <ModalBody className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Document Title:</p>
                 <p className="font-medium text-gray-900">{rejectingRequest.title}</p>
@@ -1385,10 +1362,8 @@ export default function NewDocumentRequest() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex gap-3 p-6 border-t border-border bg-surface">
+          </ModalBody>
+          <ModalFooter className="gap-3">
               <Button
                 onClick={closeRejectModal}
                 disabled={acknowledgingId === rejectingRequest.id}
@@ -1405,9 +1380,8 @@ export default function NewDocumentRequest() {
               >
                 {acknowledgingId === rejectingRequest.id ? 'Rejecting...' : 'Reject Request'}
               </Button>
-            </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   )

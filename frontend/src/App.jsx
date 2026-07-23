@@ -10,6 +10,7 @@ import ReviewAndApproval from './components/ReviewAndApproval'
 import PublishedDocuments from './components/PublishedDocuments'
 import SupersededObsolete from './components/SupersededObsolete'
 import Configuration from './components/Configuration'
+import SystemReports from './components/SystemReports'
 import LogsReports from './pages/LogsReports'
 import ReportViewer from './components/ReportViewer'
 import MasterRecord from './pages/MasterRecord'
@@ -218,7 +219,15 @@ export default function App() {
         <Route
           path="/logs"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute
+              module={[
+                'logsReport.activityLogs',
+                'logsReport.userActivity',
+                'logsReport.reports',
+                'logsReport.analytics'
+              ]}
+              requireAny
+            >
               <Layout>
                 <LogsReports />
               </Layout>
@@ -228,9 +237,9 @@ export default function App() {
         <Route
           path="/reports"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
-                <LogsReports />
+                <SystemReports />
               </Layout>
             </ProtectedRoute>
           }
@@ -238,7 +247,7 @@ export default function App() {
         <Route
           path="/reports/:reportType"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
                 <ReportViewer />
               </Layout>

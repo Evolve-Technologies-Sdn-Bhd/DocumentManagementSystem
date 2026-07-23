@@ -468,12 +468,12 @@ router.get('/audit-logs', authorize('admin'), asyncHandler(async (req, res) => {
 }));
 
 // System Reports
-router.get('/system/stats', asyncHandler(async (req, res) => {
+router.get('/system/stats', requirePermission('logsReport.reports', 'view'), asyncHandler(async (req, res) => {
   const stats = await reportsService.getSystemReportStats();
   return ResponseFormatter.success(res, { stats });
 }));
 
-router.get('/system/recent', asyncHandler(async (req, res) => {
+router.get('/system/recent', requirePermission('logsReport.reports', 'view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   const reports = await reportsService.getRecentReports({
     page: parseInt(page),
@@ -483,7 +483,7 @@ router.get('/system/recent', asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, reports);
 }));
 
-router.post('/system/generate', asyncHandler(async (req, res) => {
+router.post('/system/generate', requirePermission('logsReport.reports', 'generate'), asyncHandler(async (req, res) => {
   const { reportType, config } = req.body;
   
   if (!reportType) {
@@ -502,13 +502,13 @@ router.post('/system/generate', asyncHandler(async (req, res) => {
 }));
 
 // Get report data for viewing (not file download)
-router.get('/system/data/:reportType', asyncHandler(async (req, res) => {
+router.get('/system/data/:reportType', requirePermission('logsReport.reports', 'view'), asyncHandler(async (req, res) => {
   const { reportType } = req.params;
   const { dateFrom, dateTo, documentTypeId, department, status } = req.query;
 
   const config = {
-    dateFrom: dateFrom || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    dateTo: dateTo || new Date().toISOString().split('T')[0],
+    dateFrom: dateFrom || null,
+    dateTo: dateTo || null,
     filters: {
       documentTypeId: documentTypeId ? parseInt(documentTypeId) : null,
       department,
@@ -517,11 +517,36 @@ router.get('/system/data/:reportType', asyncHandler(async (req, res) => {
   };
 
   const reportData = await reportsService.getReportData(reportType, config);
+  // #region debug-point B:reports-route-response
+  fetch('http://127.0.0.1:7777/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'document-request-report',
+      runId: 'pre-fix',
+      hypothesisId: 'B',
+      location: 'backend/src/routes/reports.js:519',
+      msg: '[DEBUG] Reports route returning report payload',
+      data: {
+        reportType,
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        summaryKeys: Object.keys(reportData?.summary || {}),
+        total: reportData?.summary?.total ?? null,
+        rowCount: Array.isArray(reportData?.rows) ? reportData.rows.length : null,
+        rowTypes: Array.isArray(reportData?.rows)
+          ? Array.from(new Set(reportData.rows.map((row) => row?.requestType).filter(Boolean)))
+          : []
+      },
+      ts: Date.now()
+    })
+  }).catch(() => {});
+  // #endregion
   // Return report data directly (with config merged in)
   return ResponseFormatter.success(res, { ...reportData, appliedConfig: config }, 'Report data retrieved successfully');
 }));
 
-router.get('/system/:id/download', asyncHandler(async (req, res) => {
+router.get('/system/:id/download', requirePermission('logsReport.reports', 'download'), asyncHandler(async (req, res) => {
   const fs = require('fs');
   const reportId = parseInt(req.params.id);
   const result = await reportsService.downloadReport(reportId, req.user.id);

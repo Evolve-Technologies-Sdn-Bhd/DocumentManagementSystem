@@ -55,14 +55,30 @@ class ReportsService {
     return String(n - 1).padStart(digitsLen, '0')
   }
 
+  buildDateRangeFilter(fieldName, dateFrom, dateTo) {
+    const range = {}
+    if (dateFrom) range.gte = dateFrom
+    if (dateTo) range.lte = dateTo
+    return Object.keys(range).length > 0 ? { [fieldName]: range } : {}
+  }
+
+  formatOptionalDateRange(dateFrom, dateTo) {
+    if (!dateFrom && !dateTo) return null
+    return {
+      from: dateFrom ? dateFrom.toISOString().split('T')[0] : null,
+      to: dateTo ? dateTo.toISOString().split('T')[0] : null
+    }
+  }
+
   /**
    * Get report data as JSON for viewing
    */
   async getReportData(reportType, config) {
-    const dateFrom = config?.dateFrom ? new Date(config.dateFrom) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const dateTo = config?.dateTo ? new Date(config.dateTo) : new Date();
-    // Set dateTo to end of day
-    dateTo.setHours(23, 59, 59, 999);
+    const dateFrom = config?.dateFrom ? new Date(config.dateFrom) : null;
+    const dateTo = config?.dateTo ? new Date(config.dateTo) : null;
+    if (dateTo) {
+      dateTo.setHours(23, 59, 59, 999);
+    }
 
     switch (reportType) {
       case 'document-stats':
@@ -86,9 +102,7 @@ class ReportsService {
    * Get document statistics data
    */
   async getDocumentStatsData(dateFrom, dateTo, filters = {}) {
-    const where = {
-      createdAt: { gte: dateFrom, lte: dateTo }
-    };
+    const where = this.buildDateRangeFilter('createdAt', dateFrom, dateTo);
 
     if (filters.documentTypeId) {
       where.documentTypeId = filters.documentTypeId;
@@ -139,7 +153,7 @@ class ReportsService {
       reportType: 'document-stats',
       title: 'Document Statistics Report',
       generatedAt: new Date().toISOString(),
-      dateRange: { from: dateFrom.toISOString().split('T')[0], to: dateTo.toISOString().split('T')[0] },
+      dateRange: this.formatOptionalDateRange(dateFrom, dateTo),
       summary,
       columns: [
         { key: 'fileCode', label: 'File Code' },
@@ -160,9 +174,7 @@ class ReportsService {
    * Get user activity data
    */
   async getUserActivityData(dateFrom, dateTo, filters = {}) {
-    const where = {
-      createdAt: { gte: dateFrom, lte: dateTo }
-    };
+    const where = this.buildDateRangeFilter('createdAt', dateFrom, dateTo);
 
     const activities = await prisma.auditLog.findMany({
       where,
@@ -212,7 +224,7 @@ class ReportsService {
       reportType: 'user-activity',
       title: 'User Activity Summary',
       generatedAt: new Date().toISOString(),
-      dateRange: { from: dateFrom.toISOString().split('T')[0], to: dateTo.toISOString().split('T')[0] },
+      dateRange: this.formatOptionalDateRange(dateFrom, dateTo),
       summary,
       columns: [
         { key: 'timestamp', label: 'Timestamp' },
@@ -231,9 +243,7 @@ class ReportsService {
    */
   async getSecurityAuditData(dateFrom, dateTo, filters = {}) {
     // Get ALL audit logs, not just security-specific ones
-    const where = {
-      createdAt: { gte: dateFrom, lte: dateTo }
-    };
+    const where = this.buildDateRangeFilter('createdAt', dateFrom, dateTo);
 
     // Filter by action type if specified
     if (filters.action && filters.action !== 'all') {
@@ -278,7 +288,7 @@ class ReportsService {
       reportType: 'security-audit',
       title: 'Security & Audit Report',
       generatedAt: new Date().toISOString(),
-      dateRange: { from: dateFrom.toISOString().split('T')[0], to: dateTo.toISOString().split('T')[0] },
+      dateRange: this.formatOptionalDateRange(dateFrom, dateTo),
       summary,
       columns: [
         { key: 'timestamp', label: 'Timestamp' },
@@ -296,105 +306,208 @@ class ReportsService {
   /**
    * Get document request data (Version Requests)
    */
-  async getDocumentRequestData(dateFrom, dateTo, filters = {}) {
-    const where = {
-      createdAt: { gte: dateFrom, lte: dateTo }
-    };
+  formatRequestLabel(value) {
+    return String(value || '')
+      .toLowerCase()
+      .split('_')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ') || 'N/A'
+  }
 
-    if (filters.status) {
-      where.status = filters.status;
+  formatDocumentRequestStatus(status, source) {
+    const statusMaps = {
+      ndr: {
+        PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
+        ACKNOWLEDGED: 'Acknowledged',
+        REJECTED: 'Rejected'
+      },
+      version: {
+        PENDING_REVIEW: 'Pending Acknowledgment',
+        IN_REVIEW: 'In Review',
+        PENDING_APPROVAL: 'Pending Approval',
+        IN_APPROVAL: 'In Approval',
+        APPROVED: 'Acknowledged',
+        REJECTED: 'Rejected'
+      },
+      supersede: {
+        PENDING_REVIEW: 'Pending Review',
+        IN_REVIEW: 'In Review',
+        PENDING_APPROVAL: 'Pending Approval',
+        IN_APPROVAL: 'In Approval',
+        APPROVED: 'Approved',
+        REJECTED: 'Rejected'
+      }
     }
 
-    // Get Version Requests (NVR)
-    const versionRequests = await prisma.versionRequest.findMany({
-      where,
-      include: {
-        requestedBy: {
-          select: { firstName: true, lastName: true, email: true, department: true }
-        },
-        document: {
-          include: {
-            documentType: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    return statusMaps[source]?.[status] || this.formatRequestLabel(status)
+  }
 
-    // Get Supersede/Obsolete Requests
-    const supersedeRequests = await prisma.supersedeObsoleteRequest.findMany({
-      where,
-      include: {
-        requestedBy: {
-          select: { firstName: true, lastName: true, email: true, department: true }
-        },
-        document: {
-          include: {
-            documentType: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+  formatDocumentRequestStage(stage) {
+    const stageMap = {
+      ACKNOWLEDGMENT: 'Pending Acknowledgment',
+      REVIEW: 'Review',
+      APPROVAL: 'Approval',
+      COMPLETED: 'Completed',
+      DRAFT: 'Draft',
+      PUBLISHED: 'Published',
+      SUPERSEDED: 'Superseded',
+      OBSOLETE: 'Obsolete'
+    }
 
-    // Calculate summary
+    return stageMap[stage] || this.formatRequestLabel(stage)
+  }
+
+  formatReportUserName(user) {
+    if (!user) return 'N/A'
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+    return fullName || user.email || 'N/A'
+  }
+
+  formatDisplayFileCode(fileCode) {
+    if (!fileCode || String(fileCode).startsWith('PENDING-')) return '-'
+    return fileCode
+  }
+
+  async buildDocumentRequestReport(dateFrom, dateTo, filters = {}) {
+    const requestWindow = this.buildDateRangeFilter('createdAt', dateFrom, dateTo)
+
+    const ndrWhere = {
+      ...requestWindow,
+      OR: [
+        { status: { in: ['PENDING_ACKNOWLEDGMENT', 'ACKNOWLEDGED', 'REJECTED'] } },
+        { stage: 'ACKNOWLEDGMENT' }
+      ]
+    }
+
+    if (filters.status) {
+      ndrWhere.OR = [{ status: filters.status }, { stage: filters.status }]
+    }
+
+    const requestWhere = { ...requestWindow }
+    if (filters.status) {
+      requestWhere.status = filters.status
+    }
+
+    const [newDocumentRequests, versionRequests, supersedeRequests] = await Promise.all([
+      prisma.document.findMany({
+        where: ndrWhere,
+        include: {
+          documentType: true,
+          createdBy: {
+            select: { firstName: true, lastName: true, email: true, department: true }
+          }
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+      }),
+      prisma.versionRequest.findMany({
+        where: requestWhere,
+        include: {
+          requestedBy: {
+            select: { firstName: true, lastName: true, email: true, department: true }
+          },
+          document: {
+            include: {
+              documentType: true
+            }
+          }
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+      }),
+      prisma.supersedeObsoleteRequest.findMany({
+        where: requestWhere,
+        include: {
+          requestedBy: {
+            select: { firstName: true, lastName: true, email: true, department: true }
+          },
+          document: {
+            include: {
+              documentType: true
+            }
+          }
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+      })
+    ])
+
+    const supersedeOnlyCount = supersedeRequests.filter((req) => req.actionType === 'SUPERSEDE').length
+    const obsoleteOnlyCount = supersedeRequests.filter((req) => req.actionType === 'OBSOLETE').length
+
     const summary = {
-      total: versionRequests.length + supersedeRequests.length,
+      total: newDocumentRequests.length + versionRequests.length + supersedeRequests.length,
+      newDocumentRequests: newDocumentRequests.length,
       versionRequests: versionRequests.length,
+      supersedeRequests: supersedeOnlyCount,
+      obsoleteRequests: obsoleteOnlyCount,
       supersedeObsoleteRequests: supersedeRequests.length,
       byStatus: {}
-    };
+    }
 
-    // Count by status
-    versionRequests.forEach(req => {
-      summary.byStatus[req.status] = (summary.byStatus[req.status] || 0) + 1;
-    });
-    supersedeRequests.forEach(req => {
-      summary.byStatus[req.status] = (summary.byStatus[req.status] || 0) + 1;
-    });
+    const rows = [
+      ...newDocumentRequests.map((doc) => ({
+        id: `ndr-${doc.id}`,
+        requestNumber: `NDR-${doc.id}`,
+        requestType: 'New Document Request',
+        documentCode: this.formatDisplayFileCode(doc.fileCode),
+        documentTitle: doc.title || 'N/A',
+        documentType: doc.documentType?.name || 'N/A',
+        reason: doc.description?.substring(0, 50) + (doc.description?.length > 50 ? '...' : ''),
+        status: this.formatDocumentRequestStatus(doc.status, 'ndr'),
+        stage: this.formatDocumentRequestStage(doc.stage),
+        requestedBy: this.formatReportUserName(doc.createdBy),
+        department: doc.createdBy?.department || 'N/A',
+        createdAt: doc.createdAt.toISOString().split('T')[0],
+        sortTimestamp: doc.createdAt.getTime()
+      })),
+      ...versionRequests.map((req) => ({
+        id: `nvr-${req.id}`,
+        requestNumber: `NVR-${req.id}`,
+        requestType: 'Version Request',
+        documentCode: this.formatDisplayFileCode(req.document?.fileCode),
+        documentTitle: req.document?.title || 'N/A',
+        documentType: req.document?.documentType?.name || 'N/A',
+        reason: req.reasonForRevision?.substring(0, 50) + (req.reasonForRevision?.length > 50 ? '...' : ''),
+        status: this.formatDocumentRequestStatus(req.status, 'version'),
+        stage: this.formatDocumentRequestStage(req.stage),
+        requestedBy: this.formatReportUserName(req.requestedBy),
+        department: req.requestedBy?.department || 'N/A',
+        createdAt: req.createdAt.toISOString().split('T')[0],
+        sortTimestamp: req.createdAt.getTime()
+      })),
+      ...supersedeRequests.map((req) => ({
+        id: `${req.actionType === 'SUPERSEDE' ? 'sup' : 'obs'}-${req.id}`,
+        requestNumber: `${req.actionType === 'SUPERSEDE' ? 'SUP' : 'OBS'}-${req.id}`,
+        requestType: req.actionType === 'SUPERSEDE' ? 'Supersede Request' : 'Obsolete Request',
+        documentCode: this.formatDisplayFileCode(req.document?.fileCode),
+        documentTitle: req.document?.title || 'N/A',
+        documentType: req.document?.documentType?.name || 'N/A',
+        reason: req.reason?.substring(0, 50) + (req.reason?.length > 50 ? '...' : ''),
+        status: this.formatDocumentRequestStatus(req.status, 'supersede'),
+        stage: this.formatDocumentRequestStage(req.stage),
+        requestedBy: this.formatReportUserName(req.requestedBy),
+        department: req.requestedBy?.department || 'N/A',
+        createdAt: req.createdAt.toISOString().split('T')[0],
+        sortTimestamp: req.createdAt.getTime()
+      }))
+    ]
+      .sort((a, b) => b.sortTimestamp - a.sortTimestamp)
+      .map(({ sortTimestamp, ...row }) => row)
 
-    // Map version requests to rows
-    const versionRows = versionRequests.map(req => ({
-      id: req.id,
-      requestNumber: `NVR-${req.id}`,
-      requestType: 'Version Request',
-      documentCode: req.document?.fileCode || 'N/A',
-      documentTitle: req.document?.title || 'N/A',
-      documentType: req.document?.documentType?.name || 'N/A',
-      reason: req.reasonForRevision?.substring(0, 50) + (req.reasonForRevision?.length > 50 ? '...' : ''),
-      status: req.status,
-      stage: req.stage,
-      requestedBy: req.requestedBy ? `${req.requestedBy.firstName || ''} ${req.requestedBy.lastName || ''}`.trim() || req.requestedBy.email : 'N/A',
-      department: req.requestedBy?.department || 'N/A',
-      createdAt: req.createdAt.toISOString().split('T')[0]
-    }));
+    rows.forEach((row) => {
+      summary.byStatus[row.status] = (summary.byStatus[row.status] || 0) + 1
+    })
 
-    // Map supersede/obsolete requests to rows
-    const supersedeRows = supersedeRequests.map(req => ({
-      id: req.id,
-      requestNumber: `${req.actionType === 'SUPERSEDE' ? 'SUP' : 'OBS'}-${req.id}`,
-      requestType: req.actionType === 'SUPERSEDE' ? 'Supersede Request' : 'Obsolete Request',
-      documentCode: req.document?.fileCode || 'N/A',
-      documentTitle: req.document?.title || 'N/A',
-      documentType: req.document?.documentType?.name || 'N/A',
-      reason: req.reason?.substring(0, 50) + (req.reason?.length > 50 ? '...' : ''),
-      status: req.status,
-      stage: req.stage,
-      requestedBy: req.requestedBy ? `${req.requestedBy.firstName || ''} ${req.requestedBy.lastName || ''}`.trim() || req.requestedBy.email : 'N/A',
-      department: req.requestedBy?.department || 'N/A',
-      createdAt: req.createdAt.toISOString().split('T')[0]
-    }));
+    return { summary, rows }
+  }
 
-    // Combine and sort by date
-    const rows = [...versionRows, ...supersedeRows].sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
+  async getDocumentRequestData(dateFrom, dateTo, filters = {}) {
+    const { summary, rows } = await this.buildDocumentRequestReport(dateFrom, dateTo, filters);
 
     return {
       reportType: 'document-request',
       title: 'Document Request Report',
       generatedAt: new Date().toISOString(),
-      dateRange: { from: dateFrom.toISOString().split('T')[0], to: dateTo.toISOString().split('T')[0] },
+      dateRange: this.formatOptionalDateRange(dateFrom, dateTo),
       summary,
       columns: [
         { key: 'requestNumber', label: 'Request #' },
@@ -495,11 +608,12 @@ class ReportsService {
    * Get template usage data
    */
   async getTemplateUsageData(dateFrom, dateTo) {
+    const documentsWhere = this.buildDateRangeFilter('createdAt', dateFrom, dateTo)
     const documentTypes = await prisma.documentType.findMany({
       include: {
         _count: { select: { documents: true } },
         documents: {
-          where: { createdAt: { gte: dateFrom, lte: dateTo } },
+          where: documentsWhere,
           select: { status: true, createdAt: true }
         }
       }
@@ -524,7 +638,7 @@ class ReportsService {
       reportType: 'template-usage',
       title: 'Template Usage Report',
       generatedAt: new Date().toISOString(),
-      dateRange: { from: dateFrom.toISOString().split('T')[0], to: dateTo.toISOString().split('T')[0] },
+      dateRange: this.formatOptionalDateRange(dateFrom, dateTo),
       summary,
       columns: [
         { key: 'name', label: 'Template Name' },
@@ -1331,54 +1445,10 @@ class ReportsService {
   async generateDocumentRequestCSV(config) {
     const dateFrom = config?.dateFrom || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const dateTo = config?.dateTo || new Date();
-
-    const where = {
-      createdAt: {
-        gte: new Date(dateFrom),
-        lte: new Date(dateTo)
-      }
-    };
-
-    // Get Version Requests
-    const versionRequests = await prisma.versionRequest.findMany({
-      where,
-      include: {
-        requestedBy: {
-          select: { firstName: true, lastName: true, email: true, department: true }
-        },
-        document: {
-          include: { documentType: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    // Get Supersede/Obsolete Requests
-    const supersedeRequests = await prisma.supersedeObsoleteRequest.findMany({
-      where,
-      include: {
-        requestedBy: {
-          select: { firstName: true, lastName: true, email: true, department: true }
-        },
-        document: {
-          include: { documentType: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    // Calculate statistics
-    const allRequests = [...versionRequests, ...supersedeRequests];
-    const stats = {
-      total: allRequests.length,
-      versionRequests: versionRequests.length,
-      supersedeObsoleteRequests: supersedeRequests.length,
-      byStatus: {}
-    };
-
-    allRequests.forEach(req => {
-      stats.byStatus[req.status] = (stats.byStatus[req.status] || 0) + 1;
-    });
+    const normalizedDateFrom = new Date(dateFrom)
+    const normalizedDateTo = new Date(dateTo)
+    normalizedDateTo.setHours(23, 59, 59, 999)
+    const { summary, rows } = await this.buildDocumentRequestReport(normalizedDateFrom, normalizedDateTo, config?.filters || {});
 
     let csv = 'Document Request Report\n';
     csv += `Report Generated,"${new Date().toISOString().replace('T', ' ').substring(0, 19)}"\n`;
@@ -1386,10 +1456,13 @@ class ReportsService {
 
     csv += 'Summary Statistics\n';
     csv += 'Metric,Value\n';
-    csv += `"Total Requests","${stats.total}"\n`;
-    csv += `"Version Requests","${stats.versionRequests}"\n`;
-    csv += `"Supersede/Obsolete Requests","${stats.supersedeObsoleteRequests}"\n`;
-    Object.entries(stats.byStatus).forEach(([status, count]) => {
+    csv += `"Total Requests","${summary.total}"\n`;
+    csv += `"New Document Requests","${summary.newDocumentRequests}"\n`;
+    csv += `"Version Requests","${summary.versionRequests}"\n`;
+    csv += `"Supersede Requests","${summary.supersedeRequests}"\n`;
+    csv += `"Obsolete Requests","${summary.obsoleteRequests}"\n`;
+    csv += `"Supersede/Obsolete Requests","${summary.supersedeObsoleteRequests}"\n`;
+    Object.entries(summary.byStatus).forEach(([status, count]) => {
       csv += `"${status}","${count}"\n`;
     });
     csv += '\n';
@@ -1397,24 +1470,8 @@ class ReportsService {
     csv += 'Request Details\n';
     csv += 'Request #,Type,Document Code,Document Title,Document Type,Requested By,Department,Status,Stage,Created Date\n';
 
-    // Add version requests
-    versionRequests.forEach(req => {
-      const requestedBy = req.requestedBy
-        ? `${req.requestedBy.firstName || ''} ${req.requestedBy.lastName || ''}`.trim() || req.requestedBy.email
-        : 'N/A';
-      const dept = req.requestedBy?.department || 'N/A';
-      csv += `"NVR-${req.id}","Version Request","${req.document?.fileCode || 'N/A'}","${req.document?.title || 'N/A'}","${req.document?.documentType?.name || 'N/A'}","${requestedBy}","${dept}","${req.status}","${req.stage}","${req.createdAt.toISOString().split('T')[0]}"\n`;
-    });
-
-    // Add supersede/obsolete requests
-    supersedeRequests.forEach(req => {
-      const requestedBy = req.requestedBy
-        ? `${req.requestedBy.firstName || ''} ${req.requestedBy.lastName || ''}`.trim() || req.requestedBy.email
-        : 'N/A';
-      const dept = req.requestedBy?.department || 'N/A';
-      const prefix = req.actionType === 'SUPERSEDE' ? 'SUP' : 'OBS';
-      const typeName = req.actionType === 'SUPERSEDE' ? 'Supersede Request' : 'Obsolete Request';
-      csv += `"${prefix}-${req.id}","${typeName}","${req.document?.fileCode || 'N/A'}","${req.document?.title || 'N/A'}","${req.document?.documentType?.name || 'N/A'}","${requestedBy}","${dept}","${req.status}","${req.stage}","${req.createdAt.toISOString().split('T')[0]}"\n`;
+    rows.forEach((row) => {
+      csv += `"${row.requestNumber}","${row.requestType}","${row.documentCode}","${row.documentTitle}","${row.documentType}","${row.requestedBy}","${row.department}","${row.status}","${row.stage}","${row.createdAt}"\n`;
     });
 
     return csv;

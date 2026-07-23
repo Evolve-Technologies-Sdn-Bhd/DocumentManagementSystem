@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import EmptyState from './EmptyState'
@@ -489,26 +490,31 @@ export default function MyDocumentsStatus() {
       })
     }
 
-    return (
-      <div className="fixed inset-y-0 right-0 z-50 w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-96">
-        <div className="sticky top-0 border-b border-border bg-surface p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-ink">{t('doc_details')}</h3>
-            <IconButton
-              onClick={() => setShowDetailsPanel(false)}
-              size="sm"
-              aria-label="Close details"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </IconButton>
+    const panel = (
+      <>
+        <div
+          className="fixed inset-0 z-[89] bg-overlay transition-opacity"
+          onClick={() => setShowDetailsPanel(false)}
+        />
+        <div className="fixed inset-y-0 right-0 z-[90] w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-96">
+          <div className="sticky top-0 border-b border-border bg-surface p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink">{t('doc_details')}</h3>
+              <IconButton
+                onClick={() => setShowDetailsPanel(false)}
+                size="sm"
+                aria-label="Close details"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </IconButton>
+            </div>
           </div>
-        </div>
 
-        <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6">
           {/* Document Info */}
-          <div className="space-y-3">
+            <div className="space-y-3">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('file_code')}</label>
               <p className="mt-1 text-sm font-semibold text-ink">{getDisplayFileCode(selectedDocDetails)}</p>
@@ -576,9 +582,9 @@ export default function MyDocumentsStatus() {
             )}
           </div>
 
-          <div className="border-t border-border pt-6">
-            <h4 className="mb-4 text-sm font-semibold text-ink">{t('workflow_history')}</h4>
-            <div className="space-y-4">
+            <div className="border-t border-border pt-6">
+              <h4 className="mb-4 text-sm font-semibold text-ink">{t('workflow_history')}</h4>
+              <div className="space-y-4">
               {workflowHistory.map((item, index) => (
                 <div key={index} className="flex gap-3">
                   <div className="flex flex-col items-center">
@@ -618,11 +624,15 @@ export default function MyDocumentsStatus() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     )
+
+    if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return panel
+    return ReactDOM.createPortal(panel, document.body)
   }
 
   return (
@@ -639,14 +649,6 @@ export default function MyDocumentsStatus() {
           setRemarksLoading(false)
         }}
       />
-
-      {/* Overlay when details panel is open */}
-      {showDetailsPanel && (
-        <div 
-          className="fixed inset-0 z-40 bg-overlay transition-opacity"
-          onClick={() => setShowDetailsPanel(false)}
-        />
-      )}
 
       {/* Document Details Panel */}
       {showDetailsPanel && <DocumentDetailsPanel />}

@@ -15,6 +15,7 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 
 const VALID_CONFIG_TABS = ['general', 'masterdata', 'roles', 'template', 'audit', 'backup', 'cleanup']
 
@@ -522,22 +523,14 @@ function TemplateManagement() {
       </div>
 
       {showTemplateRequestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h3 className="text-lg font-semibold text-ink">Request Template</h3>
-              <button
-                type="button"
-                onClick={() => setShowTemplateRequestModal(false)}
-                className="text-ink-soft transition-colors hover:text-ink"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4 px-6 py-4">
+        <Modal
+          onClose={() => setShowTemplateRequestModal(false)}
+          closeOnBackdrop
+          size="lg"
+          className="max-w-2xl"
+        >
+          <ModalHeader title="Request Template" onClose={() => setShowTemplateRequestModal(false)} />
+          <ModalBody className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-ink-secondary">Request Type</label>
@@ -671,9 +664,9 @@ function TemplateManagement() {
                   placeholder="Describe what you need (optional)"
                 />
               </div>
-            </div>
+          </ModalBody>
 
-            <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
+          <ModalFooter>
               <button
                 type="button"
                 onClick={() => setShowTemplateRequestModal(false)}
@@ -688,9 +681,8 @@ function TemplateManagement() {
               >
                 {t('submit')}
               </button>
-            </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
 
       {/* Template List */}

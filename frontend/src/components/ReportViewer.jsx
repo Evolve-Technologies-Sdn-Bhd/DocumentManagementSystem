@@ -17,8 +17,8 @@ const ReportViewer = () => {
   
   // Filter states
   const [filters, setFilters] = useState({
-    dateFrom: searchParams.get('dateFrom') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    dateTo: searchParams.get('dateTo') || new Date().toISOString().split('T')[0],
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
     status: searchParams.get('status') || '',
     department: searchParams.get('department') || '',
     documentTypeId: searchParams.get('documentTypeId') || '',
@@ -67,21 +67,47 @@ const ReportViewer = () => {
     }
   }
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (activeFilters = filters) => {
     setLoading(true)
     setError(null)
     
     try {
-      const params = new URLSearchParams({
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo
-      })
+      const params = new URLSearchParams()
       
-      if (filters.status) params.append('status', filters.status)
-      if (filters.department) params.append('department', filters.department)
-      if (filters.documentTypeId) params.append('documentTypeId', filters.documentTypeId)
+      if (activeFilters.dateFrom) params.append('dateFrom', activeFilters.dateFrom)
+      if (activeFilters.dateTo) params.append('dateTo', activeFilters.dateTo)
+      if (activeFilters.status) params.append('status', activeFilters.status)
+      if (activeFilters.department) params.append('department', activeFilters.department)
+      if (activeFilters.documentTypeId) params.append('documentTypeId', activeFilters.documentTypeId)
       
-      const response = await api.get(`/reports/system/data/${reportType}?${params.toString()}`)
+      const query = params.toString()
+      const requestUrl = query ? `/reports/system/data/${reportType}?${query}` : `/reports/system/data/${reportType}`
+      const response = await api.get(requestUrl)
+      // #region debug-point A:report-viewer-response
+      fetch('http://127.0.0.1:7777/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'document-request-report',
+          runId: 'pre-fix',
+          hypothesisId: 'A',
+          location: 'frontend/src/components/ReportViewer.jsx:84',
+          msg: '[DEBUG] Report viewer received API response',
+          data: {
+            reportType,
+            requestUrl,
+            title: response?.data?.data?.title || null,
+            summaryKeys: Object.keys(response?.data?.data?.summary || {}),
+            total: response?.data?.data?.summary?.total ?? null,
+            rowCount: Array.isArray(response?.data?.data?.rows) ? response.data.data.rows.length : null,
+            rowTypes: Array.isArray(response?.data?.data?.rows)
+              ? Array.from(new Set(response.data.data.rows.map((row) => row?.requestType).filter(Boolean)))
+              : []
+          },
+          ts: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       setReportData(response.data.data)
       setCurrentPage(1)
     } catch (err) {
@@ -97,19 +123,20 @@ const ReportViewer = () => {
   }
 
   const applyFilters = () => {
-    fetchReportData()
+    fetchReportData(filters)
   }
 
   const resetFilters = () => {
-    setFilters({
-      dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      dateTo: new Date().toISOString().split('T')[0],
+    const resetState = {
+      dateFrom: '',
+      dateTo: '',
       status: '',
       department: '',
       documentTypeId: '',
       searchText: ''
-    })
-    setTimeout(() => fetchReportData(), 0)
+    }
+    setFilters(resetState)
+    fetchReportData(resetState)
   }
 
   const filteredRows = useMemo(() => {
@@ -463,34 +490,99 @@ const ReportViewer = () => {
     if (!reportData?.summary) return null
     
     const { summary } = reportData
+    const totalActivities = summary.totalActivities
+    const uniqueUsers = summary.uniqueUsers
+    const topUsers = summary.topUsers
+    const actionBreakdown = summary.actionBreakdown
+    const hasUserActivitySummary = typeof totalActivities !== 'undefined'
+      && typeof uniqueUsers !== 'undefined'
+      && topUsers
+      && actionBreakdown
     
     return (
       <div className="card p-4 mb-6">
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--dms-text-primary)' }}>Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {Object.entries(summary).map(([key, value]) => {
-            if (typeof value === 'object' && !Array.isArray(value)) {
-              return (
-                <div key={key} className="col-span-2 rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
-                  <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(value).map(([k, v]) => (
-                      <span key={k} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border" style={{ background: 'var(--dms-card-bg)' }}>
-                        <span className="muted">{formatKey(k)}:</span>
-                        <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
-                      </span>
-                    ))}
-                  </div>
+        {hasUserActivitySummary ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-stretch">
+              <div className="relative rounded-lg p-4 min-h-[132px] flex items-center justify-center" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="absolute left-4 top-4 text-xs font-medium muted">Total Activities</p>
+                <p className="text-4xl font-bold leading-none md:text-5xl" style={{ color: 'var(--dms-primary)' }}>{totalActivities}</p>
+              </div>
+
+              <div className="relative rounded-lg p-4 min-h-[132px] flex items-center justify-center" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="absolute left-4 top-4 text-xs font-medium muted">Unique Users</p>
+                <p className="text-4xl font-bold leading-none md:text-5xl" style={{ color: 'var(--dms-primary)' }}>{uniqueUsers}</p>
+              </div>
+
+              <div className="rounded-lg p-3 min-h-[132px] flex flex-col" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="text-xs font-medium muted mb-2">Top Users</p>
+                <div className="space-y-1 text-xs" style={{ color: 'var(--dms-text-primary)' }}>
+                  {Object.entries(topUsers || {}).map(([k, v]) => (
+                    <div key={k}>{`${formatKey(k)}: ${v}`}</div>
+                  ))}
                 </div>
-              )
-            } else if (Array.isArray(value)) {
+              </div>
+            </div>
+
+            <div className="rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
+              <p className="text-xs font-medium muted mb-2">Action Breakdown</p>
+              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(actionBreakdown || {}).map(([k, v]) => (
+                  <span
+                    key={k}
+                    className="inline-flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+                    style={{ background: 'var(--dms-card-bg)' }}
+                  >
+                    <span className="muted">{formatKey(k)}</span>
+                    <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
+            {Object.entries(summary).map(([key, value]) => {
+              const isComplex = typeof value === 'object' && value !== null
+              const isArray = Array.isArray(value)
+
+              if (!isComplex) {
+                return (
+                  <div key={key} className="rounded-lg p-3 self-start" style={{ background: 'var(--dms-panel-bg)' }}>
+                    <p className="text-xs font-medium muted mb-1">{formatKey(key)}</p>
+                    <p className="text-xl font-bold" style={{ color: 'var(--dms-primary)' }}>{value}</p>
+                  </div>
+                )
+              }
+
+              if (!isArray) {
+                return (
+                  <div key={key} className="rounded-lg p-3 self-start" style={{ background: 'var(--dms-panel-bg)' }}>
+                    <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(value || {}).map(([k, v]) => (
+                        <span
+                          key={k}
+                          className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                          style={{ background: 'var(--dms-card-bg)' }}
+                        >
+                          <span className="muted">{formatKey(k)}:</span>
+                          <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={key} className="col-span-2 rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
+                <div key={key} className="rounded-lg p-3 self-start md:col-span-2" style={{ background: 'var(--dms-panel-bg)' }}>
                   <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
                   <div className="space-y-1">
-                    {value.slice(0, 3).map((item, idx) => (
+                    {value.slice(0, 5).map((item, idx) => (
                       <div key={idx} className="text-xs" style={{ color: 'var(--dms-text-primary)' }}>
-                        {typeof item === 'object' 
+                        {typeof item === 'object'
                           ? Object.entries(item).map(([k, v]) => `${formatKey(k)}: ${v}`).join(' | ')
                           : Array.isArray(item) ? `${item[0]}: ${item[1]}` : item
                         }
@@ -499,16 +591,9 @@ const ReportViewer = () => {
                   </div>
                 </div>
               )
-            } else {
-              return (
-                <div key={key} className="rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
-                  <p className="text-xs font-medium muted mb-1">{formatKey(key)}</p>
-                  <p className="text-xl font-bold" style={{ color: 'var(--dms-primary)' }}>{value}</p>
-                </div>
-              )
-            }
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     )
   }
@@ -521,7 +606,7 @@ const ReportViewer = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/logs')}
+            onClick={() => navigate('/reports')}
             className="flex items-center gap-2 text-sm muted hover:opacity-80 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,9 +616,9 @@ const ReportViewer = () => {
           </button>
           <div className="h-6 w-px bg-gray-300" />
           <h1 className="text-2xl font-bold" style={{ color: 'var(--dms-text-primary)' }}>{reportTypeLabels[reportType] || reportType}</h1>
-          {reportData?.dateRange && (
+          {(reportData?.dateRange?.from || reportData?.dateRange?.to) && (
             <span className="text-sm px-3 py-1 rounded-full" style={{ background: 'var(--dms-panel-bg)', color: 'var(--dms-muted)' }}>
-              {reportData.dateRange.from} to {reportData.dateRange.to}
+              {reportData.dateRange.from || 'Start'} to {reportData.dateRange.to || 'Now'}
             </span>
           )}
         </div>

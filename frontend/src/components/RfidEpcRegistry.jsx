@@ -201,7 +201,18 @@ export default function RfidEpcRegistry() {
           </div>
         ) : (
           <TableContainer className="rounded-none border-0">
-            <Table>
+            <Table className="min-w-[1480px] table-fixed">
+              <colgroup>
+                <col className="w-[140px]" />
+                <col className="w-[170px]" />
+                <col className="w-[300px]" />
+                <col className="w-[140px]" />
+                <col className="w-[140px]" />
+                <col className="w-[200px]" />
+                <col className="w-[220px]" />
+                <col className="w-[130px]" />
+                <col className="w-[90px]" />
+              </colgroup>
               <thead>
                 <Tr className="hover:bg-transparent">
                   <Th>Generated At</Th>
@@ -218,21 +229,21 @@ export default function RfidEpcRegistry() {
               <tbody>
                 {records.map((record) => (
                   <Tr key={record.id}>
-                    <Td>
+                    <Td className="align-top">
                       {record.generatedAt ? new Date(record.generatedAt).toLocaleString('en-GB') : '-'}
                     </Td>
-                    <Td className="font-semibold text-ink">{record.fileCode}</Td>
-                    <Td>{record.fileName}</Td>
-                    <Td>
+                    <Td className="align-top font-semibold text-ink break-words">{record.fileCode}</Td>
+                    <Td className="align-top break-words">{record.fileName}</Td>
+                    <Td className="align-top">
                       {record.documentStatus ? <StatusBadge status={record.documentStatus} /> : '-'}
                     </Td>
-                    <Td>
+                    <Td className="align-top">
                       <TrackingStatusBadge status={record.trackingStatus} />
                     </Td>
-                    <Td className="break-all font-mono text-xs text-brand">{record.epcHex}</Td>
-                    <Td>{record.document?.title || '-'}</Td>
-                    <Td>{record.document?.documentType?.name || '-'}</Td>
-                    <Td>{record.document?.version || '-'}</Td>
+                    <Td className="align-top font-mono text-xs text-brand whitespace-nowrap">{record.epcHex}</Td>
+                    <Td className="align-top break-words">{record.document?.title || '-'}</Td>
+                    <Td className="align-top break-words">{record.document?.documentType?.name || '-'}</Td>
+                    <Td className="align-top whitespace-nowrap">{record.document?.version || '-'}</Td>
                   </Tr>
                 ))}
               </tbody>

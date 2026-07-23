@@ -20,6 +20,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import PublicTopbar from './PublicTopbar';
 import PublicFooter from './PublicFooter';
 import BrandLogoPreload from './ui/BrandLogoPreload';
+import Modal, { ModalBody, ModalHeader } from './ui/Modal';
 import { persistLandingPageSettings, readBranding, readLandingPageSettings, subscribeBranding } from '../utils/branding';
 
 const iconMap = {
@@ -753,32 +754,16 @@ const HomePage = () => {
 
       {/* PDF Viewer Modal */}
       {pdfModal.isOpen && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) closePdfModal(); }}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200" role="dialog" aria-modal="true" aria-labelledby="landing-pdf-title">
-              <h3 id="landing-pdf-title" className="text-xl font-bold text-gray-900">{pdfModal.title}</h3>
-              <button
-                type="button"
-                onClick={closePdfModal}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                aria-label="Close PDF viewer"
-              >
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            {/* PDF Content */}
-            <div className="flex-1 overflow-auto p-4">
+        <Modal onClose={closePdfModal} closeOnBackdrop size="xl" className="max-w-6xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+          <ModalHeader title={pdfModal.title} onClose={closePdfModal} />
+          <ModalBody className="flex-1 overflow-auto p-4">
               <iframe
                 src={pdfModal.pdfData}
                 className="w-full h-full border-0 rounded"
                 title={pdfModal.title}
               />
-            </div>
-          </div>
-        </div>
+          </ModalBody>
+        </Modal>
       )}
     </div>
   );

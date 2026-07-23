@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { usePreferences } from '../contexts/PreferencesContext';
+import AppModal, { ModalBody, ModalHeader } from './ui/Modal';
 
 export default function DatabaseCleanup() {
   const { t } = usePreferences();
@@ -566,20 +567,15 @@ function StatCard({ label, value, icon, highlight }) {
 
 function Modal({ title, children, onClose, danger }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-overlay z-[90]" onClick={onClose}></div>
-      <div className="fixed inset-0 flex items-center justify-center z-[91] p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-          <div className={`px-6 py-4 border-b ${danger ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
-            <h3 className={`text-lg font-semibold ${danger ? 'text-red-900' : 'text-gray-900'}`}>
-              {title}
-            </h3>
-          </div>
-          <div className="px-6 py-4">
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
+    <AppModal onClose={onClose} closeOnBackdrop className="max-w-md">
+      <ModalHeader
+        title={title}
+        onClose={onClose}
+        className={danger ? 'border-red-200 bg-red-50' : ''}
+      />
+      <ModalBody>
+        {children}
+      </ModalBody>
+    </AppModal>
   );
 }

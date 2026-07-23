@@ -9,6 +9,8 @@ import SelectField from './ui/SelectField'
 export default function AnalyticsDashboard() {
   const { t } = usePreferences()
   const [timeRange, setTimeRange] = useState('30days')
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [analytics, setAnalytics] = useState({
     totalEvents: 0,
     totalEventsTrend: { percent: 0, direction: 'same' },
@@ -25,6 +27,13 @@ export default function AnalyticsDashboard() {
   const [topUsers, setTopUsers] = useState([])
   const [topActivities, setTopActivities] = useState([])
   const [loading, setLoading] = useState(false)
+
+  const isForbiddenError = (error) => error?.response?.status === 403
+  const getServerMessage = (error, fallbackMessage) => (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    fallbackMessage
+  )
 
   // Format string to Title Case (e.g., "REVIEW_APPROVE" -> "Review Approve")
   const formatToTitleCase = (str) => {
@@ -44,6 +53,8 @@ export default function AnalyticsDashboard() {
     try {
       const res = await api.get(`/audit/analytics?range=${timeRange}`)
       const data = res.data.data?.analytics || {}
+      setAccessDenied(false)
+      setErrorMessage('')
       
       setAnalytics({
         totalEvents: data.overview?.totalEvents || 0,
@@ -63,6 +74,15 @@ export default function AnalyticsDashboard() {
       setTopActivities(data.topActivities || [])
     } catch (error) {
       console.error('Failed to load analytics:', error)
+      setAccessDenied(isForbiddenError(error))
+      setErrorMessage(
+        getServerMessage(
+          error,
+          isForbiddenError(error)
+            ? 'You do not have permission to view analytics.'
+            : 'Unable to load analytics data right now.'
+        )
+      )
       setAnalytics({
         totalEvents: 0,
         totalEventsTrend: { percent: 0, direction: 'same' },
@@ -128,6 +148,28 @@ export default function AnalyticsDashboard() {
       helper: `${analytics.documentsTrend.direction === 'up' ? '↑' : analytics.documentsTrend.direction === 'down' ? '↓' : '→'} ${analytics.documentsTrend.percent}% ${t('ad_from_last_period')}`
     }
   ]
+
+  if (accessDenied) {
+    return (
+      <AppSurface padding="lg" variant="muted">
+        <EmptyPanelState
+          title="Access denied"
+          description={errorMessage || 'You do not have permission to view analytics.'}
+        />
+      </AppSurface>
+    )
+  }
+
+  if (errorMessage && !loading) {
+    return (
+      <AppSurface padding="lg" variant="muted">
+        <EmptyPanelState
+          title="Unable to load analytics"
+          description={errorMessage}
+        />
+      </AppSurface>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -217,40 +259,54 @@ export default function AnalyticsDashboard() {
         )}
       </AppSurface>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
         <AppSurface padding="lg">
           <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_module_usage')}</h3>
-          <div className="space-y-4">
-            {moduleUsage.map((module, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-ink-secondary">{module.name}</span>
-                  <span className="text-ink-muted">{module.value}%</span>
+          {moduleUsage.length === 0 ? (
+            <EmptyPanelState
+              title={t('ad_module_usage')}
+              description="Module activity will appear here when audit events are available."
+            />
+          ) : (
+            <div className="space-y-4">
+              {moduleUsage.map((module, index) => (
+                <div key={index}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-medium text-ink-secondary">{module.name}</span>
+                    <span className="text-ink-muted">{module.value}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-surface-muted">
+                    <div
+                      className={`${module.color} h-2 rounded-full transition-all`}
+                      style={{ width: `${module.value}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full rounded-full bg-surface-muted h-2">
-                  <div
-                    className={`${module.color} h-2 rounded-full transition-all`}
-                    style={{ width: `${module.value}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </AppSurface>
 
         <AppSurface padding="lg">
           <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_doc_status')}</h3>
-          <div className="space-y-3">
-            {documentStatus.map((status, index) => (
-              <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 ${status.color} rounded-full`}></div>
-                  <span className="text-sm font-medium text-ink-secondary">{formatToTitleCase(status.status)}</span>
+          {documentStatus.length === 0 ? (
+            <EmptyPanelState
+              title={t('ad_doc_status')}
+              description="Document status analytics will appear here when document records are available."
+            />
+          ) : (
+            <div className="space-y-3">
+              {documentStatus.map((status, index) => (
+                <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-3 w-3 ${status.color} rounded-full`}></div>
+                    <span className="text-sm font-medium text-ink-secondary">{formatToTitleCase(status.status)}</span>
+                  </div>
+                  <span className="text-sm font-bold text-ink">{status.count}</span>
                 </div>
-                <span className="text-sm font-bold text-ink">{status.count}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
           <div className="mt-4 border-t border-border pt-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-ink-secondary">Total Documents</span>
@@ -264,51 +320,73 @@ export default function AnalyticsDashboard() {
 
 
       {/* Top Users & Activities */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 items-start">
         {/* Most Active Users */}
-        <AppSurface padding="lg">
+        <AppSurface padding="lg" className="h-fit">
           <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_top_users')}</h3>
-          <div className="space-y-3">
-            {topUsers.map((user, index) => (
-              <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3 transition-colors hover:bg-surface">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-subtle">
-                    <span className="text-sm font-bold text-brand">{user.avatar}</span>
+          {topUsers.length === 0 ? (
+            <EmptyPanelState
+              title={t('ad_top_users')}
+              description="Top users will appear here when tracked activity is available."
+            />
+          ) : (
+            <div className="space-y-3">
+              {topUsers.map((user, index) => (
+                <div key={index} className="flex items-center justify-between rounded-2xl bg-surface-muted p-3 transition-colors hover:bg-surface">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-subtle">
+                      <span className="text-sm font-bold text-brand">{user.avatar}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-ink">{user.name}</p>
+                      <p className="text-xs text-ink-muted">{user.actions} actions</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-ink">{user.name}</p>
-                    <p className="text-xs text-ink-muted">{user.actions} actions</p>
-                  </div>
+                  {getTrendIcon(user.trend)}
                 </div>
-                {getTrendIcon(user.trend)}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </AppSurface>
 
-        <AppSurface padding="lg">
-          <h3 className="mb-4 text-lg font-semibold text-ink">{t('ad_top_activities')}</h3>
-          <div className="space-y-3">
-            {topActivities.map((activity, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-ink-secondary">
-                    {index + 1}. {formatToTitleCase(activity.name)}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-ink">{activity.count}</span>
-                    <span className="text-ink-muted">({activity.percentage}%)</span>
+        <AppSurface padding="lg" className="h-fit xl:col-span-2">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <h3 className="text-lg font-semibold text-ink">{t('ad_top_activities')}</h3>
+            <span className="rounded-full bg-surface-muted px-3 py-1 text-[11px] font-medium text-ink-muted">
+              2 columns
+            </span>
+          </div>
+          {topActivities.length === 0 ? (
+            <EmptyPanelState
+              title={t('ad_top_activities')}
+              description="Top activity trends will appear here when audit events are available."
+            />
+          ) : (
+            <div className="grid max-h-[260px] grid-cols-1 content-start gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {topActivities.map((activity, index) => (
+                <div key={index} className="rounded-2xl border border-border bg-surface-muted px-3 py-2">
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <span className="line-clamp-2 text-xs font-semibold uppercase tracking-wide text-ink-secondary">
+                      {formatToTitleCase(activity.name)}
+                    </span>
+                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-semibold text-ink">
+                      #{index + 1}
+                    </span>
+                  </div>
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="font-semibold text-ink">{activity.count} actions</span>
+                    <span className="text-ink-muted">{activity.percentage}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-surface-muted">
+                    <div
+                      className="h-2 rounded-full bg-brand transition-all"
+                      style={{ width: `${activity.percentage}%` }}
+                    />
                   </div>
                 </div>
-                <div className="w-full rounded-full bg-surface-muted h-2">
-                  <div
-                    className="h-2 rounded-full bg-brand transition-all"
-                    style={{ width: `${activity.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </AppSurface>
       </div>
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorizePermission } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
 const prisma = require('../config/database');
@@ -8,7 +8,6 @@ const router = express.Router();
 
 // All routes require authentication
 router.use(authenticate);
-router.use(authorize('admin', 'Admin', 'Administrator', 'ADMIN'));
 
 const formatDuration = (durationMs, isActive) => {
   const safe = Math.max(0, Number(durationMs) || 0)
@@ -34,7 +33,7 @@ const getNextLoginTime = async (userId, loginAt) => {
  * Get audit logs
  * GET /api/audit/logs
  */
-router.get('/logs', asyncHandler(async (req, res) => {
+router.get('/logs', authorizePermission('logsReport.activityLogs', 'view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 15, dateRange, module, action, user, search } = req.query;
   
   const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -119,7 +118,7 @@ router.get('/logs', asyncHandler(async (req, res) => {
  * Get user activity logs (session-based view)
  * GET /api/audit/user-activities
  */
-router.get('/user-activities', asyncHandler(async (req, res) => {
+router.get('/user-activities', authorizePermission('logsReport.userActivity', 'view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 15, dateRange = '7days', user, department, status, search } = req.query;
   
   const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -253,7 +252,7 @@ router.get('/user-activities', asyncHandler(async (req, res) => {
  * Get user activity statistics
  * GET /api/audit/user-activities/stats
  */
-router.get('/user-activities/stats', asyncHandler(async (req, res) => {
+router.get('/user-activities/stats', authorizePermission('logsReport.userActivity', 'view'), asyncHandler(async (req, res) => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -359,7 +358,7 @@ router.get('/user-activities/stats', asyncHandler(async (req, res) => {
  * Export user activities as CSV
  * GET /api/audit/user-activities/export
  */
-router.get('/user-activities/export', asyncHandler(async (req, res) => {
+router.get('/user-activities/export', authorizePermission('logsReport.userActivity', 'view', 'export'), asyncHandler(async (req, res) => {
   const { dateRange = '7days', user, department, status, search } = req.query;
   
   // Build date filter
@@ -471,7 +470,7 @@ router.get('/user-activities/export', asyncHandler(async (req, res) => {
  * Get analytics data
  * GET /api/audit/analytics
  */
-router.get('/analytics', asyncHandler(async (req, res) => {
+router.get('/analytics', authorizePermission('logsReport.analytics', 'view'), asyncHandler(async (req, res) => {
   const { range = '30days' } = req.query;
   
   const now = new Date();
@@ -703,7 +702,7 @@ router.get('/analytics', asyncHandler(async (req, res) => {
  * Get audit settings
  * GET /api/audit/settings
  */
-router.get('/settings', asyncHandler(async (req, res) => {
+router.get('/settings', authorizePermission('configuration.auditSettings', 'view'), asyncHandler(async (req, res) => {
   const auditSettingsService = require('../services/auditSettingsService');
   const settings = await auditSettingsService.getSettings();
 
@@ -718,7 +717,7 @@ router.get('/settings', asyncHandler(async (req, res) => {
  * Update audit settings (admin only)
  * PUT /api/audit/settings
  */
-router.put('/settings', authorize('admin'), asyncHandler(async (req, res) => {
+router.put('/settings', authorizePermission('configuration.auditSettings', 'edit'), asyncHandler(async (req, res) => {
   const auditSettingsService = require('../services/auditSettingsService');
   const {
     retentionDays,
@@ -776,7 +775,7 @@ router.put('/settings', authorize('admin'), asyncHandler(async (req, res) => {
  * Run manual log cleanup
  * POST /api/audit/cleanup
  */
-router.post('/cleanup', authorize('admin'), asyncHandler(async (req, res) => {
+router.post('/cleanup', authorizePermission('configuration.cleanup', 'cleanup'), asyncHandler(async (req, res) => {
   const auditSettingsService = require('../services/auditSettingsService');
   const result = await auditSettingsService.runLogCleanup();
 

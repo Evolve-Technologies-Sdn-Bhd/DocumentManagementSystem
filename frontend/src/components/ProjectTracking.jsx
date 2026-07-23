@@ -32,17 +32,18 @@ function ItemStatusBadge({ status }) {
 
 function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
-      <div className={`w-full rounded-dms-lg border border-border bg-surface shadow-dms-lg ${maxWidthClass}`}>
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 className="text-lg font-semibold text-ink">{title}</h3>
-          <IconButton size="sm" onClick={onClose} aria-label="Close">
-            <span className="text-lg leading-none">×</span>
-          </IconButton>
-        </div>
-        <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
+    <Modal
+      onClose={onClose}
+      className={`w-full overflow-hidden rounded-dms-lg ${maxWidthClass}`}
+    >
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <h3 className="text-lg font-semibold text-ink">{title}</h3>
+        <IconButton size="sm" onClick={onClose} aria-label="Close">
+          <span className="text-lg leading-none">×</span>
+        </IconButton>
       </div>
-    </div>
+      <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
+    </Modal>
   )
 }
 

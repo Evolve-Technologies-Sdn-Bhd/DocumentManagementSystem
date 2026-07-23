@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import mammoth from 'mammoth'
 import { usePreferences } from '../contexts/PreferencesContext'
 import useDocxFitToWidth from '../hooks/useDocxFitToWidth'
-import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 
 const getFriendlyViewerError = (err, document) => {
   const statusCode = err?.response?.status
@@ -356,72 +355,65 @@ export default function DocumentViewerModal({ document, onClose }) {
     }
   }
 
-  const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4" onClick={onClose}>
-      <AppSurface padding="none" className="w-[95vw] max-w-[1400px] h-[95vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-muted">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-semibold text-ink truncate">
-              {t('document_preview')}
-            </h3>
-            <p className="text-sm text-ink-muted mt-1">
-              {document.fileCode} • {document.title} • {t('version')} {document.version}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 ml-4">
-            {contentType === 'docx' && (
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={() => setDocxZoomMode('fit')}
-                  size="sm"
-                  variant={docxZoomMode === 'fit' ? 'primary' : 'secondary'}
-                  title={t('fit_to_width')}
-                >
-                  {t('fit_to_width')}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setDocxZoomMode('actual')}
-                  size="sm"
-                  variant={docxZoomMode === 'actual' ? 'primary' : 'secondary'}
-                  title={t('actual_size')}
-                >
-                  {t('actual_size')}
-                </Button>
-                {docxZoomMode === 'fit' && docxScale < 0.999 && (
-                  <span className="text-xs text-ink-muted tabular-nums">
-                    {Math.round(docxScale * 100)}%
-                  </span>
-                )}
-              </div>
-            )}
-            {document.canDownload !== false && !isMissingAcknowledgedUpload && (
+  return (
+    <Modal
+      onClose={onClose}
+      closeOnBackdrop
+      size="xl"
+      className="w-[95vw] max-w-[1400px] h-[95vh] max-h-[95vh] overflow-hidden"
+    >
+      <div className="flex h-full flex-col overflow-hidden">
+        <ModalHeader
+          title={t('document_preview')}
+          subtitle={`${document.fileCode} • ${document.title} • ${t('version')} ${document.version}`}
+          onClose={onClose}
+        />
+        <div className="flex items-center justify-end gap-2 border-b border-border bg-surface px-6 py-3">
+          {contentType === 'docx' && (
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
-                onClick={handleDownload}
-                variant="secondary"
+                onClick={() => setDocxZoomMode('fit')}
                 size="sm"
-                className="border-brand text-brand hover:text-brand-hover"
-                title={t('download')}
+                variant={docxZoomMode === 'fit' ? 'primary' : 'secondary'}
+                title={t('fit_to_width')}
               >
-                <svg className="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                {t('download')}
+                {t('fit_to_width')}
               </Button>
-            )}
-            <IconButton onClick={onClose} aria-label={t('close')}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <Button
+                type="button"
+                onClick={() => setDocxZoomMode('actual')}
+                size="sm"
+                variant={docxZoomMode === 'actual' ? 'primary' : 'secondary'}
+                title={t('actual_size')}
+              >
+                {t('actual_size')}
+              </Button>
+              {docxZoomMode === 'fit' && docxScale < 0.999 && (
+                <span className="text-xs text-ink-muted tabular-nums">
+                  {Math.round(docxScale * 100)}%
+                </span>
+              )}
+            </div>
+          )}
+          {document.canDownload !== false && !isMissingAcknowledgedUpload && (
+            <Button
+              type="button"
+              onClick={handleDownload}
+              variant="secondary"
+              size="sm"
+              className="border-brand text-brand hover:text-brand-hover"
+              title={t('download')}
+            >
+              <svg className="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-            </IconButton>
-          </div>
+              {t('download')}
+            </Button>
+          )}
         </div>
 
-        {/* Document Viewer Content */}
-        <div className="flex-1 overflow-hidden bg-surface-muted">
+        <ModalBody className="flex-1 overflow-hidden bg-surface-muted p-0">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full">
               <InlineSpinner className="h-10 w-10 border-2 mb-4" />
@@ -485,23 +477,19 @@ export default function DocumentViewerModal({ document, onClose }) {
               )}
             </div>
           ) : null}
-        </div>
+        </ModalBody>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-surface">
+        <ModalFooter className="justify-between">
           <div className="flex justify-between items-center">
             <p className="text-sm text-ink-muted">
               {t('readonly_preview_notice')}
             </p>
-            <Button variant="secondary" onClick={onClose}>
-              {t('close')}
-            </Button>
           </div>
-        </div>
-      </AppSurface>
-    </div>
+          <Button variant="secondary" onClick={onClose}>
+            {t('close')}
+          </Button>
+        </ModalFooter>
+      </div>
+    </Modal>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }

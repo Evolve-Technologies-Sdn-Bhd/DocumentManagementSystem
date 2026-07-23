@@ -119,6 +119,8 @@ function SummaryCard({ label, value, tone = 'text-brand' }) {
 export default function UserActivityLogs() {
   const { t } = usePreferences()
   const [activities, setActivities] = useState([])
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [accessMessage, setAccessMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     dateRange: '7days',
@@ -139,6 +141,13 @@ export default function UserActivityLogs() {
   })
   const [users, setUsers] = useState([])
   const [departments, setDepartments] = useState([])
+
+  const isForbiddenError = (error) => error?.response?.status === 403
+  const getServerMessage = (error, fallbackMessage) => (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    fallbackMessage
+  )
 
   useEffect(() => {
     loadUsers()
@@ -165,9 +174,15 @@ export default function UserActivityLogs() {
   const loadStats = async () => {
     try {
       const res = await api.get('/audit/user-activities/stats')
+      setAccessDenied(false)
+      setAccessMessage('')
       setStats(res.data.data?.stats || res.data.data || {})
     } catch (error) {
       console.error('Failed to load stats:', error)
+      if (isForbiddenError(error)) {
+        setAccessDenied(true)
+        setAccessMessage(getServerMessage(error, 'You do not have permission to view user activity logs.'))
+      }
     }
   }
 
@@ -185,10 +200,16 @@ export default function UserActivityLogs() {
       })
       const res = await api.get(`/audit/user-activities?${params}`)
       const data = res.data.data
+      setAccessDenied(false)
+      setAccessMessage('')
       setActivities(data.activities || [])
       setTotalRecords(data.total || 0)
     } catch (error) {
       console.error('Failed to load user activities:', error)
+      if (isForbiddenError(error)) {
+        setAccessDenied(true)
+        setAccessMessage(getServerMessage(error, 'You do not have permission to view user activity logs.'))
+      }
       setActivities([])
       setTotalRecords(0)
     } finally {
@@ -226,7 +247,7 @@ export default function UserActivityLogs() {
       window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to export user activities:', error)
-      alert('Export failed. Please try again.')
+      alert(getServerMessage(error, 'Export failed. Please try again.'))
     }
   }
 
@@ -240,6 +261,17 @@ export default function UserActivityLogs() {
       )
     }
     return <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-ink-secondary">{t('ual_completed')}</span>
+  }
+
+  if (accessDenied) {
+    return (
+      <AppSurface padding="lg" variant="muted">
+        <EmptyPanelState
+          title="Access denied"
+          description={accessMessage || 'You do not have permission to view user activity logs.'}
+        />
+      </AppSurface>
+    )
   }
 
   return (
