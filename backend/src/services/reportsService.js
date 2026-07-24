@@ -1,4 +1,6 @@
+const path = require('path')
 const prisma = require('../config/database');
+const fileStorageService = require('./fileStorageService')
 const { normalizeIp } = require('../utils/clientIp')
 
 class ReportsService {
@@ -1249,20 +1251,7 @@ class ReportsService {
     };
   }
 
-  /**
-   * Generate report (creates CSV format for now)
-   */
-  async generateReport({ reportType, config, userId }) {
-    const fs = require('fs');
-    const path = require('path');
-
-    // Create reports directory if it doesn't exist
-    const reportsDir = path.join(__dirname, '../../uploads/reports');
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
-    }
-
-    // Map report types to names
+  getSystemReportName(reportType, fallbackName) {
     const reportNames = {
       'document-stats': 'Document Statistics Report',
       'user-activity': 'User Activity Report',
@@ -1270,9 +1259,60 @@ class ReportsService {
       'security-audit': 'Security & Audit Report',
       'template-usage': 'Template Usage Report',
       'storage-usage': 'Storage Usage Report'
-    };
+    }
 
-    const reportName = reportNames[reportType] || 'System Report';
+    return fallbackName || reportNames[reportType] || 'System Report'
+  }
+
+  async saveExportedReport({ reportType, reportName, format, config, userId, file }) {
+    const resolvedReportName = this.getSystemReportName(reportType, reportName)
+    const normalizedFormat = String(
+      format || path.extname(file?.originalname || '').replace('.', '') || 'csv'
+    )
+      .trim()
+      .toUpperCase()
+
+    const reportsDir = path.join(__dirname, '../../uploads/reports')
+    const fallbackExtension = normalizedFormat ? `.${normalizedFormat.toLowerCase()}` : '.csv'
+    const originalName = file?.originalname || `${resolvedReportName}${fallbackExtension}`
+    const finalFileName = fileStorageService.generateUniqueFileName(originalName)
+    const finalFilePath = await fileStorageService.saveFile(file, reportsDir, finalFileName)
+
+    const report = await prisma.generatedReport.create({
+      data: {
+        reportType,
+        reportName: resolvedReportName,
+        format: normalizedFormat,
+        status: 'COMPLETED',
+        config: config || {},
+        generatedById: userId,
+        filePath: finalFilePath,
+        fileSize: file?.size || null,
+        completedAt: new Date()
+      }
+    })
+
+    return {
+      id: report.id,
+      name: report.reportName,
+      format: report.format,
+      status: report.status
+    }
+  }
+
+  /**
+   * Generate report (creates CSV format for now)
+   */
+  async generateReport({ reportType, config, userId }) {
+    const fs = require('fs');
+
+    // Create reports directory if it doesn't exist
+    const reportsDir = path.join(__dirname, '../../uploads/reports');
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+
+    const reportName = this.getSystemReportName(reportType);
     // Always use CSV format since that's what we generate
     const format = 'csv';
     const timestamp = Date.now();

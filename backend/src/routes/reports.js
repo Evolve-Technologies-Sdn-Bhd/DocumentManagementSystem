@@ -8,6 +8,7 @@ const auditLogService = require('../services/auditLogService');
 const documentAssignmentService = require('../services/documentAssignmentService')
 const confidentialAccessService = require('../services/confidentialAccessService')
 const folderPermissionService = require('../services/folderPermissionService')
+const { uploadDocument } = require('../middleware/upload')
 const { authenticate, authorize } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
@@ -500,6 +501,47 @@ router.post('/system/generate', requirePermission('logsReport.reports', 'generat
   
   return ResponseFormatter.success(res, { report }, 'Report generated successfully', 201);
 }));
+
+router.post(
+  '/system/export-upload',
+  requirePermission('logsReport.reports', 'generate'),
+  uploadDocument.single('file'),
+  asyncHandler(async (req, res) => {
+    const { reportType, reportName, format, config } = req.body
+
+    if (!reportType) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'reportType', message: 'Report type is required' }
+      ])
+    }
+
+    if (!req.file) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'file', message: 'Exported file is required' }
+      ])
+    }
+
+    let parsedConfig = {}
+    if (config) {
+      try {
+        parsedConfig = JSON.parse(config)
+      } catch {
+        parsedConfig = {}
+      }
+    }
+
+    const report = await reportsService.saveExportedReport({
+      reportType,
+      reportName,
+      format,
+      config: parsedConfig,
+      userId: req.user.id,
+      file: req.file
+    })
+
+    return ResponseFormatter.success(res, { report }, 'Exported report saved successfully', 201)
+  })
+)
 
 // Get report data for viewing (not file download)
 router.get('/system/data/:reportType', requirePermission('logsReport.reports', 'view'), asyncHandler(async (req, res) => {

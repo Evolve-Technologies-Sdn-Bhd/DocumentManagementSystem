@@ -158,11 +158,37 @@ const ReportViewer = () => {
 
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage)
 
+  const triggerBlobDownload = (blob, fileName) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const syncExportToHistory = async ({ blob, fileName, format }) => {
+    const formData = new FormData()
+    formData.append('file', blob, fileName)
+    formData.append('reportType', reportType)
+    formData.append('reportName', reportData?.title || reportTypeLabels[reportType] || 'System Report')
+    formData.append('format', format)
+    formData.append('config', JSON.stringify({
+      appliedFilters: filters,
+      exportedRows: filteredRows.length
+    }))
+
+    await api.post('/reports/system/export-upload', formData)
+  }
+
   const exportToCSV = () => {
     if (!reportData) return
     
     setExporting(true)
-    try {
+    Promise.resolve()
+      .then(async () => {
       const columns = reportData.columns
       const rows = filteredRows
       
@@ -176,25 +202,33 @@ const ReportViewer = () => {
       )
       
       const csvContent = [headers, ...csvRows].join('\n')
-      
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`
-      link.click()
-    } catch (err) {
-      console.error('CSV export error:', err)
-      alert('Failed to export CSV')
-    } finally {
-      setExporting(false)
-    }
+      const fileName = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`
+
+      triggerBlobDownload(blob, fileName)
+
+      try {
+        await syncExportToHistory({ blob, fileName, format: 'CSV' })
+      } catch (syncErr) {
+        console.error('Failed to sync CSV export history:', syncErr)
+        window.alert('CSV berjaya di-download, tapi senarai recent report gagal dikemas kini.')
+      }
+      })
+      .catch((err) => {
+        console.error('CSV export error:', err)
+        window.alert('Failed to export CSV')
+      })
+      .finally(() => {
+        setExporting(false)
+      })
   }
 
   const exportToPDF = () => {
     if (!reportData) return
     
     setExporting(true)
-    try {
+    Promise.resolve()
+      .then(async () => {
       const doc = new jsPDF('landscape')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
@@ -330,13 +364,25 @@ const ReportViewer = () => {
         )
       }
       
-      doc.save(`${reportType}-${new Date().toISOString().split('T')[0]}.pdf`)
-    } catch (err) {
-      console.error('PDF export error:', err)
-      alert('Failed to export PDF')
-    } finally {
-      setExporting(false)
-    }
+      const fileName = `${reportType}-${new Date().toISOString().split('T')[0]}.pdf`
+      const blob = doc.output('blob')
+
+      triggerBlobDownload(blob, fileName)
+
+      try {
+        await syncExportToHistory({ blob, fileName, format: 'PDF' })
+      } catch (syncErr) {
+        console.error('Failed to sync PDF export history:', syncErr)
+        window.alert('PDF berjaya di-download, tapi senarai recent report gagal dikemas kini.')
+      }
+      })
+      .catch((err) => {
+        console.error('PDF export error:', err)
+        window.alert('Failed to export PDF')
+      })
+      .finally(() => {
+        setExporting(false)
+      })
   }
   
   const hexToRGB = (hex) => {
