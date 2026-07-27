@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../api/axios'
 import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -7,8 +7,166 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
-import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+
+function SearchableSingleSelect({
+  value,
+  options,
+  onChange,
+  placeholder,
+  searchPlaceholder,
+  noResultsLabel,
+  disabled = false,
+  loading = false,
+  clearLabel = 'Clear',
+  loadingLabel = 'Loading...',
+  ...rest
+}) {
+  const [open, setOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  const selectedOption = useMemo(
+    () => options.find((option) => String(option.value) === String(value)) || null,
+    [options, value]
+  )
+
+  const filteredOptions = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    if (!normalizedSearch) return options
+
+    return options.filter((option) =>
+      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
+    )
+  }, [options, searchValue])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false)
+      setSearchValue('')
+    }
+  }, [disabled])
+
+  const handleSelect = (option) => {
+    onChange(option.value, option)
+    setOpen(false)
+    setSearchValue('')
+  }
+
+  return (
+    <div ref={containerRef} className="relative" {...rest}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev)
+        }}
+        disabled={disabled}
+        className={`flex min-h-[42px] w-full items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
+          disabled ? 'cursor-not-allowed bg-surface-muted text-ink-soft' : ''
+        } ${open ? 'ring-2 ring-brand/20' : ''}`}
+      >
+        <span className={selectedOption ? 'text-ink' : 'text-ink-muted'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+          <div className="border-b border-border p-3">
+            <input
+              ref={inputRef}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchValue('')}
+                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
+                >
+                  {clearLabel}
+                </button>
+              ) : (
+                <span>Type to filter</span>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-2">
+            {loading ? (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{loadingLabel}</div>
+            ) : filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = String(option.value) === String(value)
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSelect(option)}
+                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{option.label}</div>
+                      {option.meta?.length ? (
+                        <div className="mt-1 space-y-0.5">
+                          {option.meta.map((metaLine) => (
+                            <div key={metaLine} className="text-xs text-ink-muted">
+                              {metaLine}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const getReviewerDisplayName = (reviewer) => {
+  if (!reviewer) return ''
+  const fullName = `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()
+  return fullName || reviewer.email || ''
+}
 
 export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   // Use dynamic file upload settings
@@ -33,6 +191,34 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const [loadingReviewers, setLoadingReviewers] = useState(true)
   const [searchFileCode, setSearchFileCode] = useState('')
   const [showFileCodeDropdown, setShowFileCodeDropdown] = useState(false)
+
+  const documentTypeOptions = useMemo(
+    () => documentTypes.map((type) => ({
+      id: type.id,
+      value: type.name,
+      label: type.name,
+      searchText: `${type.name} ${type.prefix || ''}`,
+      meta: type.prefix ? [`Prefix: ${type.prefix}`] : []
+    })),
+    [documentTypes]
+  )
+
+  const reviewerOptions = useMemo(
+    () => availableReviewers.map((reviewer) => ({
+      id: reviewer.id,
+      value: reviewer.id,
+      label: getReviewerDisplayName(reviewer),
+      searchText: [
+        reviewer.firstName,
+        reviewer.lastName,
+        reviewer.email,
+        reviewer.position,
+        reviewer.department
+      ].filter(Boolean).join(' '),
+      meta: [reviewer.position, reviewer.department, reviewer.email].filter(Boolean)
+    })),
+    [availableReviewers]
+  )
 
   // Load document types and reviewers when modal opens
   useEffect(() => {
@@ -144,8 +330,18 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setShowFileCodeDropdown(false)
   }
 
+  const handleDocumentTypeSelect = (documentType) => {
+    setFormData((prev) => ({
+      ...prev,
+      documentType,
+      fileCode: prev.documentType === documentType ? prev.fileCode : ''
+    }))
+    setSearchFileCode('')
+    setShowFileCodeDropdown(false)
+  }
+
   const handleReviewerSelect = (userId) => {
-    setFormData({ ...formData, reviewerId: userId })
+    setFormData((prev) => ({ ...prev, reviewerId: userId }))
   }
 
   const filteredAcknowledgedDocs = acknowledgedDocs.filter(doc =>
@@ -368,20 +564,19 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
                 <label className="block text-sm font-medium text-ink-secondary mb-2">
                   {t('doc_type')} <span className="text-red-500">*</span>
                 </label>
-                <SelectField
-                  required
+                <SearchableSingleSelect
                   value={formData.documentType}
-                  onChange={(e) => setFormData({ ...formData, documentType: e.target.value })}
-                  data-tour-id="new-draft-doc-type"
+                  options={documentTypeOptions}
+                  onChange={handleDocumentTypeSelect}
+                  placeholder={loadingDocTypes ? t('loading_ellipsis') : t('select_doc_type')}
+                  searchPlaceholder={t('search_doc_type')}
+                  noResultsLabel={t('no_doc_type_found')}
                   disabled={loadingDocTypes}
-                >
-                  <option value="">{loadingDocTypes ? t('loading_ellipsis') : t('select_doc_type')}</option>
-                  {documentTypes.map((type) => (
-                    <option key={type.id} value={type.name}>
-                      {type.name}
-                    </option>
-                  ))}
-                </SelectField>
+                  loading={loadingDocTypes}
+                  clearLabel={t('clear_filter')}
+                  loadingLabel={t('loading_ellipsis')}
+                  data-tour-id="new-draft-doc-type"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">
@@ -463,50 +658,29 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               <label className="block text-sm font-medium text-ink-secondary mb-2">
                 {t('assign_reviewer_label')} <span className="text-red-500">*</span>
               </label>
-              <AppSurface variant="muted" padding="md" className="max-h-48 overflow-y-auto" data-tour-id="new-draft-assign-reviewer">
-                {loadingReviewers ? (
-                  <div className="flex items-center gap-2 text-sm text-ink-muted">
-                    <InlineSpinner className="h-4 w-4 border-2" />
-                    <span>{t('loading_reviewers')}</span>
-                  </div>
-                ) : availableReviewers.length === 0 ? (
-                  <div className="text-sm text-ink-muted">{t('no_reviewers')}</div>
-                ) : (
-                  <div className="space-y-2">
-                    {availableReviewers.map((reviewer) => (
-                      <label
-                        key={reviewer.id}
-                        className={`flex items-start space-x-3 p-2 rounded-2xl cursor-pointer transition-colors ${
-                          formData.reviewerId === reviewer.id 
-                            ? 'bg-white border border-brand/20 shadow-dms-soft' 
-                            : 'hover:bg-white/70'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="reviewer"
-                          checked={formData.reviewerId === reviewer.id}
-                          onChange={() => handleReviewerSelect(reviewer.id)}
-                          className="mt-1 h-4 w-4 text-brand border-border focus-visible:ring-2 focus-visible:ring-brand/30"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-ink">
-                            {reviewer.firstName && reviewer.lastName
-                              ? `${reviewer.firstName} ${reviewer.lastName}`
-                              : reviewer.email}
-                          </div>
-                          {reviewer.position && (
-                            <div className="text-xs text-ink-muted">{reviewer.position}</div>
-                          )}
-                          {reviewer.department && (
-                            <div className="text-xs text-ink-muted">{reviewer.department}</div>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </AppSurface>
+              {loadingReviewers ? (
+                <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-ink-muted" data-tour-id="new-draft-assign-reviewer">
+                  <InlineSpinner className="h-4 w-4 border-2" />
+                  <span>{t('loading_reviewers')}</span>
+                </AppSurface>
+              ) : availableReviewers.length === 0 ? (
+                <AppSurface variant="muted" padding="md" className="text-sm text-ink-muted" data-tour-id="new-draft-assign-reviewer">
+                  {t('no_reviewers')}
+                </AppSurface>
+              ) : (
+                <div data-tour-id="new-draft-assign-reviewer">
+                  <SearchableSingleSelect
+                    value={formData.reviewerId}
+                    options={reviewerOptions}
+                    onChange={handleReviewerSelect}
+                    placeholder={t('select_reviewer')}
+                    searchPlaceholder={t('search_reviewer')}
+                    noResultsLabel={t('no_reviewer_found')}
+                    clearLabel={t('clear_filter')}
+                    loadingLabel={t('loading_ellipsis')}
+                  />
+                </div>
+              )}
               <p className="text-xs text-ink-muted mt-1">
                 {formData.reviewerId ? t('reviewer_selected') : t('select_reviewer')}
               </p>

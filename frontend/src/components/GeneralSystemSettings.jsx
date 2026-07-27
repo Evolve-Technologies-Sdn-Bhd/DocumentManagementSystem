@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
@@ -4342,7 +4343,9 @@ function NotificationSettings() {
   const [saving, setSaving] = useState(false)
   const [testingEmail, setTestingEmail] = useState(false)
   const [showPasswordField, setShowPasswordField] = useState(false)
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false)
   const [testEmail, setTestEmail] = useState('')
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:text-ink focus:outline-none'
 
   const extractNotificationSettings = (body) => {
     const first = body?.data?.settings ?? body?.settings ?? body
@@ -4411,6 +4414,7 @@ function NotificationSettings() {
         }
         alert('Notification settings saved successfully!')
         setShowPasswordField(false)
+        setShowSmtpPassword(false)
         await loadSettings() // Reload to get masked password
       } else {
         const error = await response.json()
@@ -4488,15 +4492,33 @@ function NotificationSettings() {
             <label className="block text-sm font-medium text-ink mb-2">SMTP Password</label>
             {showPasswordField ? (
               <div className="flex gap-2">
-                <input 
-                  type="password" 
-                  value={settings.smtpPassword} 
-                  onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))} 
-                  placeholder="Enter new password"
-                  className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type={showSmtpPassword ? 'text' : 'password'}
+                    value={settings.smtpPassword}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))}
+                    placeholder="Enter new password"
+                    className="w-full px-3 py-2 pr-10 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSmtpPassword((prev) => !prev)}
+                    className={passwordToggleClass}
+                    aria-label={showSmtpPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSmtpPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
                 <button 
-                  onClick={() => setShowPasswordField(false)}
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordField(false)
+                    setShowSmtpPassword(false)
+                  }}
                   className="px-3 py-2 text-sm text-ink-secondary border border-border rounded-lg hover:bg-surface-muted hover:text-ink"
                 >
                   Cancel
@@ -4512,9 +4534,11 @@ function NotificationSettings() {
                   placeholder="No password set"
                 />
                 <button 
+                  type="button"
                   onClick={() => {
                     setSettings(prev => ({ ...prev, smtpPassword: '' }))
                     setShowPasswordField(true)
+                    setShowSmtpPassword(false)
                   }}
                   className="px-3 py-2 text-sm text-brand border border-brand rounded-lg hover:bg-surface-muted"
                 >

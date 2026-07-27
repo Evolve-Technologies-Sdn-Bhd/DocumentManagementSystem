@@ -53,7 +53,7 @@ const ReportViewer = () => {
   const loadDropdownOptions = async () => {
     try {
       const [typesRes, usersRes] = await Promise.all([
-        api.get('/document-types'),
+        api.get('/system/config/document-types'),
         api.get('/users')
       ])
       

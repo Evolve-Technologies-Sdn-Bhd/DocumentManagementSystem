@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import api from '../api/axios';
 import { usePreferences } from '../contexts/PreferencesContext';
 import AppModal, { ModalBody, ModalHeader } from './ui/Modal';
@@ -17,8 +18,10 @@ export default function DatabaseCleanup() {
   
   // Form states
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-gray-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
   
   // Result states
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -70,6 +73,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setIncludeFiles(false);
       setShowCleanupModal(false);
       
@@ -108,6 +112,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setConfirmText('');
       setIncludeFiles(false);
       setShowResetModal(false);
@@ -141,6 +146,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setIncludeFiles(false);
       setShowTestingModal(false);
       
@@ -184,6 +190,7 @@ export default function DatabaseCleanup() {
     setShowResetModal(true);
     setError('');
     setPassword('');
+    setShowPassword(false);
     setConfirmText('');
     setIncludeFiles(false);
   };
@@ -354,14 +361,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -421,14 +443,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -490,14 +527,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>

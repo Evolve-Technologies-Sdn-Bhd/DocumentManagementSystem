@@ -388,6 +388,7 @@ export default function Login() {
   const showRequiredAsterisk = formCopy.showRequiredAsterisk !== false
   const inputClass = 'w-full rounded-[10px] border border-[#D9DEE8] bg-white px-4 py-[10px] text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
   const passwordInputClass = `${inputClass} pr-12`
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-gray-600 focus:outline-none'
   const heroBackgroundStyle = hero.heroImage
     ? `linear-gradient(90deg, rgba(23, 23, 35, 0.58), rgba(12, 25, 58, 0.32)), url('${hero.heroImage}')`
     : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
@@ -681,7 +682,8 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                      className={passwordToggleClass}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="h-4.5 w-4.5" />
@@ -970,7 +972,8 @@ export default function Login() {
                       <button
                         type="button"
                         onClick={() => setForgotShowNewPassword(!forgotShowNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                        className={passwordToggleClass}
+                        aria-label={forgotShowNewPassword ? 'Hide password' : 'Show password'}
                       >
                         {forgotShowNewPassword ? (
                           <EyeSlashIcon className="h-4.5 w-4.5" />
@@ -998,7 +1001,8 @@ export default function Login() {
                       <button
                         type="button"
                         onClick={() => setForgotShowConfirmPassword(!forgotShowConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                        className={passwordToggleClass}
+                        aria-label={forgotShowConfirmPassword ? 'Hide password' : 'Show password'}
                       >
                         {forgotShowConfirmPassword ? (
                           <EyeSlashIcon className="h-4.5 w-4.5" />

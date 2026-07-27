@@ -371,20 +371,28 @@ class ReportsService {
     return fileCode
   }
 
-  async buildDocumentRequestReport(dateFrom, dateTo, filters = {}) {
-    const requestWindow = this.buildDateRangeFilter('createdAt', dateFrom, dateTo)
+  buildNewDocumentRequestHistoryWhere(requestWindow, filters = {}) {
+    if (filters.status) {
+      return {
+        ...requestWindow,
+        OR: [{ status: filters.status }, { stage: filters.status }]
+      }
+    }
 
-    const ndrWhere = {
+    return {
       ...requestWindow,
       OR: [
         { status: { in: ['PENDING_ACKNOWLEDGMENT', 'ACKNOWLEDGED', 'REJECTED'] } },
-        { stage: 'ACKNOWLEDGMENT' }
+        { stage: 'ACKNOWLEDGMENT' },
+        { acknowledgedAt: { not: null } },
+        { acknowledgedById: { not: null } }
       ]
     }
+  }
 
-    if (filters.status) {
-      ndrWhere.OR = [{ status: filters.status }, { stage: filters.status }]
-    }
+  async buildDocumentRequestReport(dateFrom, dateTo, filters = {}) {
+    const requestWindow = this.buildDateRangeFilter('createdAt', dateFrom, dateTo)
+    const ndrWhere = this.buildNewDocumentRequestHistoryWhere(requestWindow, filters)
 
     const requestWhere = { ...requestWindow }
     if (filters.status) {

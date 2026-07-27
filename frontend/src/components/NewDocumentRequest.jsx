@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import NewVersionRequestModal from './NewVersionRequestModal'
@@ -12,7 +12,6 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
-import SelectField from './ui/SelectField'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
@@ -34,6 +33,163 @@ function DatePicker({ value, onChange, placeholder = "Select date" }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+    </div>
+  )
+}
+
+function SearchableSingleSelect({
+  value,
+  options,
+  onChange,
+  placeholder,
+  searchPlaceholder,
+  noResultsLabel,
+  disabled = false,
+  loading = false,
+  clearLabel = 'Clear',
+  loadingLabel = 'Loading...',
+  invalid = false,
+  ...rest
+}) {
+  const [open, setOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  const selectedOption = useMemo(
+    () => options.find((option) => String(option.value) === String(value)) || null,
+    [options, value]
+  )
+
+  const filteredOptions = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    if (!normalizedSearch) return options
+
+    return options.filter((option) =>
+      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
+    )
+  }, [options, searchValue])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false)
+      setSearchValue('')
+    }
+  }, [disabled])
+
+  const handleSelect = (option) => {
+    onChange(option.value, option)
+    setOpen(false)
+    setSearchValue('')
+  }
+
+  return (
+    <div ref={containerRef} className="relative flex-1" {...rest}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev)
+        }}
+        disabled={disabled}
+        aria-expanded={open}
+        className={`flex min-h-[40px] w-full items-center justify-between rounded-2xl border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
+          invalid ? 'border-red-300 focus-visible:ring-red-200/80' : 'border-border'
+        } ${disabled ? 'cursor-not-allowed bg-surface-muted text-ink-soft' : ''} ${
+          open ? 'ring-2 ring-brand/20' : ''
+        }`}
+      >
+        <span className={selectedOption ? 'text-ink' : 'text-ink-muted'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+          <div className="border-b border-border p-3">
+            <input
+              ref={inputRef}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchValue('')}
+                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
+                >
+                  {clearLabel}
+                </button>
+              ) : (
+                <span>Type to filter</span>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-2">
+            {loading ? (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{loadingLabel}</div>
+            ) : filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = String(option.value) === String(value)
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSelect(option)}
+                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{option.label}</div>
+                      {option.meta?.length ? (
+                        <div className="mt-1 space-y-0.5">
+                          {option.meta.map((metaLine) => (
+                            <div key={metaLine} className="text-xs text-ink-muted">
+                              {metaLine}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -90,6 +246,10 @@ export default function NewDocumentRequest() {
   const [documentTypes, setDocumentTypes] = useState([])
   const [projectCategories, setProjectCategories] = useState([])
   const [loadingMasterData, setLoadingMasterData] = useState(true)
+  const [fieldErrors, setFieldErrors] = useState({
+    documentType: false,
+    projectCategory: false
+  })
   
   // Check if user has permission to acknowledge document requests
   // Uses permission-based checking instead of hardcoded roles
@@ -280,10 +440,31 @@ export default function NewDocumentRequest() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const nextFieldErrors = {
+      documentType: !formData.documentType,
+      projectCategory: !formData.projectCategory
+    }
+
+    if (nextFieldErrors.documentType || nextFieldErrors.projectCategory) {
+      setFieldErrors(nextFieldErrors)
+      setAlertModal({
+        show: true,
+        title: 'Validation Error',
+        message: 'Please select both document type and project category.',
+        type: 'warning'
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
       await api.post('/documents/requests', formData)
+      setFieldErrors({
+        documentType: false,
+        projectCategory: false
+      })
       setAlertModal({
         show: true,
         title: 'Success',
@@ -349,6 +530,10 @@ export default function NewDocumentRequest() {
       projectCategory: '',
       dateOfDocument: '',
       remarks: ''
+    })
+    setFieldErrors({
+      documentType: false,
+      projectCategory: false
     })
   }
 
@@ -674,6 +859,28 @@ export default function NewDocumentRequest() {
     }
   }
 
+  const documentTypeOptions = useMemo(
+    () => documentTypes.map((type) => ({
+      id: type.id,
+      value: type.name,
+      label: type.name,
+      searchText: `${type.name || ''} ${type.prefix || ''}`,
+      meta: type.prefix ? [`Prefix: ${type.prefix}`] : []
+    })),
+    [documentTypes]
+  )
+
+  const projectCategoryOptions = useMemo(
+    () => projectCategories.map((category) => ({
+      id: category.id,
+      value: category.name,
+      label: category.name,
+      searchText: `${category.name || ''} ${category.code || ''}`,
+      meta: category.code ? [`Code: ${category.code}`] : []
+    })),
+    [projectCategories]
+  )
+
   return (
     <div className="space-y-6" data-tour-id="ndr-page">
       {/* Confirmation Modal */}
@@ -783,21 +990,22 @@ export default function NewDocumentRequest() {
                 {t('document_type')} <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
-                <SelectField
-                  required
+                <SearchableSingleSelect
                   data-tour-id="ndr-field-document-type"
                   value={formData.documentType}
-                  onChange={(e) => setFormData({ ...formData, documentType: e.target.value })}
-                  className="flex-1"
+                  options={documentTypeOptions}
+                  onChange={(value) => {
+                    setFormData({ ...formData, documentType: value })
+                    setFieldErrors((prev) => ({ ...prev, documentType: false }))
+                  }}
+                  placeholder={loadingMasterData ? t('loading') : t('select_document_type')}
+                  searchPlaceholder={t('search_doc_type')}
+                  noResultsLabel={t('adjust_search')}
+                  clearLabel={t('clear_search')}
+                  loadingLabel={t('loading')}
                   disabled={loadingMasterData}
-                >
-                  <option value="">{loadingMasterData ? t('loading') : t('select_document_type')}</option>
-                  {documentTypes.map((type) => (
-                    <option key={type.id} value={type.name}>
-                      {type.name}
-                    </option>
-                  ))}
-                </SelectField>
+                  invalid={fieldErrors.documentType}
+                />
                 <IconButton
                   type="button"
                   onClick={handleAddDocumentType}
@@ -835,20 +1043,21 @@ export default function NewDocumentRequest() {
                 </span>
               </label>
               <div className="flex gap-2">
-                <SelectField
-                  required
+                <SearchableSingleSelect
                   value={formData.projectCategory}
-                  onChange={(e) => setFormData({ ...formData, projectCategory: e.target.value })}
-                  className="flex-1"
+                  options={projectCategoryOptions}
+                  onChange={(value) => {
+                    setFormData({ ...formData, projectCategory: value })
+                    setFieldErrors((prev) => ({ ...prev, projectCategory: false }))
+                  }}
+                  placeholder={loadingMasterData ? t('loading') : t('select_project_category')}
+                  searchPlaceholder={t('search_placeholder')}
+                  noResultsLabel={t('adjust_search')}
+                  clearLabel={t('clear_search')}
+                  loadingLabel={t('loading')}
                   disabled={loadingMasterData}
-                >
-                  <option value="">{loadingMasterData ? t('loading') : t('select_project_category')}</option>
-                  {projectCategories.map((category) => (
-                    <option key={category.id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
-                </SelectField>
+                  invalid={fieldErrors.projectCategory}
+                />
                 <IconButton
                   type="button"
                   onClick={handleAddProjectCategory}
