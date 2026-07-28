@@ -5,6 +5,27 @@ import autoTable from 'jspdf-autotable'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 
+const ensureArray = (value) => (Array.isArray(value) ? value : [])
+
+const pickFirstArray = (...values) => {
+  for (const value of values) {
+    if (Array.isArray(value)) return value
+  }
+  return []
+}
+
+const normalizeReportData = (payload) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null
+  }
+
+  return {
+    ...payload,
+    columns: ensureArray(payload.columns),
+    rows: ensureArray(payload.rows)
+  }
+}
+
 const ReportViewer = () => {
   const { reportType } = useParams()
   const navigate = useNavigate()
@@ -57,13 +78,24 @@ const ReportViewer = () => {
         api.get('/users')
       ])
       
-      setDocumentTypes(typesRes.data.data || [])
+      const documentTypeOptions = pickFirstArray(
+        typesRes.data?.data?.documentTypes,
+        typesRes.data?.documentTypes,
+        typesRes.data?.data
+      )
+      setDocumentTypes(documentTypeOptions)
       
-      const users = usersRes.data.data || []
+      const users = pickFirstArray(
+        usersRes.data?.data?.users,
+        usersRes.data?.users,
+        usersRes.data?.data
+      )
       const depts = [...new Set(users.map(u => u.department).filter(Boolean))]
       setDepartments(depts)
     } catch (err) {
       console.error('Error loading dropdown options:', err)
+      setDocumentTypes([])
+      setDepartments([])
     }
   }
 
@@ -108,11 +140,12 @@ const ReportViewer = () => {
         })
       }).catch(() => {})
       // #endregion
-      setReportData(response.data.data)
+      setReportData(normalizeReportData(response.data?.data))
       setCurrentPage(1)
     } catch (err) {
       console.error('Error fetching report data:', err)
       setError(err.response?.data?.message || 'Failed to load report data')
+      setReportData(null)
     } finally {
       setLoading(false)
     }
@@ -140,7 +173,7 @@ const ReportViewer = () => {
   }
 
   const filteredRows = useMemo(() => {
-    if (!reportData?.rows) return []
+    if (!Array.isArray(reportData?.rows)) return []
     if (!filters.searchText) return reportData.rows
     
     const searchLower = filters.searchText.toLowerCase()
@@ -157,6 +190,7 @@ const ReportViewer = () => {
   }, [filteredRows, currentPage, rowsPerPage])
 
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage)
+  const reportColumns = ensureArray(reportData?.columns)
 
   const triggerBlobDownload = (blob, fileName) => {
     const url = window.URL.createObjectURL(blob)
@@ -189,8 +223,12 @@ const ReportViewer = () => {
     setExporting(true)
     Promise.resolve()
       .then(async () => {
-      const columns = reportData.columns
+      const columns = reportColumns
       const rows = filteredRows
+
+      if (columns.length === 0) {
+        throw new Error('No report columns available')
+      }
       
       const headers = columns.map(c => c.label).join(',')
       const csvRows = rows.map(row => 
@@ -233,8 +271,12 @@ const ReportViewer = () => {
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 14
-      const columns = reportData.columns
+      const columns = reportColumns
       const rows = filteredRows
+
+      if (columns.length === 0) {
+        throw new Error('No report columns available')
+      }
       
       // Company info from localStorage
       const companyName = localStorage.getItem('dms_company_name') || 'FileNix DMS'
@@ -853,7 +895,7 @@ const ReportViewer = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead style={{ background: 'var(--dms-primary)' }}>
                   <tr>
-                    {reportData.columns?.map(col => (
+                    {reportColumns.map(col => (
                       <th 
                         key={col.key} 
                         className="px-4 py-3 text-left text-xs font-semibold text-white tracking-wider whitespace-nowrap"
@@ -866,14 +908,14 @@ const ReportViewer = () => {
                 <tbody className="divide-y divide-gray-200" style={{ background: 'var(--dms-card-bg)' }}>
                   {paginatedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={reportData.columns?.length || 1} className="px-4 py-12 text-center muted">
+                      <td colSpan={reportColumns.length || 1} className="px-4 py-12 text-center muted">
                         No data found
                       </td>
                     </tr>
                   ) : (
                     paginatedRows.map((row, idx) => (
                       <tr key={row.id || idx} className="hover:bg-gray-50 transition-colors">
-                        {reportData.columns?.map(col => (
+                        {reportColumns.map(col => (
                           <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: 'var(--dms-text-primary)' }}>
                             {col.key === 'status' ? (
                               <StatusBadge status={row[col.key]} />
