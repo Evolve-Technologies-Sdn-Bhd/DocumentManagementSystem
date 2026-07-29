@@ -86,6 +86,12 @@ api.interceptors.response.use(
   async (error) => {
     const status = error?.response?.status
     const original = error?.config
+    const maintenanceCode = error?.response?.data?.errors?.code
+    const maintenancePayload = error?.response?.data?.errors?.maintenance
+    const maintenanceMessage =
+      maintenancePayload?.message ||
+      error?.response?.data?.message ||
+      'System is under maintenance'
 
     if (original?._isUpload) {
       failUploadProgress()
@@ -96,6 +102,24 @@ api.interceptors.response.use(
         original._globalLoadingFinished = true
         failGlobalLoading()
       }
+    }
+
+    if (status === 503 && maintenanceCode === 'MAINTENANCE_MODE') {
+      try {
+        localStorage.setItem(
+          'maintenanceStatus',
+          JSON.stringify({ enabled: true, message: maintenanceMessage })
+        )
+      } catch {}
+
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
+      finishGlobalOnce()
+      if (window.location.pathname !== '/maintenance') {
+        window.location.href = '/maintenance'
+      }
+      return Promise.reject(error)
     }
 
     const url = String(original?.url || '')

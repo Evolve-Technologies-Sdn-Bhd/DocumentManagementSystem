@@ -735,3 +735,17 @@ exports.updateThemeSettings = asyncHandler(async (req, res) => {
   const updatedTheme = await configService.updateThemeSettings(theme);
   return ResponseFormatter.success(res, { theme: updatedTheme }, 'Theme settings updated successfully');
 });
+
+exports.getMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = await configService.getMaintenanceSettings();
+  return ResponseFormatter.success(res, { settings }, 'Maintenance settings retrieved successfully');
+});
+
+exports.updateMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = req.body;
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid maintenance settings data');
+  }
+  const updatedSettings = await configService.updateMaintenanceSettings(settings);
+  return ResponseFormatter.success(res, { settings: updatedSettings }, 'Maintenance settings updated successfully');
+});

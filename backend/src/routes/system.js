@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requireSystemAdmin } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const prisma = require('../config/database');
@@ -232,6 +232,8 @@ router.get('/config/company-info', authenticate, configController.getCompanyInfo
 router.put('/config/company-info', authenticate, configController.updateCompanyInfo);
 router.get('/config/theme-settings', authenticate, configController.getThemeSettings);
 router.put('/config/theme-settings', authenticate, configController.updateThemeSettings);
+router.get('/config/maintenance-settings', authenticate, requireSystemAdmin, configController.getMaintenanceSettings);
+router.put('/config/maintenance-settings', authenticate, requireSystemAdmin, configController.updateMaintenanceSettings);
 
 // Security Settings
 router.get('/config/security-settings', authenticate, asyncHandler(async (req, res) => {

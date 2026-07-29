@@ -3,6 +3,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
+import { getUserPermissions } from '../utils/permissions'
 import MarkdownEditor from './MarkdownEditor'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
@@ -4702,6 +4703,11 @@ function SecuritySettings() {
     encryptDocuments: true,
     encryptDatabase: true
   })
+  const canManageMaintenance = getUserPermissions()?.all === true
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    message: 'System is under maintenance'
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -4732,6 +4738,20 @@ function SecuritySettings() {
             encryptDocuments: data.encryptDocuments ?? false,
             encryptDatabase: data.encryptDatabase ?? false
           }))
+        }
+
+        if (canManageMaintenance) {
+          const mRes = await fetch('/api/system/config/maintenance-settings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          if (mRes.ok) {
+            const mBody = await mRes.json()
+            const mData = mBody?.data?.settings || mBody?.settings || mBody
+            setMaintenance({
+              enabled: Boolean(mData?.enabled),
+              message: mData?.message || 'System is under maintenance'
+            })
+          }
         }
       } catch (error) {
         console.error('Failed to load security settings:', error)
@@ -4775,6 +4795,24 @@ function SecuritySettings() {
         })
       })
       if (response.ok) {
+        if (canManageMaintenance) {
+          const mResponse = await fetch('/api/system/config/maintenance-settings', {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              enabled: Boolean(maintenance.enabled),
+              message: maintenance.message
+            })
+          })
+          if (!mResponse.ok) {
+            const mErr = await mResponse.json().catch(() => null)
+            alert(`Security settings saved, but maintenance settings failed: ${mErr?.message || 'Unknown error'}`)
+            return
+          }
+        }
         alert('Security settings saved successfully!')
       } else {
         const error = await response.json()
@@ -4867,6 +4905,33 @@ function SecuritySettings() {
           </div>
         )}
       </div>
+
+      {canManageMaintenance ? (
+        <div className="border border-gray-200 rounded-lg p-4">
+          <h4 className="font-medium text-gray-900 mb-4">Maintenance Mode</h4>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={maintenance.enabled}
+                onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm font-medium text-gray-900">Enable maintenance mode (System Admin only)</span>
+            </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Message</label>
+              <textarea
+                value={maintenance.message}
+                onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
+                rows={3}
+                disabled={!maintenance.enabled}
+                className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none disabled:bg-gray-50"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Audit Logging */}
       <div className="border border-gray-200 rounded-lg p-4">

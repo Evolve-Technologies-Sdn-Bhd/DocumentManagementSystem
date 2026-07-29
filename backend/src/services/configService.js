@@ -5,6 +5,10 @@ const fs = require('fs/promises');
 const path = require('path');
 const appConfig = require('../config/app');
 
+let maintenanceSettingsCache = null;
+let maintenanceSettingsCacheAt = 0;
+const MAINTENANCE_SETTINGS_CACHE_TTL_MS = 5000;
+
 class ConfigService {
   getDefaultCrmFbEnquiryLookups() {
     return {
@@ -1061,6 +1065,56 @@ class ConfigService {
     });
 
     return JSON.parse(config.value);
+  }
+
+  normalizeMaintenanceSettings(settings) {
+    const enabled = Boolean(settings?.enabled);
+    const message =
+      typeof settings?.message === 'string' && settings.message.trim()
+        ? settings.message.trim()
+        : 'System is under maintenance';
+
+    return { enabled, message };
+  }
+
+  async getMaintenanceSettings(options = {}) {
+    const { bypassCache = false } = options;
+    const now = Date.now();
+    if (!bypassCache && maintenanceSettingsCache && (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS) {
+      return maintenanceSettingsCache;
+    }
+
+    const config = await prisma.configuration.findUnique({
+      where: { key: 'maintenance_settings' }
+    });
+
+    let parsed = null;
+    if (config?.value) {
+      try {
+        parsed = JSON.parse(config.value);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    maintenanceSettingsCache = this.normalizeMaintenanceSettings(parsed || null);
+    maintenanceSettingsCacheAt = now;
+    return maintenanceSettingsCache;
+  }
+
+  async updateMaintenanceSettings(settings) {
+    const normalized = this.normalizeMaintenanceSettings(settings || null);
+    const value = JSON.stringify(normalized);
+
+    const config = await prisma.configuration.upsert({
+      where: { key: 'maintenance_settings' },
+      update: { value, description: 'Maintenance mode settings' },
+      create: { key: 'maintenance_settings', value, description: 'Maintenance mode settings' }
+    });
+
+    maintenanceSettingsCache = this.normalizeMaintenanceSettings(JSON.parse(config.value));
+    maintenanceSettingsCacheAt = Date.now();
+    return maintenanceSettingsCache;
   }
 }
 
