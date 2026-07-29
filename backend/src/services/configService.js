@@ -6,6 +6,50 @@ const path = require('path');
 const appConfig = require('../config/app');
 
 class ConfigService {
+  getDefaultCrmFbEnquiryLookups() {
+    return {
+      channels: [
+        'Facebook Post/Ad',
+        'Messenger',
+        'Comment',
+        'Referral from FB'
+      ],
+      industryTypes: [
+        'Construction',
+        'Manufacturing',
+        'Retail',
+        'Services',
+        'Education',
+        'Healthcare',
+        'Other'
+      ]
+    }
+  }
+
+  normalizeCrmFbEnquiryLookups(input) {
+    const defaults = this.getDefaultCrmFbEnquiryLookups()
+    const source = input && typeof input === 'object' ? input : {}
+    const normalizeList = (items, fallback) => {
+      const rawItems = Array.isArray(items) ? items : fallback
+      const seen = new Set()
+      return rawItems
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean)
+        .filter((item) => {
+          const key = item.toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, 100)
+    }
+
+    return {
+      channels: normalizeList(source.channels, defaults.channels),
+      industryTypes: normalizeList(source.industryTypes, defaults.industryTypes)
+    }
+  }
+
   getDefaultDocumentNumberingSettings() {
     return {
       separator: '/',
@@ -227,6 +271,40 @@ class ConfigService {
       where: { key },
       data: { value }
     });
+  }
+
+  async upsertConfiguration(key, value, description = null) {
+    return await prisma.configuration.upsert({
+      where: { key },
+      update: { value, description: description ?? undefined },
+      create: { key, value, description }
+    })
+  }
+
+  async getCrmFbEnquiryLookups() {
+    const record = await prisma.configuration.findUnique({
+      where: { key: 'crm.fbEnquiry.lookups' }
+    })
+
+    if (!record?.value) {
+      return this.getDefaultCrmFbEnquiryLookups()
+    }
+
+    try {
+      return this.normalizeCrmFbEnquiryLookups(JSON.parse(record.value))
+    } catch {
+      return this.getDefaultCrmFbEnquiryLookups()
+    }
+  }
+
+  async updateCrmFbEnquiryLookups(input) {
+    const lookups = this.normalizeCrmFbEnquiryLookups(input)
+    await this.upsertConfiguration(
+      'crm.fbEnquiry.lookups',
+      JSON.stringify(lookups),
+      'CRM FB enquiry lookup values for channels and industry types'
+    )
+    return lookups
   }
 
   // ============================================

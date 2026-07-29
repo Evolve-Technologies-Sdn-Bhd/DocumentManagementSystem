@@ -15,7 +15,7 @@ class FolderController {
    * GET /api/folders
    */
   listFolders = asyncHandler(async (req, res) => {
-    const folders = await folderService.listFolders();
+    const folders = await folderService.listFolders(req.user);
     const roleIds = await folderPermissionService.getRoleIdsByNames(req.user?.roles || [])
     const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || [])
     const flat = []

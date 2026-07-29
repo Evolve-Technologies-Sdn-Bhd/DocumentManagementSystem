@@ -296,6 +296,9 @@ function ProjectFormFields({
   form,
   setForm,
   users,
+  divisions = [],
+  showDivision = false,
+  divisionLocked = false,
   showCategory = false,
   projectCategories = [],
   stageStatusLabel = 'Will follow workflow stage after creation',
@@ -350,6 +353,23 @@ function ProjectFormFields({
             <option value="">Select</option>
             {projectCategories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </ProjectField>
+      )}
+
+      {showDivision && (
+        <ProjectField label="Division">
+          <select
+            value={form.divisionId}
+            onChange={(e) => setForm((p) => ({ ...p, divisionId: e.target.value }))}
+            className={`${inputClass}${divisionLocked ? ' bg-surface-muted text-ink-muted' : ''}`}
+            required
+            disabled={divisionLocked}
+          >
+            <option value="">Select</option>
+            {divisions.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
         </ProjectField>
@@ -1826,6 +1846,7 @@ function StageCreateDocumentModal({ iterationId, phase, stage, stageItems = [], 
 function CreateProjectModal({ onClose, onCreated }) {
   const [loading, setLoading] = useState(false)
   const [projectCategories, setProjectCategories] = useState([])
+  const [divisions, setDivisions] = useState([])
   const [users, setUsers] = useState([])
 
   const [form, setForm] = useState({
@@ -1842,20 +1863,40 @@ function CreateProjectModal({ onClose, onCreated }) {
     objective: '',
     deliverables: '',
     projectCategoryId: '',
+    divisionId: '',
     managerId: ''
   })
 
   useEffect(() => {
     const load = async () => {
-      const [cats, usersRes] = await Promise.all([
+      const [cats, usersRes, divisionsRes] = await Promise.all([
         api.get('/system/config/project-categories'),
-        api.get('/users')
+        api.get('/users'),
+        api.get('/divisions')
       ])
       setProjectCategories(cats?.data?.data?.projectCategories || [])
       setUsers(usersRes?.data?.data?.users || [])
+      const loadedDivisions = divisionsRes?.data?.data?.divisions || []
+      setDivisions(loadedDivisions)
+
+      setForm((p) => {
+        if (p.divisionId) return p
+        const last = String(localStorage.getItem('lastActiveDivisionId') || '').trim()
+        const picked = last && loadedDivisions.some((d) => String(d.id) === last)
+          ? last
+          : loadedDivisions[0]?.id
+            ? String(loadedDivisions[0].id)
+            : ''
+        return { ...p, divisionId: picked }
+      })
     }
     load()
   }, [])
+
+  useEffect(() => {
+    const value = String(form.divisionId || '').trim()
+    if (value) localStorage.setItem('lastActiveDivisionId', value)
+  }, [form.divisionId])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -1875,6 +1916,7 @@ function CreateProjectModal({ onClose, onCreated }) {
         objective: form.objective || null,
         deliverables: form.deliverables || null,
         projectCategoryId: Number(form.projectCategoryId),
+        divisionId: form.divisionId ? Number(form.divisionId) : null,
         managerId: Number(form.managerId)
       }
       const res = await api.post('/project-tracking/projects', payload)
@@ -1895,6 +1937,8 @@ function CreateProjectModal({ onClose, onCreated }) {
           form={form}
           setForm={setForm}
           users={users}
+          divisions={divisions}
+          showDivision={divisions.length > 1}
           showCategory
           projectCategories={projectCategories}
           stageStatusLabel="Will follow the initial workflow stage after creation"
@@ -5365,6 +5409,7 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
     scope: project?.scope || '',
     objective: project?.objective || '',
     deliverables: project?.deliverables || '',
+    divisionId: project?.division?.id ? String(project.division.id) : project?.divisionId ? String(project.divisionId) : '',
     managerId: project?.manager?.id ? String(project.manager.id) : '',
     status: project?.status || 'ACTIVE'
   })
@@ -5410,6 +5455,9 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
         form={form}
         setForm={setForm}
         users={users}
+        divisions={project?.division ? [project.division] : []}
+        showDivision={Boolean(project?.division || project?.divisionId)}
+        divisionLocked
         stageStatusLabel={project?.iterations?.[0]?.currentStage?.name || 'No active stage'}
         showLifecycleStatus
       />

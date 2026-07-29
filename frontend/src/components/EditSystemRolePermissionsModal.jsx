@@ -70,6 +70,23 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
       actions: ['view', 'edit', 'renew', 'export']
     },
     {
+      id: 'crm',
+      name: 'CRM Registers',
+      description: 'Tender book and enquiry registers',
+      submodules: [
+        {
+          id: 'crm.tenderBook',
+          name: 'Tender Book Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        },
+        {
+          id: 'crm.fbEnquiry',
+          name: 'FB Enquiry Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        }
+      ]
+    },
+    {
       id: 'configuration',
       name: 'Configuration',
       description: 'System configuration and settings',

@@ -12,7 +12,7 @@ import TextArea from './ui/TextArea'
 import AppSurface from './ui/AppSurface'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 
-const VALID_MASTERDATA_TABS = ['departments', 'divisions', 'project-categories', 'document-types']
+const VALID_MASTERDATA_TABS = ['departments', 'divisions', 'project-categories', 'document-types', 'crm-lookups']
 
 // Tab Navigation for Master Data
 function MasterDataTabs({ activeTab, onTabChange }) {
@@ -21,7 +21,8 @@ function MasterDataTabs({ activeTab, onTabChange }) {
     { id: 'departments', label: t('mdm_departments') },
     { id: 'divisions', label: t('mdm_divisions') },
     { id: 'project-categories', label: t('mdm_project_categories') },
-    { id: 'document-types', label: t('mdm_doc_types') }
+    { id: 'document-types', label: t('mdm_doc_types') },
+    { id: 'crm-lookups', label: 'CRM Lookups' }
   ]
 
   return (
@@ -1731,6 +1732,161 @@ function DivisionsManagement() {
   )
 }
 
+function CrmLookupsManagement() {
+  const [lookups, setLookups] = useState({ channels: [], industryTypes: [] })
+  const [drafts, setDrafts] = useState({ channel: '', industryType: '' })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
+
+  const loadLookups = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/system/config/crm-fb-enquiry-lookups')
+      const next = res.data?.data?.lookups || {}
+      setLookups({
+        channels: Array.isArray(next.channels) ? next.channels : [],
+        industryTypes: Array.isArray(next.industryTypes) ? next.industryTypes : []
+      })
+    } catch (error) {
+      console.error('Failed to load CRM lookups:', error)
+      setAlertModal({ show: true, title: 'Error', message: 'Failed to load CRM lookup values', type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadLookups()
+  }, [])
+
+  const addItem = (type) => {
+    const draftKey = type === 'channels' ? 'channel' : 'industryType'
+    const value = String(drafts[draftKey] || '').trim()
+    if (!value) {
+      setAlertModal({ show: true, title: 'Error', message: 'Please enter a value before adding.', type: 'error' })
+      return
+    }
+
+    const exists = (lookups[type] || []).some((item) => String(item).toLowerCase() === value.toLowerCase())
+    if (exists) {
+      setAlertModal({ show: true, title: 'Error', message: 'This value already exists.', type: 'error' })
+      return
+    }
+
+    setLookups((prev) => ({ ...prev, [type]: [...prev[type], value] }))
+    setDrafts((prev) => ({ ...prev, [draftKey]: '' }))
+  }
+
+  const removeItem = (type, value) => {
+    setLookups((prev) => ({
+      ...prev,
+      [type]: prev[type].filter((item) => item !== value)
+    }))
+  }
+
+  const saveLookups = async () => {
+    setSaving(true)
+    try {
+      const payload = {
+        channels: lookups.channels,
+        industryTypes: lookups.industryTypes
+      }
+      const res = await api.put('/system/config/crm-fb-enquiry-lookups', payload)
+      const next = res.data?.data?.lookups || payload
+      setLookups({
+        channels: Array.isArray(next.channels) ? next.channels : [],
+        industryTypes: Array.isArray(next.industryTypes) ? next.industryTypes : []
+      })
+      setAlertModal({ show: true, title: 'Success', message: 'CRM lookup values updated successfully', type: 'success' })
+    } catch (error) {
+      console.error('Failed to save CRM lookups:', error)
+      setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to save CRM lookup values', type: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const LookupSection = ({ title, description, type, draftKey, placeholder }) => (
+    <AppSurface variant="panel" padding="md" className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <p className="mt-1 text-sm text-gray-600">{description}</p>
+      </div>
+
+      <div className="flex gap-3">
+        <TextInput
+          value={drafts[draftKey]}
+          onChange={(e) => setDrafts((prev) => ({ ...prev, [draftKey]: e.target.value }))}
+          placeholder={placeholder}
+        />
+        <Button onClick={() => addItem(type)}>Add</Button>
+      </div>
+
+      <div className="flex min-h-[120px] flex-wrap gap-2 rounded-2xl border border-border bg-surface p-4">
+        {(lookups[type] || []).length === 0 ? (
+          <span className="text-sm text-ink-soft">No values added yet.</span>
+        ) : (
+          lookups[type].map((item) => (
+            <span key={item} className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1 text-sm text-ink">
+              {item}
+              <button
+                type="button"
+                onClick={() => removeItem(type, item)}
+                className="text-ink-soft hover:text-red-600"
+                aria-label={`Remove ${item}`}
+              >
+                ×
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+    </AppSurface>
+  )
+
+  return (
+    <>
+      <AlertModal
+        isOpen={alertModal.show}
+        onClose={() => setAlertModal({ show: false })}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
+
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">CRM Lookup Values</h3>
+            <p className="mt-1 text-sm text-gray-600">Maintain FB Enquiry dropdown values for Enquiry Channel and Industry Type.</p>
+          </div>
+          <Button onClick={saveLookups} loading={saving} disabled={loading}>
+            Save Changes
+          </Button>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <LookupSection
+            title="Enquiry Channel"
+            description="Add or remove channel options shown in the FB Enquiry entry modal."
+            type="channels"
+            draftKey="channel"
+            placeholder="e.g., Website Form"
+          />
+          <LookupSection
+            title="Industry Type"
+            description="Add or remove industry options shown in the FB Enquiry entry modal."
+            type="industryTypes"
+            draftKey="industryType"
+            placeholder="e.g., Logistics"
+          />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Main Component
 export default function MasterDataManagement() {
   const { t } = usePreferences()
@@ -1773,6 +1929,7 @@ export default function MasterDataManagement() {
         {activeTab === 'divisions' && <DivisionsManagement />}
         {activeTab === 'project-categories' && <ProjectCategoriesManagement />}
         {activeTab === 'document-types' && <DocumentTypesManagement />}
+        {activeTab === 'crm-lookups' && <CrmLookupsManagement />}
       </div>
     </div>
   )

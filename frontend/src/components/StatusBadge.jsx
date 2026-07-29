@@ -27,9 +27,89 @@ export default function StatusBadge({ status }) {
       label: t('status_drafting'), 
       style: 'bg-blue-100 text-blue-700 border-blue-300'
     },
+    'SUBMITTED': {
+      label: t('status_submitted'),
+      style: 'bg-blue-100 text-blue-700 border-blue-300'
+    },
+    'Submitted': {
+      label: t('status_submitted'),
+      style: 'bg-blue-100 text-blue-700 border-blue-300'
+    },
+    'PENDING': {
+      label: t('status_pending'),
+      style: 'bg-yellow-100 text-yellow-700 border-yellow-300'
+    },
+    'KIV': {
+      label: t('status_kiv'),
+      style: 'bg-purple-100 text-purple-700 border-purple-300'
+    },
     'In Progress': { 
       label: t('status_in_progress'), 
       style: 'bg-blue-100 text-blue-700 border-blue-300'
+    },
+    'WON': {
+      label: t('status_won'),
+      style: 'bg-green-100 text-green-700 border-green-300'
+    },
+    'Won': {
+      label: t('status_won'),
+      style: 'bg-green-100 text-green-700 border-green-300'
+    },
+    'LOST': {
+      label: t('status_lost'),
+      style: 'bg-red-100 text-red-700 border-red-300'
+    },
+    'Lost': {
+      label: t('status_lost'),
+      style: 'bg-red-100 text-red-700 border-red-300'
+    },
+    'IN_PIPELINE': {
+      label: t('status_in_pipeline'),
+      style: 'bg-blue-100 text-blue-700 border-blue-300'
+    },
+    'In Pipeline': {
+      label: t('status_in_pipeline'),
+      style: 'bg-blue-100 text-blue-700 border-blue-300'
+    },
+    'CONTACTED': {
+      label: t('status_contacted'),
+      style: 'bg-sky-100 text-sky-700 border-sky-300'
+    },
+    'Contacted': {
+      label: t('status_contacted'),
+      style: 'bg-sky-100 text-sky-700 border-sky-300'
+    },
+    'QUALIFIED': {
+      label: t('status_qualified'),
+      style: 'bg-indigo-100 text-indigo-700 border-indigo-300'
+    },
+    'Qualified': {
+      label: t('status_qualified'),
+      style: 'bg-indigo-100 text-indigo-700 border-indigo-300'
+    },
+    'QUOTATION_PROVIDED': {
+      label: t('status_quotation_provided'),
+      style: 'bg-amber-100 text-amber-700 border-amber-300'
+    },
+    'Quotation Provided': {
+      label: t('status_quotation_provided'),
+      style: 'bg-amber-100 text-amber-700 border-amber-300'
+    },
+    'CONVERTED': {
+      label: t('status_converted'),
+      style: 'bg-green-100 text-green-700 border-green-300'
+    },
+    'Converted': {
+      label: t('status_converted'),
+      style: 'bg-green-100 text-green-700 border-green-300'
+    },
+    'NEW': {
+      label: t('status_new'),
+      style: 'bg-gray-100 text-gray-700 border-gray-300'
+    },
+    'New': {
+      label: t('status_new'),
+      style: 'bg-gray-100 text-gray-700 border-gray-300'
     },
     
     // Review States

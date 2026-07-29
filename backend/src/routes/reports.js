@@ -8,6 +8,7 @@ const auditLogService = require('../services/auditLogService');
 const documentAssignmentService = require('../services/documentAssignmentService')
 const confidentialAccessService = require('../services/confidentialAccessService')
 const folderPermissionService = require('../services/folderPermissionService')
+const divisionScopeService = require('../services/divisionScopeService')
 const { uploadDocument } = require('../middleware/upload')
 const { authenticate, authorize } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
@@ -114,8 +115,10 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     })
   }
 
+  const scopedWhere = await divisionScopeService.buildAccessibleDocumentWhere(req.user, where)
+
   const allCandidateDocuments = await prisma.document.findMany({
-    where,
+    where: scopedWhere,
     include: {
       documentType: true,
       projectCategory: true,
@@ -238,7 +241,7 @@ router.get('/master-record/obsolete-register', asyncHandler(async (req, res) => 
 
   const fileCodes = Array.from(new Set(records.map((r) => r.fileCode).filter(Boolean)))
   const docs = fileCodes.length
-    ? await reportsService.getDocumentsByFileCodes(fileCodes)
+    ? await reportsService.getDocumentsByFileCodes(fileCodes, req.user)
     : []
   const docByFileCode = new Map(docs.map((d) => [d.fileCode, d]))
   const pcId = projectCategoryId && projectCategoryId !== 'all' ? parseInt(projectCategoryId, 10) : null
@@ -272,7 +275,7 @@ router.get('/master-record/archive-register', asyncHandler(async (req, res) => {
 
   const fileCodes = Array.from(new Set(records.map((r) => r.fileCode).filter(Boolean)))
   const docs = fileCodes.length
-    ? await reportsService.getDocumentsByFileCodes(fileCodes)
+    ? await reportsService.getDocumentsByFileCodes(fileCodes, req.user)
     : []
   const docByFileCode = new Map(docs.map((d) => [d.fileCode, d]))
   const pcId = projectCategoryId && projectCategoryId !== 'all' ? parseInt(projectCategoryId, 10) : null
@@ -308,8 +311,8 @@ router.post('/master-record/consolidated/import', authorize('admin'), asyncHandl
 
 // Analytics
 router.get('/dashboard', asyncHandler(async (req, res) => {
-  const stats = await reportsService.getDashboardStats();
-  const recentActivity = await reportsService.getRecentActivity();
+  const stats = await reportsService.getDashboardStats(req.user);
+  const recentActivity = await reportsService.getRecentActivity(req.user);
   
   // Format for frontend expectations
   const metrics = {
@@ -323,12 +326,12 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
 }));
 
 router.get('/dashboard-stats', asyncHandler(async (req, res) => {
-  const stats = await reportsService.getDashboardStats();
+  const stats = await reportsService.getDashboardStats(req.user);
   return ResponseFormatter.success(res, { stats });
 }));
 
 router.get('/document-type-stats', asyncHandler(async (req, res) => {
-  const stats = await reportsService.getDocumentTypeStats();
+  const stats = await reportsService.getDocumentTypeStats(req.user);
   return ResponseFormatter.success(res, { stats });
 }));
 
@@ -470,7 +473,7 @@ router.get('/audit-logs', authorize('admin'), asyncHandler(async (req, res) => {
 
 // System Reports
 router.get('/system/stats', requirePermission('logsReport.reports', 'view'), asyncHandler(async (req, res) => {
-  const stats = await reportsService.getSystemReportStats();
+  const stats = await reportsService.getSystemReportStats(req.user);
   return ResponseFormatter.success(res, { stats });
 }));
 

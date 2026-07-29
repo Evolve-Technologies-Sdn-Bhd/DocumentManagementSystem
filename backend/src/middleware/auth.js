@@ -1,6 +1,7 @@
 const { verifyAccessToken } = require('../utils/jwt');
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
 const prisma = require('../config/database');
+const divisionScopeService = require('../services/divisionScopeService');
 
 /**
  * Authenticate user from JWT token
@@ -92,11 +93,14 @@ const authenticate = async (req, res, next) => {
       return acc
     }, {})
 
+    const divisionIds = await divisionScopeService.getUserDivisionIds(session.user.id)
+
     req.user = {
       id: session.user.id,
       email: session.user.email,
       roles: session.user.roles.map(r => r.role.name),
-      permissions: mergedPermissions
+      permissions: mergedPermissions,
+      divisionIds
     };
 
     next();
@@ -191,10 +195,13 @@ const optionalAuth = async (req, res, next) => {
     });
 
     if (session && new Date() <= session.expiresAt) {
+      const divisionIds = await divisionScopeService.getUserDivisionIds(session.user.id)
+
       req.user = {
         id: session.user.id,
         email: session.user.email,
-        roles: session.user.roles.map(r => r.role.name)
+        roles: session.user.roles.map(r => r.role.name),
+        divisionIds
       };
     }
 

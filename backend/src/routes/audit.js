@@ -3,6 +3,7 @@ const { authenticate, authorizePermission } = require('../middleware/auth');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
 const prisma = require('../config/database');
+const divisionScopeService = require('../services/divisionScopeService')
 
 const router = express.Router();
 
@@ -479,6 +480,10 @@ router.get('/analytics', authorizePermission('logsReport.analytics', 'view'), as
   const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   // Previous period for trend comparison
   const prevStartDate = new Date(startDate.getTime() - days * 24 * 60 * 60 * 1000);
+  const [docScopeWhere, prevDocScopeWhere] = await Promise.all([
+    divisionScopeService.buildAccessibleDocumentWhere(req.user, {}),
+    divisionScopeService.buildAccessibleDocumentWhere(req.user, { createdAt: { gte: prevStartDate, lt: startDate } })
+  ])
 
   // Get 7-day activity timeline
   const last7Days = [];
@@ -545,9 +550,10 @@ router.get('/analytics', authorizePermission('logsReport.analytics', 'view'), as
     prisma.user.count({
       where: { status: 'ACTIVE' }
     }),
-    prisma.document.count(),
+    prisma.document.count({ where: docScopeWhere }),
     prisma.document.groupBy({
       by: ['status'],
+      where: docScopeWhere,
       _count: true
     }),
     prisma.auditLog.groupBy({
@@ -582,9 +588,7 @@ router.get('/analytics', authorizePermission('logsReport.analytics', 'view'), as
     prisma.auditLog.count({
       where: { createdAt: { gte: prevStartDate, lt: startDate }, action: 'LOGIN_FAILED' }
     }),
-    prisma.document.count({
-      where: { createdAt: { gte: prevStartDate, lt: startDate } }
-    })
+    prisma.document.count({ where: prevDocScopeWhere })
   ]);
 
   // Calculate trends

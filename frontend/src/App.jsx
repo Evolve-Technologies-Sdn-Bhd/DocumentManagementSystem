@@ -23,6 +23,8 @@ import Layout from './components/Layout'
 import SessionProvider from './components/SessionProvider'
 import RfidEpcRegistry from './components/RfidEpcRegistry'
 import ExpiryTracking from './components/ExpiryTracking'
+import TenderBookRegister from './components/TenderBookRegister'
+import FbEnquiryRegister from './components/FbEnquiryRegister'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
@@ -131,6 +133,26 @@ export default function App() {
             <ProtectedRoute module="expiryTracking" action="view">
               <Layout>
                 <ExpiryTracking />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tender-book"
+          element={
+            <ProtectedRoute module="crm.tenderBook" requireAny>
+              <Layout>
+                <TenderBookRegister />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fb-enquiries"
+          element={
+            <ProtectedRoute module="crm.fbEnquiry" requireAny>
+              <Layout>
+                <FbEnquiryRegister />
               </Layout>
             </ProtectedRoute>
           }

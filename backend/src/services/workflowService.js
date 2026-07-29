@@ -3,6 +3,7 @@ const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/err
 const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
+const divisionScopeService = require('./divisionScopeService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
@@ -212,6 +213,24 @@ class WorkflowService {
         throw new BadRequestError('First approver must be assigned');
       }
 
+      if (!skipApproval && approverId) {
+        const effectiveDivisionIds = document.folderId
+          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+          : document.divisionId
+            ? [document.divisionId]
+            : []
+
+        if (effectiveDivisionIds.length === 0) {
+          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+        }
+
+        const allowedDivisions = new Set(effectiveDivisionIds)
+        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(approverId)
+        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+          throw new BadRequestError('Selected approver must belong to the same division as the document');
+        }
+      }
+
       // Upload reviewed file if provided
       if (file) {
         await this.saveWorkflowFileVersion(document, documentId, userId, file);
@@ -409,6 +428,24 @@ class WorkflowService {
       // Upload approved file if provided
       if (file) {
         await this.saveWorkflowFileVersion(document, documentId, userId, file);
+      }
+
+      if (secondApproverId) {
+        const effectiveDivisionIds = document.folderId
+          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+          : document.divisionId
+            ? [document.divisionId]
+            : []
+
+        if (effectiveDivisionIds.length === 0) {
+          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+        }
+
+        const allowedDivisions = new Set(effectiveDivisionIds)
+        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(secondApproverId)
+        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+          throw new BadRequestError('Selected approver must belong to the same division as the document');
+        }
       }
 
       // If second approver assigned, move to second approval
@@ -658,6 +695,11 @@ class WorkflowService {
       throw new NotFoundError('Folder');
     }
 
+    const folderDivisionIds = await divisionScopeService.getEffectiveFolderDivisionIds(folderId)
+    if (document.divisionId && folderDivisionIds.length > 0 && !folderDivisionIds.includes(document.divisionId)) {
+      throw new ForbiddenError('Selected folder does not match the document division scope')
+    }
+
     const normalizeVersionSegment = (versionSegment) => {
       const raw = String(versionSegment || '').trim()
       if (!raw) return ''
@@ -676,6 +718,7 @@ class WorkflowService {
       data: {
         status: 'PUBLISHED',
         stage: 'PUBLISHED',
+        divisionId: document.divisionId || null,
         folderId,
         publishedById: userId,
         publishedAt: new Date()

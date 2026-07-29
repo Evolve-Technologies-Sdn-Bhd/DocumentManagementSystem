@@ -36,7 +36,9 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
     const fetchApprovers = async () => {
       try {
         setLoadingApprovers(true)
-        const res = await api.get('/users')
+        const res = await api.get('/users', {
+          params: document?.id ? { documentId: document.id } : undefined
+        })
         const users = res.data.data?.users || res.data.users || []
         
         // Get document owner ID to exclude from approvers
@@ -108,7 +110,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
     }
     
     fetchApprovers()
-  }, [])
+  }, [document?.id])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

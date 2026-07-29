@@ -1,3 +1,5 @@
+import { resolveBackendAssetUrl } from './normalizeUrl'
+
 const DEFAULT_FEATURE_PILLS = [
   'RFID Tracking',
   'Live Dashboard',
@@ -118,7 +120,7 @@ export function normalizeLoginPageSettings(settings) {
     heroSection: {
       brandName: merged.heroSection?.brandName || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.brandName,
       platformLabel: merged.heroSection?.platformLabel || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.platformLabel,
-      heroImage: merged.heroSection?.heroImage || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroImage,
+      heroImage: resolveBackendAssetUrl(merged.heroSection?.heroImage || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroImage),
       heroFocalX: focalX,
       heroFocalY: focalY,
       heroTextOffsetX: textOffsetX,

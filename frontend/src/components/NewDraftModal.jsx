@@ -177,6 +177,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     title: '',
     versionNo: '',
     documentType: '',
+    contentFormat: 'FILE',
     comments: '',
     reviewerId: null // Single reviewer instead of array
   })
@@ -218,6 +219,16 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       meta: [reviewer.position, reviewer.department, reviewer.email].filter(Boolean)
     })),
     [availableReviewers]
+  )
+
+  const contentFormatOptions = useMemo(
+    () => ([
+      { value: 'FILE', label: 'File Upload' },
+      { value: 'RICH_TEXT', label: 'Text' },
+      { value: 'CHECKLIST', label: 'Checklist' },
+      { value: 'FORM', label: 'Dynamic Form' }
+    ]),
+    []
   )
 
   // Load document types and reviewers when modal opens
@@ -285,7 +296,22 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const loadReviewers = async () => {
     setLoadingReviewers(true)
     try {
-      const res = await api.get('/users')
+      let divisionId = ''
+      try {
+        const divisionsRes = await api.get('/divisions')
+        const divisions = divisionsRes?.data?.data?.divisions || []
+        const last = String(localStorage.getItem('lastActiveDivisionId') || '').trim()
+        const picked = last && divisions.some((d) => String(d.id) === last)
+          ? last
+          : divisions[0]?.id
+            ? String(divisions[0].id)
+            : ''
+        divisionId = picked
+      } catch {}
+
+      const res = await api.get('/users', {
+        params: divisionId ? { divisionId } : undefined
+      })
       const users = res.data.data?.users || res.data.users || []
       
       // Get current user ID
@@ -408,6 +434,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       formDataToSubmit.append('title', formData.title)
       formDataToSubmit.append('versionNo', formData.versionNo)
       formDataToSubmit.append('documentType', formData.documentType)
+      formDataToSubmit.append('contentFormat', formData.contentFormat)
       formDataToSubmit.append('comments', formData.comments)
       formDataToSubmit.append('status', 'Draft')
       if (selectedFile) {
@@ -425,7 +452,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   }
 
   const handleSubmitForReview = async () => {
-    if (!selectedFile) {
+    if (String(formData.contentFormat) === 'FILE' && !selectedFile) {
       alert('Please upload a document file')
       return
     }
@@ -437,10 +464,13 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       formDataToSubmit.append('title', formData.title)
       formDataToSubmit.append('versionNo', formData.versionNo)
       formDataToSubmit.append('documentType', formData.documentType)
+      formDataToSubmit.append('contentFormat', formData.contentFormat)
       formDataToSubmit.append('comments', formData.comments)
       formDataToSubmit.append('reviewers', JSON.stringify([formData.reviewerId]))
       formDataToSubmit.append('status', 'Ready for Review')
-      formDataToSubmit.append('file', selectedFile)
+      if (selectedFile) {
+        formDataToSubmit.append('file', selectedFile)
+      }
 
       await onSubmit(formDataToSubmit, 'review')
       handleClose()
@@ -458,6 +488,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       title: '',
       versionNo: '',
       documentType: '',
+      contentFormat: 'FILE',
       comments: '',
       reviewerId: null
     })
@@ -558,7 +589,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               </div>
             </div>
 
-            {/* Document Type & Comments */}
+            {/* Document Type & Content Format */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">
@@ -580,22 +611,39 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">
-                  {t('comments_notes')}
+                  Content Format <span className="text-red-500">*</span>
                 </label>
-                <TextArea
-                  value={formData.comments}
-                  onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-                  placeholder={t('input_text')}
-                  rows={3}
-                  className="resize-none"
+                <SearchableSingleSelect
+                  value={formData.contentFormat}
+                  options={contentFormatOptions}
+                  onChange={(value) => setFormData({ ...formData, contentFormat: value })}
+                  placeholder="Select Content Format"
+                  searchPlaceholder="Search Content Format"
+                  noResultsLabel="No Content Format Found"
+                  clearLabel={t('clear_filter')}
+                  loadingLabel={t('loading_ellipsis')}
                 />
               </div>
+            </div>
+
+            {/* Comments */}
+            <div>
+              <label className="block text-sm font-medium text-ink-secondary mb-2">
+                {t('comments_notes')}
+              </label>
+              <TextArea
+                value={formData.comments}
+                onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                placeholder={t('input_text')}
+                rows={3}
+                className="resize-none"
+              />
             </div>
 
             {/* Upload Draft Document */}
             <div>
               <label className="block text-sm font-medium text-ink-secondary mb-2">
-                {t('upload_draft_doc')}
+                {String(formData.contentFormat) === 'FILE' ? t('upload_draft_doc') : 'Attachment (Optional)'}
               </label>
               <div
                 className="rounded-[18px]"
@@ -702,7 +750,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         <Button
           type="button"
           onClick={handleSubmitForReview}
-          disabled={loading || !formData.fileCode || !formData.title || !formData.documentType || !selectedFile || !formData.reviewerId}
+          disabled={loading || !formData.fileCode || !formData.title || !formData.documentType || !formData.reviewerId || (String(formData.contentFormat) === 'FILE' && !selectedFile)}
           data-tour-id="new-draft-submit-review"
         >
           {loading ? t('submitting') : t('submit_for_review')}

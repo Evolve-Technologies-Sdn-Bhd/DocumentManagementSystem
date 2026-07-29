@@ -2,6 +2,7 @@ const path = require('path')
 const prisma = require('../config/database');
 const fileStorageService = require('./fileStorageService')
 const { normalizeIp } = require('../utils/clientIp')
+const divisionScopeService = require('./divisionScopeService')
 
 class ReportsService {
   async getProjectCategoriesByIds(ids = []) {
@@ -14,12 +15,16 @@ class ReportsService {
     })
   }
 
-  async getDocumentsByFileCodes(fileCodes = []) {
+  async getDocumentsByFileCodes(fileCodes = [], user) {
     const list = Array.isArray(fileCodes) ? fileCodes : []
     const norm = Array.from(new Set(list.map((x) => String(x || '').trim()).filter(Boolean)))
     if (norm.length === 0) return []
+    const where = user
+      ? await divisionScopeService.buildAccessibleDocumentWhere(user, { fileCode: { in: norm } })
+      : { fileCode: { in: norm } }
+
     return prisma.document.findMany({
-      where: { fileCode: { in: norm } },
+      where,
       select: {
         fileCode: true,
         projectCategoryId: true,
@@ -103,7 +108,7 @@ class ReportsService {
   /**
    * Get document statistics data
    */
-  async getDocumentStatsData(dateFrom, dateTo, filters = {}) {
+  async getDocumentStatsData(dateFrom, dateTo, filters = {}, user) {
     const where = this.buildDateRangeFilter('createdAt', dateFrom, dateTo);
 
     if (filters.documentTypeId) {
@@ -113,8 +118,10 @@ class ReportsService {
       where.status = filters.status;
     }
 
+    const scopedWhere = user ? await divisionScopeService.buildAccessibleDocumentWhere(user, where) : where
+
     const documents = await prisma.document.findMany({
-      where,
+      where: scopedWhere,
       include: {
         documentType: true,
         owner: {
@@ -1041,7 +1048,60 @@ class ReportsService {
   /**
    * Get dashboard statistics
    */
-  async getDashboardStats() {
+  async getDashboardStats(user) {
+    if (!user || divisionScopeService.isAdminUser(user)) {
+      const [
+        totalDocuments,
+        draftCount,
+        pendingReview,
+        pendingApproval,
+        published,
+        obsolete,
+        totalUsers,
+        activeUsers
+      ] = await Promise.all([
+        prisma.document.count(),
+        prisma.document.count({ where: { status: 'DRAFT' } }),
+        prisma.document.count({ where: { stage: 'REVIEW' } }),
+        prisma.document.count({ where: { stage: 'APPROVAL' } }),
+        prisma.document.count({ where: { status: 'PUBLISHED' } }),
+        prisma.document.count({ where: { status: 'OBSOLETE' } }),
+        prisma.user.count(),
+        prisma.user.count({ where: { status: 'ACTIVE' } })
+      ]);
+
+      return {
+        documents: {
+          total: totalDocuments,
+          draft: draftCount,
+          pendingReview,
+          pendingApproval,
+          published,
+          obsolete
+        },
+        users: {
+          total: totalUsers,
+          active: activeUsers
+        }
+      };
+    }
+
+    const [
+      totalWhere,
+      draftWhere,
+      pendingReviewWhere,
+      pendingApprovalWhere,
+      publishedWhere,
+      obsoleteWhere
+    ] = await Promise.all([
+      divisionScopeService.buildAccessibleDocumentWhere(user, {}),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'DRAFT' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { stage: 'REVIEW' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { stage: 'APPROVAL' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'PUBLISHED' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'OBSOLETE' })
+    ])
+
     const [
       totalDocuments,
       draftCount,
@@ -1052,12 +1112,12 @@ class ReportsService {
       totalUsers,
       activeUsers
     ] = await Promise.all([
-      prisma.document.count(),
-      prisma.document.count({ where: { status: 'DRAFT' } }),
-      prisma.document.count({ where: { stage: 'REVIEW' } }),
-      prisma.document.count({ where: { stage: 'APPROVAL' } }),
-      prisma.document.count({ where: { status: 'PUBLISHED' } }),
-      prisma.document.count({ where: { status: 'OBSOLETE' } }),
+      prisma.document.count({ where: totalWhere }),
+      prisma.document.count({ where: draftWhere }),
+      prisma.document.count({ where: pendingReviewWhere }),
+      prisma.document.count({ where: pendingApprovalWhere }),
+      prisma.document.count({ where: publishedWhere }),
+      prisma.document.count({ where: obsoleteWhere }),
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } })
     ]);
@@ -1081,35 +1141,73 @@ class ReportsService {
   /**
    * Get document type statistics
    */
-  async getDocumentTypeStats() {
-    const documentTypes = await prisma.documentType.findMany({
-      include: {
-        _count: {
-          select: { documents: true }
-        },
-        documents: {
-          select: {
-            status: true
+  async getDocumentTypeStats(user) {
+    if (!user || divisionScopeService.isAdminUser(user)) {
+      const documentTypes = await prisma.documentType.findMany({
+        include: {
+          _count: {
+            select: { documents: true }
+          },
+          documents: {
+            select: {
+              status: true
+            }
           }
         }
-      }
-    });
+      });
 
-    return documentTypes.map(dt => ({
-      id: dt.id,
-      name: dt.name,
-      prefix: dt.prefix,
-      totalDocuments: dt._count.documents,
-      published: dt.documents.filter(d => d.status === 'PUBLISHED').length,
-      draft: dt.documents.filter(d => d.status === 'DRAFT').length
-    }));
+      return documentTypes.map(dt => ({
+        id: dt.id,
+        name: dt.name,
+        prefix: dt.prefix,
+        totalDocuments: dt._count.documents,
+        published: dt.documents.filter(d => d.status === 'PUBLISHED').length,
+        draft: dt.documents.filter(d => d.status === 'DRAFT').length
+      }));
+    }
+
+    const [docTypes, where] = await Promise.all([
+      prisma.documentType.findMany({ select: { id: true, name: true, prefix: true } }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, {})
+    ])
+
+    const groups = await prisma.document.groupBy({
+      by: ['documentTypeId', 'status'],
+      where,
+      _count: { _all: true }
+    })
+
+    const agg = new Map()
+    for (const row of groups) {
+      const key = row.documentTypeId
+      if (!agg.has(key)) agg.set(key, { total: 0, published: 0, draft: 0 })
+      const cur = agg.get(key)
+      cur.total += row._count._all
+      if (row.status === 'PUBLISHED') cur.published += row._count._all
+      if (row.status === 'DRAFT') cur.draft += row._count._all
+    }
+
+    return docTypes.map((dt) => {
+      const counts = agg.get(dt.id) || { total: 0, published: 0, draft: 0 }
+      return {
+        id: dt.id,
+        name: dt.name,
+        prefix: dt.prefix,
+        totalDocuments: counts.total,
+        published: counts.published,
+        draft: counts.draft
+      }
+    })
   }
 
   /**
    * Get recent activity for dashboard
    */
-  async getRecentActivity(limit = 10) {
+  async getRecentActivity(user, limit = 10) {
+    const where = user ? await divisionScopeService.buildAccessibleDocumentWhere(user, {}) : undefined
+
     const recentDocs = await prisma.document.findMany({
+      where,
       take: limit,
       orderBy: { updatedAt: 'desc' },
       include: {

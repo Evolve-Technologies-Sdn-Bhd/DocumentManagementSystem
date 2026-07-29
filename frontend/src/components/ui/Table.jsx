@@ -21,7 +21,7 @@ export function Th({ children, className = '', align = 'left', ...props }) {
   return (
     <th
       className={[
-        'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-soft border-b border-border',
+        'px-4 py-3 text-xs font-semibold text-ink-soft border-b border-border',
         alignClass,
         className
       ].filter(Boolean).join(' ')}

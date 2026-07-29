@@ -9,6 +9,7 @@ const backupController = require('../controllers/backupController');
 const configController = require('../controllers/configController');
 const cleanupController = require('../controllers/cleanupController');
 const securityService = require('../services/securityService');
+const divisionScopeService = require('../services/divisionScopeService')
 const { uploadLandingPdf } = require('../middleware/upload');
 
 /**
@@ -26,11 +27,18 @@ router.get('/info', authenticate, asyncHandler(async (req, res) => {
       where: { status: 'ACTIVE' }
     });
 
+    const docScopeWhere = divisionScopeService.isAdminUser(req.user)
+      ? null
+      : await divisionScopeService.buildAccessibleDocumentWhere(req.user, {})
+
     // Get total documents count
-    const totalDocuments = await prisma.document.count();
+    const totalDocuments = await prisma.document.count({
+      where: docScopeWhere || undefined
+    });
 
     // Get storage information from DocumentVersion table (where file sizes are stored)
     const versions = await prisma.documentVersion.findMany({
+      where: docScopeWhere ? { document: docScopeWhere } : undefined,
       select: { fileSize: true }
     });
 
@@ -55,8 +63,8 @@ router.get('/info', authenticate, asyncHandler(async (req, res) => {
     // Get database size estimate (count records in major tables)
     const [auditLogCount, documentCount, versionCount, userCount] = await Promise.all([
       prisma.auditLog.count(),
-      prisma.document.count(),
-      prisma.documentVersion.count(),
+      prisma.document.count({ where: docScopeWhere || undefined }),
+      prisma.documentVersion.count({ where: docScopeWhere ? { document: docScopeWhere } : undefined }),
       prisma.user.count()
     ]);
     
@@ -177,6 +185,10 @@ router.post('/config/departments', authenticate, configController.createDepartme
 router.put('/config/departments/:id', authenticate, configController.updateDepartment);
 router.patch('/config/departments/:id/restore', authenticate, configController.restoreDepartment);
 router.delete('/config/departments/:id', authenticate, configController.deleteDepartment);
+
+// CRM FB Enquiry lookups
+router.get('/config/crm-fb-enquiry-lookups', authenticate, configController.getCrmFbEnquiryLookups);
+router.put('/config/crm-fb-enquiry-lookups', authenticate, configController.updateCrmFbEnquiryLookups);
 
 // Document Numbering Settings
 router.get('/config/document-numbering', authenticate, configController.getDocumentNumberingSettings);

@@ -25,7 +25,9 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
   const loadReviewers = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/users')
+      const res = await api.get('/users', {
+        params: document?.id ? { documentId: document.id } : undefined
+      })
       const users = res.data.data?.users || res.data.users || []
       
       // Get current user ID to exclude document owner

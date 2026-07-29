@@ -5,13 +5,16 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "node src/index.js",
+    "dev:watch": "nodemon src/index.js",
     "start": "node src/index.js",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed": "node prisma/seed.js",
     "cleanup:orphans:dry": "node scripts/cleanupOrphans.js",
-    "cleanup:orphans": "node scripts/cleanupOrphans.js --apply"
+    "cleanup:orphans": "node scripts/cleanupOrphans.js --apply",
+    "backfill:project-divisions:dry": "node scripts/backfillProjectDivisions.js",
+    "backfill:project-divisions": "node scripts/backfillProjectDivisions.js --apply"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -32,5 +35,8 @@
     "prisma": "^5.6.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

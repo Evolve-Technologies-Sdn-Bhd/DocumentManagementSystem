@@ -19,6 +19,9 @@ body {
   color: var(--dms-color-text-primary);
   transition: background-color 180ms ease, color 180ms ease;
 }
+button, input, select, textarea {
+  font-family: inherit;
+}
 .app-topbar { background-color: var(--dms-color-bg-topbar); }
 .app-sidebar { 
   background-color: var(--dms-color-bg-sidebar);

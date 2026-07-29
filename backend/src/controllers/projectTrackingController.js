@@ -25,7 +25,8 @@ exports.listProjects = asyncHandler(async (req, res) => {
 
   const projects = await projectTrackingService.listProjects({
     projectCategoryId,
-    search
+    search,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, { projects }, 'Projects retrieved successfully');
@@ -45,6 +46,7 @@ exports.createProject = asyncHandler(async (req, res) => {
     scope,
     objective,
     deliverables,
+    divisionId,
     projectCategoryId,
     managerId
   } = req.body;
@@ -66,9 +68,11 @@ exports.createProject = asyncHandler(async (req, res) => {
     scope: normalizeOptionalText(scope),
     objective: normalizeOptionalText(objective),
     deliverables: normalizeOptionalText(deliverables),
+    divisionId: divisionId !== undefined ? divisionId : null,
     projectCategoryId: Number(projectCategoryId),
     managerId: Number(managerId),
-    createdById: req.user.id
+    createdById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, { project }, 'Project created successfully');
@@ -133,7 +137,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
     deliverables: deliverables !== undefined ? normalizeOptionalText(deliverables) : undefined,
     managerId: managerId !== undefined ? Number(managerId) : undefined,
     status: status !== undefined ? String(status) : undefined,
-    updatedById: req.user.id
+    updatedById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, { project }, 'Project updated successfully');
@@ -143,7 +148,7 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!projectId) throw new ValidationError('Invalid projectId');
 
-  await projectTrackingService.deleteProject(projectId, { deletedById: req.user.id });
+  await projectTrackingService.deleteProject(projectId, { deletedById: req.user.id, user: req.user });
   return ResponseFormatter.success(res, {}, 'Project deleted successfully');
 });
 
@@ -159,6 +164,7 @@ exports.listProjectRequiredDocuments = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const result = await projectTrackingService.listProjectRequiredDocuments(projectId, { user: req.user })
   return ResponseFormatter.success(res, result, 'Required documents retrieved successfully')
 })
@@ -167,6 +173,7 @@ exports.setProjectRequiredDocumentPic = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const stageId = req.body?.stageId ? Number(req.body.stageId) : null
   if (!stageId) throw new ValidationError('stageId is required')
 
@@ -188,6 +195,7 @@ exports.getProjectActivityLogs = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const page = req.query?.page ? Number(req.query.page) : 1
   const limit = req.query?.limit ? Number(req.query.limit) : 20
 
@@ -199,6 +207,7 @@ exports.listProjectChangeRequests = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const iterationId = req.query?.iterationId ? Number(req.query.iterationId) : undefined
   if (req.query?.iterationId && !iterationId) throw new ValidationError('Invalid iterationId')
 
@@ -210,6 +219,7 @@ exports.createProjectChangeRequest = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const {
     projectIterationId,
     changeId,
@@ -297,6 +307,7 @@ exports.createIteration = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!projectId) throw new ValidationError('Invalid projectId');
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const { name } = req.body || {};
 
   const iteration = await projectTrackingService.createIteration(projectId, {
@@ -539,6 +550,7 @@ exports.getProjectSetupStages = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const stages = await projectTrackingService.getProjectSetupStages(projectId)
   return ResponseFormatter.success(res, { stages }, 'Project setup stages retrieved successfully')
 })
@@ -547,6 +559,7 @@ exports.createProjectSetupStage = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const { name, displayName } = req.body || {}
   if (!name) throw new ValidationError('name is required')
 
@@ -563,6 +576,7 @@ exports.updateProjectSetupStages = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const { stages } = req.body || {}
   if (!Array.isArray(stages)) throw new ValidationError('stages must be an array')
 
@@ -574,6 +588,7 @@ exports.listProjectSetupRequirements = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const requirements = await projectTrackingService.listProjectSetupRequirements(projectId)
   return ResponseFormatter.success(res, { requirements }, 'Project setup requirements retrieved successfully')
 })
@@ -582,6 +597,7 @@ exports.createProjectSetupRequirement = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId)
   if (!projectId) throw new ValidationError('Invalid projectId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const { stageId, documentTypeId, isRequired, isConfidentialDefault } = req.body || {}
   if (!stageId || !documentTypeId) {
     throw new ValidationError('stageId and documentTypeId are required')
@@ -604,6 +620,7 @@ exports.deleteProjectSetupRequirement = asyncHandler(async (req, res) => {
   if (!projectId) throw new ValidationError('Invalid projectId')
   if (!requirementId) throw new ValidationError('Invalid requirementId')
 
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   await projectTrackingService.deleteProjectSetupRequirement(projectId, requirementId, { deletedById: req.user.id })
   return ResponseFormatter.success(res, {}, 'Requirement deleted successfully')
 })
@@ -613,6 +630,7 @@ exports.getProjectSetupRequirementConfidentialAccess = asyncHandler(async (req, 
   const requirementId = Number(req.params.requirementId)
   if (!projectId) throw new ValidationError('Invalid projectId')
   if (!requirementId) throw new ValidationError('Invalid requirementId')
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const data = await projectTrackingService.getProjectSetupRequirementConfidentialAccess(projectId, requirementId)
   return ResponseFormatter.success(res, data, 'Requirement confidential access retrieved successfully')
 })
@@ -622,6 +640,7 @@ exports.updateProjectSetupRequirementConfidentialAccess = asyncHandler(async (re
   const requirementId = Number(req.params.requirementId)
   if (!projectId) throw new ValidationError('Invalid projectId')
   if (!requirementId) throw new ValidationError('Invalid requirementId')
+  await projectTrackingService.assertProjectAccess(projectId, req.user)
   const data = await projectTrackingService.updateProjectSetupRequirementConfidentialAccess(projectId, requirementId, req.user, req.body || {})
   return ResponseFormatter.success(res, data, 'Requirement confidential access updated successfully')
 })

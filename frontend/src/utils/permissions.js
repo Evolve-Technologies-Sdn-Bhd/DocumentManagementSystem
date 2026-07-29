@@ -169,6 +169,8 @@ export const MODULE_ROUTES = {
   'dashboard': '/dashboard',
   'projectTracking': '/project-tracking',
   'expiryTracking': '/expiry-tracking',
+  'crm.tenderBook': '/tender-book',
+  'crm.fbEnquiry': '/fb-enquiries',
   'documents.draft': '/drafts',
   'documents.review': '/review-approval',
   'documents.published': '/published',

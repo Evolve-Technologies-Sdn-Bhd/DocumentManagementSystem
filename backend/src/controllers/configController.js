@@ -646,6 +646,34 @@ exports.getLoginPageSettings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get CRM FB enquiry lookup values
+ * @route   GET /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.getCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.getCrmFbEnquiryLookups()
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups retrieved successfully'
+  )
+})
+
+/**
+ * @desc    Update CRM FB enquiry lookup values
+ * @route   PUT /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.updateCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.updateCrmFbEnquiryLookups(req.body || {})
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups updated successfully'
+  )
+})
+
+/**
  * @desc    Update login page settings (global)
  * @route   PUT /api/system/config/login-page-settings
  * @access  Private (Admin)

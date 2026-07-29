@@ -22,6 +22,7 @@ const divisionsRoutes = require('./routes/divisions');
 const epcRegistryRoutes = require('./routes/epcRegistry');
 const projectTrackingRoutes = require('./routes/projectTracking');
 const expiryTrackingRoutes = require('./routes/expiryTracking');
+const crmRoutes = require('./routes/crm');
 const notificationService = require('./services/notificationService');
 
 const app = express();
@@ -127,7 +128,8 @@ app.get(['/api', '/api/'], (req, res) => {
       notifications: '/api/notifications',
       epcRegistry: '/api/epc-registry',
       projectTracking: '/api/project-tracking',
-      expiryTracking: '/api/expiry-tracking'
+      expiryTracking: '/api/expiry-tracking',
+      crm: '/api/crm'
     }
   }, 'API root');
 });
@@ -149,6 +151,7 @@ app.use('/api/divisions', divisionsRoutes);
 app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
+app.use('/api/crm', crmRoutes);
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access

@@ -5,6 +5,41 @@ const documentAssignmentService = require('./documentAssignmentService')
 const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
 const notificationService = require('./notificationService')
+const divisionScopeService = require('./divisionScopeService')
+
+const getAllowedDivisionIdsForUser = (user) => {
+  return divisionScopeService.normalizeDivisionIds(user?.divisionIds || [])
+}
+
+const assertUserCanAccessProjectDivision = (user, projectDivisionId) => {
+  if (divisionScopeService.isAdminUser(user)) return
+
+  const allowedDivisionIds = getAllowedDivisionIdsForUser(user)
+  if (allowedDivisionIds.length === 0) {
+    throw new ForbiddenError("You don't have access to this project")
+  }
+
+  const normalizedProjectDivisionId = Number.isFinite(projectDivisionId) ? projectDivisionId : Number.parseInt(projectDivisionId, 10)
+  if (!Number.isFinite(normalizedProjectDivisionId) || !allowedDivisionIds.includes(normalizedProjectDivisionId)) {
+    throw new ForbiddenError("You don't have access to this project")
+  }
+}
+
+const requireAccessibleProject = async (projectId, user, extra = {}) => {
+  const normalizedProjectId = Number.parseInt(projectId, 10)
+  if (!Number.isFinite(normalizedProjectId)) {
+    throw new ValidationError('Invalid projectId')
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: normalizedProjectId },
+    ...extra
+  })
+
+  if (!project) throw new NotFoundError('Project')
+  assertUserCanAccessProjectDivision(user, project.divisionId)
+  return project
+}
 
 // #region debug-point A:runtime-reporter
 const __ptDebugReport = (payload) => {
@@ -133,6 +168,7 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 
   return {
     id: true,
+    divisionId: true,
     folderId: true,
     fileCode: true,
     title: true,
@@ -287,8 +323,12 @@ const canUserAccessFolderAction = async (folderId, user, roleIds = [], action, c
 const serializeLinkedDocumentForUser = async (document, user, userRoleIds = [], folderAccessCache) => {
   if (!document) return document
   const confidentialOk = canInteractWithLinkedDocument(document, user, userRoleIds)
-  const canViewFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'view', folderAccessCache)
-  const canDownloadFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'download', folderAccessCache)
+  const canViewFolder = document.folderId
+    ? await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'view', folderAccessCache)
+    : user?.permissions?.all === true || (Boolean(document.divisionId) && Array.isArray(user?.divisionIds) && user.divisionIds.includes(document.divisionId))
+  const canDownloadFolder = document.folderId
+    ? await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'download', folderAccessCache)
+    : user?.permissions?.all === true || (Boolean(document.divisionId) && Array.isArray(user?.divisionIds) && user.divisionIds.includes(document.divisionId))
   const canAccess = confidentialOk && canViewFolder && canDownloadFolder
   const { ownerId, createdById, confidentialAccess, ...safeDocument } = document
   return {
@@ -584,7 +624,7 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
   }
 }
 
-exports.listProjects = async ({ projectCategoryId, search }) => {
+exports.listProjects = async ({ projectCategoryId, search, user } = {}) => {
   const where = {};
   if (projectCategoryId) where.projectCategoryId = projectCategoryId;
   if (search) {
@@ -594,10 +634,17 @@ exports.listProjects = async ({ projectCategoryId, search }) => {
     ];
   }
 
+  if (!divisionScopeService.isAdminUser(user)) {
+    const divisionIds = getAllowedDivisionIdsForUser(user)
+    if (divisionIds.length === 0) return []
+    where.divisionId = { in: divisionIds }
+  }
+
   return prisma.project.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       iterations: {
@@ -625,11 +672,11 @@ exports.updateProject = async (
     deliverables,
     managerId,
     status,
-    updatedById
+    updatedById,
+    user
   }
 ) => {
-  const existing = await prisma.project.findUnique({
-    where: { id: projectId },
+  const existing = await requireAccessibleProject(projectId, user, {
     select: {
       id: true,
       name: true,
@@ -645,10 +692,10 @@ exports.updateProject = async (
       deliverables: true,
       managerId: true,
       status: true,
-      code: true
+      code: true,
+      divisionId: true
     }
   })
-  if (!existing) throw new NotFoundError('Project')
 
   const nextData = {}
   if (name !== undefined) {
@@ -719,6 +766,7 @@ exports.updateProject = async (
     where: { id: projectId },
     data: nextData,
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -739,6 +787,7 @@ exports.updateProject = async (
       metadata: {
         projectId,
         code: existing.code,
+        divisionId: existing.divisionId,
         previousStatus: existing.status,
         nextStatus: project.status,
         changedFields: Object.keys(nextData)
@@ -749,12 +798,10 @@ exports.updateProject = async (
   return project
 }
 
-exports.deleteProject = async (projectId, { deletedById }) => {
-  const existing = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, code: true }
+exports.deleteProject = async (projectId, { deletedById, user } = {}) => {
+  const existing = await requireAccessibleProject(projectId, user, {
+    select: { id: true, code: true, divisionId: true }
   })
-  if (!existing) throw new NotFoundError('Project')
 
   await prisma.project.delete({ where: { id: projectId } })
 
@@ -765,7 +812,7 @@ exports.deleteProject = async (projectId, { deletedById }) => {
       entity: 'Project',
       entityId: projectId,
       description: `projectId=${projectId} deleted project ${existing.code}`,
-      metadata: { projectId, code: existing.code }
+      metadata: { projectId, code: existing.code, divisionId: existing.divisionId }
     }
   })
 }
@@ -783,9 +830,11 @@ exports.createProject = async ({
   scope,
   objective,
   deliverables,
+  divisionId,
   projectCategoryId,
   managerId,
-  createdById
+  createdById,
+  user
 }) => {
   const existing = await prisma.project.findUnique({ where: { code }, select: { id: true } });
   if (existing) throw new ConflictError('Project code already exists');
@@ -793,12 +842,28 @@ exports.createProject = async ({
   const category = await prisma.projectCategory.findUnique({ where: { id: projectCategoryId }, select: { id: true } });
   if (!category) throw new NotFoundError('Project category');
 
+  const allowedDivisionIds = divisionScopeService.isAdminUser(user) ? null : getAllowedDivisionIdsForUser(user)
+  const normalizedDivisionId = divisionId === undefined || divisionId === null || divisionId === ''
+    ? null
+    : Number.parseInt(divisionId, 10)
+
+  const resolvedDivisionId = normalizedDivisionId || (await divisionScopeService.getPrimaryDivisionIdForUser(user))
+  if (!divisionScopeService.isAdminUser(user)) {
+    if (!resolvedDivisionId) {
+      throw new ForbiddenError("You don't have access to create a project without a division")
+    }
+    if (!allowedDivisionIds || allowedDivisionIds.length === 0 || !allowedDivisionIds.includes(resolvedDivisionId)) {
+      throw new ForbiddenError("You don't have access to create a project for this division")
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const project = await tx.project.create({
       data: {
         code,
         name,
         description,
+        divisionId: resolvedDivisionId || null,
         clientName,
         clientPic,
         teamMembers,
@@ -835,13 +900,14 @@ exports.createProject = async ({
         entity: 'Project',
         entityId: project.id,
         description: `projectId=${project.id} created project ${code}`,
-        metadata: { projectId: project.id, code, status: 'ACTIVE' }
+        metadata: { projectId: project.id, code, status: 'ACTIVE', divisionId: project.divisionId || null }
       }
     })
 
     return tx.project.findUnique({
       where: { id: project.id },
       include: {
+        division: true,
         projectCategory: true,
         manager: { select: { id: true, email: true, firstName: true, lastName: true } },
         createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -852,17 +918,15 @@ exports.createProject = async ({
 };
 
 exports.getProject = async (projectId, { user } = {}) => {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+  const project = await requireAccessibleProject(projectId, user, {
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
       iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
     }
-  });
-
-  if (!project) throw new NotFoundError('Project');
+  })
 
   const enabledStages = mapEnabledStagesForView(await getEnabledStagesForProject(project.id));
   const stageNameMap = new Map(enabledStages.map((stage) => [stage.stageId, stage.name]));
@@ -902,6 +966,10 @@ exports.getProject = async (projectId, { user } = {}) => {
     }))
   };
 };
+
+exports.assertProjectAccess = async (projectId, user) => {
+  await requireAccessibleProject(projectId, user, { select: { id: true, divisionId: true } })
+}
 
 exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
   const project = await prisma.project.findUnique({
@@ -2158,6 +2226,19 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
   const andWhere = []
   if (user?.id) {
     andWhere.push(documentAssignmentService.buildAccessWhereClause(user.id, roleIds))
+    const accessibleFolderIds = await divisionScopeService.getAccessibleFolderIdsForUser(user)
+    const accessibleDivisionIds = Array.isArray(user?.divisionIds) ? divisionScopeService.normalizeDivisionIds(user.divisionIds) : []
+    andWhere.push({
+      OR: [
+        { folderId: { in: accessibleFolderIds } },
+        {
+          AND: [
+            { folderId: null },
+            { divisionId: { in: accessibleDivisionIds } }
+          ]
+        }
+      ]
+    })
   }
   if (user) {
     andWhere.push(confidentialAccessService.buildConfidentialWhereClause(user, roleIds))

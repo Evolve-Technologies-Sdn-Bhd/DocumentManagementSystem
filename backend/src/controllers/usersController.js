@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const auditLogService = require('../services/auditLogService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
+const divisionScopeService = require('../services/divisionScopeService')
 
 const prisma = new PrismaClient();
 const DEFAULT_PASSWORD = process.env.DEFAULT_USER_PASSWORD || 'Password123!';
@@ -13,7 +14,57 @@ class UsersController {
    * GET /api/users
    */
   getAllUsers = asyncHandler(async (req, res) => {
+    const divisionIdRaw = req.query?.divisionId
+    const documentIdRaw = req.query?.documentId
+
+    const requesterIsAdmin = divisionScopeService.isAdminUser(req.user)
+    const requesterDivisionIds = requesterIsAdmin ? null : divisionScopeService.normalizeDivisionIds(req.user?.divisionIds || [])
+
+    let targetDivisionIds = null
+
+    if (documentIdRaw) {
+      const documentId = Number.parseInt(documentIdRaw, 10)
+      if (Number.isFinite(documentId)) {
+        const doc = await prisma.document.findUnique({
+          where: { id: documentId },
+          select: { id: true, folderId: true, divisionId: true }
+        })
+
+        if (doc?.folderId) {
+          targetDivisionIds = await divisionScopeService.getEffectiveFolderDivisionIds(doc.folderId)
+        } else if (doc?.divisionId) {
+          targetDivisionIds = [doc.divisionId]
+        } else {
+          targetDivisionIds = []
+        }
+      }
+    } else if (divisionIdRaw !== undefined) {
+      const divisionId = Number.parseInt(divisionIdRaw, 10)
+      targetDivisionIds = Number.isFinite(divisionId) ? [divisionId] : []
+    }
+
+    if (!requesterIsAdmin) {
+      if (!requesterDivisionIds || requesterDivisionIds.length === 0) {
+        return ResponseFormatter.success(res, { users: [] }, 'Users retrieved successfully')
+      }
+      if (!targetDivisionIds) {
+        targetDivisionIds = requesterDivisionIds
+      } else {
+        const allowed = new Set(requesterDivisionIds)
+        targetDivisionIds = targetDivisionIds.filter((id) => allowed.has(id))
+      }
+    }
+
+    if (Array.isArray(targetDivisionIds) && targetDivisionIds.length === 0) {
+      return ResponseFormatter.success(res, { users: [] }, 'Users retrieved successfully')
+    }
+
+    const where = Array.isArray(targetDivisionIds)
+      ? { divisions: { some: { divisionId: { in: targetDivisionIds } } } }
+      : undefined
+
     const users = await prisma.user.findMany({
+      where,
       include: {
         roles: {
           include: {

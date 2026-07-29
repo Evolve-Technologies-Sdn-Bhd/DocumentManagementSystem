@@ -401,6 +401,7 @@ export default function PublishedDocuments() {
         lastModified: folder.createdAt ? formatDate(folder.createdAt) : '-',
         status: '-',
         canCreate: Boolean(folder.canCreate),
+        canDownload: Boolean(folder.canDownload),
         canEdit: Boolean(folder.canEdit),
         canManage: Boolean(folder.canManage)
       }))
@@ -1990,7 +1991,22 @@ export default function PublishedDocuments() {
                                 )
                               ]}
                             />
-                          ) : null}
+                          ) : (
+                            <ActionMenu
+                              actions={[
+                                ...(doc.canDownload ? [{ label: t('download_folder'), onClick: () => handleDownloadFolder({ id: doc.folderId, name: getItemDisplayName(doc) }) }] : []),
+                                ...((doc.canEdit || doc.canManage || isAdmin)
+                                  ? [{ label: 'Rename', onClick: () => openRename('folder', doc.folderId, getItemDisplayName(doc)) }]
+                                  : []),
+                                ...(doc.canManage
+                                  ? [{ label: 'Manage Access', onClick: () => openManageAccess({ id: doc.folderId, name: getItemDisplayName(doc) }) }]
+                                  : []),
+                                ...(isAdmin
+                                  ? [{ label: 'Delete as Admin', onClick: () => handleDeleteFolder(doc.folderId, getItemDisplayName(doc)), variant: 'destructive' }]
+                                  : [])
+                              ]}
+                            />
+                          )}
                         </Td>
                       </Tr>
                     ))

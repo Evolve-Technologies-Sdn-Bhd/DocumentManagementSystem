@@ -11,6 +11,7 @@ const config = require('../config/app');
 const prisma = require('../config/database');
 const documentAssignmentService = require('../services/documentAssignmentService');
 const confidentialAccessService = require('../services/confidentialAccessService')
+const divisionScopeService = require('../services/divisionScopeService')
 const folderService = require('../services/folderService')
 const documentShareLinkService = require('../services/documentShareLinkService')
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing')
@@ -129,13 +130,20 @@ const getLatestApprovalActorName = (approvalHistory = [], action) => {
   return getUserDisplayName(entry?.user)
 }
 
+const normalizeContentFormat = (value) => {
+  const v = String(value || '').trim().toUpperCase()
+  if (!v) return 'FILE'
+  if (['FILE', 'RICH_TEXT', 'CHECKLIST', 'FORM', 'LINK', 'TABLE'].includes(v)) return v
+  return 'FILE'
+}
+
 class DocumentController {
   /**
    * Create new document
    * POST /api/documents
    */
   createDocument = asyncHandler(async (req, res) => {
-    const { title, description, documentTypeId, projectCategoryId, folderId } = req.body;
+    const { title, description, documentTypeId, projectCategoryId, folderId, contentFormat } = req.body;
 
     // Validation
     const errors = [];
@@ -151,7 +159,8 @@ class DocumentController {
       description,
       documentTypeId: parseInt(documentTypeId),
       projectCategoryId: projectCategoryId ? parseInt(projectCategoryId) : null,
-      folderId: folderId ? parseInt(folderId) : null
+      folderId: folderId ? parseInt(folderId) : null,
+      contentFormat: normalizeContentFormat(contentFormat)
     }, req.user.id);
 
     return ResponseFormatter.success(
@@ -1059,11 +1068,13 @@ class DocumentController {
       assignmentFilters.push({ stage: 'READY_TO_PUBLISH' });
     }
     
+    const where = await divisionScopeService.buildAccessibleDocumentWhere(req.user, {
+      stage: { in: stages },
+      OR: assignmentFilters
+    })
+
     const documents = await prisma.document.findMany({
-      where: {
-        stage: { in: stages },
-        OR: assignmentFilters
-      },
+      where,
       include: {
         documentType: true,
         projectCategory: true,
@@ -2208,8 +2219,10 @@ class DocumentController {
       })
     }
 
+    const scopedWhere = await divisionScopeService.buildAccessibleDocumentWhere(req.user, where)
+
     const documents = await prisma.document.findMany({
-      where,
+      where: scopedWhere,
       include: {
         documentType: true,
         projectCategory: true,
@@ -2420,19 +2433,123 @@ class DocumentController {
     );
   });
 
+  createDraft = asyncHandler(async (req, res) => {
+    const { fileCode, title, versionNo, documentType, comments, contentFormat } = req.body;
+
+    const errors = [];
+    if (!fileCode) errors.push({ field: 'fileCode', message: 'File code is required' });
+    if (!title) errors.push({ field: 'title', message: 'Title is required' });
+    if (!documentType) errors.push({ field: 'documentType', message: 'Document type is required' });
+
+    if (errors.length > 0) {
+      return ResponseFormatter.validationError(res, errors);
+    }
+
+    const normalizedContentFormat = normalizeContentFormat(contentFormat)
+    const trimmedFileCode = String(fileCode || '').trim();
+    const normalizedFileCode = await documentService.normalizeFileCodeFromSystemSettings(trimmedFileCode);
+    const candidateFileCodes = Array.from(new Set([trimmedFileCode, normalizedFileCode].filter(Boolean)));
+
+    const existingDocument = await prisma.document.findFirst({
+      where: {
+        fileCode: { in: candidateFileCodes },
+        ownerId: req.user.id
+      }
+    });
+
+    let documentId;
+    let savedFileCode = trimmedFileCode;
+
+    if (existingDocument) {
+      documentId = existingDocument.id;
+      savedFileCode = existingDocument.fileCode;
+
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          title,
+          description: comments,
+          version: versionNo || existingDocument.version,
+          contentFormat: normalizedContentFormat
+        }
+      });
+    } else {
+      const docType = await documentService.getDocumentTypeByName(documentType);
+      if (!docType) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'documentType', message: 'Invalid document type' }
+        ]);
+      }
+
+      const newDocument = await documentService.createDocumentWithFileCode({
+        fileCode: normalizedFileCode || trimmedFileCode,
+        title,
+        description: comments,
+        documentTypeId: docType.id,
+        projectCategoryId: null,
+        folderId: null,
+        contentFormat: normalizedContentFormat
+      }, req.user.id, {
+        version: versionNo || '1.0',
+        status: 'ACKNOWLEDGED',
+        stage: 'DRAFT'
+      });
+
+      documentId = newDocument.id;
+      savedFileCode = newDocument.fileCode;
+    }
+
+    if (req.file) {
+      const uploadedVersion = await documentService.uploadDocumentVersion(
+        documentId,
+        req.file,
+        req.user.id
+      );
+
+      const actorUserId = req.user?.id || null
+      const auditReq = buildAuditRequestContext(req)
+      const uploadFileName = req.file.originalname
+      queueBackgroundTask('draft-upload-followup', async () => {
+        await epcRegistryService.generateForUploadedDraft(documentId, uploadedVersion.id, {
+          ...auditReq,
+          user: { id: actorUserId }
+        })
+
+        await auditLogService.logDocument(actorUserId, 'DRAFT_UPLOAD', { id: documentId, fileCode: savedFileCode }, auditReq, {
+          fileName: uploadFileName,
+          title,
+          versionNo
+        });
+      })
+    }
+
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { documentType: true, owner: true }
+    })
+
+    return ResponseFormatter.success(
+      res,
+      { document },
+      'Draft saved successfully',
+      201
+    );
+  });
+
   /**
    * Create new draft and submit for review
    * POST /api/documents/drafts/submit-for-review
    */
   createDraftAndSubmitForReview = asyncHandler(async (req, res) => {
-    const { fileCode, title, versionNo, documentType, comments, reviewers } = req.body;
+    const { fileCode, title, versionNo, documentType, comments, reviewers, contentFormat } = req.body;
 
     // Validation
     const errors = [];
     if (!fileCode) errors.push({ field: 'fileCode', message: 'File code is required' });
     if (!title) errors.push({ field: 'title', message: 'Title is required' });
     if (!documentType) errors.push({ field: 'documentType', message: 'Document type is required' });
-    if (!req.file) errors.push({ field: 'file', message: 'File is required' });
+    const normalizedContentFormat = normalizeContentFormat(contentFormat)
+    if (normalizedContentFormat === 'FILE' && !req.file) errors.push({ field: 'file', message: 'File is required' });
     
     // Parse reviewers
     let reviewerIds = [];
@@ -2479,7 +2596,8 @@ class DocumentController {
         data: {
           title,
           description: comments,
-          version: versionNo || existingDocument.version
+          version: versionNo || existingDocument.version,
+          contentFormat: normalizedContentFormat
         }
       });
     } else {
@@ -2498,7 +2616,8 @@ class DocumentController {
         description: comments,
         documentTypeId: docType.id,
         projectCategoryId: null,
-        folderId: null
+        folderId: null,
+        contentFormat: normalizedContentFormat
       }, req.user.id, {
         version: versionNo || '1.0',
         status: 'ACKNOWLEDGED',
@@ -2509,40 +2628,41 @@ class DocumentController {
       savedFileCode = newDocument.fileCode;
     }
 
-    // Upload file
-    const uploadedVersion = await documentService.uploadDocumentVersion(
-      documentId,
-      req.file,
-      req.user.id
-    );
-
-    const actorUserId = req.user?.id || null
-    const auditReq = buildAuditRequestContext(req)
-    const uploadFileName = req.file.originalname
-    queueBackgroundTask('draft-upload-followup', async () => {
-      const backgroundTimings = {
+    if (req.file) {
+      const uploadedVersion = await documentService.uploadDocumentVersion(
         documentId,
-        versionId: uploadedVersion.id,
-        userId: actorUserId
-      }
+        req.file,
+        req.user.id
+      );
 
-      const epcStart = startTimer()
-      await epcRegistryService.generateForUploadedDraft(documentId, uploadedVersion.id, {
-        ...auditReq,
-        user: { id: actorUserId }
+      const actorUserId = req.user?.id || null
+      const auditReq = buildAuditRequestContext(req)
+      const uploadFileName = req.file.originalname
+      queueBackgroundTask('draft-upload-followup', async () => {
+        const backgroundTimings = {
+          documentId,
+          versionId: uploadedVersion.id,
+          userId: actorUserId
+        }
+
+        const epcStart = startTimer()
+        await epcRegistryService.generateForUploadedDraft(documentId, uploadedVersion.id, {
+          ...auditReq,
+          user: { id: actorUserId }
+        })
+        backgroundTimings.epcGenerationMs = roundMs(getElapsedMs(epcStart))
+
+        const auditStart = startTimer()
+        await auditLogService.logDocument(actorUserId, 'DRAFT_UPLOAD', { id: documentId, fileCode: savedFileCode }, auditReq, {
+          fileName: uploadFileName,
+          title,
+          versionNo
+        });
+        backgroundTimings.auditLogMs = roundMs(getElapsedMs(auditStart))
+
+        return backgroundTimings
       })
-      backgroundTimings.epcGenerationMs = roundMs(getElapsedMs(epcStart))
-
-      const auditStart = startTimer()
-      await auditLogService.logDocument(actorUserId, 'DRAFT_UPLOAD', { id: documentId, fileCode: savedFileCode }, auditReq, {
-        fileName: uploadFileName,
-        title,
-        versionNo
-      });
-      backgroundTimings.auditLogMs = roundMs(getElapsedMs(auditStart))
-
-      return backgroundTimings
-    })
+    }
 
     // Submit for review
     const finalDocument = await documentService.submitDraftForReview(

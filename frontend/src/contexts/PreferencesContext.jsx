@@ -32,6 +32,8 @@ const translations = {
     'master_record': 'Master Record',
     'profile_settings': 'Profile Settings',
     'rfid_epc_encoder': 'RFID EPC Encoder',
+    'tender_book_register': 'Tender Book Register',
+    'fb_enquiry_register': 'FB Enquiry Register',
     
     // Dashboard
     'dashboard_overview': 'Dashboard Overview',
@@ -303,8 +305,17 @@ const translations = {
 
     // Statuses
     'status_draft': 'Draft',
+    'status_submitted': 'Submitted',
     'status_drafting': 'Drafting',
     'status_in_progress': 'In Progress',
+    'status_won': 'Won',
+    'status_lost': 'Lost',
+    'status_in_pipeline': 'In Pipeline',
+    'status_contacted': 'Contacted',
+    'status_qualified': 'Qualified',
+    'status_quotation_provided': 'Quotation Provided',
+    'status_converted': 'Converted',
+    'status_new': 'New',
     'status_waiting_review': 'Waiting for Review',
     'status_in_review': 'In Review',
     'status_ready_review': 'Ready for Review',
@@ -316,6 +327,7 @@ const translations = {
     'status_ready_publish': 'Ready to Publish',
     'status_needs_revision': 'Needs Revision',
     'status_pending': 'Pending',
+    'status_kiv': 'KIV',
     'status_pending_ack': 'Pending Acknowledgment',
     'status_in_process': 'In Process',
     'status_acknowledged': 'Acknowledged',
@@ -1317,6 +1329,8 @@ const translations = {
     'master_record': 'Rekod Induk',
     'profile_settings': 'Tetapan Profil',
     'rfid_epc_encoder': 'RFID EPC Encoder',
+    'tender_book_register': 'Daftar Buku Tender',
+    'fb_enquiry_register': 'Daftar Pertanyaan FB',
     
     // Dashboard
     'dashboard_overview': 'Gambaran Keseluruhan',
@@ -1575,8 +1589,17 @@ const translations = {
 
     // Statuses
     'status_draft': 'Draf',
+    'status_submitted': 'Dihantar',
     'status_drafting': 'Mendraf',
     'status_in_progress': 'Sedang Diproses',
+    'status_won': 'Menang',
+    'status_lost': 'Kalah',
+    'status_in_pipeline': 'Dalam Pipeline',
+    'status_contacted': 'Dihubungi',
+    'status_qualified': 'Layak',
+    'status_quotation_provided': 'Sebutharga Diberikan',
+    'status_converted': 'Ditukar',
+    'status_new': 'Baharu',
     'status_waiting_review': 'Menunggu Semakan',
     'status_in_review': 'Dalam Semakan',
     'status_ready_review': 'Sedia untuk Semakan',
@@ -1588,6 +1611,7 @@ const translations = {
     'status_ready_publish': 'Sedia untuk Diterbitkan',
     'status_needs_revision': 'Perlu Semakan Semula',
     'status_pending': 'Menunggu',
+    'status_kiv': 'KIV',
     'status_pending_ack': 'Menunggu Pengakuan',
     'status_in_process': 'Dalam Proses',
     'status_acknowledged': 'Diakui',
@@ -2837,6 +2861,7 @@ const translations = {
 
     // Statuses
     'status_draft': '草稿',
+    'status_submitted': '已提交',
     'status_drafting': '起草中',
     'status_in_progress': '进行中',
     'status_waiting_review': '等待审核',
@@ -2850,6 +2875,7 @@ const translations = {
     'status_ready_publish': '准备发布',
     'status_needs_revision': '需要修订',
     'status_pending': '待定',
+    'status_kiv': '保留观察',
     'status_pending_ack': '待确认',
     'status_in_process': '处理中',
     'status_acknowledged': '已确认',

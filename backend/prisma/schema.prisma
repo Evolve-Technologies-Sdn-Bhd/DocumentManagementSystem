@@ -87,6 +87,8 @@ model User {
   divisions                  UserDivision[]
   projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicUser")
   projectRequiredDocumentPicAssignedActions ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicAssignedBy")
+  crmTenderEntriesCreated    CrmTenderEntry[]   @relation("CrmTenderCreatedBy")
+  crmFbEnquiryEntriesCreated CrmFbEnquiryEntry[] @relation("CrmFbEnquiryCreatedBy")
 
   @@index([email])
   @@index([employeeId])
@@ -288,6 +290,8 @@ model Division {
 
   users   UserDivision[]
   folders FolderDivision[]
+  documents Document[]
+  projects Project[]
 }
 
 model UserDivision {
@@ -369,10 +373,12 @@ model Document {
   fileCode          String        // e.g., DOC-2025-001
   isClientDocument  Boolean       @default(false)
   isConfidential    Boolean       @default(false)
+  contentFormat     ContentFormat @default(FILE)
   title             String
   description       String?       @db.Text
   documentTypeId    Int
   projectCategoryId Int?
+  divisionId        Int?
   folderId          Int? // Folder assignment
   status            DocStatus     @default(DRAFT)
   stage             WorkflowStage @default(DRAFT)
@@ -410,6 +416,7 @@ model Document {
   // Relations
   documentType           DocumentType               @relation(fields: [documentTypeId], references: [id])
   projectCategory        ProjectCategory?           @relation(fields: [projectCategoryId], references: [id], onDelete: SetNull)
+  division               Division?                  @relation(fields: [divisionId], references: [id], onDelete: SetNull)
   folder                 Folder?                    @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdBy              User                       @relation("DocumentCreator", fields: [createdById], references: [id])
   owner                  User                       @relation("DocumentOwner", fields: [ownerId], references: [id])
@@ -440,10 +447,20 @@ model Document {
   @@index([stage])
   @@index([documentTypeId])
   @@index([projectCategoryId])
+  @@index([divisionId])
   @@index([folderId])
   @@index([createdById])
   @@index([ownerId])
   @@index([createdAt])
+}
+
+enum ContentFormat {
+  FILE
+  RICH_TEXT
+  CHECKLIST
+  FORM
+  LINK
+  TABLE
 }
 
 enum AccessSubjectType {
@@ -559,6 +576,7 @@ model Project {
   code              String        @unique
   name              String
   description       String?       @db.Text
+  divisionId        Int?
   clientName        String?
   clientPic         String?
   teamMembers       String?       @db.Text
@@ -575,6 +593,7 @@ model Project {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  division        Division?        @relation(fields: [divisionId], references: [id], onDelete: Restrict)
   projectCategory ProjectCategory  @relation(fields: [projectCategoryId], references: [id], onDelete: Restrict)
   manager         User             @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
   createdBy       User             @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -584,6 +603,7 @@ model Project {
   changeRequests  ProjectChangeRequest[]
   requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
+  @@index([divisionId])
   @@index([projectCategoryId])
   @@index([managerId])
   @@index([createdById])
@@ -1647,4 +1667,75 @@ model Inquiry {
   @@index([email])
   @@index([status])
   @@index([submittedAt])
+}
+
+enum CrmTenderStatus {
+  DRAFT
+  SUBMITTED
+  PENDING
+  KIV
+  WON
+  LOST
+}
+
+model CrmTenderEntry {
+  id                   Int             @id @default(autoincrement())
+  tenderRefNo          String?
+  title                String
+  clientName           String?
+  contactPerson        String?
+  submissionDeadline   DateTime?
+  status               CrmTenderStatus @default(DRAFT)
+  tenderValueCents     Int             @default(0)
+  estimatedProfitCents Int             @default(0)
+  source               String?
+  documentLink         String?
+  followUpNotes        String?         @db.Text
+  createdById          Int
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  createdBy User @relation("CrmTenderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenderRefNo])
+  @@index([status])
+  @@index([submissionDeadline])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+enum CrmFbEnquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  QUOTATION_PROVIDED
+  CONVERTED
+}
+
+model CrmFbEnquiryEntry {
+  id                  Int                @id @default(autoincrement())
+  name                String
+  enquiryDate         DateTime
+  email               String?
+  company             String?
+  contact             String?
+  location            String?
+  channel             String?
+  industryType        String?
+  interestedProduct   String?
+  painPoint           String?            @db.Text
+  status              CrmFbEnquiryStatus @default(NEW)
+  potentialValueCents Int                @default(0)
+  documentLink        String?
+  followUpNotes       String?            @db.Text
+  createdById         Int
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  createdBy User @relation("CrmFbEnquiryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([enquiryDate])
+  @@index([createdById])
+  @@index([createdAt])
 }

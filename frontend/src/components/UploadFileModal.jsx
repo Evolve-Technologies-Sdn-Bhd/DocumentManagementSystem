@@ -8,11 +8,13 @@ import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import AsyncActionStatus from './ui/AsyncActionStatus'
+import { getUploadProgress, subscribeUploadProgress } from '../utils/uploadProgressStore'
 
 export default function UploadFileModal({ isOpen, onClose, document, onSuccess, canManageAccess = false }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(() => getUploadProgress())
   const [uploadComplete, setUploadComplete] = useState(false)
   const [showAssignReviewer, setShowAssignReviewer] = useState(false)
   const [showDocumentAccess, setShowDocumentAccess] = useState(false)
@@ -33,6 +35,10 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
       setAlertModal({ show: false, title: '', message: '', type: 'info' })
     }
   }, [isOpen, document?.id])
+
+  useEffect(() => {
+    return subscribeUploadProgress(setUploadProgress)
+  }, [])
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -259,7 +265,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                 onClick={handleUpload}
                 disabled={!selectedFile || uploading}
                 loading={uploading}
-                loadingText={`Uploading... ${uploadProgress}%`}
+                loadingText={typeof uploadProgress?.percent === 'number' ? `Uploading... ${uploadProgress.percent}%` : 'Uploading...'}
               >
                 Upload File
               </Button>

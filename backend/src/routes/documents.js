@@ -17,6 +17,7 @@ router.post('/requests/:id/reject', authorizePermission('newDocumentRequest', 'a
 router.delete('/requests/:id', authorizePermission('newDocumentRequest', 'create'), documentController.deleteDocumentRequest);
 
 // Draft document workflow
+router.post('/drafts', uploadDocument.single('file'), documentController.createDraft);
 router.post('/drafts/submit-for-review', uploadDocument.single('file'), documentController.createDraftAndSubmitForReview);
 router.post('/:id/submit-for-review', documentController.submitDraftForReview);
 

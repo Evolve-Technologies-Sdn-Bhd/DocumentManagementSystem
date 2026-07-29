@@ -70,6 +70,20 @@ const menuItems = [
     module: 'expiryTracking',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2zm7-5h.01M12 15h.01M9 15h.01" /></svg>
   },
+  {
+    name: 'Tender Book Register',
+    translationKey: 'tender_book_register',
+    path: '/tender-book',
+    module: 'crm.tenderBook',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M6 4h12a2 2 0 012 2v15l-3-2-3 2-3-2-3 2-3-2V6a2 2 0 012-2z" /></svg>
+  },
+  {
+    name: 'FB Enquiry Register',
+    translationKey: 'fb_enquiry_register',
+    path: '/fb-enquiries',
+    module: 'crm.fbEnquiry',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m-6 4h10M5 6a2 2 0 012-2h10a2 2 0 012 2v14l-3-2-3 2-3-2-3 2-3-2V6z" /></svg>
+  },
   { 
     name: 'Superseded & Obsolete', 
     translationKey: 'superseded_obsolete',
@@ -142,6 +156,12 @@ const menuSections = [
     label: 'Records',
     icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 7.5h15m-15 4.5h15m-15 4.5h9m-9 3h13.5A1.5 1.5 0 0020 18V6a1.5 1.5 0 00-1.5-1.5h-13A1.5 1.5 0 004 6v12a1.5 1.5 0 001.5 1.5z" /></svg>,
     paths: ['/master-record', '/rfid-epc-registry']
+  },
+  {
+    key: 'crm',
+    label: 'CRM',
+    icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19v-1a3 3 0 00-3-3H7a3 3 0 00-3 3v1" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.5 11a3 3 0 100-6 3 3 0 000 6z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 19v-1a3 3 0 00-2-2.83" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.5 5.17a3 3 0 010 5.66" /></svg>,
+    paths: ['/tender-book', '/fb-enquiries']
   },
   {
     key: 'reporting',

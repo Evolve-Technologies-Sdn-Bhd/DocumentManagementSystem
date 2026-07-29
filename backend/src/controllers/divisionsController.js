@@ -1,10 +1,19 @@
 const prisma = require('../config/database')
 const ResponseFormatter = require('../utils/responseFormatter')
 const asyncHandler = require('../utils/asyncHandler')
+const divisionScopeService = require('../services/divisionScopeService')
 
 class DivisionsController {
   listDivisions = asyncHandler(async (req, res) => {
+    const isAdmin = divisionScopeService.isAdminUser(req.user)
+    const scopedDivisionIds = isAdmin ? null : divisionScopeService.normalizeDivisionIds(req.user?.divisionIds || [])
+
+    if (!isAdmin && scopedDivisionIds.length === 0) {
+      return ResponseFormatter.success(res, { divisions: [] }, 'Divisions retrieved successfully')
+    }
+
     const divisions = await prisma.division.findMany({
+      where: scopedDivisionIds ? { id: { in: scopedDivisionIds } } : undefined,
       include: {
         _count: {
           select: {

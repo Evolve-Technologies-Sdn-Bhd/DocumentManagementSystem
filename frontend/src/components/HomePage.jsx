@@ -22,6 +22,7 @@ import PublicFooter from './PublicFooter';
 import BrandLogoPreload from './ui/BrandLogoPreload';
 import Modal, { ModalBody, ModalHeader } from './ui/Modal';
 import { persistLandingPageSettings, readBranding, readLandingPageSettings, subscribeBranding } from '../utils/branding';
+import { resolveBackendAssetUrl } from '../utils/normalizeUrl';
 
 const iconMap = {
   'document-text': DocumentTextIcon,
@@ -79,6 +80,10 @@ const HomePage = () => {
     : '+60 19-6653453'
   const contactPhoneHref = `tel:${contactPhoneText.replace(/[^\d+]/g, '')}`
   const brandLogo = branding.logo
+  const heroImage = resolveBackendAssetUrl(landingContent?.heroImage)
+  const aboutImage = resolveBackendAssetUrl(landingContent?.aboutImage)
+  const workflowImage = resolveBackendAssetUrl(landingContent?.workflowImage)
+  const contactImage = resolveBackendAssetUrl(landingContent?.contactImage)
 
   const workflowSteps = Array.isArray(landingContent?.workflowSteps) && landingContent.workflowSteps.length
     ? landingContent.workflowSteps
@@ -245,7 +250,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 w-full">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Text Content */}
-            <div className={`animate-fade-in-up ${landingContent?.heroImage && landingContent?.heroImagePosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
+            <div className={`animate-fade-in-up ${heroImage && landingContent?.heroImagePosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-5 sm:mb-7 leading-tight animate-slide-in-left">
                 <MarkdownRenderer inline value={landingContent?.heroHeadline || 'Centralized Control for Your Documents'} />
               </h1>
@@ -273,11 +278,11 @@ const HomePage = () => {
             </div>
             
             {/* Image */}
-            <div className={`hidden md:flex justify-center animate-fade-in ${landingContent?.heroImage && landingContent?.heroImagePosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
+            <div className={`hidden md:flex justify-center animate-fade-in ${heroImage && landingContent?.heroImagePosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
               <div className="relative">
-                {landingContent?.heroImage ? (
+                {heroImage ? (
                   <div className="bg-white bg-opacity-20 backdrop-blur-sm p-4 sm:p-6 lg:p-8 rounded-2xl hover:scale-105 transition-transform duration-500">
-                    <img src={landingContent.heroImage} alt="Hero" className="max-w-full h-auto w-auto max-h-[22rem] sm:max-h-[24rem] lg:max-h-[28rem] object-contain" />
+                    <img src={heroImage} alt="Hero" className="max-w-full h-auto w-auto max-h-[22rem] sm:max-h-[24rem] lg:max-h-[28rem] object-contain" />
                   </div>
                 ) : (
                   <div className="bg-white bg-opacity-20 backdrop-blur-sm p-12 lg:p-16 rounded-2xl hover:scale-105 transition-transform duration-500">
@@ -302,11 +307,11 @@ const HomePage = () => {
 
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Image */}
-            <div className={`flex justify-center order-2 ${landingContent?.aboutImage && landingContent?.aboutImagePosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
+            <div className={`flex justify-center order-2 ${aboutImage && landingContent?.aboutImagePosition === 'right' ? 'md:order-2' : 'md:order-1'}`}>
               <div className="relative group">
-                {landingContent?.aboutImage ? (
+                {aboutImage ? (
                   <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-3xl shadow-2xl transform hover:scale-105 transition-all duration-500">
-                    <img src={landingContent.aboutImage} alt="About DMS" className="max-w-full h-auto w-auto max-h-[18rem] sm:max-h-[22rem] lg:max-h-[26rem] object-contain" />
+                    <img src={aboutImage} alt="About DMS" className="max-w-full h-auto w-auto max-h-[18rem] sm:max-h-[22rem] lg:max-h-[26rem] object-contain" />
                   </div>
                 ) : (
                   <>
@@ -326,7 +331,7 @@ const HomePage = () => {
             </div>
 
             {/* Description */}
-            <div className={`order-1 ${landingContent?.aboutImage && landingContent?.aboutImagePosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
+            <div className={`order-1 ${aboutImage && landingContent?.aboutImagePosition === 'right' ? 'md:order-1' : 'md:order-2'}`}>
               <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-gray-100 hover:border-blue-300">
                 <MarkdownRenderer
                   value={landingContent?.aboutDescription || 'The **Document Management System (DMS)** is designed to standardize and digitalize our document lifecycle — from creation to publication and archiving.'}
@@ -591,27 +596,27 @@ const HomePage = () => {
           </div>
 
           {/* Image Top Position */}
-          {landingContent?.workflowImage && landingContent?.workflowImagePosition === 'top' && (
+          {workflowImage && landingContent?.workflowImagePosition === 'top' && (
             <div className="flex justify-center mb-8">
               <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-blue-100">
-                <img src={landingContent.workflowImage} alt="Workflow" className="h-48 w-auto object-contain mx-auto" />
+                <img src={workflowImage} alt="Workflow" className="h-48 w-auto object-contain mx-auto" />
               </div>
             </div>
           )}
 
-          <div className={`${landingContent?.workflowImage && (landingContent?.workflowImagePosition === 'left' || landingContent?.workflowImagePosition === 'right') ? 'grid lg:grid-cols-2 gap-8 xl:gap-12 items-stretch' : ''}`}>
+          <div className={`${workflowImage && (landingContent?.workflowImagePosition === 'left' || landingContent?.workflowImagePosition === 'right') ? 'grid lg:grid-cols-2 gap-8 xl:gap-12 items-stretch' : ''}`}>
             {/* Image Left Position */}
-            {landingContent?.workflowImage && landingContent?.workflowImagePosition === 'left' && (
+            {workflowImage && landingContent?.workflowImagePosition === 'left' && (
               <div className="flex justify-center order-2 lg:order-1">
                 <div className="relative bg-white p-6 rounded-2xl shadow-xl border border-blue-100 w-full max-w-md h-full flex items-center justify-center">
                   <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-200/35 via-cyan-200/25 to-purple-200/35 blur-xl"></div>
-                  <img src={landingContent.workflowImage} alt="Workflow" className="relative max-h-[260px] sm:max-h-[300px] w-auto object-contain mx-auto" />
+                  <img src={workflowImage} alt="Workflow" className="relative max-h-[260px] sm:max-h-[300px] w-auto object-contain mx-auto" />
                 </div>
               </div>
             )}
 
             {/* Workflow Steps - Enhanced Modern Design */}
-            <div className={`relative ${landingContent?.workflowImage && landingContent?.workflowImagePosition === 'left' ? 'order-1 md:order-2' : ''}`}>
+            <div className={`relative ${workflowImage && landingContent?.workflowImagePosition === 'left' ? 'order-1 md:order-2' : ''}`}>
               <div className="rounded-2xl bg-white/80 backdrop-blur border border-white/80 shadow-md p-4 sm:p-5">
                 <ol className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-w-4xl mx-auto">
                   {workflowSteps.map((stepObj, idx) => {
@@ -646,21 +651,21 @@ const HomePage = () => {
             </div>
 
             {/* Image Right Position */}
-            {landingContent?.workflowImage && landingContent?.workflowImagePosition === 'right' && (
+            {workflowImage && landingContent?.workflowImagePosition === 'right' && (
               <div className="flex justify-center order-2">
                 <div className="relative bg-white p-6 rounded-2xl shadow-xl border border-blue-100 w-full max-w-md h-full flex items-center justify-center">
                   <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-blue-200/35 via-cyan-200/25 to-purple-200/35 blur-xl"></div>
-                  <img src={landingContent.workflowImage} alt="Workflow" className="relative max-h-[260px] sm:max-h-[300px] w-auto object-contain mx-auto" />
+                  <img src={workflowImage} alt="Workflow" className="relative max-h-[260px] sm:max-h-[300px] w-auto object-contain mx-auto" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Image Bottom Position */}
-          {landingContent?.workflowImage && landingContent?.workflowImagePosition === 'bottom' && (
+          {workflowImage && landingContent?.workflowImagePosition === 'bottom' && (
             <div className="flex justify-center mt-8">
               <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-blue-100">
-                <img src={landingContent.workflowImage} alt="Workflow" className="h-48 w-auto object-contain mx-auto" />
+                <img src={workflowImage} alt="Workflow" className="h-48 w-auto object-contain mx-auto" />
               </div>
             </div>
           )}
@@ -672,26 +677,26 @@ const HomePage = () => {
         <div className="flex-1 flex items-center pb-10 sm:pb-12">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 w-full">
           {/* Image Top Position */}
-          {landingContent?.contactImage && landingContent?.contactImagePosition === 'top' && (
+          {contactImage && landingContent?.contactImagePosition === 'top' && (
             <div className="flex justify-center mb-12">
               <div className="bg-white p-8 rounded-2xl shadow-xl">
-                <img src={landingContent.contactImage} alt="Contact" className="h-56 w-auto object-contain mx-auto" />
+                <img src={contactImage} alt="Contact" className="h-56 w-auto object-contain mx-auto" />
               </div>
             </div>
           )}
 
-          <div className={`${landingContent?.contactImage && (landingContent?.contactImagePosition === 'left' || landingContent?.contactImagePosition === 'right') ? 'grid md:grid-cols-2 gap-12 items-center' : ''}`}>
+          <div className={`${contactImage && (landingContent?.contactImagePosition === 'left' || landingContent?.contactImagePosition === 'right') ? 'grid md:grid-cols-2 gap-12 items-center' : ''}`}>
             {/* Image Left Position */}
-            {landingContent?.contactImage && landingContent?.contactImagePosition === 'left' && (
+            {contactImage && landingContent?.contactImagePosition === 'left' && (
               <div className="flex justify-center order-2 md:order-1">
                 <div className="bg-white p-8 rounded-2xl shadow-xl">
-                  <img src={landingContent.contactImage} alt="Contact" className="h-64 w-auto object-contain mx-auto" />
+                  <img src={contactImage} alt="Contact" className="h-64 w-auto object-contain mx-auto" />
                 </div>
               </div>
             )}
 
             {/* Contact Info */}
-            <div className={`text-center ${landingContent?.contactImage && landingContent?.contactImagePosition === 'left' ? 'order-1 md:order-2' : ''}`}>
+            <div className={`text-center ${contactImage && landingContent?.contactImagePosition === 'left' ? 'order-1 md:order-2' : ''}`}>
               <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 sm:mb-8">
                 <MarkdownRenderer inline value={landingContent?.contactTitle || t('hp_need_assistance')} />
               </h2>
@@ -727,20 +732,20 @@ const HomePage = () => {
             </div>
 
             {/* Image Right Position */}
-            {landingContent?.contactImage && landingContent?.contactImagePosition === 'right' && (
+            {contactImage && landingContent?.contactImagePosition === 'right' && (
               <div className="flex justify-center order-2">
                 <div className="bg-white p-6 rounded-xl shadow-lg">
-                  <img src={landingContent.contactImage} alt="Contact" className="h-56 w-auto object-contain mx-auto" />
+                  <img src={contactImage} alt="Contact" className="h-56 w-auto object-contain mx-auto" />
                 </div>
               </div>
             )}
           </div>
 
           {/* Image Bottom Position */}
-          {landingContent?.contactImage && landingContent?.contactImagePosition === 'bottom' && (
+          {contactImage && landingContent?.contactImagePosition === 'bottom' && (
             <div className="flex justify-center mt-8">
               <div className="bg-white p-6 rounded-xl shadow-lg">
-                <img src={landingContent.contactImage} alt="Contact" className="h-48 w-auto object-contain mx-auto" />
+                <img src={contactImage} alt="Contact" className="h-48 w-auto object-contain mx-auto" />
               </div>
             </div>
           )}
