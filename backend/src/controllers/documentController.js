@@ -1144,6 +1144,7 @@ class DocumentController {
         id: doc.id,
         fileCode: doc.fileCode,
         title: doc.title,
+        divisionId: doc.divisionId ?? null,
         projectCategoryId: doc.projectCategoryId || null,
         projectCategory: doc.projectCategory?.name || '',
         documentType: doc.documentType?.name || '',

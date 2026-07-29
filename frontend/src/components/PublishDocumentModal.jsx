@@ -134,6 +134,40 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
       .sort((left, right) => formatUserLabel(left).localeCompare(formatUserLabel(right)))
   }, [users])
 
+  const targetDivisionId = useMemo(() => {
+    const raw = document?.divisionId
+    const parsed = raw !== null && raw !== undefined ? Number.parseInt(raw, 10) : null
+    return Number.isFinite(parsed) ? parsed : null
+  }, [document])
+
+  const scopedFolders = useMemo(() => {
+    if (!targetDivisionId) return folders
+
+    const walk = (nodes) => {
+      const next = []
+      for (const node of nodes || []) {
+        const children = walk(node.children || [])
+        const effective = Array.isArray(node.effectiveDivisionIds) ? node.effectiveDivisionIds : []
+        const matches = effective.includes(targetDivisionId)
+        if (!matches && children.length === 0) continue
+        next.push({ ...node, children })
+      }
+      return next
+    }
+
+    return walk(folders)
+  }, [folders, targetDivisionId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (isLoadingData) return
+    if (!targetDivisionId) return
+    if (!Array.isArray(folders) || folders.length === 0) return
+    if (Array.isArray(scopedFolders) && scopedFolders.length === 0) {
+      setError('No destination folders are available for this document division. Please ask an administrator to assign folders to your division.')
+    }
+  }, [isOpen, isLoadingData, targetDivisionId, folders, scopedFolders])
+
   const fetchFolders = async () => {
     try {
       const response = await api.get('/folders')
@@ -293,7 +327,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
             <div className="md:col-span-2">
               <Field label="Destination Folder">
                 <FolderTreePicker
-                  folders={folders}
+                  folders={scopedFolders}
                   selectedId={selectedFolder}
                   onSelect={(folderId) => {
                     setSelectedFolder(folderId)
