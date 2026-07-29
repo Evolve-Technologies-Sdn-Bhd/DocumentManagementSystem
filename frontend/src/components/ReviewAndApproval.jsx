@@ -199,20 +199,20 @@ export default function ReviewAndApproval() {
     try {
       // Add timestamp to prevent caching
       const res = await api.get(`/documents/review-approval?_t=${Date.now()}`)
-      // Hide ready-to-publish records unless the user can publish.
-      const rawDocs = res.data.data?.documents || res.data.documents || []
-      const docs = rawDocs.filter((doc) => {
-        const isReadyToPublish =
-          String(doc?.status || '').toUpperCase() === 'READY_TO_PUBLISH' ||
-          String(doc?.stage || '').toUpperCase() === 'READY_TO_PUBLISH'
-
-        return !isReadyToPublish || hasPermission('documents.published', 'publish')
-      })
+      const docs = res.data.data?.documents || res.data.documents || []
       setDocuments(docs)
       setFilteredDocuments(docs)
     } catch (error) {
       console.error('Failed to load documents:', error)
       console.error('Error details:', error.response?.data || error.message)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setAlertModal({
+          show: true,
+          title: 'Access Denied',
+          message: error.response?.data?.message || 'You do not have permission to view this page.',
+          type: 'error'
+        })
+      }
       setDocuments([])
       setFilteredDocuments([])
     } finally {

@@ -47,7 +47,11 @@ router.get('/published', documentController.getPublishedDocuments);
 router.get('/stats', documentController.getStats);
 router.get('/my-stats', documentController.getMyStats);
 router.get('/drafts', documentController.getUserDrafts);
-router.get('/review-approval', documentController.getReviewApprovalDocuments);
+router.get(
+  '/review-approval',
+  authorizePermission('documents.review', 'view', 'read', 'review', 'approve', 'reject'),
+  documentController.getReviewApprovalDocuments
+);
 router.get('/superseded-obsolete', documentController.getSupersededObsoleteDocuments);
 router.get('/my-status', documentController.getMyDocuments);
 router.get('/my-status/:status', documentController.getMyDocumentsByStatus);

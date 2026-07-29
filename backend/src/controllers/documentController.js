@@ -1050,7 +1050,9 @@ class DocumentController {
     // 2. Documents where user is assigned as first approver (firstApproverId)
     // 3. Documents where user is assigned as second approver (secondApproverId)
     // NOTE: Document owners should NOT see their own documents here - only assigned reviewers/approvers
-    const stages = ['REVIEW', 'APPROVAL', 'FIRST_APPROVAL', 'SECOND_APPROVAL', 'READY_TO_PUBLISH'];
+    const stages = canViewAllReadyToPublish
+      ? ['REVIEW', 'APPROVAL', 'FIRST_APPROVAL', 'SECOND_APPROVAL', 'READY_TO_PUBLISH']
+      : ['REVIEW', 'APPROVAL', 'FIRST_APPROVAL', 'SECOND_APPROVAL'];
     const assignmentFilters = [
       { reviewerId: userId },
       { firstApproverId: userId },
@@ -2219,12 +2221,8 @@ class DocumentController {
       })
     }
 
-    const scopedWhere = canAcknowledge
-      ? await divisionScopeService.buildAccessibleDocumentWhere(req.user, where)
-      : where
-
     const documents = await prisma.document.findMany({
-      where: scopedWhere,
+      where,
       include: {
         documentType: true,
         projectCategory: true,
