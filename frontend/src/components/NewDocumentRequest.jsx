@@ -655,10 +655,18 @@ export default function NewDocumentRequest() {
     }
 
     try {
-      // Find the document type ID from the documentTypes array
-      const docType = documentTypes.find(dt => dt.name === request.documentType)
-      
-      if (!docType) {
+      const documentTypeId = request.documentTypeId
+        ? Number(request.documentTypeId)
+        : null
+
+      const resolvedDocTypeId = Number.isFinite(documentTypeId)
+        ? documentTypeId
+        : (() => {
+            const docType = documentTypes.find((dt) => dt.name === request.documentType)
+            return docType?.id ? Number(docType.id) : null
+          })()
+
+      if (!resolvedDocTypeId) {
         setAlertModal({
           show: true,
           title: 'Error',
@@ -668,7 +676,7 @@ export default function NewDocumentRequest() {
         return
       }
 
-      const listRes = await api.get(`/templates/by-document-type/${docType.id}`)
+      const listRes = await api.get(`/templates/by-document-type/${resolvedDocTypeId}`)
       const templates = listRes.data?.data?.templates || []
 
       if (templates.length === 0) {

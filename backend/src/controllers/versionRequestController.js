@@ -79,7 +79,9 @@ class VersionRequestController {
             id: req.id,
             title: req.proposedChanges, // Using proposedChanges as title (stored during creation)
             documentType: req.document?.documentType?.name || '',
+            documentTypeId: req.document?.documentTypeId || null,
             projectCategory: req.document?.projectCategory?.name || '',
+            projectCategoryId: req.document?.projectCategoryId ?? null,
             dateOfDocument: req.targetDate ? new Date(req.targetDate).toLocaleDateString('en-GB') : '',
             requestDate: req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : '',
             remarks: req.remarks || '',

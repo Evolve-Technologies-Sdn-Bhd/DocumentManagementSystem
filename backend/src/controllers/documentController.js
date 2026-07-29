@@ -2219,7 +2219,9 @@ class DocumentController {
       })
     }
 
-    const scopedWhere = await divisionScopeService.buildAccessibleDocumentWhere(req.user, where)
+    const scopedWhere = canAcknowledge
+      ? await divisionScopeService.buildAccessibleDocumentWhere(req.user, where)
+      : where
 
     const documents = await prisma.document.findMany({
       where: scopedWhere,
@@ -2243,7 +2245,9 @@ class DocumentController {
       id: doc.id,
       title: doc.title,
       documentType: doc.documentType?.name || '',
+      documentTypeId: doc.documentTypeId,
       projectCategory: doc.projectCategory?.name || '',
+      projectCategoryId: doc.projectCategoryId ?? null,
       dateOfDocument: doc.dateOfDocument ? new Date(doc.dateOfDocument).toLocaleDateString('en-GB') : '',
       requestDate: doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('en-GB') : '',
       createdAt: doc.createdAt,

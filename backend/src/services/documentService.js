@@ -2120,6 +2120,8 @@ class DocumentService {
     // Add more entropy to avoid collisions
     const tempFileCode = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${creatorId}`;
 
+    const divisionId = await divisionScopeService.getPrimaryDivisionIdForUser({ id: creatorId })
+
     // Create document request
     const document = await prisma.document.create({
       data: {
@@ -2128,6 +2130,7 @@ class DocumentService {
         description,
         documentTypeId,
         projectCategoryId: projectCategoryId || null,
+        divisionId: divisionId || null,
         folderId: null,
         createdById: creatorId,
         ownerId: creatorId,
