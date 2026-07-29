@@ -125,6 +125,10 @@ const authorize = (...roles) => {
       return next(new UnauthorizedError('User not authenticated'));
     }
 
+    if (req.user.permissions?.all === true) {
+      return next()
+    }
+
     const userRoles = req.user.roles;
     const hasRole = roles.some(role => userRoles.includes(role));
 

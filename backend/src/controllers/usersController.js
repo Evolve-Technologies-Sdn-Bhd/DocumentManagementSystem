@@ -127,7 +127,7 @@ class UsersController {
    * POST /api/users
    */
   createUser = asyncHandler(async (req, res) => {
-    const { email, password, firstName, lastName, phone, department, position, roleIds } = req.body;
+    const { email, password, firstName, lastName, phone, department, position, roleIds, divisionIds } = req.body;
 
     // Validation - email and firstName are required, lastName is optional
     if (!email || !firstName) {
@@ -140,6 +140,41 @@ class UsersController {
     }
 
     const userPassword = password || DEFAULT_PASSWORD
+
+    const requesterIsAdmin = divisionScopeService.isAdminUser(req.user)
+    const requesterDivisionIds = requesterIsAdmin ? null : divisionScopeService.normalizeDivisionIds(req.user?.divisionIds || [])
+
+    const normalizedDivisionIds = Array.isArray(divisionIds)
+      ? [...new Set(divisionIds.map((v) => Number.parseInt(v, 10)).filter((v) => Number.isFinite(v)))]
+      : []
+
+    if (normalizedDivisionIds.length === 0) {
+      return ResponseFormatter.error(res, 'Missing required fields: divisionIds must be a non-empty array', 400)
+    }
+
+    if (!requesterIsAdmin) {
+      if (!requesterDivisionIds || requesterDivisionIds.length === 0) {
+        return ResponseFormatter.error(res, 'You do not have any division assigned. Please contact the system administrator.', 403)
+      }
+      const allowed = new Set(requesterDivisionIds)
+      const outOfScope = normalizedDivisionIds.some((id) => !allowed.has(id))
+      if (outOfScope) {
+        return ResponseFormatter.error(res, 'You can only assign users to divisions within your scope', 403)
+      }
+    }
+
+    const activeDivisions = await prisma.division.findMany({
+      where: {
+        id: { in: normalizedDivisionIds },
+        isActive: true
+      },
+      select: { id: true }
+    })
+    const activeDivisionSet = new Set(activeDivisions.map((d) => d.id))
+    const invalidDivisionIds = normalizedDivisionIds.filter((id) => !activeDivisionSet.has(id))
+    if (invalidDivisionIds.length > 0) {
+      return ResponseFormatter.error(res, `Invalid or inactive divisionIds: ${invalidDivisionIds.join(', ')}`, 400)
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -233,6 +268,14 @@ class UsersController {
       });
     }
 
+    await prisma.userDivision.createMany({
+      data: normalizedDivisionIds.map((divisionId) => ({
+        userId: user.id,
+        divisionId
+      })),
+      skipDuplicates: true
+    })
+
     // Create user preferences
     await prisma.userPreference.create({
       data: {
@@ -256,7 +299,8 @@ class UsersController {
 
     // Log user creation
     await auditLogService.logUser(req.user.id, 'CREATE', userWithRoles, req, {
-      roleIds
+      roleIds,
+      divisionIds: normalizedDivisionIds
     });
 
     return ResponseFormatter.success(

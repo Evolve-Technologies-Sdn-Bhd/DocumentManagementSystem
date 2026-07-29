@@ -13,27 +13,16 @@ export const getUserPermissions = () => {
     if (!userStr) return {}
 
     const user = JSON.parse(userStr)
-    
-    // If no roles, return empty permissions
-    if (!user.roles || !Array.isArray(user.roles)) {
-      return {}
-    }
 
-    // Combine permissions from all roles
     const combinedPermissions = {}
-    
-    user.roles.forEach(roleData => {
-      // Handle different possible role data structures
-      const role = roleData.role || roleData
-      
-      if (!role || !role.permissions) return
-      
-      // Parse permissions if it's a string
-      const permissions = typeof role.permissions === 'string' 
-        ? JSON.parse(role.permissions)
-        : role.permissions
 
-      // Merge permissions - if ANY role grants a permission, user has it
+    const mergePermissions = (permissionsInput) => {
+      if (!permissionsInput) return
+      const permissions = typeof permissionsInput === 'string'
+        ? JSON.parse(permissionsInput)
+        : permissionsInput
+      if (!permissions || typeof permissions !== 'object') return
+
       Object.keys(permissions).forEach(module => {
         const modulePermissions = permissions[module]
 
@@ -57,13 +46,29 @@ export const getUserPermissions = () => {
           return
         }
 
-        // Merge actions for this module
         Object.keys(modulePermissions).forEach(action => {
           if (modulePermissions[action]) {
             combinedPermissions[module][action] = true
           }
         })
       })
+    }
+    
+    mergePermissions(user.permissions)
+
+    if (!user.roles || !Array.isArray(user.roles)) {
+      return combinedPermissions
+    }
+
+    // Combine permissions from all roles
+    user.roles.forEach(roleData => {
+      // Handle different possible role data structures
+      const role = roleData.role || roleData
+      
+      if (!role || !role.permissions) return
+      
+      // Parse permissions if it's a string
+      mergePermissions(role.permissions)
     })
 
     return combinedPermissions
@@ -158,7 +163,9 @@ export const hasRole = (roleName) => {
  * @returns {boolean}
  */
 export const isAdmin = () => {
-  return hasRole('Administrator') || hasRole('Admin')
+  const permissions = getUserPermissions()
+  if (permissions.all === true) return true
+  return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
 }
 
 /**

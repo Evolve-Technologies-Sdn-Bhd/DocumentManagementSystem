@@ -10,6 +10,7 @@ router.use(authenticate)
 
 const requirePermission = (action) => {
   return (req, _res, next) => {
+    if (req.user?.permissions?.all === true) return next()
     const allowed = Boolean(req.user?.permissions?.expiryTracking?.[action])
     if (!allowed) {
       return next(new ForbiddenError("You don't have permission to perform this action"))
@@ -20,6 +21,7 @@ const requirePermission = (action) => {
 
 const requireAnyPermission = (actions) => {
   return (req, _res, next) => {
+    if (req.user?.permissions?.all === true) return next()
     const allowed = (actions || []).some((action) => Boolean(req.user?.permissions?.expiryTracking?.[action]))
     if (!allowed) {
       return next(new ForbiddenError("You don't have permission to perform this action"))

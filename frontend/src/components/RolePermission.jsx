@@ -627,7 +627,8 @@ function UsersManagement() {
           firstName,
           lastName,
           department: userData.department || null,
-          roleIds: roleIds.length > 0 ? roleIds : undefined
+          roleIds: roleIds.length > 0 ? roleIds : undefined,
+          divisionIds: Array.isArray(userData.divisionIds) ? userData.divisionIds : undefined
         }
         
         await api.post('/users', createPayload)

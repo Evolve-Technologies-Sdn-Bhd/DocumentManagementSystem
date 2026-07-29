@@ -5,7 +5,7 @@ import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import ShareDocumentModal from './ShareDocumentModal'
-import { getUserPermissions, hasPermission } from '../utils/permissions'
+import { getUserPermissions, hasPermission, isAdmin as isAdminUser } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
@@ -5426,8 +5426,7 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave, onError }) 
 
   useEffect(() => {
     try {
-      const permissions = getUserPermissions()
-      setIsAdmin(permissions?.all === true)
+      setIsAdmin(isAdminUser())
     } catch {
       setIsAdmin(false)
     }
