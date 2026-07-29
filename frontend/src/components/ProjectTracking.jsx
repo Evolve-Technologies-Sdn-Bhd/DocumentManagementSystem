@@ -5337,6 +5337,14 @@ function ProjectDetail({ projectId }) {
             project={project}
             usersEndpoint="/users"
             onCancel={() => setShowEditProject(false)}
+            onError={(message) => {
+              setAlertModal({
+                show: true,
+                title: 'Save Failed',
+                message: message || 'Unable to save project changes.',
+                type: 'warning'
+              })
+            }}
             onSave={async (payload) => {
               await saveProject(payload)
               setShowEditProject(false)
@@ -5393,9 +5401,11 @@ function ProjectDetail({ projectId }) {
   )
 }
 
-function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
+function EditProjectForm({ project, usersEndpoint, onCancel, onSave, onError }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [divisions, setDivisions] = useState(project?.division ? [project.division] : [])
+  const [isAdmin, setIsAdmin] = useState(false)
   const [form, setForm] = useState({
     code: project?.code || '',
     name: project?.name || '',
@@ -5415,6 +5425,35 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
   })
 
   useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        setIsAdmin(false)
+        return
+      }
+      const user = JSON.parse(userStr)
+      setIsAdmin(Boolean(user?.permissions?.all))
+    } catch {
+      setIsAdmin(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const needsDivisionPick = !project?.division?.id && !project?.divisionId
+    if (!isAdmin || !needsDivisionPick) return
+    const load = async () => {
+      try {
+        const res = await api.get('/divisions')
+        const list = res?.data?.data?.divisions || []
+        setDivisions(list)
+      } catch {
+        setDivisions([])
+      }
+    }
+    load()
+  }, [isAdmin, project?.id])
+
+  useEffect(() => {
     const load = async () => {
       try {
         const res = await api.get(usersEndpoint)
@@ -5430,6 +5469,12 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
     e.preventDefault()
     setLoading(true)
     try {
+      const needsDivisionPick = !project?.division?.id && !project?.divisionId
+      if (isAdmin && needsDivisionPick && form.divisionId) {
+        await api.put(`/project-tracking/projects/${project.id}/assign-division`, {
+          divisionId: Number(form.divisionId)
+        })
+      }
       await onSave({
         name: form.name,
         description: form.description || null,
@@ -5444,10 +5489,17 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
         deliverables: form.deliverables || null,
         managerId: Number(form.managerId)
       })
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Unable to save project changes.'
+      onError?.(message)
+      throw error
     } finally {
       setLoading(false)
     }
   }
+
+  const showDivision = Boolean(project?.division || project?.divisionId || (isAdmin && !project?.division?.id && !project?.divisionId))
+  const divisionLocked = Boolean(project?.division || project?.divisionId)
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -5455,9 +5507,9 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave }) {
         form={form}
         setForm={setForm}
         users={users}
-        divisions={project?.division ? [project.division] : []}
-        showDivision={Boolean(project?.division || project?.divisionId)}
-        divisionLocked
+        divisions={showDivision ? divisions : []}
+        showDivision={showDivision}
+        divisionLocked={divisionLocked}
         stageStatusLabel={project?.iterations?.[0]?.currentStage?.name || 'No active stage'}
         showLifecycleStatus
       />

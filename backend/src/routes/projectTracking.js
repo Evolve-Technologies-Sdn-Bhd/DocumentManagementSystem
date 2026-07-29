@@ -37,6 +37,7 @@ router.get('/projects/:projectId/change-requests', requireAnyPermission('project
 router.post('/projects/:projectId/change-requests', requireAnyPermission('projectTracking', ['create', 'keyInChangeRequest']), projectTrackingController.createProjectChangeRequest);
 router.post('/projects/:projectId/iterations', requireAnyPermission('projectTracking', ['create', 'addNextPhase']), projectTrackingController.createIteration);
 router.put('/iterations/:iterationId', requirePermission('projectTracking', 'edit'), projectTrackingController.updateIteration);
+router.put('/projects/:projectId/assign-division', projectTrackingController.assignProjectDivision);
 router.put('/projects/:projectId', requireAnyPermission('projectTracking', ['edit', 'editProject']), projectTrackingController.updateProject);
 router.delete('/projects/:projectId', requirePermission('projectTracking', 'delete'), projectTrackingController.deleteProject);
 router.put('/change-requests/:changeRequestId', requireAnyPermission('projectTracking', ['edit', 'keyInChangeRequest']), projectTrackingController.updateProjectChangeRequest);

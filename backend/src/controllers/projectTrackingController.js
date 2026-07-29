@@ -144,6 +144,24 @@ exports.updateProject = asyncHandler(async (req, res) => {
   return ResponseFormatter.success(res, { project }, 'Project updated successfully');
 });
 
+exports.assignProjectDivision = asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.projectId)
+  if (!projectId) throw new ValidationError('Invalid projectId')
+
+  const divisionId = req.body?.divisionId
+  if (divisionId === undefined || divisionId === null || divisionId === '') {
+    throw new ValidationError('divisionId is required')
+  }
+
+  const project = await projectTrackingService.assignProjectDivision(projectId, {
+    divisionId,
+    actorId: req.user.id,
+    user: req.user
+  })
+
+  return ResponseFormatter.success(res, { project }, 'Project division assigned successfully')
+})
+
 exports.deleteProject = asyncHandler(async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!projectId) throw new ValidationError('Invalid projectId');

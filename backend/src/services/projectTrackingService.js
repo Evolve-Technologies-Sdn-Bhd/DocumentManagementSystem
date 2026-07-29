@@ -41,6 +41,46 @@ const requireAccessibleProject = async (projectId, user, extra = {}) => {
   return project
 }
 
+const uniq = (arr) => Array.from(new Set(arr))
+
+const getProjectLinkedDivisionIds = async (projectId, db = prisma) => {
+  const links = await db.projectDocumentLink.findMany({
+    where: { iteration: { projectId } },
+    select: {
+      document: { select: { folderId: true, divisionId: true } }
+    }
+  })
+
+  const docs = links.map((l) => l.document).filter(Boolean)
+  const folderIds = uniq(docs.map((d) => d.folderId).filter((id) => id != null))
+
+  const folderDivisions = folderIds.length
+    ? await db.folderDivision.findMany({
+      where: { folderId: { in: folderIds } },
+      select: { folderId: true, divisionId: true }
+    })
+    : []
+
+  const folderDivisionMap = new Map()
+  folderDivisions.forEach((fd) => {
+    const current = folderDivisionMap.get(fd.folderId) || []
+    current.push(fd.divisionId)
+    folderDivisionMap.set(fd.folderId, current)
+  })
+
+  const divisionIds = []
+  docs.forEach((d) => {
+    if (d.folderId != null) {
+      const ids = folderDivisionMap.get(d.folderId) || []
+      ids.forEach((id) => divisionIds.push(id))
+      return
+    }
+    if (d.divisionId != null) divisionIds.push(d.divisionId)
+  })
+
+  return uniq(divisionIds).filter((id) => id != null)
+}
+
 // #region debug-point A:runtime-reporter
 const __ptDebugReport = (payload) => {
   fetch('http://127.0.0.1:7777/event', {
@@ -796,6 +836,79 @@ exports.updateProject = async (
   })
 
   return project
+}
+
+exports.assignProjectDivision = async (projectId, { divisionId, actorId, user } = {}) => {
+  if (!divisionScopeService.isAdminUser(user)) {
+    throw new ForbiddenError("You don't have access to assign a division for this project")
+  }
+
+  const normalizedProjectId = Number.parseInt(projectId, 10)
+  if (!Number.isFinite(normalizedProjectId)) {
+    throw new ValidationError('Invalid projectId')
+  }
+
+  const normalizedDivisionId = divisionId === undefined || divisionId === null || divisionId === ''
+    ? null
+    : Number.parseInt(divisionId, 10)
+  if (!Number.isFinite(normalizedDivisionId)) {
+    throw new ValidationError('divisionId is required')
+  }
+
+  const division = await prisma.division.findUnique({
+    where: { id: normalizedDivisionId },
+    select: { id: true, code: true, name: true, isActive: true }
+  })
+  if (!division) throw new NotFoundError('Division')
+  if (!division.isActive) throw new ValidationError('Division is inactive')
+
+  const existing = await prisma.project.findUnique({
+    where: { id: normalizedProjectId },
+    select: { id: true, code: true, divisionId: true }
+  })
+  if (!existing) throw new NotFoundError('Project')
+  if (existing.divisionId != null) throw new ValidationError('Project division is already set')
+
+  const linkedDivisionIds = await getProjectLinkedDivisionIds(existing.id, prisma)
+  if (linkedDivisionIds.length > 0 && !linkedDivisionIds.includes(normalizedDivisionId)) {
+    throw new ValidationError('Project has linked documents outside the selected division')
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.project.update({
+      where: { id: existing.id },
+      data: { divisionId: normalizedDivisionId }
+    })
+
+    if (actorId != null) {
+      await tx.auditLog.create({
+        data: {
+          userId: actorId,
+          action: 'UPDATE',
+          entity: 'Project',
+          entityId: existing.id,
+          description: `projectId=${existing.id} assigned divisionId=${normalizedDivisionId}`,
+          metadata: {
+            projectId: existing.id,
+            code: existing.code,
+            previousDivisionId: null,
+            nextDivisionId: normalizedDivisionId
+          }
+        }
+      })
+    }
+  })
+
+  return prisma.project.findUnique({
+    where: { id: existing.id },
+    include: {
+      division: true,
+      projectCategory: true,
+      manager: { select: { id: true, email: true, firstName: true, lastName: true } },
+      createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
+      iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
+    }
+  })
 }
 
 exports.deleteProject = async (projectId, { deletedById, user } = {}) => {
