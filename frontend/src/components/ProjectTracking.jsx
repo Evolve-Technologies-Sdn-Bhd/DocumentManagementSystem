@@ -5,7 +5,7 @@ import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import ShareDocumentModal from './ShareDocumentModal'
-import { hasPermission } from '../utils/permissions'
+import { getUserPermissions, hasPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
@@ -5426,13 +5426,8 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave, onError }) 
 
   useEffect(() => {
     try {
-      const userStr = localStorage.getItem('user')
-      if (!userStr) {
-        setIsAdmin(false)
-        return
-      }
-      const user = JSON.parse(userStr)
-      setIsAdmin(Boolean(user?.permissions?.all))
+      const permissions = getUserPermissions()
+      setIsAdmin(permissions?.all === true)
     } catch {
       setIsAdmin(false)
     }
@@ -5492,7 +5487,6 @@ function EditProjectForm({ project, usersEndpoint, onCancel, onSave, onError }) 
     } catch (error) {
       const message = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Unable to save project changes.'
       onError?.(message)
-      throw error
     } finally {
       setLoading(false)
     }
