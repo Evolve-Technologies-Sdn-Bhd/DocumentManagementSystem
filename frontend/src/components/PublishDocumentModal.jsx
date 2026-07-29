@@ -147,8 +147,17 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
       const next = []
       for (const node of nodes || []) {
         const children = walk(node.children || [])
-        const effective = Array.isArray(node.effectiveDivisionIds) ? node.effectiveDivisionIds : []
-        const matches = effective.includes(targetDivisionId)
+        const rawDivisionIds = Array.isArray(node?.effectiveDivisionIds)
+          ? node.effectiveDivisionIds
+          : Array.isArray(node?.divisionIds)
+            ? node.divisionIds
+            : []
+
+        const normalized = rawDivisionIds
+          .map((id) => Number.parseInt(id, 10))
+          .filter((id) => Number.isFinite(id))
+
+        const matches = normalized.includes(targetDivisionId)
         if (!matches && children.length === 0) continue
         next.push({ ...node, children })
       }
@@ -157,6 +166,28 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
 
     return walk(folders)
   }, [folders, targetDivisionId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (window?.localStorage?.getItem('dms_debug') !== '1') return
+    const roots = (folders || []).map((f) => ({
+      id: f?.id ?? null,
+      name: f?.name ?? null,
+      divisionIds: f?.divisionIds ?? null,
+      effectiveDivisionIds: f?.effectiveDivisionIds ?? null
+    }))
+    const scopedRoots = (scopedFolders || []).map((f) => ({
+      id: f?.id ?? null,
+      name: f?.name ?? null,
+      divisionIds: f?.divisionIds ?? null,
+      effectiveDivisionIds: f?.effectiveDivisionIds ?? null
+    }))
+    console.log('[PublishDocumentModal] division filter', {
+      targetDivisionId,
+      roots,
+      scopedRoots
+    })
+  }, [isOpen, targetDivisionId, folders, scopedFolders])
 
   useEffect(() => {
     if (!isOpen) return
