@@ -2621,6 +2621,7 @@ class DocumentController {
         description: comments,
         documentTypeId: docType.id,
         projectCategoryId: null,
+        divisionId: divisionId || null,
         folderId: null,
         contentFormat: normalizedContentFormat
       }, req.user.id, {
