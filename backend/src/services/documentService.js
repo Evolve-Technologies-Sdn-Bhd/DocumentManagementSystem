@@ -2444,6 +2444,27 @@ class DocumentService {
       throw new BadRequestError('Invalid reviewer IDs provided');
     }
 
+    const reviewerUsers = await prisma.user.findMany({
+      where: { id: { in: parsedReviewerIds } },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: { select: { name: true } }
+          }
+        }
+      }
+    })
+    const reviewerRoleIds = new Set(
+      reviewerUsers
+        .filter((user) => (user.roles || []).some((r) => String(r?.role?.name || '').toLowerCase() === 'reviewer'))
+        .map((user) => user.id)
+    )
+    const invalidReviewerRoleIds = parsedReviewerIds.filter((id) => !reviewerRoleIds.has(id))
+    if (invalidReviewerRoleIds.length > 0) {
+      throw new BadRequestError('Selected reviewer(s) must have Reviewer role')
+    }
+
     const effectiveDivisionIds = document.folderId
       ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
       : document.divisionId

@@ -2436,7 +2436,7 @@ class DocumentController {
   });
 
   createDraft = asyncHandler(async (req, res) => {
-    const { fileCode, title, versionNo, documentType, comments, contentFormat } = req.body;
+    const { fileCode, title, versionNo, documentType, comments, contentFormat, divisionId } = req.body;
 
     const errors = [];
     if (!fileCode) errors.push({ field: 'fileCode', message: 'File code is required' });
@@ -2489,10 +2489,12 @@ class DocumentController {
         description: comments,
         documentTypeId: docType.id,
         projectCategoryId: null,
+        divisionId,
         folderId: null,
         contentFormat: normalizedContentFormat
       }, req.user.id, {
         version: versionNo || '1.0',
+        status: 'ACKNOWLEDGED',
         status: 'ACKNOWLEDGED',
         stage: 'DRAFT'
       });
@@ -2543,7 +2545,7 @@ class DocumentController {
    * POST /api/documents/drafts/submit-for-review
    */
   createDraftAndSubmitForReview = asyncHandler(async (req, res) => {
-    const { fileCode, title, versionNo, documentType, comments, reviewers, contentFormat } = req.body;
+    const { fileCode, title, versionNo, documentType, comments, reviewers, contentFormat, divisionId } = req.body;
 
     // Validation
     const errors = [];

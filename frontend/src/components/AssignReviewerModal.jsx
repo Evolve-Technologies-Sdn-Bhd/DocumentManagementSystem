@@ -26,7 +26,7 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
     setLoading(true)
     try {
       const res = await api.get('/users', {
-        params: document?.id ? { documentId: document.id } : undefined
+        params: document?.id ? { documentId: document.id, roleName: 'reviewer' } : { roleName: 'reviewer' }
       })
       const users = res.data.data?.users || res.data.users || []
       

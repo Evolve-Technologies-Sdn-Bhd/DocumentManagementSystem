@@ -37,7 +37,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
       try {
         setLoadingApprovers(true)
         const res = await api.get('/users', {
-          params: document?.id ? { documentId: document.id } : undefined
+          params: document?.id ? { documentId: document.id, roleName: 'approver' } : { roleName: 'approver' }
         })
         const users = res.data.data?.users || res.data.users || []
         
@@ -56,7 +56,6 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
           console.error('Error getting current user:', error)
         }
         
-        // Filter users who have roles with Review/Approval permissions
         const approvers = users.filter(user => {
           // Exclude document owner from approvers list
           if (documentOwnerId && user.id === documentOwnerId) {
@@ -67,30 +66,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
           if (currentUserId && user.id === currentUserId) {
             return false
           }
-          
-          const userRoles = user.roles || []
-
-          return userRoles.some(userRole => {
-            // Handle nested structure: roles: [{ role: { name: 'Approver', permissions: {...} } }]
-            const role = userRole.role || {}
-            const roleName = role.name || role.displayName || role.roleName || userRole.name || ''
-            const permissions = role.permissions || {}
-
-            // Check if role name matches - ONLY Approver or Administrator roles can approve
-            const roleNameLower = roleName.toLowerCase()
-            const isApproverRole = [
-              'approver', 'administrator', 'admin'
-            ].includes(roleNameLower)
-            
-            // Check if permissions object has reviewApproval with approve permission
-            const hasApprovePermission = 
-              permissions?.reviewApproval?.approve ||
-              permissions?.['documents.reviewApproval']?.approve
-            
-            const matched = isApproverRole || hasApprovePermission
-
-            return matched
-          })
+          return user.status === 'ACTIVE'
         })
 
         // Format for dropdown

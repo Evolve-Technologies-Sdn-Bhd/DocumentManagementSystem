@@ -16,11 +16,15 @@ class UsersController {
   getAllUsers = asyncHandler(async (req, res) => {
     const divisionIdRaw = req.query?.divisionId
     const documentIdRaw = req.query?.documentId
+    const roleNameRaw = req.query?.roleName ?? req.query?.role
 
     const requesterIsAdmin = divisionScopeService.isAdminUser(req.user)
     const requesterDivisionIds = requesterIsAdmin ? null : divisionScopeService.normalizeDivisionIds(req.user?.divisionIds || [])
 
     let targetDivisionIds = null
+    const roleName = roleNameRaw !== undefined && roleNameRaw !== null && String(roleNameRaw).trim() !== ''
+      ? String(roleNameRaw).trim().toLowerCase()
+      : null
 
     if (documentIdRaw) {
       const documentId = Number.parseInt(documentIdRaw, 10)
@@ -60,7 +64,14 @@ class UsersController {
     }
 
     const where = Array.isArray(targetDivisionIds)
-      ? { divisions: { some: { divisionId: { in: targetDivisionIds } } } }
+      ? {
+          divisions: { some: { divisionId: { in: targetDivisionIds } } },
+          ...(roleName
+            ? { roles: { some: { role: { name: roleName } } } }
+            : {})
+        }
+      : roleName
+        ? { roles: { some: { role: { name: roleName } } } }
       : undefined
 
     const users = await prisma.user.findMany({

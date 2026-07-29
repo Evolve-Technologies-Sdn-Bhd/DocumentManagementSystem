@@ -179,7 +179,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     documentType: '',
     contentFormat: 'FILE',
     comments: '',
-    reviewerId: null // Single reviewer instead of array
+    reviewerId: null,
+    divisionId: ''
   })
   const [dragActive, setDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -188,6 +189,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const [loadingDocTypes, setLoadingDocTypes] = useState(true)
   const [acknowledgedDocs, setAcknowledgedDocs] = useState([])
   const [loadingAcknowledgedDocs, setLoadingAcknowledgedDocs] = useState(false)
+  const [divisions, setDivisions] = useState([])
+  const [loadingDivisions, setLoadingDivisions] = useState(true)
   const [availableReviewers, setAvailableReviewers] = useState([])
   const [loadingReviewers, setLoadingReviewers] = useState(true)
   const [searchFileCode, setSearchFileCode] = useState('')
@@ -221,6 +224,17 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     [availableReviewers]
   )
 
+  const divisionOptions = useMemo(
+    () => divisions.map((division) => ({
+      id: division.id,
+      value: String(division.id),
+      label: division.name || division.code || `Division ${division.id}`,
+      searchText: [division.code, division.name].filter(Boolean).join(' '),
+      meta: [division.code].filter(Boolean)
+    })),
+    [divisions]
+  )
+
   const contentFormatOptions = useMemo(
     () => ([
       { value: 'FILE', label: 'File Upload' },
@@ -235,9 +249,15 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   useEffect(() => {
     if (isOpen) {
       loadDocumentTypes()
-      loadReviewers()
+      loadDivisions()
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (isOpen && formData.divisionId) {
+      loadReviewers(formData.divisionId)
+    }
+  }, [isOpen, formData.divisionId])
 
   // Load acknowledged documents when document type changes
   useEffect(() => {
@@ -293,24 +313,36 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     }
   }
 
-  const loadReviewers = async () => {
+  const loadDivisions = async () => {
+    setLoadingDivisions(true)
+    try {
+      const divisionsRes = await api.get('/divisions')
+      const nextDivisions = divisionsRes?.data?.data?.divisions || []
+      setDivisions(nextDivisions)
+
+      const last = String(localStorage.getItem('lastActiveDivisionId') || '').trim()
+      const picked = last && nextDivisions.some((d) => String(d.id) === last)
+        ? last
+        : nextDivisions[0]?.id
+          ? String(nextDivisions[0].id)
+          : ''
+
+      setFormData((prev) => ({ ...prev, divisionId: prev.divisionId || picked }))
+    } catch {
+      setDivisions([])
+    } finally {
+      setLoadingDivisions(false)
+    }
+  }
+
+  const loadReviewers = async (divisionId) => {
     setLoadingReviewers(true)
     try {
-      let divisionId = ''
-      try {
-        const divisionsRes = await api.get('/divisions')
-        const divisions = divisionsRes?.data?.data?.divisions || []
-        const last = String(localStorage.getItem('lastActiveDivisionId') || '').trim()
-        const picked = last && divisions.some((d) => String(d.id) === last)
-          ? last
-          : divisions[0]?.id
-            ? String(divisions[0].id)
-            : ''
-        divisionId = picked
-      } catch {}
-
       const res = await api.get('/users', {
-        params: divisionId ? { divisionId } : undefined
+        params: {
+          ...(divisionId ? { divisionId } : {}),
+          roleName: 'reviewer'
+        }
       })
       const users = res.data.data?.users || res.data.users || []
       
@@ -368,6 +400,14 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
   const handleReviewerSelect = (userId) => {
     setFormData((prev) => ({ ...prev, reviewerId: userId }))
+  }
+
+  const handleDivisionSelect = (divisionId) => {
+    const next = divisionId ? String(divisionId) : ''
+    setFormData((prev) => ({ ...prev, divisionId: next, reviewerId: null }))
+    try {
+      if (next) localStorage.setItem('lastActiveDivisionId', next)
+    } catch {}
   }
 
   const filteredAcknowledgedDocs = acknowledgedDocs.filter(doc =>
@@ -436,6 +476,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       formDataToSubmit.append('documentType', formData.documentType)
       formDataToSubmit.append('contentFormat', formData.contentFormat)
       formDataToSubmit.append('comments', formData.comments)
+      if (formData.divisionId) formDataToSubmit.append('divisionId', String(formData.divisionId))
       formDataToSubmit.append('status', 'Draft')
       if (selectedFile) {
         formDataToSubmit.append('file', selectedFile)
@@ -467,6 +508,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       formDataToSubmit.append('contentFormat', formData.contentFormat)
       formDataToSubmit.append('comments', formData.comments)
       formDataToSubmit.append('reviewers', JSON.stringify([formData.reviewerId]))
+      if (formData.divisionId) formDataToSubmit.append('divisionId', String(formData.divisionId))
       formDataToSubmit.append('status', 'Ready for Review')
       if (selectedFile) {
         formDataToSubmit.append('file', selectedFile)
@@ -490,7 +532,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       documentType: '',
       contentFormat: 'FILE',
       comments: '',
-      reviewerId: null
+      reviewerId: null,
+      divisionId: ''
     })
     setSelectedFile(null)
     setSearchFileCode('')
@@ -701,6 +744,31 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               </div>
             </div>
 
+            {divisions.length > 1 || loadingDivisions ? (
+              <div>
+                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                  Division <span className="text-red-500">*</span>
+                </label>
+                {loadingDivisions ? (
+                  <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-ink-muted">
+                    <InlineSpinner className="h-4 w-4 border-2" />
+                    <span>{t('loading_ellipsis')}</span>
+                  </AppSurface>
+                ) : (
+                  <SearchableSingleSelect
+                    value={formData.divisionId}
+                    options={divisionOptions}
+                    onChange={handleDivisionSelect}
+                    placeholder="Select division"
+                    searchPlaceholder="Search division..."
+                    noResultsLabel="No division found"
+                    clearLabel={t('clear_filter')}
+                    loadingLabel={t('loading_ellipsis')}
+                  />
+                )}
+              </div>
+            ) : null}
+
             {/* Assign Reviewer */}
             <div>
               <label className="block text-sm font-medium text-ink-secondary mb-2">
@@ -710,6 +778,10 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
                 <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-ink-muted" data-tour-id="new-draft-assign-reviewer">
                   <InlineSpinner className="h-4 w-4 border-2" />
                   <span>{t('loading_reviewers')}</span>
+                </AppSurface>
+              ) : !formData.divisionId ? (
+                <AppSurface variant="muted" padding="md" className="text-sm text-ink-muted" data-tour-id="new-draft-assign-reviewer">
+                  Select division first
                 </AppSurface>
               ) : availableReviewers.length === 0 ? (
                 <AppSurface variant="muted" padding="md" className="text-sm text-ink-muted" data-tour-id="new-draft-assign-reviewer">

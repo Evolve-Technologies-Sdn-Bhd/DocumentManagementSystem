@@ -7,6 +7,35 @@ const divisionScopeService = require('./divisionScopeService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
+  async assertUserHasRole(userId, roleName, message) {
+    const normalizedUserId = Number.parseInt(userId, 10)
+    if (!Number.isFinite(normalizedUserId)) {
+      throw new BadRequestError(message)
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: normalizedUserId },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: { select: { name: true } }
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      throw new BadRequestError(message)
+    }
+
+    const normalizedRoleName = String(roleName || '').toLowerCase()
+    const hasRole = (user.roles || []).some((r) => String(r?.role?.name || '').toLowerCase() === normalizedRoleName)
+    if (!hasRole) {
+      throw new BadRequestError(message)
+    }
+  }
+
   queueSubmitForReviewFollowUps({ documentId, updated, userId }) {
     setImmediate(async () => {
       const taskStart = startTimer()
@@ -214,6 +243,7 @@ class WorkflowService {
       }
 
       if (!skipApproval && approverId) {
+        await this.assertUserHasRole(approverId, 'approver', 'Selected approver must have Approver role')
         const effectiveDivisionIds = document.folderId
           ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
           : document.divisionId
@@ -431,6 +461,7 @@ class WorkflowService {
       }
 
       if (secondApproverId) {
+        await this.assertUserHasRole(secondApproverId, 'approver', 'Selected approver must have Approver role')
         const effectiveDivisionIds = document.folderId
           ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
           : document.divisionId
