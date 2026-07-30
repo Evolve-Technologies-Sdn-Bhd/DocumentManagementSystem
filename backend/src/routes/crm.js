@@ -1,6 +1,7 @@
 const express = require('express')
 const { authenticate } = require('../middleware/auth')
 const { ForbiddenError } = require('../utils/errors')
+const { createUploadMiddleware } = require('../middleware/upload')
 const crmTenderController = require('../controllers/crmTenderController')
 const crmFbEnquiryController = require('../controllers/crmFbEnquiryController')
 
@@ -43,8 +44,12 @@ router.get('/fb-enquiries/summary', requireAnyPermission('crm.fbEnquiry', ['view
 router.post('/fb-enquiries', requirePermission('crm.fbEnquiry', 'create'), crmFbEnquiryController.create)
 router.put('/fb-enquiries/:id', requirePermission('crm.fbEnquiry', 'update'), crmFbEnquiryController.update)
 router.delete('/fb-enquiries/:id', requirePermission('crm.fbEnquiry', 'delete'), crmFbEnquiryController.remove)
+router.get('/fb-enquiries/:id/assignees', requireAnyPermission('crm.fbEnquiry', ['view', 'update']), crmFbEnquiryController.getAssignees)
+router.put('/fb-enquiries/:id/assignees', requirePermission('crm.fbEnquiry', 'update'), crmFbEnquiryController.setAssignees)
+router.get('/fb-enquiries/:id/follow-ups', requireAnyPermission('crm.fbEnquiry', ['view', 'update']), crmFbEnquiryController.listFollowUps)
+router.post('/fb-enquiries/:id/follow-ups', requirePermission('crm.fbEnquiry', 'update'), crmFbEnquiryController.addFollowUp)
 router.post('/fb-enquiries/import', requirePermission('crm.fbEnquiry', 'import'), crmFbEnquiryController.importEntries)
-router.get('/fb-enquiries/export', requirePermission('crm.fbEnquiry', 'export'), crmFbEnquiryController.exportCsv)
+router.post('/fb-enquiries/import-file', requirePermission('crm.fbEnquiry', 'import'), createUploadMiddleware('file'), crmFbEnquiryController.importFile)
+router.get('/fb-enquiries/export', requirePermission('crm.fbEnquiry', 'export'), crmFbEnquiryController.export)
 
 module.exports = router
-

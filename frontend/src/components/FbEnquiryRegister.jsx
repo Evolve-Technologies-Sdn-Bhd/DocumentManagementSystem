@@ -19,9 +19,9 @@ const statusOptions = [
   { value: 'all', label: 'All statuses' },
   { value: 'NEW', label: 'New' },
   { value: 'CONTACTED', label: 'Contacted' },
-  { value: 'QUALIFIED', label: 'Qualified' },
-  { value: 'QUOTATION_PROVIDED', label: 'Quotation Provided' },
-  { value: 'CONVERTED', label: 'Converted' }
+  { value: 'FOLLOW_UP', label: 'Follow Up' },
+  { value: 'NO_RESPONSE', label: 'No Response' },
+  { value: 'QUOTATION_ISSUED', label: 'Quotation Issued' }
 ]
 
 export default function FbEnquiryRegister() {
@@ -40,13 +40,14 @@ export default function FbEnquiryRegister() {
     totalEntries: 0,
     newEntries: 0,
     inPipeline: 0,
-    converted: 0,
-    totalPotentialValueCents: 0
+    quotationIssued: 0,
+    noResponse: 0
   })
 
   const [loading, setLoading] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState('xlsx')
   const [errorMessage, setErrorMessage] = useState('')
 
   const [entryModal, setEntryModal] = useState({ open: false, entry: null })
@@ -54,11 +55,6 @@ export default function FbEnquiryRegister() {
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
 
   const totalPages = useMemo(() => Math.max(Math.ceil(total / limit), 1), [total, limit])
-
-  const formatMoney = (cents) => {
-    const amount = Number(cents || 0) / 100
-    return `RM ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
 
   const loadRecords = async (nextFilters = filters, nextPage = page, nextLimit = limit) => {
     setLoading(true)
@@ -95,8 +91,8 @@ export default function FbEnquiryRegister() {
           totalEntries: Number(nextSummary.totalEntries || 0),
           newEntries: Number(nextSummary.newEntries || 0),
           inPipeline: Number(nextSummary.inPipeline || 0),
-          converted: Number(nextSummary.converted || 0),
-          totalPotentialValueCents: Number(nextSummary.totalPotentialValueCents || 0)
+          quotationIssued: Number(nextSummary.quotationIssued || 0),
+          noResponse: Number(nextSummary.noResponse || 0)
         })
       }
     } catch (error) {
@@ -133,13 +129,20 @@ export default function FbEnquiryRegister() {
     setErrorMessage('')
     try {
       const res = await api.get('/crm/fb-enquiries/export', {
-        params: filters,
+        params: {
+          ...filters,
+          format: exportFormat
+        },
         responseType: 'blob'
       })
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
+      const isXlsx = exportFormat === 'xlsx'
+      const mime = isXlsx
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/csv'
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `fb_enquiries_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute('download', `fb_enquiries_${new Date().toISOString().split('T')[0]}.${isXlsx ? 'xlsx' : 'csv'}`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -157,41 +160,43 @@ export default function FbEnquiryRegister() {
     if (lines.length <= 1) return []
     const header = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
     const idx = (name) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase())
-    const nameIdx = idx('name')
+    const contactIdx = idx('contact')
     const enquiryDateIdx = idx('enquiryDate')
-    if (nameIdx < 0 || enquiryDateIdx < 0) return []
+    if (contactIdx < 0 || enquiryDateIdx < 0) return []
+    const nameIdx = idx('name')
     const emailIdx = idx('email')
     const companyIdx = idx('company')
-    const contactIdx = idx('contact')
-    const locationIdx = idx('location')
+    const addressIdx = idx('address')
+    const stateIdx = idx('state')
     const channelIdx = idx('channel')
     const industryTypeIdx = idx('industryType')
     const interestedProductIdx = idx('interestedProduct')
     const painPointIdx = idx('painPoint')
     const statusIdx = idx('status')
-    const valueIdx = idx('potentialValueCents')
     const documentLinkIdx = idx('documentLink')
+    const nextFollowUpAtIdx = idx('nextFollowUpAt')
     const followUpNotesIdx = idx('followUpNotes')
 
     return lines.slice(1).map((line) => {
       const parts = line.split(',').map((p) => p.trim().replace(/^"|"$/g, ''))
       return {
-        name: parts[nameIdx] || '',
+        contact: parts[contactIdx] || '',
         enquiryDate: parts[enquiryDateIdx] || '',
+        name: nameIdx >= 0 ? (parts[nameIdx] || '') : '',
         email: emailIdx >= 0 ? (parts[emailIdx] || '') : '',
         company: companyIdx >= 0 ? (parts[companyIdx] || '') : '',
-        contact: contactIdx >= 0 ? (parts[contactIdx] || '') : '',
-        location: locationIdx >= 0 ? (parts[locationIdx] || '') : '',
+        address: addressIdx >= 0 ? (parts[addressIdx] || '') : '',
+        state: stateIdx >= 0 ? (parts[stateIdx] || '') : '',
         channel: channelIdx >= 0 ? (parts[channelIdx] || '') : '',
         industryType: industryTypeIdx >= 0 ? (parts[industryTypeIdx] || '') : '',
         interestedProduct: interestedProductIdx >= 0 ? (parts[interestedProductIdx] || '') : '',
         painPoint: painPointIdx >= 0 ? (parts[painPointIdx] || '') : '',
         status: statusIdx >= 0 ? (parts[statusIdx] || 'NEW') : 'NEW',
-        potentialValueCents: valueIdx >= 0 ? Number(parts[valueIdx] || 0) : 0,
         documentLink: documentLinkIdx >= 0 ? (parts[documentLinkIdx] || '') : '',
+        nextFollowUpAt: nextFollowUpAtIdx >= 0 ? (parts[nextFollowUpAtIdx] || '') : '',
         followUpNotes: followUpNotesIdx >= 0 ? (parts[followUpNotesIdx] || '') : ''
       }
-    }).filter((row) => String(row.name || '').trim() && String(row.enquiryDate || '').trim())
+    }).filter((row) => String(row.contact || '').trim() && String(row.enquiryDate || '').trim())
   }
 
   const handleImportClick = () => {
@@ -200,6 +205,37 @@ export default function FbEnquiryRegister() {
 
   const handleImportFile = async (file) => {
     if (!file) return
+    const isXlsx = String(file.name || '').toLowerCase().endsWith('.xlsx')
+    if (isXlsx) {
+      setConfirmModal({
+        show: true,
+        title: 'Import Enquiry Entries',
+        message: `Import entries from Excel file "${file.name}"?`,
+        onConfirm: async () => {
+          try {
+            const formData = new FormData()
+            formData.append('file', file)
+            await api.post('/crm/fb-enquiries/import-file', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            setImportModalOpen(false)
+            setConfirmModal({ show: false })
+            loadRecords(filters, page, limit)
+            loadSummary(filters)
+          } catch (error) {
+            console.error('Failed to import enquiries:', error)
+            setConfirmModal({
+              show: true,
+              title: 'Import failed',
+              message: 'Unable to import entries. Please try again.',
+              onConfirm: null
+            })
+          }
+        }
+      })
+      return
+    }
+
     const text = await file.text()
     const parsed = parseCsv(text)
     if (parsed.length === 0) {
@@ -207,7 +243,7 @@ export default function FbEnquiryRegister() {
       setConfirmModal({
         show: true,
         title: 'Import failed',
-        message: 'CSV format not recognized. Required headers: name,enquiryDate. Optional: email,company,contact,location,channel,industryType,interestedProduct,painPoint,status,potentialValueCents,documentLink,followUpNotes.',
+        message: 'CSV format not recognized. Required headers: contact,enquiryDate. Optional: status,name,email,company,address,state,channel,industryType,interestedProduct,painPoint,documentLink,nextFollowUpAt,followUpNotes.',
         onConfirm: null
       })
       return
@@ -296,8 +332,8 @@ export default function FbEnquiryRegister() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries)}
         {renderSummaryCard('In Pipeline', summaryLoading ? '...' : summary.inPipeline)}
-        {renderSummaryCard('Converted', summaryLoading ? '...' : summary.converted)}
-        {renderSummaryCard('Total Potential Value', summaryLoading ? '...' : formatMoney(summary.totalPotentialValueCents))}
+        {renderSummaryCard('Quotation Issued', summaryLoading ? '...' : summary.quotationIssued)}
+        {renderSummaryCard('No Response', summaryLoading ? '...' : summary.noResponse)}
       </div>
 
       {errorMessage && (
@@ -330,6 +366,21 @@ export default function FbEnquiryRegister() {
                 Import Excel/CSV
               </Button>
             )}
+            {canExport && (
+              <div className="flex items-center gap-2">
+                <SelectField
+                  className="h-9 w-28 rounded-2xl"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                >
+                  <option value="xlsx">Excel</option>
+                  <option value="csv">CSV</option>
+                </SelectField>
+                <Button variant="secondary" onClick={handleExport} loading={exporting} loadingText="Exporting...">
+                  Export
+                </Button>
+              </div>
+            )}
             {canCreate && <Button onClick={openCreate}>Add New Enquiry</Button>}
           </div>
         </div>
@@ -340,15 +391,18 @@ export default function FbEnquiryRegister() {
           <thead>
             <tr>
               <Th>No.</Th>
+              <Th>Month</Th>
+              <Th>Contact No.</Th>
               <Th>Name</Th>
               <Th>Company</Th>
-              <Th>Location</Th>
+              <Th>Address</Th>
+              <Th>State</Th>
               <Th>Channel</Th>
               <Th>Industry</Th>
               <Th>Interest</Th>
               <Th>Pain Point</Th>
-              <Th align="right">Value</Th>
               <Th>Status</Th>
+              <Th>Tender</Th>
               <Th>Notes</Th>
               {(canUpdate || canDelete) && <Th align="right">Actions</Th>}
             </tr>
@@ -356,13 +410,13 @@ export default function FbEnquiryRegister() {
           <tbody>
             {loading ? (
               <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 12 : 11} className="py-10 text-center">
+                <Td colSpan={(canUpdate || canDelete) ? 15 : 14} className="py-10 text-center">
                   <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
                 </Td>
               </Tr>
             ) : records.length === 0 ? (
               <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 12 : 11} className="py-8">
+                <Td colSpan={(canUpdate || canDelete) ? 15 : 14} className="py-8">
                   <EmptyPanelState
                     title="No entries yet"
                     description='Log the first one with "Add New Enquiry".'
@@ -373,15 +427,18 @@ export default function FbEnquiryRegister() {
               records.map((row) => (
                 <Tr key={row.id}>
                   <Td>{String(row.id || '').padStart(3, '0')}</Td>
-                  <Td className="font-semibold text-ink">{row.name}</Td>
+                  <Td>{row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}</Td>
+                  <Td className="font-semibold text-ink">{row.contact}</Td>
+                  <Td className="font-semibold text-ink">{row.name || '-'}</Td>
                   <Td>{row.company || '-'}</Td>
-                  <Td>{row.location || '-'}</Td>
+                  <Td>{row.address || '-'}</Td>
+                  <Td>{row.state || '-'}</Td>
                   <Td>{row.channel || '-'}</Td>
                   <Td>{row.industryType || '-'}</Td>
                   <Td>{row.interestedProduct || '-'}</Td>
                   <Td>{row.painPoint || '-'}</Td>
-                  <Td align="right">{formatMoney(row.potentialValueCents)}</Td>
                   <Td><StatusBadge status={row.status} /></Td>
+                  <Td>{row.tenderEntry?.tenderRefNo || '-'}</Td>
                   <Td>{row.followUpNotes || '-'}</Td>
                   {(canUpdate || canDelete) && (
                     <Td align="right">
@@ -441,42 +498,47 @@ export default function FbEnquiryRegister() {
       <CrmImportModal
         open={importModalOpen}
         title="Import FB Enquiries"
-        subtitle="Upload a CSV file using the same template structure every time."
+        subtitle="Upload an Excel or CSV file using the same template structure every time."
+        accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+        chooseButtonLabel="Choose Excel/CSV"
+        dropLabel="Drag & drop Excel/CSV file here"
         templateDownloadFileName="fb_enquiries_template.csv"
         templateHeaders={[
-          'name',
+          'contact',
           'enquiryDate',
           'status',
+          'name',
           'email',
           'company',
-          'contact',
-          'location',
+          'address',
+          'state',
           'channel',
           'industryType',
           'interestedProduct',
           'painPoint',
-          'potentialValueCents',
           'documentLink',
+          'nextFollowUpAt',
           'followUpNotes'
         ]}
         templateSampleRow={[
-          'John Tan',
+          '0123456789',
           '2026-07-28',
           'NEW',
+          'John Tan',
           'john@example.com',
           'ABC Sdn Bhd',
-          '0123456789',
-          'Shah Alam',
+          'No 1, Jalan Example, Shah Alam',
+          'Selangor',
           'Facebook Post/Ad',
           'Construction',
           'Document control service',
           'Need better document tracking',
-          '1000000',
           'https://example.com/reference',
+          '2026-08-05',
           'Requested follow-up next week'
         ]}
-        requiredFields={['name', 'enquiryDate']}
-        optionalFields={['status', 'email', 'company', 'contact', 'location', 'channel', 'industryType', 'interestedProduct', 'painPoint', 'potentialValueCents', 'documentLink', 'followUpNotes']}
+        requiredFields={['contact', 'enquiryDate']}
+        optionalFields={['status', 'name', 'email', 'company', 'address', 'state', 'channel', 'industryType', 'interestedProduct', 'painPoint', 'documentLink', 'nextFollowUpAt', 'followUpNotes']}
         onClose={() => setImportModalOpen(false)}
         onImportFile={handleImportFile}
       />

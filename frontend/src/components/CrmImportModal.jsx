@@ -10,6 +10,9 @@ export default function CrmImportModal({
   templateDownloadFileName,
   templateHeaders = [],
   templateSampleRow = [],
+  accept = '.csv,text/csv',
+  chooseButtonLabel = 'Choose File',
+  dropLabel = 'Drag & drop file here',
   onClose,
   onImportFile
 }) {
@@ -81,7 +84,7 @@ export default function CrmImportModal({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept={accept}
             className="hidden"
             onChange={handleFileChange}
           />
@@ -109,11 +112,11 @@ export default function CrmImportModal({
               dragActive ? 'border-brand bg-brand/5 text-ink' : 'border-border bg-surface-muted text-ink-muted'
             ].join(' ')}
           >
-            <div className="font-semibold text-ink">{selectedFile ? selectedFile.name : 'Drag & drop CSV file here'}</div>
+            <div className="font-semibold text-ink">{selectedFile ? selectedFile.name : dropLabel}</div>
             <div className="mt-1 text-xs text-ink-muted">or select a file from your computer</div>
             <div className="mt-4 flex justify-center">
               <Button variant="secondary" onClick={handlePickFile}>
-                Choose CSV File
+                {chooseButtonLabel}
               </Button>
             </div>
           </div>

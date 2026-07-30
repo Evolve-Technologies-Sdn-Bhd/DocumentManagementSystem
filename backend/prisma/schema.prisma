@@ -89,6 +89,10 @@ model User {
   projectRequiredDocumentPicAssignedActions ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicAssignedBy")
   crmTenderEntriesCreated    CrmTenderEntry[]   @relation("CrmTenderCreatedBy")
   crmFbEnquiryEntriesCreated CrmFbEnquiryEntry[] @relation("CrmFbEnquiryCreatedBy")
+  crmFbEnquiryAssigneeEntries CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeUser")
+  crmFbEnquiryAssigneeEntriesCreated CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeCreatedBy")
+  crmFbEnquiryFollowUpLogsAssigned CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpAssignedTo")
+  crmFbEnquiryFollowUpLogsCreated CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpCreatedBy")
 
   @@index([email])
   @@index([employeeId])
@@ -1696,6 +1700,7 @@ model CrmTenderEntry {
   updatedAt            DateTime        @updatedAt
 
   createdBy User @relation("CrmTenderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  fbEnquiry CrmFbEnquiryEntry? @relation("CrmTenderFromFbEnquiry")
 
   @@index([tenderRefNo])
   @@index([status])
@@ -1713,19 +1718,20 @@ model CrmTenderSequence {
 enum CrmFbEnquiryStatus {
   NEW
   CONTACTED
-  QUALIFIED
-  QUOTATION_PROVIDED
-  CONVERTED
+  FOLLOW_UP
+  NO_RESPONSE
+  QUOTATION_ISSUED
 }
 
 model CrmFbEnquiryEntry {
   id                  Int                @id @default(autoincrement())
-  name                String
+  name                String?
   enquiryDate         DateTime
   email               String?
   company             String?
-  contact             String?
-  location            String?
+  contact             String             @unique
+  address             String?            @map("location")
+  state               String?
   channel             String?
   industryType        String?
   interestedProduct   String?
@@ -1734,14 +1740,55 @@ model CrmFbEnquiryEntry {
   potentialValueCents Int                @default(0)
   documentLink        String?
   followUpNotes       String?            @db.Text
+  nextFollowUpAt      DateTime?
+  tenderEntryId       Int?               @unique
   createdById         Int
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
   createdBy User @relation("CrmFbEnquiryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignees CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssignees")
+  followUpLogs CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUps")
+  tenderEntry CrmTenderEntry? @relation("CrmTenderFromFbEnquiry", fields: [tenderEntryId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([enquiryDate])
   @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryAssignee {
+  id         Int @id @default(autoincrement())
+  enquiryId  Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  enquiry   CrmFbEnquiryEntry @relation("CrmFbEnquiryAssignees", fields: [enquiryId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmFbEnquiryAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmFbEnquiryAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([enquiryId, userId])
+  @@index([enquiryId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryFollowUpLog {
+  id           Int @id @default(autoincrement())
+  enquiryId    Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  enquiry    CrmFbEnquiryEntry @relation("CrmFbEnquiryFollowUps", fields: [enquiryId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmFbEnquiryFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmFbEnquiryFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([enquiryId])
+  @@index([assignedToId])
+  @@index([followUpAt])
   @@index([createdAt])
 }

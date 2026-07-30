@@ -9,9 +9,9 @@ import SelectField from './ui/SelectField'
 const statusOptions = [
   { value: 'NEW', label: 'New' },
   { value: 'CONTACTED', label: 'Contacted' },
-  { value: 'QUALIFIED', label: 'Qualified' },
-  { value: 'QUOTATION_PROVIDED', label: 'Quotation Provided' },
-  { value: 'CONVERTED', label: 'Converted' }
+  { value: 'FOLLOW_UP', label: 'Follow Up' },
+  { value: 'NO_RESPONSE', label: 'No Response' },
+  { value: 'QUOTATION_ISSUED', label: 'Quotation Issued' }
 ]
 
 const defaultChannelOptions = [
@@ -44,18 +44,25 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     email: '',
     company: '',
     contact: '',
-    location: '',
+    address: '',
+    state: '',
     channel: 'Facebook Post/Ad',
     industryType: '',
     interestedProduct: '',
     painPoint: '',
     status: 'NEW',
-    potentialValueRm: '',
     documentLink: '',
     followUpNotes: ''
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [users, setUsers] = useState([])
+  const [assigneeIds, setAssigneeIds] = useState([])
+  const [assigneesLoading, setAssigneesLoading] = useState(false)
+  const [followUps, setFollowUps] = useState([])
+  const [followUpsLoading, setFollowUpsLoading] = useState(false)
+  const [followUpDraft, setFollowUpDraft] = useState({ followUpAt: '', assignedToId: '', note: '' })
+  const [addingFollowUp, setAddingFollowUp] = useState(false)
 
   const allowedStatuses = useMemo(() => new Set(statusOptions.map((s) => s.value)), [])
   const allowedChannels = useMemo(() => new Set(channelOptions.map((v) => String(v))), [channelOptions])
@@ -68,16 +75,18 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
       try {
         const res = await api.get('/system/config/crm-fb-enquiry-lookups')
         const lookups = res.data?.data?.lookups || {}
-        const nextChannels = Array.isArray(lookups.channels) && lookups.channels.length ? lookups.channels : defaultChannelOptions
-        const nextIndustries = Array.isArray(lookups.industryTypes) && lookups.industryTypes.length ? lookups.industryTypes : defaultIndustryOptions
+        const baseChannels = Array.isArray(lookups.channels) && lookups.channels.length ? lookups.channels : defaultChannelOptions
+        const baseIndustries = Array.isArray(lookups.industryTypes) && lookups.industryTypes.length ? lookups.industryTypes : defaultIndustryOptions
+        const nextChannels = baseChannels.slice().sort((a, b) => String(a).localeCompare(String(b)))
+        const nextIndustries = baseIndustries.slice().sort((a, b) => String(a).localeCompare(String(b)))
         if (!active) return
         setChannelOptions(nextChannels)
         setIndustryOptions(nextIndustries)
       } catch (e) {
         console.error('Failed to load CRM enquiry lookups:', e)
         if (!active) return
-        setChannelOptions(defaultChannelOptions)
-        setIndustryOptions(defaultIndustryOptions)
+        setChannelOptions(defaultChannelOptions.slice().sort((a, b) => String(a).localeCompare(String(b))))
+        setIndustryOptions(defaultIndustryOptions.slice().sort((a, b) => String(a).localeCompare(String(b))))
       }
     }
 
@@ -90,10 +99,10 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     setError('')
     const preferredChannel = entry?.channel || channelOptions[0] || ''
     if (entry?.channel && !channelOptions.includes(entry.channel)) {
-      setChannelOptions((prev) => [...prev, entry.channel])
+      setChannelOptions((prev) => [...prev, entry.channel].slice().sort((a, b) => String(a).localeCompare(String(b))))
     }
     if (entry?.industryType && !industryOptions.includes(entry.industryType)) {
-      setIndustryOptions((prev) => [...prev, entry.industryType])
+      setIndustryOptions((prev) => [...prev, entry.industryType].slice().sort((a, b) => String(a).localeCompare(String(b))))
     }
     setForm({
       name: entry?.name || '',
@@ -101,49 +110,85 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
       email: entry?.email || '',
       company: entry?.company || '',
       contact: entry?.contact || '',
-      location: entry?.location || '',
+      address: entry?.address || '',
+      state: entry?.state || '',
       channel: preferredChannel,
       industryType: entry?.industryType || '',
       interestedProduct: entry?.interestedProduct || '',
       painPoint: entry?.painPoint || '',
       status: entry?.status || 'NEW',
-      potentialValueRm: entry?.potentialValueCents != null ? (Number(entry.potentialValueCents) / 100).toFixed(2) : '',
       documentLink: entry?.documentLink || '',
       followUpNotes: entry?.followUpNotes || ''
     })
   }, [open, entry, channelOptions])
 
-  const toCents = (rmText) => {
-    const v = Number(String(rmText || '').replace(/,/g, ''))
-    if (!Number.isFinite(v)) return 0
-    return Math.round(v * 100)
-  }
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    const loadUsers = async () => {
+      try {
+        const res = await api.get('/users')
+        const list = res.data?.data?.users || res.data?.users || []
+        const activeUsers = Array.isArray(list)
+          ? list.filter((u) => u && u.status === 'ACTIVE')
+          : []
+        activeUsers.sort((a, b) => {
+          const aName = `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email || ''
+          const bName = `${b.firstName || ''} ${b.lastName || ''}`.trim() || b.email || ''
+          return aName.localeCompare(bName)
+        })
+        if (!active) return
+        setUsers(activeUsers)
+      } catch (e) {
+        console.error('Failed to load users:', e)
+        if (!active) return
+        setUsers([])
+      }
+    }
+    loadUsers()
+    return () => { active = false }
+  }, [open])
 
-  const normalizeCurrencyInput = (value) => {
-    const raw = String(value ?? '').replace(/,/g, '').replace(/[^\d.]/g, '')
-    const parts = raw.split('.')
-    if (parts.length === 1) return parts[0]
-    return `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
-  }
+  useEffect(() => {
+    if (!open || !isEdit) return
+    let active = true
+    const loadAssignees = async () => {
+      setAssigneesLoading(true)
+      try {
+        const res = await api.get(`/crm/fb-enquiries/${entry.id}/assignees`)
+        const rows = res.data?.data?.assignees || []
+        const ids = rows.map((r) => r?.userId).filter(Boolean)
+        if (!active) return
+        setAssigneeIds(ids)
+      } catch (e) {
+        console.error('Failed to load assignees:', e)
+        if (!active) return
+        setAssigneeIds([])
+      } finally {
+        if (active) setAssigneesLoading(false)
+      }
+    }
 
-  const formatCurrencyDisplay = (value) => {
-    const normalized = normalizeCurrencyInput(value)
-    if (!normalized) return ''
-    const numeric = Number(normalized)
-    if (!Number.isFinite(numeric)) return ''
-    return numeric.toLocaleString('en-MY', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })
-  }
+    const loadFollowUps = async () => {
+      setFollowUpsLoading(true)
+      try {
+        const res = await api.get(`/crm/fb-enquiries/${entry.id}/follow-ups`)
+        const rows = res.data?.data?.followUps || []
+        if (!active) return
+        setFollowUps(Array.isArray(rows) ? rows : [])
+      } catch (e) {
+        console.error('Failed to load follow-ups:', e)
+        if (!active) return
+        setFollowUps([])
+      } finally {
+        if (active) setFollowUpsLoading(false)
+      }
+    }
 
-  const handleCurrencyChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: normalizeCurrencyInput(value) }))
-  }
-
-  const handleCurrencyBlur = (field) => {
-    setForm((prev) => ({ ...prev, [field]: formatCurrencyDisplay(prev[field]) }))
-  }
+    loadAssignees()
+    loadFollowUps()
+    return () => { active = false }
+  }, [open, isEdit, entry?.id])
 
   const isValidDateInput = (value) => {
     if (!value) return false
@@ -171,16 +216,8 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     }
   }
 
-  const isValidCurrency = (value) => {
-    const raw = String(value ?? '').trim()
-    if (!raw) return true
-    if (!/^\d+(\.\d{1,2})?$/.test(raw.replace(/,/g, ''))) return false
-    const numeric = Number(raw.replace(/,/g, ''))
-    return Number.isFinite(numeric) && numeric >= 0
-  }
-
   const validatePayload = (payload) => {
-    if (!payload.name) return 'Enquirer Name is required.'
+    if (!payload.contact) return 'Contact No. is required.'
     if (!payload.enquiryDate) return 'Enquiry Date is required.'
     if (!isValidDateInput(payload.enquiryDate)) return 'Enquiry Date format is invalid.'
 
@@ -189,13 +226,13 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     if (payload.industryType && !allowedIndustries.has(payload.industryType)) return 'Industry Type is invalid.'
 
     if (!isValidEmail(payload.email)) return 'Email format is invalid.'
-    if (!isValidCurrency(form.potentialValueRm)) return 'Potential Value (RM) format is invalid.'
     if (!isValidHttpUrl(payload.documentLink)) return 'Documents (Link / Reference) must be a valid http(s) URL.'
 
     const max255 = [
       ['Company', payload.company],
       ['Contact', payload.contact],
-      ['Location', payload.location],
+      ['Address', payload.address],
+      ['State', payload.state],
       ['Interested Product / Service', payload.interestedProduct]
     ]
     for (const [label, value] of max255) {
@@ -233,8 +270,10 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
       }
       const res = await api.put('/system/config/crm-fb-enquiry-lookups', payload)
       const lookups = res.data?.data?.lookups || payload
-      const nextChannels = Array.isArray(lookups.channels) && lookups.channels.length ? lookups.channels : payload.channels
-      const nextIndustries = Array.isArray(lookups.industryTypes) && lookups.industryTypes.length ? lookups.industryTypes : payload.industryTypes
+      const baseChannels = Array.isArray(lookups.channels) && lookups.channels.length ? lookups.channels : payload.channels
+      const baseIndustries = Array.isArray(lookups.industryTypes) && lookups.industryTypes.length ? lookups.industryTypes : payload.industryTypes
+      const nextChannels = baseChannels.slice().sort((a, b) => String(a).localeCompare(String(b)))
+      const nextIndustries = baseIndustries.slice().sort((a, b) => String(a).localeCompare(String(b)))
 
       setChannelOptions(nextChannels)
       setIndustryOptions(nextIndustries)
@@ -249,23 +288,83 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     }
   }
 
+  const getUserLabel = (user) => {
+    if (!user) return ''
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+    return name || user.email || ''
+  }
+
+  const toggleAssignee = (userId) => {
+    const id = Number(userId)
+    if (!id) return
+    setAssigneeIds((prev) => {
+      const exists = prev.includes(id)
+      if (exists) return prev.filter((v) => v !== id)
+      return [...prev, id]
+    })
+  }
+
+  const saveAssignees = async () => {
+    if (!isEdit) return
+    setAssigneesLoading(true)
+    setError('')
+    try {
+      await api.put(`/crm/fb-enquiries/${entry.id}/assignees`, { userIds: assigneeIds })
+    } catch (e) {
+      console.error('Failed to save assignees:', e)
+      setError(e.response?.data?.message || 'Unable to save assignees. Please try again.')
+    } finally {
+      setAssigneesLoading(false)
+    }
+  }
+
+  const submitFollowUp = async () => {
+    if (!isEdit) return
+    setAddingFollowUp(true)
+    setError('')
+    try {
+      const payload = {
+        followUpAt: followUpDraft.followUpAt || null,
+        assignedToId: followUpDraft.assignedToId ? Number(followUpDraft.assignedToId) : null,
+        note: String(followUpDraft.note || '').trim()
+      }
+      if (!payload.note) {
+        setError('Follow-up note is required.')
+        setAddingFollowUp(false)
+        return
+      }
+
+      await api.post(`/crm/fb-enquiries/${entry.id}/follow-ups`, payload)
+      setFollowUpDraft({ followUpAt: '', assignedToId: '', note: '' })
+
+      const res = await api.get(`/crm/fb-enquiries/${entry.id}/follow-ups`)
+      const rows = res.data?.data?.followUps || []
+      setFollowUps(Array.isArray(rows) ? rows : [])
+    } catch (e) {
+      console.error('Failed to add follow-up:', e)
+      setError(e.response?.data?.message || 'Unable to add follow-up. Please try again.')
+    } finally {
+      setAddingFollowUp(false)
+    }
+  }
+
   const handleSubmit = async () => {
     setSaving(true)
     setError('')
     try {
       const payload = {
-        name: String(form.name || '').trim(),
+        name: String(form.name || '').trim() || null,
         enquiryDate: form.enquiryDate,
         email: String(form.email || '').trim() || null,
         company: String(form.company || '').trim() || null,
-        contact: String(form.contact || '').trim() || null,
-        location: String(form.location || '').trim() || null,
+        contact: String(form.contact || '').trim(),
+        address: String(form.address || '').trim() || null,
+        state: String(form.state || '').trim() || null,
         channel: String(form.channel || '').trim() || null,
         industryType: String(form.industryType || '').trim() || null,
         interestedProduct: String(form.interestedProduct || '').trim() || null,
         painPoint: String(form.painPoint || '').trim() || null,
         status: form.status,
-        potentialValueCents: toCents(form.potentialValueRm),
         documentLink: String(form.documentLink || '').trim() || null,
         followUpNotes: String(form.followUpNotes || '').trim() || null
       }
@@ -319,24 +418,28 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
 
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Enquirer Name</label>
-              <TextInput value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Email (If Any)</label>
-              <TextInput type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Company (If Any)</label>
-              <TextInput value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Contact (Phone / Messenger ID)</label>
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">Contact No.</label>
               <TextInput value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Location</label>
-              <TextInput value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">Enquirer Name (Optional)</label>
+              <TextInput value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">Email (Optional)</label>
+              <TextInput type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">Company (Optional)</label>
+              <TextInput value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">Address</label>
+              <TextInput value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-soft">State</label>
+              <TextInput value={form.state} onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))} />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between gap-3">
@@ -444,16 +547,6 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <TextArea rows={3} value={form.painPoint} onChange={(e) => setForm((p) => ({ ...p, painPoint: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Potential Value (RM)</label>
-              <TextInput
-                inputMode="decimal"
-                placeholder="0.00"
-                value={form.potentialValueRm}
-                onChange={(e) => handleCurrencyChange('potentialValueRm', e.target.value)}
-                onBlur={() => handleCurrencyBlur('potentialValueRm')}
-              />
-            </div>
-            <div>
               <label className="mb-1 block text-xs font-semibold text-ink-soft">Status</label>
               <SelectField value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
                 {statusOptions.map((opt) => (
@@ -472,6 +565,107 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <TextArea rows={4} value={form.followUpNotes} onChange={(e) => setForm((p) => ({ ...p, followUpNotes: e.target.value }))} />
             </div>
           </div>
+
+          {isEdit && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Follow-up Assignment</div>
+                    <div className="text-xs text-gray-600">Assign multiple users and notify them automatically.</div>
+                  </div>
+                  <Button size="sm" onClick={saveAssignees} loading={assigneesLoading} loadingText="Saving...">
+                    Save
+                  </Button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {users.map((u) => (
+                    <label key={u.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={assigneeIds.includes(u.id)}
+                        onChange={() => toggleAssignee(u.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-gray-900">{getUserLabel(u)}</div>
+                        <div className="truncate text-xs text-gray-600">{u.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                  {users.length === 0 && <div className="text-sm text-gray-600">No users available.</div>}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 space-y-3">
+                <div className="text-sm font-semibold text-gray-900">Follow-up Schedule & Notes</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Date</label>
+                    <TextInput
+                      type="date"
+                      value={followUpDraft.followUpAt}
+                      onChange={(e) => setFollowUpDraft((p) => ({ ...p, followUpAt: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-ink-soft">Who Need To</label>
+                    <SelectField
+                      value={followUpDraft.assignedToId}
+                      onChange={(e) => setFollowUpDraft((p) => ({ ...p, assignedToId: e.target.value }))}
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {getUserLabel(u)}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Note</label>
+                  <TextArea
+                    rows={3}
+                    value={followUpDraft.note}
+                    onChange={(e) => setFollowUpDraft((p) => ({ ...p, note: e.target.value }))}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={submitFollowUp} loading={addingFollowUp} loadingText="Adding...">
+                    Add Follow-up
+                  </Button>
+                </div>
+
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="text-xs font-semibold text-gray-700">History</div>
+                  {followUpsLoading ? (
+                    <div className="mt-2 text-sm text-gray-600">Loading...</div>
+                  ) : followUps.length === 0 ? (
+                    <div className="mt-2 text-sm text-gray-600">No follow-up history yet.</div>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {followUps.map((f) => (
+                        <div key={f.id} className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-semibold text-gray-700">
+                              {f.followUpAt ? new Date(f.followUpAt).toISOString().split('T')[0] : 'No date'}
+                              {f.assignedTo ? ` · ${getUserLabel(f.assignedTo)}` : ''}
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {f.createdAt ? new Date(f.createdAt).toLocaleString('en-MY') : ''}
+                            </div>
+                          </div>
+                          <div className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{f.note}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">

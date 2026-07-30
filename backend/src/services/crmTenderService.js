@@ -177,11 +177,9 @@ class CrmTenderService {
       throw new BadRequestError('title is required')
     }
 
-    const manualRef = this.normalizeOptionalRef(payload?.tenderRefNo)
-
     return prisma.$transaction(async (tx) => {
-      const generatedRefs = manualRef ? [] : await this.allocateGeneratedTenderRefNos(tx, 1, new Date().getFullYear())
-      const tenderRefNo = manualRef || generatedRefs[0] || null
+      const generatedRefs = await this.allocateGeneratedTenderRefNos(tx, 1, new Date().getFullYear())
+      const tenderRefNo = generatedRefs[0] || null
 
       const data = {
         tenderRefNo,
@@ -220,7 +218,9 @@ class CrmTenderService {
     }
 
     const data = {}
-    if (payload?.tenderRefNo !== undefined) data.tenderRefNo = this.normalizeOptionalRef(payload.tenderRefNo)
+    if (payload?.tenderRefNo !== undefined) {
+      throw new BadRequestError('tenderRefNo is system-generated')
+    }
     if (title !== undefined) data.title = title
     if (payload?.clientName !== undefined) data.clientName = this.normalizeOptionalText(payload.clientName)
     if (payload?.contactPerson !== undefined) data.contactPerson = this.normalizeOptionalText(payload.contactPerson)
@@ -265,7 +265,7 @@ class CrmTenderService {
         const title = String(row?.title || '').trim()
         if (!title) return null
         return {
-          tenderRefNo: this.normalizeOptionalRef(row?.tenderRefNo),
+          tenderRefNo: null,
           title,
           clientName: this.normalizeOptionalText(row?.clientName),
           contactPerson: this.normalizeOptionalText(row?.contactPerson),
@@ -285,14 +285,13 @@ class CrmTenderService {
       throw new BadRequestError('No valid entries to import')
     }
 
-    const missingCount = preparedBase.reduce((acc, r) => acc + (r.tenderRefNo ? 0 : 1), 0)
+    const missingCount = preparedBase.length
     const year = new Date().getFullYear()
 
     return prisma.$transaction(async (tx) => {
       const generatedRefs = missingCount > 0 ? await this.allocateGeneratedTenderRefNos(tx, missingCount, year) : []
       let nextIdx = 0
       const prepared = preparedBase.map((r) => {
-        if (r.tenderRefNo) return r
         const auto = generatedRefs[nextIdx++] || null
         return { ...r, tenderRefNo: auto }
       })

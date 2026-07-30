@@ -18,7 +18,6 @@ const statusOptions = [
 export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
   const isEdit = useMemo(() => Boolean(entry?.id), [entry])
   const [form, setForm] = useState({
-    tenderRefNo: '',
     title: '',
     clientName: '',
     contactPerson: '',
@@ -39,7 +38,6 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
     if (!open) return
     setError('')
     setForm({
-      tenderRefNo: entry?.tenderRefNo || '',
       title: entry?.title || '',
       clientName: entry?.clientName || '',
       contactPerson: entry?.contactPerson || '',
@@ -114,11 +112,6 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
   const validatePayload = (payload) => {
     if (!payload.title) return 'Tender / Project Title is required.'
 
-    if (payload.tenderRefNo) {
-      const ref = String(payload.tenderRefNo)
-      if (!/^[A-Za-z0-9][A-Za-z0-9/_-]{0,49}$/.test(ref)) return 'Tender No / Ref format is invalid.'
-    }
-
     if (payload.submissionDeadline && !isValidDateInput(payload.submissionDeadline)) {
       return 'Submission Deadline format is invalid.'
     }
@@ -148,7 +141,6 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
     setError('')
     try {
       const payload = {
-        tenderRefNo: String(form.tenderRefNo || '').trim() || null,
         title: String(form.title || '').trim(),
         clientName: String(form.clientName || '').trim() || null,
         contactPerson: String(form.contactPerson || '').trim() || null,
@@ -209,10 +201,12 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
           )}
 
           <div className="grid grid-cols-1 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender No / Ref</label>
-              <TextInput value={form.tenderRefNo} onChange={(e) => setForm((p) => ({ ...p, tenderRefNo: e.target.value }))} />
-            </div>
+            {isEdit && (
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender No / Ref</label>
+                <TextInput value={entry?.tenderRefNo || '-'} disabled />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender / Project Title</label>
               <TextInput value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />

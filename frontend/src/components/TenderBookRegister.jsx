@@ -160,7 +160,6 @@ export default function TenderBookRegister() {
     if (lines.length <= 1) return []
     const header = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
     const idx = (name) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase())
-    const refIdx = idx('tenderRefNo')
     const titleIdx = idx('title')
     if (titleIdx < 0) return []
     const clientIdx = idx('clientName')
@@ -176,7 +175,6 @@ export default function TenderBookRegister() {
     return lines.slice(1).map((line) => {
       const parts = line.split(',').map((p) => p.trim().replace(/^"|"$/g, ''))
       return {
-        tenderRefNo: refIdx >= 0 ? (parts[refIdx] || '') : '',
         title: parts[titleIdx] || '',
         clientName: clientIdx >= 0 ? (parts[clientIdx] || '') : '',
         contactPerson: contactIdx >= 0 ? (parts[contactIdx] || '') : '',
@@ -204,7 +202,7 @@ export default function TenderBookRegister() {
       setConfirmModal({
         show: true,
         title: 'Import failed',
-        message: 'CSV format not recognized. Required header: title. Optional: clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents,source,documentLink,followUpNotes.',
+        message: 'CSV format not recognized. Required header: title. Optional: clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents.',
         onConfirm: null
       })
       return
@@ -447,10 +445,7 @@ export default function TenderBookRegister() {
           'submissionDeadline',
           'status',
           'tenderValueCents',
-          'estimatedProfitCents',
-          'source',
-          'documentLink',
-          'followUpNotes'
+          'estimatedProfitCents'
         ]}
         templateSampleRow={[
           'Office Fit-out Package 3',
@@ -459,13 +454,10 @@ export default function TenderBookRegister() {
           '2026-08-15',
           'DRAFT',
           '5000000',
-          '750000',
-          'Direct invite',
-          'https://example.com/tender-doc',
-          'Prepare costing details'
+          '750000'
         ]}
         requiredFields={['title']}
-        optionalFields={['clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents', 'source', 'documentLink', 'followUpNotes']}
+        optionalFields={['clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents']}
         onClose={() => setImportModalOpen(false)}
         onImportFile={handleImportFile}
       />

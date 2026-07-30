@@ -79,6 +79,30 @@ export default function StatusBadge({ status }) {
       label: t('status_contacted'),
       style: 'bg-sky-100 text-sky-700 border-sky-300'
     },
+    'FOLLOW_UP': {
+      label: t('status_follow_up'),
+      style: 'bg-indigo-100 text-indigo-700 border-indigo-300'
+    },
+    'Follow Up': {
+      label: t('status_follow_up'),
+      style: 'bg-indigo-100 text-indigo-700 border-indigo-300'
+    },
+    'NO_RESPONSE': {
+      label: t('status_no_response'),
+      style: 'bg-gray-100 text-gray-700 border-gray-300'
+    },
+    'No Response': {
+      label: t('status_no_response'),
+      style: 'bg-gray-100 text-gray-700 border-gray-300'
+    },
+    'QUOTATION_ISSUED': {
+      label: t('status_quotation_issued'),
+      style: 'bg-amber-100 text-amber-700 border-amber-300'
+    },
+    'Quotation Issued': {
+      label: t('status_quotation_issued'),
+      style: 'bg-amber-100 text-amber-700 border-amber-300'
+    },
     'QUALIFIED': {
       label: t('status_qualified'),
       style: 'bg-indigo-100 text-indigo-700 border-indigo-300'
