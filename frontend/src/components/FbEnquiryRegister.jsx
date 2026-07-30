@@ -11,7 +11,6 @@ import EmptyPanelState from './ui/EmptyPanelState'
 import Pagination from './Pagination'
 import StatusBadge from './StatusBadge'
 import ConfirmModal from './ConfirmModal'
-import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import ActionMenu from './ActionMenu'
 import FbEnquiryEntryModal from './FbEnquiryEntryModal'
 import FbEnquiryFollowUpModal from './FbEnquiryFollowUpModal'
@@ -32,6 +31,7 @@ export default function FbEnquiryRegister() {
   const canDelete = hasPermission('crm.fbEnquiry', 'delete')
   const canImport = hasPermission('crm.fbEnquiry', 'import')
   const canExport = hasPermission('crm.fbEnquiry', 'export')
+  const tableColSpan = (canUpdate || canDelete) ? 14 : 13
 
   const [filters, setFilters] = useState({ search: '', status: 'all' })
   const [page, setPage] = useState(1)
@@ -317,9 +317,9 @@ export default function FbEnquiryRegister() {
   }, [filters.search, filters.status])
 
   const renderSummaryCard = (label, value) => (
-    <AppSurface padding="md" className="border border-border">
-      <div className="text-[11px] font-semibold text-ink-soft">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-ink">{value}</div>
+    <AppSurface padding="lg" variant="muted">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
     </AppSurface>
   )
 
@@ -330,7 +330,7 @@ export default function FbEnquiryRegister() {
         subtitle="Track enquiries, pipeline progress, and conversion outcomes"
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries)}
         {renderSummaryCard('In Pipeline', summaryLoading ? '...' : summary.inPipeline)}
         {renderSummaryCard('Quotation Issued', summaryLoading ? '...' : summary.quotationIssued)}
@@ -387,100 +387,93 @@ export default function FbEnquiryRegister() {
         </div>
       </AppSurface>
 
-      <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <Th className="w-16 whitespace-nowrap">No.</Th>
-              <Th className="w-24 whitespace-nowrap">Month</Th>
-              <Th className="w-40 whitespace-nowrap">Contact No.</Th>
-              <Th className="w-44 whitespace-nowrap">Name</Th>
-              <Th className="w-44 whitespace-nowrap">Company</Th>
-              <Th className="min-w-[320px]">Address</Th>
-              <Th className="w-36 whitespace-nowrap">State</Th>
-              <Th className="w-44 whitespace-nowrap">Channel</Th>
-              <Th className="w-44 whitespace-nowrap">Industry</Th>
-              <Th className="min-w-[220px] whitespace-nowrap">Interest</Th>
-              <Th className="min-w-[260px]">Pain Point</Th>
-              <Th className="w-40 whitespace-nowrap">Status</Th>
-              <Th className="w-40 whitespace-nowrap">Tender</Th>
-              {(canUpdate || canDelete) && <Th align="right" className="w-16" />}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 14 : 13} className="py-10 text-center">
-                  <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
-                </Td>
-              </Tr>
-            ) : records.length === 0 ? (
-              <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 14 : 13} className="py-8">
-                  <EmptyPanelState
-                    title="No entries yet"
-                    description='Log the first one with "Add New Enquiry".'
-                  />
-                </Td>
-              </Tr>
-            ) : (
-              records.map((row, index) => (
-                <Tr key={row.id}>
-                  <Td className="whitespace-nowrap">{(page - 1) * limit + index + 1}</Td>
-                  <Td className="whitespace-nowrap">{row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}</Td>
-                  <Td className="whitespace-nowrap font-semibold text-ink">{row.contact}</Td>
-                  <Td className="whitespace-nowrap font-semibold text-ink">{row.name || '-'}</Td>
-                  <Td className="whitespace-nowrap">{row.company || '-'}</Td>
-                  <Td className="whitespace-normal">{row.address || '-'}</Td>
-                  <Td className="whitespace-nowrap">{row.state || '-'}</Td>
-                  <Td className="whitespace-nowrap">{row.channel || '-'}</Td>
-                  <Td className="whitespace-nowrap">{row.industryType || '-'}</Td>
-                  <Td className="whitespace-nowrap">{row.interestedProduct || '-'}</Td>
-                  <Td className="whitespace-normal">{row.painPoint || '-'}</Td>
-                  <Td><StatusBadge status={row.status} /></Td>
-                  <Td className="whitespace-nowrap">{row.tenderEntry?.tenderRefNo || '-'}</Td>
-                  {(canUpdate || canDelete) && (
-                    <Td align="right">
-                      <ActionMenu
-                        actions={[
-                          ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
-                          ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
-                          ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
-                        ]}
-                      />
-                    </Td>
-                  )}
-                </Tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </TableContainer>
+      <AppSurface padding="none" className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-surface-muted">
+              <tr>
+                <th className="w-16 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">No.</th>
+                <th className="w-24 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Month</th>
+                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Contact No.</th>
+                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Name</th>
+                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Company</th>
+                <th className="min-w-[320px] px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Address</th>
+                <th className="w-36 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">State</th>
+                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Channel</th>
+                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Industry</th>
+                <th className="min-w-[220px] whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Interest</th>
+                <th className="min-w-[260px] px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Pain Point</th>
+                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Status</th>
+                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Tender</th>
+                {(canUpdate || canDelete) && (
+                  <th className="w-16 px-4 py-3 text-right text-xs font-medium text-ink-muted uppercase tracking-wider" />
+                )}
+              </tr>
+            </thead>
+            <tbody className="bg-surface divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={tableColSpan} className="px-4 py-10 text-center">
+                    <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
+                  </td>
+                </tr>
+              ) : records.length === 0 ? (
+                <tr>
+                  <td colSpan={tableColSpan} className="px-4 py-8">
+                    <EmptyPanelState title="No entries yet" description='Log the first one with "Add New Enquiry".' />
+                  </td>
+                </tr>
+              ) : (
+                records.map((row, index) => (
+                  <tr key={row.id} className="transition-colors hover:bg-surface-muted">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{(page - 1) * limit + index + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">
+                      {row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-ink">{row.contact}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-ink">{row.name || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.company || '-'}</td>
+                    <td className="whitespace-normal px-4 py-3 text-sm text-ink-secondary">{row.address || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.state || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.channel || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.industryType || '-'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.interestedProduct || '-'}</td>
+                    <td className="whitespace-normal px-4 py-3 text-sm text-ink-secondary">{row.painPoint || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-ink-secondary"><StatusBadge status={row.status} /></td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.tenderEntry?.tenderRefNo || '-'}</td>
+                    {(canUpdate || canDelete) && (
+                      <td className="px-4 py-3 text-right">
+                        <ActionMenu
+                          actions={[
+                            ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+                            ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
+                            ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
+                          ]}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      <div className="flex items-center justify-between">
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-ink-muted">Rows</span>
-          <SelectField
-            className="h-9 w-20 rounded-2xl"
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value))
+        {!loading && total > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalRecords={total}
+            pageSize={limit}
+            pageSizeOptions={[5, 10, 15, 20, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setLimit(next)
               setPage(1)
             }}
-          >
-            {[5, 10, 15, 20, 50].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </SelectField>
-        </div>
-      </div>
+          />
+        )}
+      </AppSurface>
 
       <FbEnquiryEntryModal
         open={entryModal.open}

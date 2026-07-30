@@ -156,9 +156,42 @@ export default function TenderBookRegister() {
   }
 
   const parseCsv = (csvText) => {
-    const lines = String(csvText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean)
+    const parseCsvRow = (line) => {
+      const input = String(line ?? '')
+      const out = []
+      let cur = ''
+      let inQuotes = false
+      for (let i = 0; i < input.length; i += 1) {
+        const ch = input[i]
+        if (ch === '"') {
+          const next = input[i + 1]
+          if (inQuotes && next === '"') {
+            cur += '"'
+            i += 1
+          } else {
+            inQuotes = !inQuotes
+          }
+          continue
+        }
+        if (ch === ',' && !inQuotes) {
+          out.push(cur)
+          cur = ''
+          continue
+        }
+        cur += ch
+      }
+      out.push(cur)
+      return out.map((v) => String(v ?? '').trim())
+    }
+
+    const lines = String(csvText || '')
+      .replace(/^\uFEFF/, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .filter((l) => String(l || '').trim() !== '')
     if (lines.length <= 1) return []
-    const header = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''))
+    const header = parseCsvRow(lines[0]).map((h) => String(h || '').trim())
     const idx = (name) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase())
     const titleIdx = idx('title')
     if (titleIdx < 0) return []
@@ -173,7 +206,7 @@ export default function TenderBookRegister() {
     const followUpIdx = idx('followUpNotes')
 
     return lines.slice(1).map((line) => {
-      const parts = line.split(',').map((p) => p.trim().replace(/^"|"$/g, ''))
+      const parts = parseCsvRow(line)
       return {
         title: parts[titleIdx] || '',
         clientName: clientIdx >= 0 ? (parts[clientIdx] || '') : '',
@@ -202,7 +235,7 @@ export default function TenderBookRegister() {
       setConfirmModal({
         show: true,
         title: 'Import failed',
-        message: 'CSV format not recognized. Required header: title. Optional: clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents.',
+        message: 'CSV format not recognized. Required header: title. Optional: clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents,source,documentLink,followUpNotes.',
         onConfirm: null
       })
       return
@@ -221,10 +254,11 @@ export default function TenderBookRegister() {
           loadSummary(filters)
         } catch (error) {
           console.error('Failed to import tender entries:', error)
+          const serverMessage = error?.response?.data?.message
           setConfirmModal({
             show: true,
             title: 'Import failed',
-            message: 'Unable to import entries. Please try again.',
+            message: serverMessage || 'Unable to import entries. Please try again.',
             onConfirm: null
           })
         }
@@ -445,7 +479,10 @@ export default function TenderBookRegister() {
           'submissionDeadline',
           'status',
           'tenderValueCents',
-          'estimatedProfitCents'
+          'estimatedProfitCents',
+          'source',
+          'documentLink',
+          'followUpNotes'
         ]}
         templateSampleRow={[
           'Office Fit-out Package 3',
@@ -454,10 +491,13 @@ export default function TenderBookRegister() {
           '2026-08-15',
           'DRAFT',
           '5000000',
-          '750000'
+          '750000',
+          '',
+          '',
+          ''
         ]}
         requiredFields={['title']}
-        optionalFields={['clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents']}
+        optionalFields={['clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents', 'source', 'documentLink', 'followUpNotes']}
         onClose={() => setImportModalOpen(false)}
         onImportFile={handleImportFile}
       />

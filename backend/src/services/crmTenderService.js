@@ -32,6 +32,8 @@ class CrmTenderService {
   normalizeOptionalUrl(value, fieldName = 'documentLink') {
     const text = this.normalizeOptionalText(value)
     if (!text) return text
+    const token = String(text).trim().toLowerCase()
+    if (token === 'n/a' || token === 'na' || token === '-') return null
     try {
       const url = new URL(text)
       if (url.protocol !== 'http:' && url.protocol !== 'https:') {
