@@ -51,18 +51,10 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     interestedProduct: '',
     painPoint: '',
     status: 'NEW',
-    documentLink: '',
-    followUpNotes: ''
+    documentLink: ''
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [users, setUsers] = useState([])
-  const [assigneeIds, setAssigneeIds] = useState([])
-  const [assigneesLoading, setAssigneesLoading] = useState(false)
-  const [followUps, setFollowUps] = useState([])
-  const [followUpsLoading, setFollowUpsLoading] = useState(false)
-  const [followUpDraft, setFollowUpDraft] = useState({ followUpAt: '', assignedToId: '', note: '' })
-  const [addingFollowUp, setAddingFollowUp] = useState(false)
 
   const allowedStatuses = useMemo(() => new Set(statusOptions.map((s) => s.value)), [])
   const allowedChannels = useMemo(() => new Set(channelOptions.map((v) => String(v))), [channelOptions])
@@ -117,78 +109,9 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
       interestedProduct: entry?.interestedProduct || '',
       painPoint: entry?.painPoint || '',
       status: entry?.status || 'NEW',
-      documentLink: entry?.documentLink || '',
-      followUpNotes: entry?.followUpNotes || ''
+      documentLink: entry?.documentLink || ''
     })
   }, [open, entry, channelOptions])
-
-  useEffect(() => {
-    if (!open) return
-    let active = true
-    const loadUsers = async () => {
-      try {
-        const res = await api.get('/users')
-        const list = res.data?.data?.users || res.data?.users || []
-        const activeUsers = Array.isArray(list)
-          ? list.filter((u) => u && u.status === 'ACTIVE')
-          : []
-        activeUsers.sort((a, b) => {
-          const aName = `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email || ''
-          const bName = `${b.firstName || ''} ${b.lastName || ''}`.trim() || b.email || ''
-          return aName.localeCompare(bName)
-        })
-        if (!active) return
-        setUsers(activeUsers)
-      } catch (e) {
-        console.error('Failed to load users:', e)
-        if (!active) return
-        setUsers([])
-      }
-    }
-    loadUsers()
-    return () => { active = false }
-  }, [open])
-
-  useEffect(() => {
-    if (!open || !isEdit) return
-    let active = true
-    const loadAssignees = async () => {
-      setAssigneesLoading(true)
-      try {
-        const res = await api.get(`/crm/fb-enquiries/${entry.id}/assignees`)
-        const rows = res.data?.data?.assignees || []
-        const ids = rows.map((r) => r?.userId).filter(Boolean)
-        if (!active) return
-        setAssigneeIds(ids)
-      } catch (e) {
-        console.error('Failed to load assignees:', e)
-        if (!active) return
-        setAssigneeIds([])
-      } finally {
-        if (active) setAssigneesLoading(false)
-      }
-    }
-
-    const loadFollowUps = async () => {
-      setFollowUpsLoading(true)
-      try {
-        const res = await api.get(`/crm/fb-enquiries/${entry.id}/follow-ups`)
-        const rows = res.data?.data?.followUps || []
-        if (!active) return
-        setFollowUps(Array.isArray(rows) ? rows : [])
-      } catch (e) {
-        console.error('Failed to load follow-ups:', e)
-        if (!active) return
-        setFollowUps([])
-      } finally {
-        if (active) setFollowUpsLoading(false)
-      }
-    }
-
-    loadAssignees()
-    loadFollowUps()
-    return () => { active = false }
-  }, [open, isEdit, entry?.id])
 
   const isValidDateInput = (value) => {
     if (!value) return false
@@ -240,7 +163,6 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     }
 
     if (payload.painPoint && String(payload.painPoint).length > 2000) return 'Pain Point / Customer Need is too long.'
-    if (payload.followUpNotes && String(payload.followUpNotes).length > 2000) return 'Follow-up Notes is too long.'
 
     return ''
   }
@@ -288,66 +210,6 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
     }
   }
 
-  const getUserLabel = (user) => {
-    if (!user) return ''
-    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim()
-    return name || user.email || ''
-  }
-
-  const toggleAssignee = (userId) => {
-    const id = Number(userId)
-    if (!id) return
-    setAssigneeIds((prev) => {
-      const exists = prev.includes(id)
-      if (exists) return prev.filter((v) => v !== id)
-      return [...prev, id]
-    })
-  }
-
-  const saveAssignees = async () => {
-    if (!isEdit) return
-    setAssigneesLoading(true)
-    setError('')
-    try {
-      await api.put(`/crm/fb-enquiries/${entry.id}/assignees`, { userIds: assigneeIds })
-    } catch (e) {
-      console.error('Failed to save assignees:', e)
-      setError(e.response?.data?.message || 'Unable to save assignees. Please try again.')
-    } finally {
-      setAssigneesLoading(false)
-    }
-  }
-
-  const submitFollowUp = async () => {
-    if (!isEdit) return
-    setAddingFollowUp(true)
-    setError('')
-    try {
-      const payload = {
-        followUpAt: followUpDraft.followUpAt || null,
-        assignedToId: followUpDraft.assignedToId ? Number(followUpDraft.assignedToId) : null,
-        note: String(followUpDraft.note || '').trim()
-      }
-      if (!payload.note) {
-        setError('Follow-up note is required.')
-        setAddingFollowUp(false)
-        return
-      }
-
-      await api.post(`/crm/fb-enquiries/${entry.id}/follow-ups`, payload)
-      setFollowUpDraft({ followUpAt: '', assignedToId: '', note: '' })
-
-      const res = await api.get(`/crm/fb-enquiries/${entry.id}/follow-ups`)
-      const rows = res.data?.data?.followUps || []
-      setFollowUps(Array.isArray(rows) ? rows : [])
-    } catch (e) {
-      console.error('Failed to add follow-up:', e)
-      setError(e.response?.data?.message || 'Unable to add follow-up. Please try again.')
-    } finally {
-      setAddingFollowUp(false)
-    }
-  }
-
   const handleSubmit = async () => {
     setSaving(true)
     setError('')
@@ -365,8 +227,7 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
         interestedProduct: String(form.interestedProduct || '').trim() || null,
         painPoint: String(form.painPoint || '').trim() || null,
         status: form.status,
-        documentLink: String(form.documentLink || '').trim() || null,
-        followUpNotes: String(form.followUpNotes || '').trim() || null
+        documentLink: String(form.documentLink || '').trim() || null
       }
 
       const validationError = validatePayload(payload)
@@ -560,112 +421,7 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <label className="mb-1 block text-xs font-semibold text-ink-soft">Documents (Link / Reference)</label>
               <TextInput value={form.documentLink} onChange={(e) => setForm((p) => ({ ...p, documentLink: e.target.value }))} />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Notes</label>
-              <TextArea rows={4} value={form.followUpNotes} onChange={(e) => setForm((p) => ({ ...p, followUpNotes: e.target.value }))} />
-            </div>
           </div>
-
-          {isEdit && (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">Follow-up Assignment</div>
-                    <div className="text-xs text-gray-600">Assign multiple users and notify them automatically.</div>
-                  </div>
-                  <Button size="sm" onClick={saveAssignees} loading={assigneesLoading} loadingText="Saving...">
-                    Save
-                  </Button>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {users.map((u) => (
-                    <label key={u.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={assigneeIds.includes(u.id)}
-                        onChange={() => toggleAssignee(u.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-gray-900">{getUserLabel(u)}</div>
-                        <div className="truncate text-xs text-gray-600">{u.email}</div>
-                      </div>
-                    </label>
-                  ))}
-                  {users.length === 0 && <div className="text-sm text-gray-600">No users available.</div>}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 space-y-3">
-                <div className="text-sm font-semibold text-gray-900">Follow-up Schedule & Notes</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Date</label>
-                    <TextInput
-                      type="date"
-                      value={followUpDraft.followUpAt}
-                      onChange={(e) => setFollowUpDraft((p) => ({ ...p, followUpAt: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-ink-soft">Who Need To</label>
-                    <SelectField
-                      value={followUpDraft.assignedToId}
-                      onChange={(e) => setFollowUpDraft((p) => ({ ...p, assignedToId: e.target.value }))}
-                    >
-                      <option value="">Unassigned</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {getUserLabel(u)}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Note</label>
-                  <TextArea
-                    rows={3}
-                    value={followUpDraft.note}
-                    onChange={(e) => setFollowUpDraft((p) => ({ ...p, note: e.target.value }))}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button size="sm" onClick={submitFollowUp} loading={addingFollowUp} loadingText="Adding...">
-                    Add Follow-up
-                  </Button>
-                </div>
-
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="text-xs font-semibold text-gray-700">History</div>
-                  {followUpsLoading ? (
-                    <div className="mt-2 text-sm text-gray-600">Loading...</div>
-                  ) : followUps.length === 0 ? (
-                    <div className="mt-2 text-sm text-gray-600">No follow-up history yet.</div>
-                  ) : (
-                    <div className="mt-2 space-y-2">
-                      {followUps.map((f) => (
-                        <div key={f.id} className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs font-semibold text-gray-700">
-                              {f.followUpAt ? new Date(f.followUpAt).toISOString().split('T')[0] : 'No date'}
-                              {f.assignedTo ? ` · ${getUserLabel(f.assignedTo)}` : ''}
-                            </div>
-                            <div className="text-[11px] text-gray-500">
-                              {f.createdAt ? new Date(f.createdAt).toLocaleString('en-MY') : ''}
-                            </div>
-                          </div>
-                          <div className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{f.note}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">

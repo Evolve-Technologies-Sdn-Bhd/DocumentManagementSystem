@@ -12,7 +12,9 @@ import Pagination from './Pagination'
 import StatusBadge from './StatusBadge'
 import ConfirmModal from './ConfirmModal'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import ActionMenu from './ActionMenu'
 import FbEnquiryEntryModal from './FbEnquiryEntryModal'
+import FbEnquiryFollowUpModal from './FbEnquiryFollowUpModal'
 import CrmImportModal from './CrmImportModal'
 
 const statusOptions = [
@@ -51,6 +53,7 @@ export default function FbEnquiryRegister() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const [entryModal, setEntryModal] = useState({ open: false, entry: null })
+  const [followUpModal, setFollowUpModal] = useState({ open: false, entry: null })
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
 
@@ -174,8 +177,6 @@ export default function FbEnquiryRegister() {
     const painPointIdx = idx('painPoint')
     const statusIdx = idx('status')
     const documentLinkIdx = idx('documentLink')
-    const nextFollowUpAtIdx = idx('nextFollowUpAt')
-    const followUpNotesIdx = idx('followUpNotes')
 
     return lines.slice(1).map((line) => {
       const parts = line.split(',').map((p) => p.trim().replace(/^"|"$/g, ''))
@@ -193,8 +194,6 @@ export default function FbEnquiryRegister() {
         painPoint: painPointIdx >= 0 ? (parts[painPointIdx] || '') : '',
         status: statusIdx >= 0 ? (parts[statusIdx] || 'NEW') : 'NEW',
         documentLink: documentLinkIdx >= 0 ? (parts[documentLinkIdx] || '') : '',
-        nextFollowUpAt: nextFollowUpAtIdx >= 0 ? (parts[nextFollowUpAtIdx] || '') : '',
-        followUpNotes: followUpNotesIdx >= 0 ? (parts[followUpNotesIdx] || '') : ''
       }
     }).filter((row) => String(row.contact || '').trim() && String(row.enquiryDate || '').trim())
   }
@@ -243,7 +242,7 @@ export default function FbEnquiryRegister() {
       setConfirmModal({
         show: true,
         title: 'Import failed',
-        message: 'CSV format not recognized. Required headers: contact,enquiryDate. Optional: status,name,email,company,address,state,channel,industryType,interestedProduct,painPoint,documentLink,nextFollowUpAt,followUpNotes.',
+        message: 'CSV format not recognized. Required headers: contact,enquiryDate. Optional: status,name,email,company,address,state,channel,industryType,interestedProduct,painPoint,documentLink.',
         onConfirm: null
       })
       return
@@ -275,12 +274,13 @@ export default function FbEnquiryRegister() {
 
   const openCreate = () => setEntryModal({ open: true, entry: null })
   const openEdit = (entry) => setEntryModal({ open: true, entry })
+  const openFollowUp = (entry) => setFollowUpModal({ open: true, entry })
 
   const handleDelete = (entry) => {
     setConfirmModal({
       show: true,
       title: 'Delete Entry',
-      message: `Delete "${entry.name}"? This action cannot be undone.`,
+      message: `Delete "${entry.contact}"? This action cannot be undone.`,
       onConfirm: async () => {
         try {
           await api.delete(`/crm/fb-enquiries/${entry.id}`)
@@ -302,6 +302,7 @@ export default function FbEnquiryRegister() {
 
   const handleSaved = () => {
     setEntryModal({ open: false, entry: null })
+    setFollowUpModal({ open: false, entry: null })
     loadRecords(filters, page, limit)
     loadSummary(filters)
   }
@@ -390,33 +391,32 @@ export default function FbEnquiryRegister() {
         <Table>
           <thead>
             <tr>
-              <Th>No.</Th>
-              <Th>Month</Th>
-              <Th>Contact No.</Th>
-              <Th>Name</Th>
-              <Th>Company</Th>
-              <Th>Address</Th>
-              <Th>State</Th>
-              <Th>Channel</Th>
-              <Th>Industry</Th>
-              <Th>Interest</Th>
-              <Th>Pain Point</Th>
-              <Th>Status</Th>
-              <Th>Tender</Th>
-              <Th>Notes</Th>
-              {(canUpdate || canDelete) && <Th align="right">Actions</Th>}
+              <Th className="w-16 whitespace-nowrap">No.</Th>
+              <Th className="w-24 whitespace-nowrap">Month</Th>
+              <Th className="w-40 whitespace-nowrap">Contact No.</Th>
+              <Th className="w-44 whitespace-nowrap">Name</Th>
+              <Th className="w-44 whitespace-nowrap">Company</Th>
+              <Th className="min-w-[320px]">Address</Th>
+              <Th className="w-36 whitespace-nowrap">State</Th>
+              <Th className="w-44 whitespace-nowrap">Channel</Th>
+              <Th className="w-44 whitespace-nowrap">Industry</Th>
+              <Th className="min-w-[220px] whitespace-nowrap">Interest</Th>
+              <Th className="min-w-[260px]">Pain Point</Th>
+              <Th className="w-40 whitespace-nowrap">Status</Th>
+              <Th className="w-40 whitespace-nowrap">Tender</Th>
+              {(canUpdate || canDelete) && <Th align="right" className="w-16" />}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 15 : 14} className="py-10 text-center">
+                <Td colSpan={(canUpdate || canDelete) ? 14 : 13} className="py-10 text-center">
                   <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
                 </Td>
               </Tr>
             ) : records.length === 0 ? (
               <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 15 : 14} className="py-8">
+                <Td colSpan={(canUpdate || canDelete) ? 14 : 13} className="py-8">
                   <EmptyPanelState
                     title="No entries yet"
                     description='Log the first one with "Add New Enquiry".'
@@ -424,36 +424,30 @@ export default function FbEnquiryRegister() {
                 </Td>
               </Tr>
             ) : (
-              records.map((row) => (
+              records.map((row, index) => (
                 <Tr key={row.id}>
-                  <Td>{String(row.id || '').padStart(3, '0')}</Td>
-                  <Td>{row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}</Td>
-                  <Td className="font-semibold text-ink">{row.contact}</Td>
-                  <Td className="font-semibold text-ink">{row.name || '-'}</Td>
-                  <Td>{row.company || '-'}</Td>
-                  <Td>{row.address || '-'}</Td>
-                  <Td>{row.state || '-'}</Td>
-                  <Td>{row.channel || '-'}</Td>
-                  <Td>{row.industryType || '-'}</Td>
-                  <Td>{row.interestedProduct || '-'}</Td>
-                  <Td>{row.painPoint || '-'}</Td>
+                  <Td className="whitespace-nowrap">{(page - 1) * limit + index + 1}</Td>
+                  <Td className="whitespace-nowrap">{row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}</Td>
+                  <Td className="whitespace-nowrap font-semibold text-ink">{row.contact}</Td>
+                  <Td className="whitespace-nowrap font-semibold text-ink">{row.name || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.company || '-'}</Td>
+                  <Td className="whitespace-normal">{row.address || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.state || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.channel || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.industryType || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.interestedProduct || '-'}</Td>
+                  <Td className="whitespace-normal">{row.painPoint || '-'}</Td>
                   <Td><StatusBadge status={row.status} /></Td>
-                  <Td>{row.tenderEntry?.tenderRefNo || '-'}</Td>
-                  <Td>{row.followUpNotes || '-'}</Td>
+                  <Td className="whitespace-nowrap">{row.tenderEntry?.tenderRefNo || '-'}</Td>
                   {(canUpdate || canDelete) && (
                     <Td align="right">
-                      <div className="flex justify-end gap-2">
-                        {canUpdate && (
-                          <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button size="sm" variant="danger" onClick={() => handleDelete(row)}>
-                            Delete
-                          </Button>
-                        )}
-                      </div>
+                      <ActionMenu
+                        actions={[
+                          ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+                          ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
+                          ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
+                        ]}
+                      />
                     </Td>
                   )}
                 </Tr>
@@ -495,6 +489,13 @@ export default function FbEnquiryRegister() {
         onSaved={handleSaved}
       />
 
+      <FbEnquiryFollowUpModal
+        open={followUpModal.open}
+        entry={followUpModal.entry}
+        onClose={() => setFollowUpModal({ open: false, entry: null })}
+        onSaved={handleSaved}
+      />
+
       <CrmImportModal
         open={importModalOpen}
         title="Import FB Enquiries"
@@ -516,9 +517,7 @@ export default function FbEnquiryRegister() {
           'industryType',
           'interestedProduct',
           'painPoint',
-          'documentLink',
-          'nextFollowUpAt',
-          'followUpNotes'
+          'documentLink'
         ]}
         templateSampleRow={[
           '0123456789',
@@ -533,12 +532,10 @@ export default function FbEnquiryRegister() {
           'Construction',
           'Document control service',
           'Need better document tracking',
-          'https://example.com/reference',
-          '2026-08-05',
-          'Requested follow-up next week'
+          'https://example.com/reference'
         ]}
         requiredFields={['contact', 'enquiryDate']}
-        optionalFields={['status', 'name', 'email', 'company', 'address', 'state', 'channel', 'industryType', 'interestedProduct', 'painPoint', 'documentLink', 'nextFollowUpAt', 'followUpNotes']}
+        optionalFields={['status', 'name', 'email', 'company', 'address', 'state', 'channel', 'industryType', 'interestedProduct', 'painPoint', 'documentLink']}
         onClose={() => setImportModalOpen(false)}
         onImportFile={handleImportFile}
       />
