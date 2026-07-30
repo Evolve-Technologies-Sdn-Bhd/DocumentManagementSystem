@@ -2,6 +2,29 @@ const prisma = require('../config/database')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
 
 class CrmTenderService {
+  buildGeneratedTenderRefNo(year, runningNumber) {
+    const y = Number(year)
+    const n = Number(runningNumber)
+    const suffix = String(Number.isFinite(n) ? n : 0).padStart(3, '0')
+    return `TB-${Number.isFinite(y) ? y : new Date().getFullYear()}-${suffix}`
+  }
+
+  async allocateGeneratedTenderRefNos(tx, count, year) {
+    const safeCount = Math.max(0, Number(count) || 0)
+    if (safeCount <= 0) return []
+
+    const y = Number.isFinite(Number(year)) ? Number(year) : new Date().getFullYear()
+    const seq = await tx.crmTenderSequence.upsert({
+      where: { year: y },
+      create: { year: y, lastNumber: safeCount },
+      update: { lastNumber: { increment: safeCount } }
+    })
+
+    const end = Number(seq.lastNumber || 0)
+    const start = end - safeCount + 1
+    return Array.from({ length: safeCount }, (_, i) => this.buildGeneratedTenderRefNo(y, start + i))
+  }
+
   getAllowedStatuses() {
     return ['DRAFT', 'SUBMITTED', 'PENDING', 'KIV', 'WON', 'LOST']
   }
@@ -154,23 +177,30 @@ class CrmTenderService {
       throw new BadRequestError('title is required')
     }
 
-    const data = {
-      tenderRefNo: this.normalizeOptionalRef(payload?.tenderRefNo),
-      title,
-      clientName: this.normalizeOptionalText(payload?.clientName),
-      contactPerson: this.normalizeOptionalText(payload?.contactPerson),
-      submissionDeadline: this.normalizeOptionalDate(payload?.submissionDeadline),
-      status: this.normalizeStatus(payload?.status || 'DRAFT'),
-      tenderValueCents: this.normalizeCents(payload?.tenderValueCents ?? 0, 'tenderValueCents'),
-      estimatedProfitCents: this.normalizeCents(payload?.estimatedProfitCents ?? 0, 'estimatedProfitCents'),
-      source: this.normalizeOptionalText(payload?.source),
-      documentLink: this.normalizeOptionalUrl(payload?.documentLink),
-      followUpNotes: this.normalizeOptionalText(payload?.followUpNotes),
-      createdById: userId
-    }
+    const manualRef = this.normalizeOptionalRef(payload?.tenderRefNo)
 
-    const entry = await prisma.crmTenderEntry.create({ data })
-    return { entry }
+    return prisma.$transaction(async (tx) => {
+      const generatedRefs = manualRef ? [] : await this.allocateGeneratedTenderRefNos(tx, 1, new Date().getFullYear())
+      const tenderRefNo = manualRef || generatedRefs[0] || null
+
+      const data = {
+        tenderRefNo,
+        title,
+        clientName: this.normalizeOptionalText(payload?.clientName),
+        contactPerson: this.normalizeOptionalText(payload?.contactPerson),
+        submissionDeadline: this.normalizeOptionalDate(payload?.submissionDeadline),
+        status: this.normalizeStatus(payload?.status || 'DRAFT'),
+        tenderValueCents: this.normalizeCents(payload?.tenderValueCents ?? 0, 'tenderValueCents'),
+        estimatedProfitCents: this.normalizeCents(payload?.estimatedProfitCents ?? 0, 'estimatedProfitCents'),
+        source: this.normalizeOptionalText(payload?.source),
+        documentLink: this.normalizeOptionalUrl(payload?.documentLink),
+        followUpNotes: this.normalizeOptionalText(payload?.followUpNotes),
+        createdById: userId
+      }
+
+      const entry = await tx.crmTenderEntry.create({ data })
+      return { entry }
+    })
   }
 
   async update({ id, payload }) {
@@ -230,7 +260,7 @@ class CrmTenderService {
       throw new BadRequestError('entries is required')
     }
 
-    const prepared = entries
+    const preparedBase = entries
       .map((row) => {
         const title = String(row?.title || '').trim()
         if (!title) return null
@@ -251,16 +281,29 @@ class CrmTenderService {
       })
       .filter(Boolean)
 
-    if (prepared.length === 0) {
+    if (preparedBase.length === 0) {
       throw new BadRequestError('No valid entries to import')
     }
 
-    const result = await prisma.crmTenderEntry.createMany({
-      data: prepared,
-      skipDuplicates: false
-    })
+    const missingCount = preparedBase.reduce((acc, r) => acc + (r.tenderRefNo ? 0 : 1), 0)
+    const year = new Date().getFullYear()
 
-    return { createdCount: Number(result.count || 0) }
+    return prisma.$transaction(async (tx) => {
+      const generatedRefs = missingCount > 0 ? await this.allocateGeneratedTenderRefNos(tx, missingCount, year) : []
+      let nextIdx = 0
+      const prepared = preparedBase.map((r) => {
+        if (r.tenderRefNo) return r
+        const auto = generatedRefs[nextIdx++] || null
+        return { ...r, tenderRefNo: auto }
+      })
+
+      const result = await tx.crmTenderEntry.createMany({
+        data: prepared,
+        skipDuplicates: false
+      })
+
+      return { createdCount: Number(result.count || 0) }
+    })
   }
 
   buildCsv(records) {

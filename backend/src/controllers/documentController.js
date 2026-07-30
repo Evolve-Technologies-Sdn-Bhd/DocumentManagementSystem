@@ -2463,9 +2463,32 @@ class DocumentController {
     let documentId;
     let savedFileCode = trimmedFileCode;
 
+    const requestedDivisionId = divisionId ? Number.parseInt(divisionId, 10) : null
+    if (divisionId && !Number.isFinite(requestedDivisionId)) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'divisionId', message: 'Invalid division' }
+      ])
+    }
+
+    if (Number.isFinite(requestedDivisionId) && !divisionScopeService.isAdminUser(req.user)) {
+      const userDivisionIds = Array.isArray(req.user?.divisionIds) && req.user.divisionIds.length > 0
+        ? divisionScopeService.normalizeDivisionIds(req.user.divisionIds)
+        : await divisionScopeService.getUserDivisionIds(req.user.id)
+
+      if (!userDivisionIds.includes(requestedDivisionId)) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'divisionId', message: 'Invalid division' }
+        ])
+      }
+    }
+
     if (existingDocument) {
       documentId = existingDocument.id;
       savedFileCode = existingDocument.fileCode;
+
+      if (String(existingDocument.stage || '').toUpperCase() !== 'DRAFT') {
+        return ResponseFormatter.error(res, 'File code already exists and cannot be modified in this stage', 409)
+      }
 
       await prisma.document.update({
         where: { id: documentId },
@@ -2473,7 +2496,8 @@ class DocumentController {
           title,
           description: comments,
           version: versionNo || existingDocument.version,
-          contentFormat: normalizedContentFormat
+          contentFormat: normalizedContentFormat,
+          ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
         }
       });
     } else {
@@ -2590,10 +2614,33 @@ class DocumentController {
     let documentId;
     let savedFileCode = trimmedFileCode;
 
+    const requestedDivisionId = divisionId ? Number.parseInt(divisionId, 10) : null
+    if (divisionId && !Number.isFinite(requestedDivisionId)) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'divisionId', message: 'Invalid division' }
+      ])
+    }
+
+    if (Number.isFinite(requestedDivisionId) && !divisionScopeService.isAdminUser(req.user)) {
+      const userDivisionIds = Array.isArray(req.user?.divisionIds) && req.user.divisionIds.length > 0
+        ? divisionScopeService.normalizeDivisionIds(req.user.divisionIds)
+        : await divisionScopeService.getUserDivisionIds(req.user.id)
+
+      if (!userDivisionIds.includes(requestedDivisionId)) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'divisionId', message: 'Invalid division' }
+        ])
+      }
+    }
+
     if (existingDocument) {
       // Update existing document
       documentId = existingDocument.id;
       savedFileCode = existingDocument.fileCode;
+
+      if (String(existingDocument.stage || '').toUpperCase() !== 'DRAFT') {
+        return ResponseFormatter.error(res, 'File code already exists and cannot be modified in this stage', 409)
+      }
       
       // Update document details
       await prisma.document.update({
@@ -2602,7 +2649,8 @@ class DocumentController {
           title,
           description: comments,
           version: versionNo || existingDocument.version,
-          contentFormat: normalizedContentFormat
+          contentFormat: normalizedContentFormat,
+          ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
         }
       });
     } else {
@@ -2621,7 +2669,7 @@ class DocumentController {
         description: comments,
         documentTypeId: docType.id,
         projectCategoryId: null,
-        divisionId: divisionId || null,
+        divisionId: Number.isFinite(requestedDivisionId) ? requestedDivisionId : null,
         folderId: null,
         contentFormat: normalizedContentFormat
       }, req.user.id, {

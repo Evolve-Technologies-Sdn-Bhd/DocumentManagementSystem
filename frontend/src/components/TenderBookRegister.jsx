@@ -204,7 +204,7 @@ export default function TenderBookRegister() {
       setConfirmModal({
         show: true,
         title: 'Import failed',
-        message: 'CSV format not recognized. Required header: title. Optional: tenderRefNo,clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents,source,documentLink,followUpNotes.',
+        message: 'CSV format not recognized. Required header: title. Optional: clientName,contactPerson,submissionDeadline,status,tenderValueCents,estimatedProfitCents,source,documentLink,followUpNotes.',
         onConfirm: null
       })
       return
@@ -441,7 +441,6 @@ export default function TenderBookRegister() {
         subtitle="Upload a CSV file using the approved tender template."
         templateDownloadFileName="tender_book_template.csv"
         templateHeaders={[
-          'tenderRefNo',
           'title',
           'clientName',
           'contactPerson',
@@ -454,7 +453,6 @@ export default function TenderBookRegister() {
           'followUpNotes'
         ]}
         templateSampleRow={[
-          'TB-2026-001',
           'Office Fit-out Package 3',
           'ABC Sdn Bhd',
           'John Tan',
@@ -467,7 +465,7 @@ export default function TenderBookRegister() {
           'Prepare costing details'
         ]}
         requiredFields={['title']}
-        optionalFields={['tenderRefNo', 'clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents', 'source', 'documentLink', 'followUpNotes']}
+        optionalFields={['clientName', 'contactPerson', 'submissionDeadline', 'status', 'tenderValueCents', 'estimatedProfitCents', 'source', 'documentLink', 'followUpNotes']}
         onClose={() => setImportModalOpen(false)}
         onImportFile={handleImportFile}
       />

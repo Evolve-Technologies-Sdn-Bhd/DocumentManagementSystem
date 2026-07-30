@@ -1704,6 +1704,12 @@ model CrmTenderEntry {
   @@index([createdAt])
 }
 
+model CrmTenderSequence {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 enum CrmFbEnquiryStatus {
   NEW
   CONTACTED
