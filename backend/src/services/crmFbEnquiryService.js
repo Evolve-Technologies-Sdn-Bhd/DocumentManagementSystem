@@ -6,6 +6,49 @@ const emailService = require('./emailService')
 const ExcelJS = require('exceljs')
 
 class CrmFbEnquiryService {
+  async exportTemplateXlsx() {
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('FB Enquiries')
+    sheet.columns = [
+      { header: 'contact', key: 'contact', width: 22 },
+      { header: 'enquiryDate', key: 'enquiryDate', width: 14 },
+      { header: 'status', key: 'status', width: 18 },
+      { header: 'name', key: 'name', width: 24 },
+      { header: 'email', key: 'email', width: 26 },
+      { header: 'company', key: 'company', width: 24 },
+      { header: 'address', key: 'address', width: 28 },
+      { header: 'state', key: 'state', width: 16 },
+      { header: 'channel', key: 'channel', width: 20 },
+      { header: 'industryType', key: 'industryType', width: 18 },
+      { header: 'interestedProduct', key: 'interestedProduct', width: 24 },
+      { header: 'painPoint', key: 'painPoint', width: 30 },
+      { header: 'documentLink', key: 'documentLink', width: 30 },
+      { header: 'nextFollowUpAt', key: 'nextFollowUpAt', width: 16 },
+      { header: 'followUpNotes', key: 'followUpNotes', width: 30 }
+    ]
+
+    sheet.addRow({
+      contact: '+60123456789',
+      enquiryDate: new Date().toISOString().split('T')[0],
+      status: 'NEW',
+      name: 'John Tan',
+      email: 'john@example.com',
+      company: 'ABC Sdn Bhd',
+      address: '',
+      state: '',
+      channel: '',
+      industryType: '',
+      interestedProduct: '',
+      painPoint: '',
+      documentLink: '',
+      nextFollowUpAt: '',
+      followUpNotes: ''
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    return { buffer }
+  }
+
   getAllowedStatuses() {
     return ['NEW', 'CONTACTED', 'FOLLOW_UP', 'NO_RESPONSE', 'QUOTATION_ISSUED']
   }

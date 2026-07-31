@@ -1,43 +1,6 @@
 const prisma = require('../config/database')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
-
-// #region debug-point tender-import-deadline
-const __dbgPost = (payload) => {
-  const url = process.env.DEBUG_SERVER_URL
-  const sessionId = process.env.DEBUG_SESSION_ID
-  if (!url || !sessionId) return
-  try {
-    const { URL } = require('url')
-    const u = new URL(url)
-    const httpMod = u.protocol === 'https:' ? require('https') : require('http')
-    const body = JSON.stringify({
-      sessionId,
-      ts: Date.now(),
-      ...payload
-    })
-    const req = httpMod.request(
-      {
-        method: 'POST',
-        hostname: u.hostname,
-        port: u.port,
-        path: u.pathname + (u.search || ''),
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body)
-        },
-        timeout: 1500
-      },
-      (res) => res.resume()
-    )
-    req.on('error', () => {})
-    req.on('timeout', () => {
-      try { req.destroy() } catch {}
-    })
-    req.write(body)
-    req.end()
-  } catch {}
-}
-// #endregion debug-point tender-import-deadline
+const ExcelJS = require('exceljs')
 
 class CrmTenderService {
   buildGeneratedTenderRefNo(year, runningNumber) {
@@ -366,32 +329,11 @@ class CrmTenderService {
         const title = String(row?.title || '').trim()
         if (!title) return null
 
-        // #region debug-point tender-import-deadline
-        __dbgPost({
-          kind: 'crm_tender_import_row_raw',
-          rowIndex,
-          raw: {
-            title,
-            submissionDeadline: row?.submissionDeadline ?? null,
-            status: row?.status ?? null
-          }
-        })
-        // #endregion debug-point tender-import-deadline
-
         let submissionDeadline = null
         try {
           submissionDeadline = this.normalizeOptionalDate(row?.submissionDeadline)
         } catch (e) {
-          // #region debug-point tender-import-deadline
-          __dbgPost({
-            kind: 'crm_tender_import_deadline_parse_error',
-            rowIndex,
-            title,
-            submissionDeadlineRaw: row?.submissionDeadline ?? null,
-            error: { message: e?.message || String(e) }
-          })
-          // #endregion debug-point tender-import-deadline
-          throw e
+          throw new BadRequestError(`Row ${rowIndex + 1}: invalid submissionDeadline. CSV may contain unquoted commas (e.g., thousand separators) causing column shifting.`)
         }
 
         return {
@@ -433,6 +375,137 @@ class CrmTenderService {
 
       return { createdCount: Number(result.count || 0) }
     })
+  }
+
+  async importFile({ userId, filePath, originalName }) {
+    const name = String(originalName || '').toLowerCase()
+    if (!filePath) throw new BadRequestError('file is required')
+    if (!name.endsWith('.xlsx')) throw new BadRequestError('Only .xlsx is supported')
+
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.readFile(filePath)
+    const sheet = workbook.worksheets[0]
+    if (!sheet) throw new BadRequestError('Excel file is empty')
+
+    const headerRow = sheet.getRow(1)
+    const headerValues = Array.isArray(headerRow.values) ? headerRow.values.slice(1) : []
+    const headers = headerValues.map((v) => String(v || '').trim())
+    const idx = (key) => headers.findIndex((h) => h.toLowerCase() === String(key).toLowerCase())
+
+    const titleIdx = idx('title')
+    if (titleIdx < 0) {
+      throw new BadRequestError('Missing required headers: title')
+    }
+
+    const readCell = (row, index, options = {}) => {
+      const cell = row.getCell(index + 1)
+      const value = cell?.value
+      if (value == null) return ''
+      if (value instanceof Date) return value.toISOString().split('T')[0]
+      if (typeof value === 'object' && value.text) return String(value.text)
+      if (typeof value === 'number' && options.forceTwoDp) return value.toFixed(2)
+      return String(value)
+    }
+
+    const rows = []
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return
+      const title = readCell(row, titleIdx).trim()
+      if (!title) return
+
+      rows.push({
+        title,
+        clientName: idx('clientName') >= 0 ? readCell(row, idx('clientName')).trim() : '',
+        contactPerson: idx('contactPerson') >= 0 ? readCell(row, idx('contactPerson')).trim() : '',
+        submissionDeadline: idx('submissionDeadline') >= 0 ? readCell(row, idx('submissionDeadline')).trim() : '',
+        status: idx('status') >= 0 ? readCell(row, idx('status')).trim() : '',
+        tenderValueCents: idx('tenderValueCents') >= 0 ? readCell(row, idx('tenderValueCents'), { forceTwoDp: true }).trim() : '',
+        estimatedProfitCents: idx('estimatedProfitCents') >= 0 ? readCell(row, idx('estimatedProfitCents'), { forceTwoDp: true }).trim() : '',
+        source: idx('source') >= 0 ? readCell(row, idx('source')).trim() : '',
+        documentLink: idx('documentLink') >= 0 ? readCell(row, idx('documentLink')).trim() : '',
+        followUpNotes: idx('followUpNotes') >= 0 ? readCell(row, idx('followUpNotes')).trim() : ''
+      })
+    })
+
+    return this.importEntries({ userId, entries: rows })
+  }
+
+  async exportTemplateXlsx() {
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('Tender Book')
+    sheet.columns = [
+      { header: 'title', key: 'title', width: 32 },
+      { header: 'clientName', key: 'clientName', width: 24 },
+      { header: 'contactPerson', key: 'contactPerson', width: 18 },
+      { header: 'submissionDeadline', key: 'submissionDeadline', width: 16 },
+      { header: 'status', key: 'status', width: 12 },
+      { header: 'tenderValueCents', key: 'tenderValueCents', width: 18 },
+      { header: 'estimatedProfitCents', key: 'estimatedProfitCents', width: 20 },
+      { header: 'source', key: 'source', width: 18 },
+      { header: 'documentLink', key: 'documentLink', width: 30 },
+      { header: 'followUpNotes', key: 'followUpNotes', width: 30 }
+    ]
+
+    sheet.addRow({
+      title: 'Office Fit-out Package 3',
+      clientName: 'ABC Sdn Bhd',
+      contactPerson: 'John Tan',
+      submissionDeadline: new Date().toISOString().split('T')[0],
+      status: 'DRAFT',
+      tenderValueCents: 1305720.00,
+      estimatedProfitCents: 150000.00,
+      source: '',
+      documentLink: '',
+      followUpNotes: ''
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    return { buffer }
+  }
+
+  async exportXlsx(query = {}) {
+    const { search, status } = this.normalizeListQuery(query)
+    const where = this.buildWhere({ search, status })
+
+    const records = await prisma.crmTenderEntry.findMany({
+      where,
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('Tender Book')
+    sheet.columns = [
+      { header: 'tenderRefNo', key: 'tenderRefNo', width: 16 },
+      { header: 'title', key: 'title', width: 32 },
+      { header: 'clientName', key: 'clientName', width: 24 },
+      { header: 'contactPerson', key: 'contactPerson', width: 18 },
+      { header: 'submissionDeadline', key: 'submissionDeadline', width: 16 },
+      { header: 'status', key: 'status', width: 12 },
+      { header: 'tenderValueRm', key: 'tenderValueRm', width: 18 },
+      { header: 'estimatedProfitRm', key: 'estimatedProfitRm', width: 20 },
+      { header: 'source', key: 'source', width: 18 },
+      { header: 'documentLink', key: 'documentLink', width: 30 },
+      { header: 'followUpNotes', key: 'followUpNotes', width: 30 }
+    ]
+
+    records.forEach((r) => {
+      sheet.addRow({
+        tenderRefNo: r.tenderRefNo || '',
+        title: r.title || '',
+        clientName: r.clientName || '',
+        contactPerson: r.contactPerson || '',
+        submissionDeadline: r.submissionDeadline ? new Date(r.submissionDeadline).toISOString().split('T')[0] : '',
+        status: r.status || '',
+        tenderValueRm: ((Number(r.tenderValueCents || 0)) / 100).toFixed(2),
+        estimatedProfitRm: ((Number(r.estimatedProfitCents || 0)) / 100).toFixed(2),
+        source: r.source || '',
+        documentLink: r.documentLink || '',
+        followUpNotes: r.followUpNotes || ''
+      })
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    return { buffer }
   }
 
   buildCsv(records) {

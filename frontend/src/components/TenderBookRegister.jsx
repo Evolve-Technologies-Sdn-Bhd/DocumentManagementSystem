@@ -136,13 +136,16 @@ export default function TenderBookRegister() {
     setErrorMessage('')
     try {
       const res = await api.get('/crm/tender-book/export', {
-        params: filters,
+        params: {
+          ...filters,
+          format: 'xlsx'
+        },
         responseType: 'blob'
       })
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `tender_book_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute('download', `tender_book_${new Date().toISOString().split('T')[0]}.xlsx`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -285,6 +288,37 @@ export default function TenderBookRegister() {
 
   const handleImportFile = async (file) => {
     if (!file) return
+    const isXlsx = String(file.name || '').toLowerCase().endsWith('.xlsx')
+    if (isXlsx) {
+      setConfirmModal({
+        show: true,
+        title: 'Import Tender Entries',
+        message: `Import entries from Excel file "${file.name}"?`,
+        onConfirm: async () => {
+          try {
+            const formData = new FormData()
+            formData.append('file', file)
+            await api.post('/crm/tender-book/import-file', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            setImportModalOpen(false)
+            setConfirmModal({ show: false })
+            loadRecords(filters, page, limit)
+            loadSummary(filters)
+          } catch (error) {
+            console.error('Failed to import tender entries:', error)
+            const serverMessage = error?.response?.data?.message
+            setConfirmModal({
+              show: true,
+              title: 'Import failed',
+              message: serverMessage || 'Unable to import entries. Please try again.',
+              onConfirm: null
+            })
+          }
+        }
+      })
+      return
+    }
     const text = await file.text()
     const parsed = parseCsv(text)
     if (parsed.length === 0) {
@@ -527,8 +561,10 @@ export default function TenderBookRegister() {
       <CrmImportModal
         open={importModalOpen}
         title="Import Tender Entries"
-        subtitle="Upload a CSV file using the approved tender template."
-        templateDownloadFileName="tender_book_template.csv"
+        subtitle="Upload an Excel file using the approved tender template."
+        templateDownloadUrl="/crm/tender-book/template"
+        templateDownloadFileName="tender_book_template.xlsx"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.csv,text/csv"
         templateHeaders={[
           'title',
           'clientName',

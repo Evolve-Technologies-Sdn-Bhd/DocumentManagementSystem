@@ -69,6 +69,14 @@ class CrmFbEnquiryController {
     return ResponseFormatter.success(res, data, 'FB enquiry entries imported successfully')
   })
 
+  template = asyncHandler(async (_req, res) => {
+    const { buffer } = await crmFbEnquiryService.exportTemplateXlsx()
+    const fileName = 'fb_enquiry_template.xlsx'
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    return res.status(200).send(Buffer.from(buffer))
+  })
+
   getAssignees = asyncHandler(async (req, res) => {
     const data = await crmFbEnquiryService.getAssignees({ id: req.params?.id })
     return ResponseFormatter.success(res, data, 'FB enquiry assignees retrieved successfully')

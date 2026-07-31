@@ -37,6 +37,8 @@ router.post('/tender-book', requirePermission('crm.tenderBook', 'create'), crmTe
 router.put('/tender-book/:id', requirePermission('crm.tenderBook', 'update'), crmTenderController.update)
 router.delete('/tender-book/:id', requirePermission('crm.tenderBook', 'delete'), crmTenderController.remove)
 router.post('/tender-book/import', requirePermission('crm.tenderBook', 'import'), crmTenderController.importEntries)
+router.post('/tender-book/import-file', requirePermission('crm.tenderBook', 'import'), createUploadMiddleware('file'), crmTenderController.importFile)
+router.get('/tender-book/template', requirePermission('crm.tenderBook', 'import'), crmTenderController.template)
 router.get('/tender-book/export', requirePermission('crm.tenderBook', 'export'), crmTenderController.exportCsv)
 
 router.get('/fb-enquiries', requireAnyPermission('crm.fbEnquiry', ['view', 'create', 'update', 'delete', 'import', 'export']), crmFbEnquiryController.list)
@@ -50,6 +52,7 @@ router.get('/fb-enquiries/:id/follow-ups', requireAnyPermission('crm.fbEnquiry',
 router.post('/fb-enquiries/:id/follow-ups', requirePermission('crm.fbEnquiry', 'update'), crmFbEnquiryController.addFollowUp)
 router.post('/fb-enquiries/import', requirePermission('crm.fbEnquiry', 'import'), crmFbEnquiryController.importEntries)
 router.post('/fb-enquiries/import-file', requirePermission('crm.fbEnquiry', 'import'), createUploadMiddleware('file'), crmFbEnquiryController.importFile)
+router.get('/fb-enquiries/template', requirePermission('crm.fbEnquiry', 'import'), crmFbEnquiryController.template)
 router.get('/fb-enquiries/export', requirePermission('crm.fbEnquiry', 'export'), crmFbEnquiryController.export)
 
 module.exports = router

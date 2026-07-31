@@ -2,11 +2,13 @@ import React, { useMemo, useRef, useState } from 'react'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
+import api from '../api/axios'
 
 export default function CrmImportModal({
   open,
   title,
   subtitle,
+  templateDownloadUrl,
   templateDownloadFileName,
   templateHeaders = [],
   templateSampleRow = [],
@@ -48,7 +50,19 @@ export default function CrmImportModal({
     if (file) setSelectedFile(file)
   }
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    if (templateDownloadUrl) {
+      const res = await api.get(templateDownloadUrl, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', templateDownloadFileName || 'import_template.xlsx')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      return
+    }
     const blob = new Blob([templatePreview], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')

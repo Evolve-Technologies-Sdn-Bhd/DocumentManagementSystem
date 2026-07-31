@@ -42,7 +42,33 @@ class CrmTenderController {
     return ResponseFormatter.success(res, data, 'Tender entries imported successfully')
   })
 
+  importFile = asyncHandler(async (req, res) => {
+    const data = await crmTenderService.importFile({
+      userId: req.user?.id,
+      filePath: req.file?.path,
+      originalName: req.file?.originalname
+    })
+    return ResponseFormatter.success(res, data, 'Tender entries imported successfully')
+  })
+
+  template = asyncHandler(async (_req, res) => {
+    const { buffer } = await crmTenderService.exportTemplateXlsx()
+    const fileName = 'tender_book_template.xlsx'
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+    return res.status(200).send(Buffer.from(buffer))
+  })
+
   exportCsv = asyncHandler(async (req, res) => {
+    const format = String(req.query?.format || 'csv').toLowerCase()
+    if (format === 'xlsx') {
+      const { buffer } = await crmTenderService.exportXlsx(req.query)
+      const fileName = `tender_book_${new Date().toISOString().split('T')[0]}.xlsx`
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
+      return res.status(200).send(Buffer.from(buffer))
+    }
+
     const { csv } = await crmTenderService.exportCsv(req.query)
     const fileName = `tender_book_${new Date().toISOString().split('T')[0]}.csv`
     res.setHeader('Content-Type', 'text/csv; charset=utf-8')
@@ -52,4 +78,3 @@ class CrmTenderController {
 }
 
 module.exports = new CrmTenderController()
-

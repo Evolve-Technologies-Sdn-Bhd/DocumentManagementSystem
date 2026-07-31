@@ -496,7 +496,8 @@ export default function FbEnquiryRegister() {
         accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
         chooseButtonLabel="Choose Excel/CSV"
         dropLabel="Drag & drop Excel/CSV file here"
-        templateDownloadFileName="fb_enquiries_template.csv"
+        templateDownloadUrl="/crm/fb-enquiries/template"
+        templateDownloadFileName="fb_enquiry_template.xlsx"
         templateHeaders={[
           'contact',
           'enquiryDate',
