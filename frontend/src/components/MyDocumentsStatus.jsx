@@ -758,7 +758,7 @@ export default function MyDocumentsStatus() {
                     <Th>{t('version')}</Th>
                     <Th>{t('last_updated')}</Th>
                     <Th>{t('status')}</Th>
-                    <Th align="center">{t('actions')}</Th>
+                    <Th stickyRight align="center">{t('actions')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -806,7 +806,7 @@ export default function MyDocumentsStatus() {
                         <Td>{doc.version}</Td>
                         <Td>{formatDate(doc.updatedAt || doc.lastUpdated)}</Td>
                         <Td><StatusBadge status={doc.status} /></Td>
-                        <Td align="center">
+                        <Td stickyRight align="center">
                           <Button
                             type="button"
                             onClick={(e) => {

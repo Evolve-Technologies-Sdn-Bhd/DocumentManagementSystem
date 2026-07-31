@@ -440,7 +440,7 @@ export default function SupersededObsolete() {
                 <Th>{t('requested_by')}</Th>
                 <Th>{t('status')}</Th>
                 <Th>{t('archive_status')}</Th>
-                <Th>{t('action')}</Th>
+                <Th stickyRight>{t('action')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -500,7 +500,7 @@ export default function SupersededObsolete() {
                         </span>
                       )}
                     </Td>
-                    <Td className="py-3">
+                    <Td stickyRight className="py-3">
                       <ActionMenu
                         actions={[
                           ...(hasPermission('documents.superseded', 'view')

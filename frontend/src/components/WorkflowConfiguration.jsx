@@ -247,7 +247,7 @@ export default function WorkflowConfiguration() {
                 <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Steps</th>
                 <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Status</th>
                 <th className="text-center py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Active</th>
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Action</th>
+                <th className="sticky right-0 z-30 bg-surface-muted text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide border-l border-border">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -273,7 +273,7 @@ export default function WorkflowConfiguration() {
                 </tr>
               ) : (
                 currentWorkflows.map((workflow) => (
-                  <tr key={workflow.id} className="border-b border-border hover:bg-surface-muted transition-colors">
+                  <tr key={workflow.id} className="group border-b border-border hover:bg-surface-muted transition-colors">
                     <td className="py-4 px-4">
                       <div className="font-medium text-ink">{workflow.workflowName}</div>
                       <div className="text-xs text-ink-muted mt-0.5">Created: {workflow.createdOn}</div>
@@ -307,7 +307,7 @@ export default function WorkflowConfiguration() {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted py-4 px-4 border-l border-border">
                       <ActionMenu
                         actions={[
                           ...(hasPermission('configuration.workflows', 'read') ? [{ label: 'View', onClick: () => handleView(workflow) }] : []),

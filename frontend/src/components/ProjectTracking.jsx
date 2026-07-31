@@ -1207,7 +1207,7 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
                 <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Authorized By</Th>
                 <Th className="sticky top-0 z-10 bg-surface w-[170px] !px-3">Compliance Sign-Off</Th>
                 <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Date Approved</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[140px] !px-3">Actions</Th>
+                <Th stickyRight className="sticky top-0 z-30 bg-surface w-[140px] !px-3">Actions</Th>
               </Tr>
             </thead>
             <tbody>
@@ -1262,7 +1262,7 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
                       <Td className="!px-3">
                         <TextInput type="date" value={r.dateApproved} onChange={(e) => updateRow(r.key, { dateApproved: e.target.value })} />
                       </Td>
-                      <Td className="!px-3">
+                      <Td stickyRight className="!px-3">
                         <div className="flex items-center gap-2">
                           <Button type="button" disabled={r.saving || !canSave} onClick={() => saveRow(r)}>
                             {r.saving && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
@@ -4320,7 +4320,7 @@ function ProjectDetail({ projectId }) {
                     <Th>Authorized By</Th>
                     <Th>Compliance Sign-Off</Th>
                     <Th>Date Approved</Th>
-                    {canEdit && <Th className="w-[140px]">Actions</Th>}
+                    {canEdit && <Th stickyRight className="w-[140px]">Actions</Th>}
                   </Tr>
                 </thead>
                 <tbody>
@@ -4334,7 +4334,7 @@ function ProjectDetail({ projectId }) {
                       <Td className="whitespace-nowrap">{cr.complianceSignOff || '-'}</Td>
                       <Td className="whitespace-nowrap">{formatDateLabel(cr.dateApproved)}</Td>
                       {canEdit && (
-                        <Td>
+                        <Td stickyRight>
                           <div className="flex items-center gap-2">
                             <Button
                               type="button"
@@ -4469,7 +4469,7 @@ function ProjectDetail({ projectId }) {
                       <Th>Stage</Th>
                       <Th>Context</Th>
                       <Th>Status</Th>
-                      <Th align="right">Action</Th>
+                      <Th stickyRight align="right">Action</Th>
                     </Tr>
                   </thead>
                   <tbody>
@@ -4514,7 +4514,7 @@ function ProjectDetail({ projectId }) {
                         <Td>
                           <DocumentStatusBadge status={entry.document.status} />
                         </Td>
-                        <Td align="right">
+                        <Td stickyRight align="right">
                           {canInteractWithDocument(entry.document) ? (
                             <div className="inline-flex items-center justify-end gap-3">
                               <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
@@ -4607,7 +4607,7 @@ function ProjectDetail({ projectId }) {
                         <Th>Status</Th>
                         <Th>Completed Documents</Th>
                         <Th>Assigned PIC</Th>
-                        <Th>Action</Th>
+                        <Th stickyRight>Action</Th>
                       </Tr>
                     </thead>
                     <tbody>
@@ -4740,7 +4740,7 @@ function ProjectDetail({ projectId }) {
                               )
                             })()}
                           </Td>
-                          <Td className="min-w-[220px] text-sm">
+                          <Td stickyRight className="min-w-[220px] text-sm">
                             {it.links?.length ? (
                               <div className="space-y-3">
                                 {it.links.map((l) => (
@@ -4838,7 +4838,7 @@ function ProjectDetail({ projectId }) {
                             <Th>Document Type</Th>
                             <Th>Status</Th>
                             <Th>Completed Documents</Th>
-                            <Th>Action</Th>
+                            <Th stickyRight>Action</Th>
                           </Tr>
                         </thead>
                         <tbody>
@@ -4884,7 +4884,7 @@ function ProjectDetail({ projectId }) {
                                   </div>
                                 </div>
                               </Td>
-                              <Td className="min-w-[220px] text-sm">
+                              <Td stickyRight className="min-w-[220px] text-sm">
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                                   {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
                                     <button
@@ -5661,7 +5661,7 @@ function DocumentsSearch() {
                   <Th>Project</Th>
                   <Th>Iteration</Th>
                   <Th>Stage</Th>
-                  <Th>Action</Th>
+                  <Th stickyRight>Action</Th>
                 </Tr>
               </thead>
               <tbody>
@@ -5681,7 +5681,7 @@ function DocumentsSearch() {
                     </Td>
                     <Td className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</Td>
                     <Td className="text-ink-secondary">{r.stage?.name || '-'}</Td>
-                    <Td>
+                    <Td stickyRight>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                         {r.document?.canAccess === false ? (
                           <span className="font-medium text-[var(--dms-color-warning-ink)]">Access Restricted</span>

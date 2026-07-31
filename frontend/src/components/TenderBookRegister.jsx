@@ -380,7 +380,7 @@ export default function TenderBookRegister() {
               <Th align="right">Tender Value</Th>
               <Th align="right">Est. Profit</Th>
               <Th>Notes</Th>
-              {(canUpdate || canDelete) && <Th align="right">Actions</Th>}
+              {(canUpdate || canDelete) && <Th stickyRight align="right">Actions</Th>}
             </tr>
           </thead>
           <tbody>
@@ -413,7 +413,7 @@ export default function TenderBookRegister() {
                   <Td align="right">{formatMoney(row.estimatedProfitCents)}</Td>
                   <Td>{row.followUpNotes || '-'}</Td>
                   {(canUpdate || canDelete) && (
-                    <Td align="right">
+                    <Td stickyRight align="right">
                       <div className="flex justify-end gap-2">
                         {canUpdate && (
                           <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>

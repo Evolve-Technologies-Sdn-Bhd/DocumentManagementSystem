@@ -225,7 +225,7 @@ export default function BackupRecovery() {
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_created_on')}</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('size')}</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('actions')}</th>
+                <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -252,7 +252,7 @@ export default function BackupRecovery() {
                 </tr>
               ) : (
                 pageItems.map((backup) => (
-                  <tr key={backup.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={backup.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +277,7 @@ export default function BackupRecovery() {
                         {backup.status || 'completed'}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleDownloadBackup(backup)}

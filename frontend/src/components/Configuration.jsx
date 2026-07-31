@@ -731,7 +731,7 @@ function TemplateManagement() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_prefix_code')}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_by')}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_on')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('action')}</th>
+                    <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary border-l border-border">{t('action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -757,14 +757,14 @@ function TemplateManagement() {
                     </tr>
                   ) : (
                     currentTemplates.map((template) => (
-                      <tr key={template.id} className="border-b border-border transition-colors hover:bg-surface-muted">
+                      <tr key={template.id} className="group border-b border-border transition-colors hover:bg-surface-muted">
                         <td className="px-4 py-4 text-ink-secondary">{template.documentType}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.templateName}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.version}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.prefixCode}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.uploadedBy}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.uploadedOn}</td>
-                        <td className="px-4 py-4">
+                        <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-4 border-l border-border">
                           <ActionMenu
                             actions={[
                               ...(hasPermission('configuration.templates', 'read') ? [{ label: t('view'), onClick: () => handleView(template) }] : []),

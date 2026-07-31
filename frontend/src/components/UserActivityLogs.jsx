@@ -370,7 +370,7 @@ export default function UserActivityLogs() {
               <Th>{t('alv_ip_address')}</Th>
               <Th>{t('actions')}</Th>
               <Th>{t('status')}</Th>
-              <Th>{t('view_details')}</Th>
+              <Th stickyRight>{t('view_details')}</Th>
             </tr>
           </thead>
           <tbody>
@@ -411,7 +411,7 @@ export default function UserActivityLogs() {
                   <Td className="text-ink">{activity.ipAddress}</Td>
                   <Td className="text-ink">{activity.actionsPerformed}</Td>
                   <Td>{getStatusBadge(activity.status)}</Td>
-                  <Td>
+                  <Td stickyRight>
                     <Button
                       onClick={() => setSelectedActivity(activity)}
                       variant="ghost"

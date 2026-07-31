@@ -1849,7 +1849,7 @@ export default function PublishedDocuments() {
                     <Th className="hidden lg:table-cell">{t('size')}</Th>
                     <Th className="hidden xl:table-cell">{t('last_modified')}</Th>
                     <Th className="hidden lg:table-cell">{t('status')}</Th>
-                    <Th>{t('actions')}</Th>
+                    <Th stickyRight>{t('actions')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1953,7 +1953,7 @@ export default function PublishedDocuments() {
                         <Td className="hidden lg:table-cell py-3">
                           {doc.status !== '-' ? <StatusBadge status={doc.status} /> : <span className="text-ink-muted">-</span>}
                         </Td>
-                        <Td className="py-3">
+                        <Td stickyRight className="py-3">
                           {!doc.isFolder ? (
                             <ActionMenu
                               actions={[

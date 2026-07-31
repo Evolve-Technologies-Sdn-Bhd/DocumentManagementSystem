@@ -516,7 +516,7 @@ export default function DraftDocuments() {
                 <Th>{t('created_by')}</Th>
                 <Th>{t('last_updated')}</Th>
                 <Th>{t('status')}</Th>
-                <Th>{t('actions')}</Th>
+                <Th stickyRight>{t('actions')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -587,7 +587,7 @@ export default function DraftDocuments() {
                         ) : null}
                       </div>
                     </Td>
-                    <Td className="py-3">
+                    <Td stickyRight className="py-3">
                       <ActionMenu
                         actions={[
                           ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update')

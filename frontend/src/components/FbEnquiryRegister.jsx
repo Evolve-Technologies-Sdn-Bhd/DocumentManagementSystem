@@ -406,7 +406,7 @@ export default function FbEnquiryRegister() {
                 <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Status</th>
                 <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Tender</th>
                 {(canUpdate || canDelete) && (
-                  <th className="w-16 px-4 py-3 text-right text-xs font-medium text-ink-muted uppercase tracking-wider" />
+                  <th className="w-16 sticky right-0 z-30 bg-surface-muted px-4 py-3 text-right text-xs font-medium text-ink-muted uppercase tracking-wider border-l border-border" />
                 )}
               </tr>
             </thead>
@@ -425,7 +425,7 @@ export default function FbEnquiryRegister() {
                 </tr>
               ) : (
                 records.map((row, index) => (
-                  <tr key={row.id} className="transition-colors hover:bg-surface-muted">
+                  <tr key={row.id} className="group transition-colors hover:bg-surface-muted">
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{(page - 1) * limit + index + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">
                       {row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}
@@ -442,7 +442,7 @@ export default function FbEnquiryRegister() {
                     <td className="px-4 py-3 text-sm text-ink-secondary"><StatusBadge status={row.status} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.tenderEntry?.tenderRefNo || '-'}</td>
                     {(canUpdate || canDelete) && (
-                      <td className="px-4 py-3 text-right">
+                      <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-3 text-right border-l border-border">
                         <ActionMenu
                           actions={[
                             ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),

@@ -512,7 +512,7 @@ function DocumentTypesManagement() {
               <Th>Expiry Tracking</Th>
               <Th>Renewal</Th>
               <Th>{t('status')}</Th>
-              <Th align="right">{t('action')}</Th>
+              <Th stickyRight align="right">{t('action')}</Th>
             </Tr>
           </thead>
           <tbody>
@@ -556,7 +556,7 @@ function DocumentTypesManagement() {
                   <Td>
                     {renderPill(item.isActive ? t('mdm_active') : t('mdm_inactive'), item.isActive ? 'success' : 'neutral')}
                   </Td>
-                  <Td align="right">
+                  <Td stickyRight align="right">
                     <ActionMenu
                       actions={item.isActive ? [
                         { label: t('rp_edit'), onClick: () => handleEdit(item) },
@@ -776,7 +776,7 @@ function ProjectCategoriesManagement() {
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('mdm_code')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('description')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('status')}</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('action')}</th>
+              <th className="sticky right-0 z-30 bg-gray-50 text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider border-l border-gray-200">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -797,7 +797,7 @@ function ProjectCategoriesManagement() {
               </tr>
             ) : (
               pageItems.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={item.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4 text-gray-900 font-medium">{item.name}</td>
                   <td className="py-4 px-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 text-sm font-mono font-semibold">
@@ -812,7 +812,7 @@ function ProjectCategoriesManagement() {
                       {item.isActive ? t('mdm_active') : t('mdm_inactive')}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-right">
+                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 text-right border-l border-gray-200">
                     <ActionMenu
                       actions={[
                         { label: t('rp_edit'), onClick: () => handleEdit(item) },
@@ -1335,7 +1335,7 @@ function DepartmentsManagement() {
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('mdm_code')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('description')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('status')}</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider">{t('action')}</th>
+              <th className="sticky right-0 z-30 bg-gray-50 text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider border-l border-gray-200">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1356,7 +1356,7 @@ function DepartmentsManagement() {
               </tr>
             ) : (
               pageItems.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={item.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4 text-gray-900 font-medium">{item.name}</td>
                   <td className="py-4 px-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-sm font-mono font-semibold">
@@ -1371,7 +1371,7 @@ function DepartmentsManagement() {
                       {item.isActive ? t('mdm_active') : t('mdm_inactive')}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-right">
+                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 text-right border-l border-gray-200">
                     <ActionMenu
                       actions={item.isActive ? [
                         { label: t('rp_edit'), onClick: () => handleEdit(item) },
@@ -1669,7 +1669,7 @@ function DivisionsManagement() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('users')}</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('folders')}</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('status')}</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700">{t('action')}</th>
+              <th className="sticky right-0 z-30 bg-gray-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 border-l border-gray-200">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1688,7 +1688,7 @@ function DivisionsManagement() {
               </tr>
             ) : (
               pageItems.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                <tr key={item.id} className="group border-b border-gray-100 transition-colors hover:bg-gray-50">
                   <td className="px-4 py-4 font-medium text-gray-900">{item.name}</td>
                   <td className="px-4 py-4">
                     <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 font-mono text-sm font-semibold text-blue-700">
@@ -1704,7 +1704,7 @@ function DivisionsManagement() {
                       {item.isActive ? t('mdm_active') : t('mdm_inactive')}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-right">
+                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 px-4 py-4 text-right border-l border-gray-200">
                     <ActionMenu
                       actions={[
                         { label: t('rp_edit'), onClick: () => handleEdit(item) },

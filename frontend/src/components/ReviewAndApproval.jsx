@@ -666,7 +666,7 @@ export default function ReviewAndApproval() {
                   <Th>{t('second_approver')}</Th>
                   <Th>{t('last_updated')}</Th>
                   <Th>{t('status')}</Th>
-                  <Th>{t('action')}</Th>
+                  <Th stickyRight>{t('action')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -727,7 +727,7 @@ export default function ReviewAndApproval() {
                     <Td className="py-3">
                       <StatusBadge status={doc.status} />
                     </Td>
-                    <Td className="py-3">
+                    <Td stickyRight className="py-3">
                       <ActionMenu
                         actions={[
                           ...(hasPermission('documents.review', 'read')

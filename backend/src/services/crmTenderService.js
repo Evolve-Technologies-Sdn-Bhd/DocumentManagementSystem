@@ -1,6 +1,44 @@
 const prisma = require('../config/database')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
 
+// #region debug-point tender-import-deadline
+const __dbgPost = (payload) => {
+  const url = process.env.DEBUG_SERVER_URL
+  const sessionId = process.env.DEBUG_SESSION_ID
+  if (!url || !sessionId) return
+  try {
+    const { URL } = require('url')
+    const u = new URL(url)
+    const httpMod = u.protocol === 'https:' ? require('https') : require('http')
+    const body = JSON.stringify({
+      sessionId,
+      ts: Date.now(),
+      ...payload
+    })
+    const req = httpMod.request(
+      {
+        method: 'POST',
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname + (u.search || ''),
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body)
+        },
+        timeout: 1500
+      },
+      (res) => res.resume()
+    )
+    req.on('error', () => {})
+    req.on('timeout', () => {
+      try { req.destroy() } catch {}
+    })
+    req.write(body)
+    req.end()
+  } catch {}
+}
+// #endregion debug-point tender-import-deadline
+
 class CrmTenderService {
   buildGeneratedTenderRefNo(year, runningNumber) {
     const y = Number(year)
@@ -324,15 +362,44 @@ class CrmTenderService {
     }
 
     const preparedBase = entries
-      .map((row) => {
+      .map((row, rowIndex) => {
         const title = String(row?.title || '').trim()
         if (!title) return null
+
+        // #region debug-point tender-import-deadline
+        __dbgPost({
+          kind: 'crm_tender_import_row_raw',
+          rowIndex,
+          raw: {
+            title,
+            submissionDeadline: row?.submissionDeadline ?? null,
+            status: row?.status ?? null
+          }
+        })
+        // #endregion debug-point tender-import-deadline
+
+        let submissionDeadline = null
+        try {
+          submissionDeadline = this.normalizeOptionalDate(row?.submissionDeadline)
+        } catch (e) {
+          // #region debug-point tender-import-deadline
+          __dbgPost({
+            kind: 'crm_tender_import_deadline_parse_error',
+            rowIndex,
+            title,
+            submissionDeadlineRaw: row?.submissionDeadline ?? null,
+            error: { message: e?.message || String(e) }
+          })
+          // #endregion debug-point tender-import-deadline
+          throw e
+        }
+
         return {
           tenderRefNo: null,
           title,
           clientName: this.normalizeOptionalText(row?.clientName),
           contactPerson: this.normalizeOptionalText(row?.contactPerson),
-          submissionDeadline: this.normalizeOptionalDate(row?.submissionDeadline),
+          submissionDeadline,
           status: this.normalizeStatus(row?.status || 'DRAFT'),
           tenderValueCents: this.normalizeCents(row?.tenderValueCents ?? 0, 'tenderValueCents'),
           estimatedProfitCents: this.normalizeCents(row?.estimatedProfitCents ?? 0, 'estimatedProfitCents'),
