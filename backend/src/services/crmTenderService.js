@@ -55,8 +55,34 @@ class CrmTenderService {
   }
 
   normalizeCents(value, fieldName) {
-    const num = value === undefined ? undefined : Number(value)
     if (value === undefined) return undefined
+
+    if (value === null || value === '') return 0
+
+    let normalizedValue = value
+    if (typeof normalizedValue === 'string') {
+      const raw = normalizedValue.trim()
+      const token = raw.toLowerCase()
+      if (!raw) return 0
+      if (token === 'n/a' || token === 'na' || token === '-' || token === 'null') return 0
+
+      const cleaned = raw
+        .replace(/rm/ig, '')
+        .replace(/,/g, '')
+        .trim()
+
+      if (cleaned.includes('.') || /[a-z]/i.test(raw) || raw.includes(',')) {
+        const rm = Number(cleaned)
+        if (!Number.isFinite(rm) || rm < 0) {
+          throw new BadRequestError(`invalid ${fieldName}`)
+        }
+        return Math.round(rm * 100)
+      }
+
+      normalizedValue = cleaned
+    }
+
+    const num = Number(normalizedValue)
     if (!Number.isFinite(num) || num < 0) {
       throw new BadRequestError(`invalid ${fieldName}`)
     }
@@ -89,7 +115,11 @@ class CrmTenderService {
   }
 
   normalizeStatus(status) {
-    const normalized = String(status || 'DRAFT').trim().toUpperCase()
+    const token = String(status ?? '').trim()
+    if (!token) return 'DRAFT'
+    const lower = token.toLowerCase()
+    if (lower === 'n/a' || lower === 'na' || lower === '-' || lower === 'null') return 'DRAFT'
+    const normalized = token.toUpperCase()
     if (!this.getAllowedStatuses().includes(normalized)) {
       throw new BadRequestError('invalid status')
     }
@@ -105,11 +135,42 @@ class CrmTenderService {
   normalizeOptionalDate(value) {
     if (value === undefined) return undefined
     if (value === null || value === '') return null
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
+    const raw = String(value || '').trim()
+    if (!raw) return null
+    const token = raw.toLowerCase()
+    if (token === 'n/a' || token === 'na' || token === '-' || token === 'null') return null
+
+    const parseDdMmYyyy = (text) => {
+      const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text)
+      if (!m) return null
+      const dd = Number(m[1])
+      const mm = Number(m[2])
+      const yyyy = Number(m[3])
+      if (!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return null
+      if (dd < 1 || dd > 31 || mm < 1 || mm > 12) return null
+      const iso = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+      const d = new Date(`${iso}T00:00:00.000Z`)
+      return Number.isNaN(d.getTime()) ? null : d
+    }
+
+    const parseDdMmYyyyDash = (text) => {
+      const m = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(text)
+      if (!m) return null
+      const dd = Number(m[1])
+      const mm = Number(m[2])
+      const yyyy = Number(m[3])
+      if (!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return null
+      if (dd < 1 || dd > 31 || mm < 1 || mm > 12) return null
+      const iso = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+      const d = new Date(`${iso}T00:00:00.000Z`)
+      return Number.isNaN(d.getTime()) ? null : d
+    }
+
+    const parsed = parseDdMmYyyy(raw) || parseDdMmYyyyDash(raw) || new Date(raw)
+    if (Number.isNaN(parsed.getTime())) {
       throw new BadRequestError('invalid submissionDeadline')
     }
-    return date
+    return parsed
   }
 
   async list(query = {}) {

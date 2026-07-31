@@ -213,8 +213,8 @@ export default function TenderBookRegister() {
         contactPerson: contactIdx >= 0 ? (parts[contactIdx] || '') : '',
         submissionDeadline: deadlineIdx >= 0 ? (parts[deadlineIdx] || '') : '',
         status: statusIdx >= 0 ? (parts[statusIdx] || 'DRAFT') : 'DRAFT',
-        tenderValueCents: tenderIdx >= 0 ? Number(parts[tenderIdx] || 0) : 0,
-        estimatedProfitCents: profitIdx >= 0 ? Number(parts[profitIdx] || 0) : 0,
+        tenderValueCents: tenderIdx >= 0 ? (parts[tenderIdx] || '') : '',
+        estimatedProfitCents: profitIdx >= 0 ? (parts[profitIdx] || '') : '',
         source: sourceIdx >= 0 ? (parts[sourceIdx] || '') : '',
         documentLink: documentIdx >= 0 ? (parts[documentIdx] || '') : '',
         followUpNotes: followUpIdx >= 0 ? (parts[followUpIdx] || '') : ''
