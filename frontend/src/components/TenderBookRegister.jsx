@@ -192,6 +192,62 @@ export default function TenderBookRegister() {
       .filter((l) => String(l || '').trim() !== '')
     if (lines.length <= 1) return []
     const header = parseCsvRow(lines[0]).map((h) => String(h || '').trim())
+
+    const reconcileParts = (parts, headers) => {
+      const tokens = Array.isArray(parts) ? parts.slice() : []
+      const cols = Array.isArray(headers) ? headers : []
+      if (tokens.length <= cols.length) {
+        while (tokens.length < cols.length) tokens.push('')
+        return tokens
+      }
+
+      const isNumericCandidate = (value) => {
+        const raw = String(value ?? '').trim()
+        if (!raw) return false
+        const cleaned = raw.replace(/rm/ig, '').replace(/,/g, '').trim()
+        return /^\d+(\.\d+)?$/.test(cleaned)
+      }
+
+      const numericCols = new Set(['tenderValueCents', 'estimatedProfitCents'])
+      const out = []
+      let remaining = tokens
+
+      for (let colIndex = 0; colIndex < cols.length; colIndex += 1) {
+        if (colIndex === cols.length - 1) {
+          out.push(remaining.join(','))
+          remaining = []
+          break
+        }
+
+        const remainingCols = cols.length - colIndex
+        const minLeftForRest = remainingCols - 1
+        if (remaining.length <= minLeftForRest) {
+          out.push(remaining.shift() || '')
+          continue
+        }
+
+        const colName = cols[colIndex]
+        if (numericCols.has(colName)) {
+          const maxTake = Math.max(1, remaining.length - minLeftForRest)
+          let bestTake = null
+          for (let take = 1; take <= maxTake; take += 1) {
+            const candidate = remaining.slice(0, take).join(',')
+            if (isNumericCandidate(candidate)) bestTake = take
+          }
+          if (bestTake) {
+            out.push(remaining.slice(0, bestTake).join(','))
+            remaining = remaining.slice(bestTake)
+            continue
+          }
+        }
+
+        out.push(remaining.shift() || '')
+      }
+
+      while (out.length < cols.length) out.push('')
+      return out.slice(0, cols.length)
+    }
+
     const idx = (name) => header.findIndex((h) => h.toLowerCase() === name.toLowerCase())
     const titleIdx = idx('title')
     if (titleIdx < 0) return []
@@ -206,7 +262,8 @@ export default function TenderBookRegister() {
     const followUpIdx = idx('followUpNotes')
 
     return lines.slice(1).map((line) => {
-      const parts = parseCsvRow(line)
+      const rawParts = parseCsvRow(line)
+      const parts = rawParts.length === header.length ? rawParts : reconcileParts(rawParts, header)
       return {
         title: parts[titleIdx] || '',
         clientName: clientIdx >= 0 ? (parts[clientIdx] || '') : '',

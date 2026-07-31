@@ -1232,7 +1232,7 @@ export default function NewDocumentRequest() {
                     <Th>{t('file_code')}</Th>
                     <Th>{t('status')}</Th>
                     {canAcknowledge && (
-                      <Th stickyRight>{t('actions')}</Th>
+                      <Th className="whitespace-nowrap">{t('actions')}</Th>
                     )}
                   </tr>
                 </thead>
@@ -1316,9 +1316,9 @@ export default function NewDocumentRequest() {
                         {renderRequestStatus(req)}
                       </Td>
                       {canAcknowledge && (
-                        <Td stickyRight className="py-3">
+                        <Td className="py-3 whitespace-nowrap">
                           {canAcknowledgeRequest(req) && req.requestType !== 'NVR' ? (
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2 flex-nowrap">
                               <Button
                                 onClick={() => handleAcknowledge(req)}
                                 disabled={acknowledgingId === req.id}
