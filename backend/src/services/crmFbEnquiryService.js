@@ -167,35 +167,35 @@ class CrmFbEnquiryService {
       where.status = status
     }
     if (name) {
-      where.name = { contains: name, mode: 'insensitive' }
+      where.name = { contains: name }
     }
     if (email) {
-      where.email = { contains: email, mode: 'insensitive' }
+      where.email = { contains: email }
     }
     if (company) {
-      where.company = { contains: company, mode: 'insensitive' }
+      where.company = { contains: company }
     }
     if (contact) {
-      where.contact = { contains: contact, mode: 'insensitive' }
+      where.contact = { contains: contact }
     }
     if (address) {
-      where.address = { contains: address, mode: 'insensitive' }
+      where.address = { contains: address }
     }
     if (state) {
-      where.state = { contains: state, mode: 'insensitive' }
+      where.state = { contains: state }
     }
     if (interestedProduct) {
-      where.interestedProduct = { contains: interestedProduct, mode: 'insensitive' }
+      where.interestedProduct = { contains: interestedProduct }
     }
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { company: { contains: search, mode: 'insensitive' } },
-        { contact: { contains: search, mode: 'insensitive' } },
-        { address: { contains: search, mode: 'insensitive' } },
-        { state: { contains: search, mode: 'insensitive' } },
-        { interestedProduct: { contains: search, mode: 'insensitive' } }
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { company: { contains: search } },
+        { contact: { contains: search } },
+        { address: { contains: search } },
+        { state: { contains: search } },
+        { interestedProduct: { contains: search } }
       ]
     }
     return where

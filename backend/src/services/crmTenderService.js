@@ -192,22 +192,22 @@ class CrmTenderService {
       where.status = status
     }
     if (tenderRefNo) {
-      where.tenderRefNo = { contains: tenderRefNo, mode: 'insensitive' }
+      where.tenderRefNo = { contains: tenderRefNo }
     }
     if (title) {
-      where.title = { contains: title, mode: 'insensitive' }
+      where.title = { contains: title }
     }
     if (clientName) {
-      where.clientName = { contains: clientName, mode: 'insensitive' }
+      where.clientName = { contains: clientName }
     }
     if (contactPerson) {
-      where.contactPerson = { contains: contactPerson, mode: 'insensitive' }
+      where.contactPerson = { contains: contactPerson }
     }
     if (source) {
-      where.source = { contains: source, mode: 'insensitive' }
+      where.source = { contains: source }
     }
     if (followUpNotes) {
-      where.followUpNotes = { contains: followUpNotes, mode: 'insensitive' }
+      where.followUpNotes = { contains: followUpNotes }
     }
     if (submissionDeadlineFrom || submissionDeadlineTo) {
       where.submissionDeadline = {
@@ -229,12 +229,12 @@ class CrmTenderService {
     }
     if (search) {
       where.OR = [
-        { tenderRefNo: { contains: search, mode: 'insensitive' } },
-        { title: { contains: search, mode: 'insensitive' } },
-        { clientName: { contains: search, mode: 'insensitive' } },
-        { contactPerson: { contains: search, mode: 'insensitive' } },
-        { source: { contains: search, mode: 'insensitive' } },
-        { followUpNotes: { contains: search, mode: 'insensitive' } }
+        { tenderRefNo: { contains: search } },
+        { title: { contains: search } },
+        { clientName: { contains: search } },
+        { contactPerson: { contains: search } },
+        { source: { contains: search } },
+        { followUpNotes: { contains: search } }
       ]
     }
     return where
