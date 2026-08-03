@@ -115,13 +115,63 @@ class CrmFbEnquiryService {
     const limit = Math.min(Math.max(Number(query.limit || 15), 1), 100)
     const search = String(query.search || '').trim()
     const status = String(query.status || 'all').trim()
-    return { page, limit, search, status }
+    const name = String(query.name || '').trim()
+    const email = String(query.email || '').trim()
+    const company = String(query.company || '').trim()
+    const contact = String(query.contact || '').trim()
+    const address = String(query.address || '').trim()
+    const state = String(query.state || '').trim()
+    const interestedProduct = String(query.interestedProduct || '').trim()
+    return {
+      page,
+      limit,
+      search,
+      status,
+      name,
+      email,
+      company,
+      contact,
+      address,
+      state,
+      interestedProduct
+    }
   }
 
-  buildWhere({ search, status }) {
+  buildWhere({
+    search,
+    status,
+    name,
+    email,
+    company,
+    contact,
+    address,
+    state,
+    interestedProduct
+  }) {
     const where = {}
     if (status && status !== 'all') {
       where.status = status
+    }
+    if (name) {
+      where.name = { contains: name, mode: 'insensitive' }
+    }
+    if (email) {
+      where.email = { contains: email, mode: 'insensitive' }
+    }
+    if (company) {
+      where.company = { contains: company, mode: 'insensitive' }
+    }
+    if (contact) {
+      where.contact = { contains: contact, mode: 'insensitive' }
+    }
+    if (address) {
+      where.address = { contains: address, mode: 'insensitive' }
+    }
+    if (state) {
+      where.state = { contains: state, mode: 'insensitive' }
+    }
+    if (interestedProduct) {
+      where.interestedProduct = { contains: interestedProduct, mode: 'insensitive' }
     }
     if (search) {
       where.OR = [
@@ -172,8 +222,9 @@ class CrmFbEnquiryService {
   }
 
   async list(query = {}) {
-    const { page, limit, search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const { page, limit } = normalized
+    const where = this.buildWhere(normalized)
 
     const [total, records] = await Promise.all([
       prisma.crmFbEnquiryEntry.count({ where }),
@@ -203,8 +254,8 @@ class CrmFbEnquiryService {
   }
 
   async summary(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const [aggregate, grouped] = await Promise.all([
       prisma.crmFbEnquiryEntry.aggregate({
@@ -677,8 +728,8 @@ class CrmFbEnquiryService {
   }
 
   async exportCsv(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const records = await prisma.crmFbEnquiryEntry.findMany({
       where,
@@ -693,8 +744,8 @@ class CrmFbEnquiryService {
   }
 
   async exportXlsx(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const records = await prisma.crmFbEnquiryEntry.findMany({
       where,

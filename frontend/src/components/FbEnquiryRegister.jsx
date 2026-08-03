@@ -33,7 +33,17 @@ export default function FbEnquiryRegister() {
   const canExport = hasPermission('crm.fbEnquiry', 'export')
   const tableColSpan = (canUpdate || canDelete) ? 14 : 13
 
-  const [filters, setFilters] = useState({ search: '', status: 'all' })
+  const [filters, setFilters] = useState({
+    search: '',
+    status: 'all',
+    name: '',
+    email: '',
+    company: '',
+    contact: '',
+    address: '',
+    state: '',
+    interestedProduct: ''
+  })
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(15)
   const [total, setTotal] = useState(0)
@@ -120,7 +130,17 @@ export default function FbEnquiryRegister() {
   }
 
   const resetFilters = () => {
-    const next = { search: '', status: 'all' }
+    const next = {
+      search: '',
+      status: 'all',
+      name: '',
+      email: '',
+      company: '',
+      contact: '',
+      address: '',
+      state: '',
+      interestedProduct: ''
+    }
     setFilters(next)
     setPage(1)
     loadRecords(next, 1, limit)
@@ -314,7 +334,17 @@ export default function FbEnquiryRegister() {
       loadSummary(filters)
     }, 300)
     return () => window.clearTimeout(timeoutId)
-  }, [filters.search, filters.status])
+  }, [
+    filters.search,
+    filters.status,
+    filters.name,
+    filters.email,
+    filters.company,
+    filters.contact,
+    filters.address,
+    filters.state,
+    filters.interestedProduct
+  ])
 
   const renderSummaryCard = (label, value) => (
     <AppSurface padding="lg" variant="muted">
@@ -344,14 +374,50 @@ export default function FbEnquiryRegister() {
       )}
 
       <AppSurface padding="lg" className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <TextInput
+            value={filters.search}
+            placeholder="Keyword..."
+            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+          />
+          <TextInput
+            value={filters.contact}
+            placeholder="Contact No."
+            onChange={(e) => setFilters((prev) => ({ ...prev, contact: e.target.value }))}
+          />
+          <TextInput
+            value={filters.name}
+            placeholder="Name"
+            onChange={(e) => setFilters((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <TextInput
+            value={filters.email}
+            placeholder="Email"
+            onChange={(e) => setFilters((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <TextInput
+            value={filters.company}
+            placeholder="Company"
+            onChange={(e) => setFilters((prev) => ({ ...prev, company: e.target.value }))}
+          />
+          <TextInput
+            value={filters.address}
+            placeholder="Address"
+            onChange={(e) => setFilters((prev) => ({ ...prev, address: e.target.value }))}
+          />
+          <TextInput
+            value={filters.state}
+            placeholder="State"
+            onChange={(e) => setFilters((prev) => ({ ...prev, state: e.target.value }))}
+          />
+          <TextInput
+            value={filters.interestedProduct}
+            placeholder="Interested Product"
+            onChange={(e) => setFilters((prev) => ({ ...prev, interestedProduct: e.target.value }))}
+          />
+        </div>
+
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <TextInput
-              value={filters.search}
-              placeholder="Search..."
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
           <div className="w-full lg:w-60">
             <SelectField value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}>
               {statusOptions.map((opt) => (
@@ -361,7 +427,11 @@ export default function FbEnquiryRegister() {
               ))}
             </SelectField>
           </div>
-          <div className="flex gap-2 lg:ml-auto">
+
+          <div className="flex flex-wrap gap-2 lg:ml-auto">
+            <Button variant="secondary" onClick={resetFilters}>
+              Reset
+            </Button>
             {canImport && (
               <Button variant="secondary" onClick={handleImportClick}>
                 Import Excel/CSV

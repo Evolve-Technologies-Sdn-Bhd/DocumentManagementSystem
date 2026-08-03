@@ -11,6 +11,7 @@ import EmptyPanelState from './ui/EmptyPanelState'
 import Pagination from './Pagination'
 import StatusBadge from './StatusBadge'
 import ConfirmModal from './ConfirmModal'
+import ActionMenu from './ActionMenu'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import TenderEntryModal from './TenderEntryModal'
 import CrmImportModal from './CrmImportModal'
@@ -505,17 +506,13 @@ export default function TenderBookRegister() {
                   <Td>{row.followUpNotes || '-'}</Td>
                   {(canUpdate || canDelete) && (
                     <Td stickyRight align="right">
-                      <div className="flex justify-end gap-2">
-                        {canUpdate && (
-                          <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button size="sm" variant="danger" onClick={() => handleDelete(row)}>
-                            Delete
-                          </Button>
-                        )}
+                      <div className="flex justify-end">
+                        <ActionMenu
+                          actions={[
+                            ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+                            ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
+                          ]}
+                        />
                       </div>
                     </Td>
                   )}
