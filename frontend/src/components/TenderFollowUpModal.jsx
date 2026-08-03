@@ -5,6 +5,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
+import MultiSelectSearchDropdown from './ui/MultiSelectSearchDropdown'
 
 export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
   const entryId = useMemo(() => Number(entry?.id || 0), [entry])
@@ -32,16 +33,13 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
     if (title) return title
     return 'Tender'
   }, [entry])
-
-  const toggleAssignee = (userId) => {
-    const id = Number(userId)
-    if (!id) return
-    setAssigneeIds((prev) => {
-      const exists = prev.includes(id)
-      if (exists) return prev.filter((v) => v !== id)
-      return [...prev, id]
-    })
-  }
+  const assigneeOptions = useMemo(() => (
+    users.map((u) => ({
+      value: u.id,
+      label: getUserLabel(u),
+      subLabel: u.email || ''
+    }))
+  ), [users])
 
   useEffect(() => {
     if (!open) return
@@ -189,22 +187,14 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
               </Button>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {users.map((u) => (
-                <label key={u.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={assigneeIds.includes(u.id)}
-                    onChange={() => toggleAssignee(u.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-gray-900">{getUserLabel(u)}</div>
-                    <div className="truncate text-xs text-gray-600">{u.email}</div>
-                  </div>
-                </label>
-              ))}
-              {users.length === 0 && <div className="text-sm text-gray-600">No users available.</div>}
+            <div className="mt-3">
+              <MultiSelectSearchDropdown
+                options={assigneeOptions}
+                value={assigneeIds}
+                onChange={setAssigneeIds}
+                placeholder="Select users..."
+                disabled={users.length === 0}
+              />
             </div>
           </div>
 
@@ -288,4 +278,3 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
   if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
   return ReactDOM.createPortal(modal, document.body)
 }
-

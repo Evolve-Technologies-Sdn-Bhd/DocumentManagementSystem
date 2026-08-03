@@ -93,6 +93,10 @@ model User {
   crmFbEnquiryAssigneeEntriesCreated CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeCreatedBy")
   crmFbEnquiryFollowUpLogsAssigned CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpAssignedTo")
   crmFbEnquiryFollowUpLogsCreated CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpCreatedBy")
+  crmTenderAssigneeEntries CrmTenderAssignee[] @relation("CrmTenderAssigneeUser")
+  crmTenderAssigneeEntriesCreated CrmTenderAssignee[] @relation("CrmTenderAssigneeCreatedBy")
+  crmTenderFollowUpLogsAssigned CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpAssignedTo")
+  crmTenderFollowUpLogsCreated CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpCreatedBy")
 
   @@index([email])
   @@index([employeeId])
