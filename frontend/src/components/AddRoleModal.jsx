@@ -42,7 +42,7 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
         {
           id: 'documents.published',
           name: 'Published Documents',
-          actions: ['view', 'read', 'create', 'update', 'delete', 'download']
+          actions: ['view', 'read', 'create', 'publish', 'update', 'delete', 'download']
         },
         {
           id: 'documents.superseded',
@@ -68,6 +68,29 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
       name: 'Project Tracking',
       description: 'Track projects with document requirements by stage',
       actions: ['view', 'searchProject', 'create', 'edit', 'delete', 'projectSetup', 'linkDocument', 'advanceStage', 'manageConfidentialAccess', 'projectControls', 'activityLogs', 'keyInChangeRequest', 'editProject', 'addNextPhase', 'moveToNextStage']
+    },
+    {
+      id: 'expiryTracking',
+      name: 'Expiry Tracking',
+      description: 'Track document expiry, renewal workflow, and expiry reporting',
+      actions: ['view', 'edit', 'renew', 'export']
+    },
+    {
+      id: 'crm',
+      name: 'CRM Registers',
+      description: 'Tender book and enquiry registers',
+      submodules: [
+        {
+          id: 'crm.tenderBook',
+          name: 'Tender Book Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        },
+        {
+          id: 'crm.fbEnquiry',
+          name: 'FB Enquiry Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        }
+      ]
     },
     {
       id: 'configuration',
