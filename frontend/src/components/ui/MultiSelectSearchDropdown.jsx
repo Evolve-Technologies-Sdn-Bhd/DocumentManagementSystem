@@ -7,7 +7,8 @@ export default function MultiSelectSearchDropdown({
   value = [],
   onChange,
   placeholder = 'Select...',
-  disabled = false
+  disabled = false,
+  zIndex = 110
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -74,13 +75,14 @@ export default function MultiSelectSearchDropdown({
 
   const dropdown = isOpen && (
     <>
-      <div className="fixed inset-0 z-[70]" onClick={() => setIsOpen(false)} />
+      <div className="fixed inset-0" style={{ zIndex }} onClick={() => setIsOpen(false)} />
       <div
-        className="fixed z-[71] rounded-lg border border-gray-200 bg-white shadow-lg"
+        className="fixed rounded-lg border border-gray-200 bg-white shadow-lg"
         style={{
           top: `${dropdownPosition.top}px`,
           left: `${dropdownPosition.left}px`,
-          width: `${dropdownPosition.width}px`
+          width: `${dropdownPosition.width}px`,
+          zIndex: zIndex + 1
         }}
       >
         <div className="p-3 border-b border-gray-200">
