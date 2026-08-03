@@ -57,15 +57,18 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
     return Math.round(v * 100)
   }
 
-  const normalizeCurrencyInput = (value) => {
-    const raw = String(value ?? '').replace(/,/g, '').replace(/[^\d.]/g, '')
+  const normalizeCurrencyInput = (value, allowNegative = false) => {
+    const text = String(value ?? '').replace(/,/g, '')
+    const sign = allowNegative && text.trim().startsWith('-') ? '-' : ''
+    const raw = text.replace(/-/g, '').replace(/[^\d.]/g, '')
     const parts = raw.split('.')
-    if (parts.length === 1) return parts[0]
-    return `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
+    const normalized = parts.length === 1 ? parts[0] : `${parts[0]}.${parts.slice(1).join('').slice(0, 2)}`
+    if (!normalized) return sign ? '-' : ''
+    return `${sign}${normalized}`
   }
 
-  const formatCurrencyDisplay = (value) => {
-    const normalized = normalizeCurrencyInput(value)
+  const formatCurrencyDisplay = (value, allowNegative = false) => {
+    const normalized = normalizeCurrencyInput(value, allowNegative)
     if (!normalized) return ''
     const numeric = Number(normalized)
     if (!Number.isFinite(numeric)) return ''
@@ -76,11 +79,13 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
   }
 
   const handleCurrencyChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: normalizeCurrencyInput(value) }))
+    const allowNegative = field === 'estimatedProfitRm'
+    setForm((prev) => ({ ...prev, [field]: normalizeCurrencyInput(value, allowNegative) }))
   }
 
   const handleCurrencyBlur = (field) => {
-    setForm((prev) => ({ ...prev, [field]: formatCurrencyDisplay(prev[field]) }))
+    const allowNegative = field === 'estimatedProfitRm'
+    setForm((prev) => ({ ...prev, [field]: formatCurrencyDisplay(prev[field], allowNegative) }))
   }
 
   const isValidDateInput = (value) => {
@@ -100,13 +105,15 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
     }
   }
 
-  const isValidCurrency = (value) => {
+  const isValidCurrency = (value, allowNegative = false) => {
     if (value === null || value === undefined) return true
     const raw = String(value).trim()
     if (!raw) return true
-    if (!/^\d+(\.\d{1,2})?$/.test(raw.replace(/,/g, ''))) return false
+    if (raw === '-') return false
+    const pattern = allowNegative ? /^-?\d+(\.\d{1,2})?$/ : /^\d+(\.\d{1,2})?$/
+    if (!pattern.test(raw.replace(/,/g, ''))) return false
     const numeric = Number(raw.replace(/,/g, ''))
-    return Number.isFinite(numeric) && numeric >= 0
+    return Number.isFinite(numeric) && (allowNegative || numeric >= 0)
   }
 
   const validatePayload = (payload) => {
@@ -118,8 +125,8 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
 
     if (!allowedStatuses.has(payload.status)) return 'Status is invalid.'
 
-    if (!isValidCurrency(form.tenderValueRm)) return 'Tender Value (RM) format is invalid.'
-    if (!isValidCurrency(form.estimatedProfitRm)) return 'Estimated Profit (RM) format is invalid.'
+    if (!isValidCurrency(form.tenderValueRm, false)) return 'Tender Value (RM) format is invalid.'
+    if (!isValidCurrency(form.estimatedProfitRm, true)) return 'Estimated Profit (RM) format is invalid.'
 
     if (payload.documentLink && !isValidHttpUrl(payload.documentLink)) {
       return 'Documents (Link / Reference) must be a valid http(s) URL.'

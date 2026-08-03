@@ -34,6 +34,34 @@ class CrmTenderController {
     return ResponseFormatter.success(res, data, 'Tender entry deleted successfully')
   })
 
+  getAssignees = asyncHandler(async (req, res) => {
+    const data = await crmTenderService.getAssignees({ id: req.params?.id })
+    return ResponseFormatter.success(res, data, 'Tender assignees retrieved successfully')
+  })
+
+  setAssignees = asyncHandler(async (req, res) => {
+    const data = await crmTenderService.setAssignees({
+      id: req.params?.id,
+      actorUserId: req.user?.id,
+      userIds: req.body?.userIds
+    })
+    return ResponseFormatter.success(res, data, 'Tender assignees updated successfully')
+  })
+
+  listFollowUps = asyncHandler(async (req, res) => {
+    const data = await crmTenderService.listFollowUps({ id: req.params?.id })
+    return ResponseFormatter.success(res, data, 'Tender follow-ups retrieved successfully')
+  })
+
+  addFollowUp = asyncHandler(async (req, res) => {
+    const data = await crmTenderService.addFollowUp({
+      id: req.params?.id,
+      actorUserId: req.user?.id,
+      payload: req.body
+    })
+    return ResponseFormatter.success(res, data, 'Tender follow-up added successfully')
+  })
+
   importEntries = asyncHandler(async (req, res) => {
     const data = await crmTenderService.importEntries({
       userId: req.user?.id,

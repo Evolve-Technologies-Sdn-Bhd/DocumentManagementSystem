@@ -14,6 +14,7 @@ import ConfirmModal from './ConfirmModal'
 import ActionMenu from './ActionMenu'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import TenderEntryModal from './TenderEntryModal'
+import TenderFollowUpModal from './TenderFollowUpModal'
 import CrmImportModal from './CrmImportModal'
 
 const statusOptions = [
@@ -34,20 +35,14 @@ export default function TenderBookRegister() {
   const canExport = hasPermission('crm.tenderBook', 'export')
 
   const [filters, setFilters] = useState({
-    search: '',
     status: 'all',
     tenderRefNo: '',
     title: '',
     clientName: '',
     contactPerson: '',
     source: '',
-    followUpNotes: '',
     submissionDeadlineFrom: '',
-    submissionDeadlineTo: '',
-    tenderValueMinRm: '',
-    tenderValueMaxRm: '',
-    estimatedProfitMinRm: '',
-    estimatedProfitMaxRm: ''
+    submissionDeadlineTo: ''
   })
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(15)
@@ -68,6 +63,7 @@ export default function TenderBookRegister() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const [entryModal, setEntryModal] = useState({ open: false, entry: null })
+  const [followUpModal, setFollowUpModal] = useState({ open: false, entry: null })
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
 
@@ -142,20 +138,14 @@ export default function TenderBookRegister() {
 
   const resetFilters = () => {
     const next = {
-      search: '',
       status: 'all',
       tenderRefNo: '',
       title: '',
       clientName: '',
       contactPerson: '',
       source: '',
-      followUpNotes: '',
       submissionDeadlineFrom: '',
-      submissionDeadlineTo: '',
-      tenderValueMinRm: '',
-      tenderValueMaxRm: '',
-      estimatedProfitMinRm: '',
-      estimatedProfitMaxRm: ''
+      submissionDeadlineTo: ''
     }
     setFilters(next)
     setPage(1)
@@ -391,6 +381,7 @@ export default function TenderBookRegister() {
 
   const openCreate = () => setEntryModal({ open: true, entry: null })
   const openEdit = (entry) => setEntryModal({ open: true, entry })
+  const openFollowUp = (entry) => setFollowUpModal({ open: true, entry })
 
   const handleDelete = (entry) => {
     setConfirmModal({
@@ -418,6 +409,7 @@ export default function TenderBookRegister() {
 
   const handleSaved = () => {
     setEntryModal({ open: false, entry: null })
+    setFollowUpModal({ open: false, entry: null })
     loadRecords(filters, page, limit)
     loadSummary(filters)
   }
@@ -430,20 +422,14 @@ export default function TenderBookRegister() {
     }, 300)
     return () => window.clearTimeout(timeoutId)
   }, [
-    filters.search,
     filters.status,
     filters.tenderRefNo,
     filters.title,
     filters.clientName,
     filters.contactPerson,
     filters.source,
-    filters.followUpNotes,
     filters.submissionDeadlineFrom,
-    filters.submissionDeadlineTo,
-    filters.tenderValueMinRm,
-    filters.tenderValueMaxRm,
-    filters.estimatedProfitMinRm,
-    filters.estimatedProfitMaxRm
+    filters.submissionDeadlineTo
   ])
 
   const renderSummaryCard = (label, value, subLabel = null) => (
@@ -478,11 +464,6 @@ export default function TenderBookRegister() {
       <AppSurface padding="lg" className="space-y-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <TextInput
-            value={filters.search}
-            placeholder="Keyword..."
-            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-          />
-          <TextInput
             value={filters.tenderRefNo}
             placeholder="Tender Ref"
             onChange={(e) => setFilters((prev) => ({ ...prev, tenderRefNo: e.target.value }))}
@@ -507,11 +488,6 @@ export default function TenderBookRegister() {
             placeholder="Source"
             onChange={(e) => setFilters((prev) => ({ ...prev, source: e.target.value }))}
           />
-          <TextInput
-            value={filters.followUpNotes}
-            placeholder="Notes"
-            onChange={(e) => setFilters((prev) => ({ ...prev, followUpNotes: e.target.value }))}
-          />
           <div className="grid grid-cols-2 gap-3">
             <TextInput
               type="date"
@@ -524,34 +500,6 @@ export default function TenderBookRegister() {
               value={filters.submissionDeadlineTo}
               placeholder="Deadline To"
               onChange={(e) => setFilters((prev) => ({ ...prev, submissionDeadlineTo: e.target.value }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <TextInput
-              inputMode="decimal"
-              value={filters.tenderValueMinRm}
-              placeholder="Tender Value Min (RM)"
-              onChange={(e) => setFilters((prev) => ({ ...prev, tenderValueMinRm: e.target.value }))}
-            />
-            <TextInput
-              inputMode="decimal"
-              value={filters.tenderValueMaxRm}
-              placeholder="Tender Value Max (RM)"
-              onChange={(e) => setFilters((prev) => ({ ...prev, tenderValueMaxRm: e.target.value }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <TextInput
-              inputMode="decimal"
-              value={filters.estimatedProfitMinRm}
-              placeholder="Est. Profit Min (RM)"
-              onChange={(e) => setFilters((prev) => ({ ...prev, estimatedProfitMinRm: e.target.value }))}
-            />
-            <TextInput
-              inputMode="decimal"
-              value={filters.estimatedProfitMaxRm}
-              placeholder="Est. Profit Max (RM)"
-              onChange={(e) => setFilters((prev) => ({ ...prev, estimatedProfitMaxRm: e.target.value }))}
             />
           </div>
         </div>
@@ -633,6 +581,7 @@ export default function TenderBookRegister() {
                         <ActionMenu
                           actions={[
                             ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+                            ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
                             ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
                           ]}
                         />
@@ -675,6 +624,13 @@ export default function TenderBookRegister() {
         open={entryModal.open}
         entry={entryModal.entry}
         onClose={() => setEntryModal({ open: false, entry: null })}
+        onSaved={handleSaved}
+      />
+
+      <TenderFollowUpModal
+        open={followUpModal.open}
+        entry={followUpModal.entry}
+        onClose={() => setFollowUpModal({ open: false, entry: null })}
         onSaved={handleSaved}
       />
 

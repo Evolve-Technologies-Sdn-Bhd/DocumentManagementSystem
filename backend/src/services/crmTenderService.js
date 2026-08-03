@@ -1,6 +1,8 @@
 const prisma = require('../config/database')
 const { BadRequestError, NotFoundError } = require('../utils/errors')
 const ExcelJS = require('exceljs')
+const notificationService = require('./notificationService')
+const emailService = require('./emailService')
 
 class CrmTenderService {
   buildGeneratedTenderRefNo(year, runningNumber) {
@@ -56,6 +58,30 @@ class CrmTenderService {
     return date
   }
 
+  async notifyUsers({ userIds, title, message, link }) {
+    const ids = Array.from(new Set((userIds || []).map((id) => Number(id)).filter(Boolean)))
+    if (ids.length === 0) return
+
+    await notificationService.createBulkNotifications(ids, 'SYSTEM_ALERT', title, message, link || null)
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: ids }, status: 'ACTIVE' },
+      select: { email: true }
+    })
+    const emails = users.map((u) => String(u.email || '').trim()).filter(Boolean)
+    if (emails.length === 0) return
+
+    const subject = title
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #0f6fcf; margin: 0 0 12px 0;">${title}</h2>
+        <p style="margin: 0 0 8px 0;">${message}</p>
+        ${link ? `<p style="margin: 12px 0 0 0;"><a href="${notificationService.buildAbsoluteLink(link)}">Open in DMS</a></p>` : ''}
+      </div>
+    `
+    await emailService.sendEmail({ to: emails.join(','), subject, html })
+  }
+
   normalizeOptionalUrl(value, fieldName = 'documentLink') {
     const text = this.normalizeOptionalText(value)
     if (!text) return text
@@ -86,6 +112,8 @@ class CrmTenderService {
 
     if (value === null || value === '') return 0
 
+    const allowNegative = fieldName === 'estimatedProfitCents'
+
     let normalizedValue = value
     if (typeof normalizedValue === 'string') {
       const raw = normalizedValue.trim()
@@ -100,7 +128,7 @@ class CrmTenderService {
 
       if (cleaned.includes('.') || /[a-z]/i.test(raw) || raw.includes(',')) {
         const rm = Number(cleaned)
-        if (!Number.isFinite(rm) || rm < 0) {
+        if (!Number.isFinite(rm) || (!allowNegative && rm < 0)) {
           throw new BadRequestError(`invalid ${fieldName}`)
         }
         return Math.round(rm * 100)
@@ -110,7 +138,7 @@ class CrmTenderService {
     }
 
     const num = Number(normalizedValue)
-    if (!Number.isFinite(num) || num < 0) {
+    if (!Number.isFinite(num) || (!allowNegative && num < 0)) {
       throw new BadRequestError(`invalid ${fieldName}`)
     }
     return Math.round(num)
@@ -428,6 +456,157 @@ class CrmTenderService {
     })
 
     return { entry }
+  }
+
+  async getAssignees({ id }) {
+    const tenderId = Number(id)
+    if (!tenderId) throw new BadRequestError('invalid id')
+
+    const entry = await prisma.crmTenderEntry.findUnique({
+      where: { id: tenderId },
+      select: { id: true }
+    })
+    if (!entry) throw new NotFoundError('Tender entry not found')
+
+    const assignees = await prisma.crmTenderAssignee.findMany({
+      where: { tenderId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, status: true } }
+      }
+    })
+    return { assignees }
+  }
+
+  async setAssignees({ id, actorUserId, userIds }) {
+    const tenderId = Number(id)
+    if (!tenderId) throw new BadRequestError('invalid id')
+    const nextIds = Array.from(new Set((userIds || []).map((v) => Number(v)).filter(Boolean)))
+
+    const entry = await prisma.crmTenderEntry.findUnique({
+      where: { id: tenderId },
+      select: { id: true, tenderRefNo: true, title: true }
+    })
+    if (!entry) throw new NotFoundError('Tender entry not found')
+
+    const existingRows = await prisma.crmTenderAssignee.findMany({
+      where: { tenderId },
+      select: { userId: true }
+    })
+    const existingIds = existingRows.map((r) => r.userId)
+    const added = nextIds.filter((v) => !existingIds.includes(v))
+
+    await prisma.$transaction(async (tx) => {
+      await tx.crmTenderAssignee.deleteMany({
+        where: {
+          tenderId,
+          userId: { notIn: nextIds.length ? nextIds : [-1] }
+        }
+      })
+      if (added.length) {
+        await tx.crmTenderAssignee.createMany({
+          data: added.map((uid) => ({
+            tenderId,
+            userId: uid,
+            createdById: actorUserId
+          })),
+          skipDuplicates: true
+        })
+      }
+    })
+
+    if (added.length) {
+      const tenderLabel = entry.tenderRefNo ? `${entry.tenderRefNo} - ${entry.title}` : entry.title
+      await this.notifyUsers({
+        userIds: added,
+        title: 'Tender Follow-up Assigned',
+        message: `You have been assigned to follow up tender: ${tenderLabel}`,
+        link: '/tender-book'
+      })
+    }
+
+    return this.getAssignees({ id: tenderId })
+  }
+
+  async listFollowUps({ id }) {
+    const tenderId = Number(id)
+    if (!tenderId) throw new BadRequestError('invalid id')
+
+    const entry = await prisma.crmTenderEntry.findUnique({
+      where: { id: tenderId },
+      select: { id: true }
+    })
+    if (!entry) throw new NotFoundError('Tender entry not found')
+
+    const followUps = await prisma.crmTenderFollowUpLog.findMany({
+      where: { tenderId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        assignedTo: { select: { id: true, firstName: true, lastName: true, email: true, status: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } }
+      }
+    })
+    return { followUps }
+  }
+
+  async addFollowUp({ id, actorUserId, payload }) {
+    const tenderId = Number(id)
+    if (!tenderId) throw new BadRequestError('invalid id')
+
+    const entry = await prisma.crmTenderEntry.findUnique({
+      where: { id: tenderId },
+      select: { id: true, tenderRefNo: true, title: true }
+    })
+    if (!entry) throw new NotFoundError('Tender entry not found')
+
+    const assignedToId = payload?.assignedToId ? Number(payload.assignedToId) : null
+    const followUpAt = payload?.followUpAt ? this.normalizeOptionalIsoDateFilter(payload.followUpAt, 'followUpAt') : null
+    const note = payload?.note !== undefined ? String(payload.note || '').trim() : ''
+    if (!note) throw new BadRequestError('note is required')
+
+    const log = await prisma.$transaction(async (tx) => {
+      const created = await tx.crmTenderFollowUpLog.create({
+        data: {
+          tenderId,
+          assignedToId,
+          followUpAt,
+          note,
+          createdById: actorUserId
+        },
+        include: {
+          assignedTo: { select: { id: true, firstName: true, lastName: true, email: true, status: true } },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true } }
+        }
+      })
+
+      await tx.crmTenderEntry.update({
+        where: { id: tenderId },
+        data: {
+          followUpNotes: note,
+          ...(followUpAt ? { nextFollowUpAt: followUpAt } : {})
+        }
+      })
+
+      return created
+    })
+
+    const notifyIds = []
+    if (assignedToId) notifyIds.push(assignedToId)
+    const assignees = await prisma.crmTenderAssignee.findMany({
+      where: { tenderId },
+      select: { userId: true }
+    })
+    notifyIds.push(...assignees.map((a) => a.userId))
+
+    const tenderLabel = entry.tenderRefNo ? `${entry.tenderRefNo} - ${entry.title}` : entry.title
+    await this.notifyUsers({
+      userIds: notifyIds,
+      title: 'Tender Follow-up Updated',
+      message: `Follow-up added for tender: ${tenderLabel}${followUpAt ? ` (Due: ${followUpAt.toISOString().split('T')[0]})` : ''}`,
+      link: '/tender-book'
+    })
+
+    return { followUp: log }
   }
 
   async remove({ id }) {

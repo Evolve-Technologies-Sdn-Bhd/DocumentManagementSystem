@@ -1695,17 +1695,56 @@ model CrmTenderEntry {
   source               String?
   documentLink         String?
   followUpNotes        String?         @db.Text
+  nextFollowUpAt       DateTime?
   createdById          Int
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
   createdBy User @relation("CrmTenderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   fbEnquiry CrmFbEnquiryEntry? @relation("CrmTenderFromFbEnquiry")
+  assignees CrmTenderAssignee[] @relation("CrmTenderAssignees")
+  followUpLogs CrmTenderFollowUpLog[] @relation("CrmTenderFollowUps")
 
   @@index([tenderRefNo])
   @@index([status])
   @@index([submissionDeadline])
   @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmTenderAssignee {
+  id         Int @id @default(autoincrement())
+  tenderId   Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  tender    CrmTenderEntry @relation("CrmTenderAssignees", fields: [tenderId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmTenderAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmTenderAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([tenderId, userId])
+  @@index([tenderId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmTenderFollowUpLog {
+  id           Int @id @default(autoincrement())
+  tenderId     Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  tender     CrmTenderEntry @relation("CrmTenderFollowUps", fields: [tenderId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmTenderFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmTenderFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenderId])
+  @@index([assignedToId])
+  @@index([followUpAt])
   @@index([createdAt])
 }
 
