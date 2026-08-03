@@ -8,18 +8,18 @@ import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import AsyncActionStatus from './ui/AsyncActionStatus'
-import useLoadingProgress from '../hooks/useLoadingProgress'
+import { getUploadProgress, subscribeUploadProgress } from '../utils/uploadProgressStore'
 
 export default function UploadFileModal({ isOpen, onClose, document, onSuccess, canManageAccess = false }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(() => getUploadProgress())
   const [uploadComplete, setUploadComplete] = useState(false)
   const [showAssignReviewer, setShowAssignReviewer] = useState(false)
   const [showDocumentAccess, setShowDocumentAccess] = useState(false)
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const fileInputRef = useRef(null)
-  const uploadProgress = useLoadingProgress(uploading)
   
   // Use dynamic file upload settings
   const { validateFile, getAcceptString, getAllowedTypesDisplay } = useFileUploadSettings()
@@ -35,6 +35,10 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
       setAlertModal({ show: false, title: '', message: '', type: 'info' })
     }
   }, [isOpen, document?.id])
+
+  useEffect(() => {
+    return subscribeUploadProgress(setUploadProgress)
+  }, [])
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -166,7 +170,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                 <AsyncActionStatus
                   title="Uploading file"
                   message="Your draft file is being uploaded and validated before the next workflow step."
-                  progress={uploadProgress}
+                  progress={null}
                   busy
                 />
               ) : null}
@@ -261,7 +265,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                 onClick={handleUpload}
                 disabled={!selectedFile || uploading}
                 loading={uploading}
-                loadingText={`Uploading... ${uploadProgress}%`}
+                loadingText={typeof uploadProgress?.percent === 'number' ? `Uploading... ${uploadProgress.percent}%` : 'Uploading...'}
               >
                 Upload File
               </Button>

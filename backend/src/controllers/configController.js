@@ -646,6 +646,34 @@ exports.getLoginPageSettings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get CRM FB enquiry lookup values
+ * @route   GET /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.getCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.getCrmFbEnquiryLookups()
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups retrieved successfully'
+  )
+})
+
+/**
+ * @desc    Update CRM FB enquiry lookup values
+ * @route   PUT /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.updateCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.updateCrmFbEnquiryLookups(req.body || {})
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups updated successfully'
+  )
+})
+
+/**
  * @desc    Update login page settings (global)
  * @route   PUT /api/system/config/login-page-settings
  * @access  Private (Admin)
@@ -706,4 +734,18 @@ exports.updateThemeSettings = asyncHandler(async (req, res) => {
   }
   const updatedTheme = await configService.updateThemeSettings(theme);
   return ResponseFormatter.success(res, { theme: updatedTheme }, 'Theme settings updated successfully');
+});
+
+exports.getMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = await configService.getMaintenanceSettings();
+  return ResponseFormatter.success(res, { settings }, 'Maintenance settings retrieved successfully');
+});
+
+exports.updateMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = req.body;
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid maintenance settings data');
+  }
+  const updatedSettings = await configService.updateMaintenanceSettings(settings);
+  return ResponseFormatter.success(res, { settings: updatedSettings }, 'Maintenance settings updated successfully');
 });

@@ -26,6 +26,13 @@ const createReminderSearch = () => ({
   reminder4: ''
 })
 
+const cloneReminderRecipients = (value) => ({
+  reminder1: Array.isArray(value?.reminder1) ? [...value.reminder1] : [],
+  reminder2: Array.isArray(value?.reminder2) ? [...value.reminder2] : [],
+  reminder3: Array.isArray(value?.reminder3) ? [...value.reminder3] : [],
+  reminder4: Array.isArray(value?.reminder4) ? [...value.reminder4] : []
+})
+
 const formatUserLabel = (user) => `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '-'
 
 function ReminderRecipientsPicker({
@@ -118,6 +125,14 @@ function getOtherDocumentationTypeId(documentTypes) {
   return ''
 }
 
+const BULK_IMPORT_STEPS = [
+  { key: 'folder', title: 'Select Folder', description: 'Choose the destination folder first.' },
+  { key: 'project', title: 'Project Category', description: 'Assign the project category before uploading.' },
+  { key: 'files', title: 'Choose Files', description: 'Add the files or folder you want to import.' },
+  { key: 'metadata', title: 'Review Metadata', description: 'Check file code, document type, and title for each file.' },
+  { key: 'expiry', title: 'Expiry Options', description: 'Optionally enable expiry tracking, then upload.' }
+]
+
 function buildFileCodeGuide(settings) {
   const safeSettings = settings && typeof settings === 'object' ? settings : {}
   const separator = String(safeSettings.separator || '/')
@@ -148,6 +163,7 @@ function buildFileCodeGuide(settings) {
 export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, selectedFolderId }) {
   const normalizeFolderId = (value) => String(value ?? '').trim()
   const [folderId, setFolderId] = useState(selectedFolderId || '')
+  const [currentStep, setCurrentStep] = useState(0)
   const [folderPickerQuery, setFolderPickerQuery] = useState('')
   const [folderPickerExpanded, setFolderPickerExpanded] = useState([])
   const [projectCategoryId, setProjectCategoryId] = useState('')
@@ -182,6 +198,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const [isDragging, setIsDragging] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [expiryEditor, setExpiryEditor] = useState({ open: false, itemIndex: -1, draft: null })
+  const [expiryEditorSearch, setExpiryEditorSearch] = useState(createReminderSearch())
   const [documentTypes, setDocumentTypes] = useState([])
   const [numberingSettings, setNumberingSettings] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
@@ -204,6 +222,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const allClientChecked = useMemo(() => fileItems.length > 0 && fileItems.every((it) => Boolean(it.isClientDocument)), [fileItems])
   const someClientChecked = useMemo(() => fileItems.some((it) => Boolean(it.isClientDocument)), [fileItems])
   const fileCodeGuide = useMemo(() => buildFileCodeGuide(numberingSettings), [numberingSettings])
+  const projectCategoryRequired = projectCategories.length > 0
+  const currentStepConfig = BULK_IMPORT_STEPS[currentStep] || BULK_IMPORT_STEPS[0]
+  const metadataReadyCount = useMemo(
+    () => fileItems.filter((it) => Boolean(it.documentTypeId) && (it.isClientDocument || String(it.fileCode || '').trim())).length,
+    [fileItems]
+  )
   const folderPickerTree = useMemo(() => {
     const root = []
     const nodeMap = new Map()
@@ -273,6 +297,9 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     if (!targetId) return null
     return (Array.isArray(folders) ? folders : []).find((folder) => normalizeFolderId(folder?.id) === targetId) || null
   }, [folders, folderId])
+  const selectedFolderPath = Array.isArray(selectedFolderMeta?.fullPath)
+    ? selectedFolderMeta.fullPath.join(' / ')
+    : (selectedFolderMeta?.path || '')
   const filteredFolderPickerTree = useMemo(() => {
     const query = String(folderPickerQuery || '').trim().toLowerCase()
     const filterNodes = (nodes) => {
@@ -309,6 +336,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   useEffect(() => {
     if (!isOpen) return
     setFolderId(selectedFolderId || '')
+    setCurrentStep(0)
     setFolderPickerQuery('')
     refreshSettings()
   }, [isOpen, selectedFolderId])
@@ -471,6 +499,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     setNumberingSettings(null)
     setProjectCategories([])
     setFolderId(selectedFolderId || '')
+    setCurrentStep(0)
     setFolderPickerQuery('')
     setFolderPickerExpanded([])
     setUsers([])
@@ -573,11 +602,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     }
   }
 
-  const normalizeFileCode = (raw) => {
+  const normalizeFileCode = (raw, options = {}) => {
     const input = String(raw || '').trim()
     if (!input) return ''
     const settings = numberingSettings
     if (!settings) return input
+    const strict = Boolean(options.strict)
 
     const prefixLen = Math.max(1, String(settings.prefixPlaceholder || 'PFX').length)
     const includeVersion = Boolean(settings.includeVersion)
@@ -634,7 +664,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       }
     }
 
-    return input
+    return strict ? '' : input
   }
 
   const extractFromFilename = (fileName) => {
@@ -643,11 +673,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     const trimmed = base.trim()
     const underscore = trimmed.indexOf('_')
     if (underscore > 0) {
-      const fileCode = normalizeFileCode(trimmed.slice(0, underscore).trim())
+      const fileCode = normalizeFileCode(trimmed.slice(0, underscore).trim(), { strict: true })
       const title = trimmed.slice(underscore + 1).trim() || trimmed
       return { fileCode, title, fallbackTitle: trimmed }
     }
-    const normalized = normalizeFileCode(trimmed)
+    const normalized = normalizeFileCode(trimmed, { strict: true })
     return { fileCode: normalized, title: trimmed, fallbackTitle: trimmed }
   }
 
@@ -747,6 +777,139 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     }))
   }
 
+  const buildExpiryOverrideDraft = (source) => ({
+    trackingEnabled: true,
+    startDate: source?.startDate || getToday(),
+    expiryDate: source?.expiryDate || '',
+    remarks: source?.remarks || '',
+    expiringSoonDays: source?.expiringSoonDays ?? expiryInfo.expiringSoonDays,
+    reminder1Days: source?.reminder1Days ?? expiryInfo.reminder1Days,
+    reminder2Days: source?.reminder2Days ?? expiryInfo.reminder2Days,
+    reminder3Days: source?.reminder3Days ?? expiryInfo.reminder3Days,
+    reminder4Days: source?.reminder4Days ?? expiryInfo.reminder4Days,
+    reminderRecipients: cloneReminderRecipients(source?.reminderRecipients || expiryInfo.reminderRecipients || createReminderRecipients())
+  })
+
+  const getExpirySummary = (item) => {
+    if (item?.isClientDocument) return 'Not available for Other documentation'
+    if (item?.expiryOverrideEnabled) {
+      if (item?.expiryOverride?.trackingEnabled) {
+        const start = item?.expiryOverride?.startDate || '-'
+        const end = item?.expiryOverride?.expiryDate || '-'
+        return `Custom expiry: ${start} -> ${end}`
+      }
+      return 'Custom setting: no expiry tracking'
+    }
+    if (expiryInfo.trackingEnabled) {
+      const start = expiryInfo.startDate || '-'
+      const end = expiryInfo.expiryDate || '-'
+      return `Using global expiry: ${start} -> ${end}`
+    }
+    return 'No expiry tracking'
+  }
+
+  const openExpiryEditor = (itemIndex) => {
+    const item = fileItems[itemIndex]
+    if (!item || item.isClientDocument) return
+    const source = item.expiryOverrideEnabled
+      ? item.expiryOverride
+      : {
+          trackingEnabled: true,
+          startDate: expiryInfo.startDate || getToday(),
+          expiryDate: expiryInfo.expiryDate || '',
+          remarks: expiryInfo.remarks || '',
+          expiringSoonDays: expiryInfo.expiringSoonDays,
+          reminder1Days: expiryInfo.reminder1Days,
+          reminder2Days: expiryInfo.reminder2Days,
+          reminder3Days: expiryInfo.reminder3Days,
+          reminder4Days: expiryInfo.reminder4Days,
+          reminderRecipients: cloneReminderRecipients(expiryInfo.reminderRecipients)
+        }
+
+    setExpiryEditor({
+      open: true,
+      itemIndex,
+      draft: buildExpiryOverrideDraft(source)
+    })
+    setExpiryEditorSearch(createReminderSearch())
+  }
+
+  const closeExpiryEditor = () => {
+    setExpiryEditor({ open: false, itemIndex: -1, draft: null })
+    setExpiryEditorSearch(createReminderSearch())
+  }
+
+  const saveExpiryEditor = () => {
+    if (!expiryEditor.open || expiryEditor.itemIndex < 0 || !expiryEditor.draft) return
+    if (!String(expiryEditor.draft.startDate || '').trim() || !String(expiryEditor.draft.expiryDate || '').trim()) {
+      setFormError('Start date and expiry date are required when expiry tracking is enabled.')
+      return
+    }
+
+    setFileItems((prev) => prev.map((item, idx) => {
+      if (idx !== expiryEditor.itemIndex) return item
+      return {
+        ...item,
+        expiryOverrideEnabled: true,
+        expiryOverride: {
+          ...expiryEditor.draft,
+          reminderRecipients: cloneReminderRecipients(expiryEditor.draft.reminderRecipients)
+        }
+      }
+    }))
+    setFormError('')
+    closeExpiryEditor()
+  }
+
+  const clearExpiryOverride = (itemIndex) => {
+    setFileItems((prev) => prev.map((item, idx) => {
+      if (idx !== itemIndex) return item
+      return {
+        ...item,
+        expiryOverrideEnabled: false,
+        expiryOverride: {
+          trackingEnabled: false,
+          startDate: getToday(),
+          expiryDate: '',
+          remarks: '',
+          expiringSoonDays: expiryInfo.expiringSoonDays,
+          reminder1Days: expiryInfo.reminder1Days,
+          reminder2Days: expiryInfo.reminder2Days,
+          reminder3Days: expiryInfo.reminder3Days,
+          reminder4Days: expiryInfo.reminder4Days,
+          reminderRecipients: cloneReminderRecipients(expiryInfo.reminderRecipients)
+        }
+      }
+    }))
+    if (expiryEditor.open && expiryEditor.itemIndex === itemIndex) {
+      closeExpiryEditor()
+    }
+  }
+
+  const updateExpiryEditorSearch = (levelKey, value) => {
+    setExpiryEditorSearch((prev) => ({ ...prev, [levelKey]: value }))
+  }
+
+  const toggleExpiryEditorRecipient = (levelKey, userId) => {
+    setExpiryEditor((prev) => {
+      if (!prev.draft) return prev
+      const existing = new Set(prev.draft.reminderRecipients?.[levelKey] || [])
+      if (existing.has(userId)) existing.delete(userId)
+      else existing.add(userId)
+
+      return {
+        ...prev,
+        draft: {
+          ...prev.draft,
+          reminderRecipients: {
+            ...(prev.draft.reminderRecipients || createReminderRecipients()),
+            [levelKey]: Array.from(existing)
+          }
+        }
+      }
+    })
+  }
+
   const addFiles = (incoming) => {
     const next = []
     for (const file of incoming) {
@@ -783,6 +946,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             remarks: '',
             reminderRecipients: createReminderRecipients()
           },
+          advancedOpen: false,
           collapsed: true
         }
         byKey.set(key, allClientChecked ? applyClientDeclaration(base, true) : base)
@@ -838,6 +1002,145 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
   const removeFile = (idx) => setFileItems((prev) => prev.filter((_, i) => i !== idx))
 
+  const expandFilePanel = (indexToOpen) => {
+    if (indexToOpen < 0) return
+    setFileItems((prev) => prev.map((it, idx) => ({
+      ...it,
+      collapsed: idx !== indexToOpen,
+      advancedOpen: idx === indexToOpen ? it.advancedOpen : false
+    })))
+  }
+
+  const toggleFilePanel = (indexToToggle) => {
+    setFileItems((prev) => prev.map((it, idx) => {
+      if (idx === indexToToggle) {
+        const nextCollapsed = !it.collapsed
+        return {
+          ...it,
+          collapsed: nextCollapsed,
+          advancedOpen: nextCollapsed ? false : it.advancedOpen
+        }
+      }
+
+      return {
+        ...it,
+        collapsed: true,
+        advancedOpen: false
+      }
+    }))
+  }
+
+  const toggleAdvancedPanel = (indexToToggle) => {
+    setFileItems((prev) => prev.map((it, idx) => (
+      idx === indexToToggle ? { ...it, advancedOpen: !it.advancedOpen } : it
+    )))
+  }
+
+  const validateMetadataStep = () => {
+    if (fileItems.length === 0) {
+      setFormError(t('bulk_import_error_select_files'))
+      return false
+    }
+
+    for (let i = 0; i < fileItems.length; i++) {
+      const item = fileItems[i]
+      if (!item.isClientDocument && !String(item.fileCode || '').trim()) {
+        setFormError(String(t('bulk_import_error_file_code_required')).replace('{name}', String(item.file.name)))
+        expandFilePanel(i)
+        return false
+      }
+      if (!String(item.documentTypeId || '').trim()) {
+        setFormError(String(t('bulk_import_error_doc_type_required')).replace('{name}', String(item.file.name)))
+        expandFilePanel(i)
+        return false
+      }
+    }
+
+    return true
+  }
+
+  const validateExpiryStep = () => {
+    if (totalSelectedExceeded) {
+      setFormError(String(t('bulk_import_total_upload_limit_exceeded')).replace('{max}', String(totalUploadLimitMB)))
+      return false
+    }
+    if (expiryInfo.trackingEnabled && (!String(expiryInfo.startDate || '').trim() || !String(expiryInfo.expiryDate || '').trim())) {
+      setFormError('Start date and expiry date are required when expiry tracking is enabled.')
+      return false
+    }
+    for (let i = 0; i < fileItems.length; i++) {
+      const item = fileItems[i]
+      if (item.expiryOverrideEnabled && item.expiryOverride?.trackingEnabled && (!String(item.expiryOverride?.startDate || '').trim() || !String(item.expiryOverride?.expiryDate || '').trim())) {
+        setFormError('Start date and expiry date are required when expiry tracking is enabled.')
+        expandFilePanel(i)
+        return false
+      }
+    }
+    return true
+  }
+
+  const validateStepTransition = (stepIndex) => {
+    setFormError('')
+
+    if (stepIndex === 0) {
+      if (!folderId) {
+        setFormError(t('bulk_import_error_select_folder'))
+        return false
+      }
+      return true
+    }
+
+    if (stepIndex === 1) {
+      if (projectCategoryRequired && !String(projectCategoryId || '').trim()) {
+        setFormError(t('bulk_import_error_select_project_category'))
+        return false
+      }
+      return true
+    }
+
+    if (stepIndex === 2) {
+      if (totalSelectedExceeded) {
+        setFormError(String(t('bulk_import_total_upload_limit_exceeded')).replace('{max}', String(totalUploadLimitMB)))
+        return false
+      }
+      if (fileItems.length === 0) {
+        setFormError(t('bulk_import_error_select_files'))
+        return false
+      }
+      return true
+    }
+
+    if (stepIndex === 3) {
+      return validateMetadataStep()
+    }
+
+    if (stepIndex === 4) {
+      return validateExpiryStep()
+    }
+
+    return true
+  }
+
+  const goToStep = (nextStep) => {
+    if (nextStep === currentStep) return
+    if (nextStep < currentStep) {
+      setFormError('')
+      setCurrentStep(nextStep)
+      return
+    }
+
+    for (let step = currentStep; step < nextStep; step++) {
+      if (!validateStepTransition(step)) return
+    }
+
+    setCurrentStep(nextStep)
+  }
+
+  const handleNextStep = () => {
+    if (!validateStepTransition(currentStep)) return
+    setCurrentStep((prev) => Math.min(prev + 1, BULK_IMPORT_STEPS.length - 1))
+  }
+
   const handleSubmit = async () => {
     setFormError('')
     if (totalSelectedExceeded) {
@@ -856,28 +1159,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       setFormError(t('bulk_import_error_select_files'))
       return
     }
-    if (expiryInfo.trackingEnabled && (!String(expiryInfo.startDate || '').trim() || !String(expiryInfo.expiryDate || '').trim())) {
-      setFormError('Start date and expiry date are required when expiry tracking is enabled.')
-      return
-    }
-    for (let i = 0; i < fileItems.length; i++) {
-      const item = fileItems[i]
-      if (item.expiryOverrideEnabled && item.expiryOverride?.trackingEnabled && (!String(item.expiryOverride?.startDate || '').trim() || !String(item.expiryOverride?.expiryDate || '').trim())) {
-        setFormError('Start date and expiry date are required when expiry tracking is enabled.')
-        setFileItems((prev) => prev.map((it, idx) => idx === i ? { ...it, collapsed: false } : it))
-        return
-      }
-      if (!item.isClientDocument && !String(item.fileCode || '').trim()) {
-        setFormError(String(t('bulk_import_error_file_code_required')).replace('{name}', String(item.file.name)))
-        setFileItems((prev) => prev.map((it, idx) => idx === i ? { ...it, collapsed: false } : it))
-        return
-      }
-      if (!String(item.documentTypeId || '').trim()) {
-        setFormError(String(t('bulk_import_error_doc_type_required')).replace('{name}', String(item.file.name)))
-        setFileItems((prev) => prev.map((it, idx) => idx === i ? { ...it, collapsed: false } : it))
-        return
-      }
-    }
+    if (!validateMetadataStep() || !validateExpiryStep()) return
 
     setSubmitting(true)
     try {
@@ -986,11 +1268,11 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-surface border border-border rounded-2xl shadow-dms-lg max-w-2xl lg:max-w-4xl w-full max-h-[90vh] overflow-hidden" data-tour-id="bulk-import-modal">
+        <div className="relative bg-surface border border-border rounded-2xl shadow-dms-lg max-w-6xl xl:max-w-[1180px] w-full max-h-[90vh] overflow-hidden flex flex-col" data-tour-id="bulk-import-modal">
           <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-surface">
             <div>
               <h2 className="text-lg font-bold text-ink">{t('bulk_import_title')}</h2>
-              <p className="text-sm text-ink-secondary mt-1">{t('bulk_import_subtitle')}</p>
+              <p className="text-sm text-ink-secondary mt-1">{currentStepConfig.description}</p>
             </div>
             <button
               onClick={handleClose}
@@ -1003,13 +1285,79 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             </button>
           </div>
 
-          <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
+          <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
             {formError && (
               <div className="p-3 rounded-lg border border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-soft)] text-sm text-[var(--dms-color-danger-ink)]">
                 {formError}
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-border bg-surface-muted px-3 py-3">
+              <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto whitespace-nowrap">
+                {BULK_IMPORT_STEPS.map((step, idx) => {
+                  const isActive = idx === currentStep
+                  const isCompleted = idx < currentStep
+                  return (
+                    <React.Fragment key={step.key}>
+                      <button
+                        type="button"
+                        onClick={() => goToStep(idx)}
+                        className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${
+                          isActive
+                            ? 'border-brand bg-white text-brand shadow-sm'
+                            : isCompleted
+                              ? 'border-transparent bg-white/90 text-ink hover:bg-white'
+                              : 'border-transparent bg-transparent text-ink-secondary hover:bg-white/60'
+                        }`}
+                      >
+                        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold ${
+                          isActive
+                            ? 'bg-brand text-white'
+                            : isCompleted
+                              ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]'
+                              : 'bg-white text-ink-soft'
+                        }`}>
+                          {isCompleted ? '✓' : idx + 1}
+                        </span>
+                        <span>{step.title}</span>
+                      </button>
+                      {idx < BULK_IMPORT_STEPS.length - 1 ? (
+                        <span className="shrink-0 text-sm text-ink-soft">→</span>
+                      ) : null}
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+            </div>
+
+            {currentStep > 0 ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Folder</div>
+                  <div className="mt-1 text-sm font-medium text-ink">{selectedFolderMeta?.name || 'Not selected'}</div>
+                  <div className="mt-1 text-xs text-ink-secondary break-words">{selectedFolderPath || 'Choose a folder first'}</div>
+                </div>
+                <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Project category</div>
+                  <div className="mt-1 text-sm font-medium text-ink">
+                    {projectCategoryRequired
+                      ? (projectCategories.find((pc) => String(pc.id) === String(projectCategoryId))?.name || 'Not selected')
+                      : 'Not required'}
+                  </div>
+                  <div className="mt-1 text-xs text-ink-secondary">
+                    {projectCategoryRequired ? 'Applied to all imported files.' : 'No project categories available.'}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Files</div>
+                  <div className="mt-1 text-sm font-medium text-ink">{fileItems.length} selected</div>
+                  <div className="mt-1 text-xs text-ink-secondary">
+                    {metadataReadyCount}/{fileItems.length || 0} metadata ready
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {currentStep === 0 ? (
               <div>
                 <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_folder_label')}</label>
                 <div data-tour-id="bulk-import-folder" className="space-y-3">
@@ -1024,9 +1372,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     <div className="rounded-lg border border-border bg-surface-muted px-3 py-2">
                       <div className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Selected folder</div>
                       <div className="mt-1 text-sm font-medium text-ink">{selectedFolderMeta.name}</div>
-                      <div className="mt-1 text-xs text-ink-secondary break-words">
-                        {Array.isArray(selectedFolderMeta.fullPath) ? selectedFolderMeta.fullPath.join(' / ') : (selectedFolderMeta.path || '')}
-                      </div>
+                      <div className="mt-1 text-xs text-ink-secondary break-words">{selectedFolderPath}</div>
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-border px-3 py-2 text-sm text-ink-soft">
@@ -1051,16 +1397,19 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   </div>
                 </div>
               </div>
-              <div>
+            ) : null}
+
+            {currentStep === 1 ? (
+              <div className="max-w-xl">
                 <label className="block text-sm font-medium text-ink-secondary mb-2">{t('bulk_import_project_category_label')}</label>
                 <select
                   value={projectCategoryId || ''}
                   onChange={(e) => setProjectCategoryId(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                  disabled={projectCategories.length === 0}
+                  disabled={!projectCategoryRequired}
                 >
                   <option value="">
-                    {projectCategories.length > 0 ? t('bulk_import_select_project_category') : t('bulk_import_no_project_categories')}
+                    {projectCategoryRequired ? t('bulk_import_select_project_category') : t('bulk_import_no_project_categories')}
                   </option>
                   {projectCategories.map((pc) => (
                     <option key={pc.id} value={pc.id}>
@@ -1068,66 +1417,97 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     </option>
                   ))}
                 </select>
+                <p className="mt-2 text-xs text-ink-secondary">
+                  {projectCategoryRequired
+                    ? 'This project category will be applied to all imported files.'
+                    : 'There are no project categories to select, so you can continue.'}
+                </p>
               </div>
-            </div>
+            ) : null}
 
-            <div
-              className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors ${
-                isDragging ? 'border-brand bg-[var(--dms-color-info-soft)]' : 'border-border bg-surface-muted'
-              }`}
-              data-tour-id="bulk-import-dropzone"
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={getAcceptString()}
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <input
-                ref={folderInputRef}
-                type="file"
-                multiple
-                accept={getAcceptString()}
-                className="hidden"
-                onChange={handleFolderSelect}
-                webkitdirectory=""
-                directory=""
-              />
+            {currentStep === 2 ? (
+              <>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors ${
+                    isDragging ? 'border-brand bg-[var(--dms-color-info-soft)]' : 'border-border bg-surface-muted'
+                  }`}
+                  data-tour-id="bulk-import-dropzone"
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={getAcceptString()}
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    multiple
+                    accept={getAcceptString()}
+                    className="hidden"
+                    onChange={handleFolderSelect}
+                    webkitdirectory=""
+                    directory=""
+                  />
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-ink">{t('bulk_import_dropzone_title')}</p>
-                <p className="text-xs text-ink-secondary">
-                  {String(t('bulk_import_allowed_types')).replace('{types}', getAllowedTypesDisplay())}
-                </p>
-                <p className="text-xs text-[var(--dms-color-warning-ink)]">
-                  {String(t('bulk_import_total_upload_limit_note')).replace('{max}', String(totalUploadLimitMB))}
-                </p>
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleBrowseClick}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors"
-                  >
-                    {t('bulk_import_browse_files')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBrowseFolderClick}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-brand bg-surface-strong rounded-lg hover:bg-surface-muted transition-colors"
-                  >
-                    {t('bulk_import_browse_folder')}
-                  </button>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-ink">{t('bulk_import_dropzone_title')}</p>
+                    <p className="text-xs text-ink-secondary">
+                      {String(t('bulk_import_allowed_types')).replace('{types}', getAllowedTypesDisplay())}
+                    </p>
+                    <p className="text-xs text-[var(--dms-color-warning-ink)]">
+                      {String(t('bulk_import_total_upload_limit_note')).replace('{max}', String(totalUploadLimitMB))}
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleBrowseClick}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors"
+                      >
+                        {t('bulk_import_browse_files')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBrowseFolderClick}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-brand bg-surface-strong rounded-lg hover:bg-surface-muted transition-colors"
+                      >
+                        {t('bulk_import_browse_folder')}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {fileItems.length > 0 && (
+                <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-ink">
+                        {String(t('bulk_import_files_count')).replace('{count}', String(fileItems.length))}
+                      </div>
+                      <div className={`mt-1 text-xs font-medium ${totalSelectedExceeded ? 'text-[var(--dms-color-danger-ink)]' : 'text-ink-secondary'}`}>
+                        {String(t('bulk_import_total_upload_total')).replace('{current}', String(totalSelectedMB)).replace('{max}', String(totalUploadLimitMB))}
+                      </div>
+                    </div>
+                    {fileItems.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setFileItems([])}
+                        className="text-sm text-[var(--dms-color-danger-ink)] hover:opacity-90 font-medium"
+                      >
+                        {t('bulk_import_clear')}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {currentStep === 3 && fileItems.length > 0 ? (
               <div className="border border-border rounded-lg bg-surface">
                 <div className="px-4 py-2 border-b border-border flex items-center justify-between bg-surface-muted">
                   <div className="text-sm font-medium text-ink">
@@ -1139,20 +1519,6 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     </div>
                     <button
                       type="button"
-                      onClick={() => setFileItems((prev) => prev.map((it) => ({ ...it, collapsed: true })))}
-                      className="text-sm text-ink-secondary hover:text-ink font-medium"
-                    >
-                      {t('bulk_import_collapse_all')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFileItems((prev) => prev.map((it) => ({ ...it, collapsed: false })))}
-                      className="text-sm text-ink-secondary hover:text-ink font-medium"
-                    >
-                      {t('bulk_import_expand_all')}
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setFileItems([])}
                       className="text-sm text-[var(--dms-color-danger-ink)] hover:opacity-90 font-medium"
                     >
@@ -1160,37 +1526,16 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     </button>
                   </div>
                 </div>
-                <div className="px-4 py-3 border-b border-border">
-                  <label className="inline-flex items-start gap-2 text-xs text-ink-secondary">
-                    <input
-                      ref={clientDeclarationRef}
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 text-brand rounded focus:ring-brand/20"
-                      checked={allClientChecked}
-                      onChange={(e) => {
-                        const checked = e.target.checked
-                        if (checked && !otherTypeId) {
-                          setFormError('Document type "Others" not found. Please create it in Configuration > Document Types.')
-                          return
-                        }
-                        setFileItems((prev) => prev.map((x) => applyClientDeclaration(x, checked)))
-                      }}
-                    />
-                    <span>{t('client_document_declaration')}</span>
-                  </label>
-                </div>
                 <div className="max-h-[50vh] overflow-auto divide-y divide-border">
                   {fileItems.map((it, idx) => {
                     const fileKey = getFileItemKey(it)
                     const matchedType = documentTypes.find((dt) => String(dt.id) === String(it.documentTypeId))
                     const typeLabel = matchedType ? `${matchedType.name} (${matchedType.prefix})` : t('bulk_import_not_selected')
-                    const matchedProject = projectCategories.find((pc) => String(pc.id) === String(projectCategoryId))
-                    const projectLabel = matchedProject ? matchedProject.name : t('bulk_import_not_selected')
                     return (
                       <div key={`${it.file.name}:${it.file.size}:${it.file.lastModified}`} className="px-4 py-3">
                         <button
                           type="button"
-                          onClick={() => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, collapsed: !x.collapsed } : x))}
+                          onClick={() => toggleFilePanel(idx)}
                           className="w-full flex items-start justify-between gap-3 text-left"
                         >
                           <div className="min-w-0">
@@ -1198,46 +1543,45 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                             {it.relativePath && (
                               <div className="mt-0.5 text-xs text-ink-muted font-mono truncate">{it.relativePath}</div>
                             )}
-                            <div className="mt-0.5 text-xs text-ink-secondary">
-                              <span className="font-mono">{it.fileCode || '-'}</span>
-                              <span className="mx-2">•</span>
-                              <span>{typeLabel}</span>
-                              {projectCategories.length > 0 && (
-                                <>
-                                  <span className="mx-2">•</span>
-                                  <span>{projectLabel}</span>
-                                </>
-                              )}
-                              <span className="mx-2">•</span>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-secondary">
                               <span>{(it.file.size / 1024 / 1024).toFixed(2)} MB</span>
                               {it.isClientDocument && (
                                 <>
-                                  <span className="mx-2">•</span>
+                                  <span>•</span>
                                   <span>{t('client_document_label')}</span>
                                 </>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <label
+                            <div
                               className="inline-flex items-center gap-2 text-xs text-ink-secondary select-none"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                                checked={Boolean(it.isClientDocument)}
-                                onChange={(e) => {
-                                  const checked = e.target.checked
-                                  if (checked && !otherTypeId) {
-                                    setFormError('Document type "Others" not found. Please create it in Configuration > Document Types.')
-                                    return
-                                  }
-                                  setFileItems((prev) => prev.map((x, i) => i === idx ? applyClientDeclaration(x, checked) : x))
-                                }}
-                              />
-                              <span className="hidden sm:inline">{t('client_document_label')}</span>
-                            </label>
+                              <label className="inline-flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                                  checked={Boolean(it.isClientDocument)}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked
+                                    if (checked && !otherTypeId) {
+                                      setFormError('Document type "Others" not found. Please create it in Configuration > Document Types.')
+                                      return
+                                    }
+                                    setFileItems((prev) => prev.map((x, i) => i === idx ? applyClientDeclaration(x, checked) : x))
+                                  }}
+                                />
+                                <span>{t('client_document_label')}</span>
+                              </label>
+                              <span
+                                className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border bg-surface text-[10px] font-semibold text-ink-soft"
+                                title={t('client_document_declaration')}
+                                aria-label={t('client_document_declaration')}
+                              >
+                                i
+                              </span>
+                            </div>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               it.documentTypeId && (projectCategories.length === 0 || projectCategoryId) ? 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)]' : 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]'
                             }`}>
@@ -1250,192 +1594,112 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                         </button>
 
                         {!it.collapsed && (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_file_code_label')}</label>
-                              <input
-                                type="text"
-                                value={it.fileCode}
-                                onChange={(e) => {
-                                  const nextCode = e.target.value
-                                  setFileItems((prev) => prev.map((x, i) => {
-                                    if (i !== idx) return x
-                                    return {
-                                      ...x,
-                                      fileCode: nextCode,
-                                      nonClientFileCode: x.isClientDocument ? x.nonClientFileCode : nextCode,
-                                      documentTypeId: x.documentTypeId || autoMatchDocumentTypeId(nextCode)
-                                    }
-                                  }))
-                                }}
-                                disabled={Boolean(it.isClientDocument)}
-                                placeholder={fileCodeGuide.format}
-                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm font-mono bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                              />
-                              <p className="mt-1 text-xs text-ink-muted">
-                                {String(t('bulk_import_file_code_format_hint'))
-                                  .replace('{format}', fileCodeGuide.format)
-                                  .replace('{legend}', fileCodeGuide.legend)}
-                              </p>
-                              <p className="mt-1 text-xs text-ink-muted">{t('bulk_import_auto_extracted_hint')}</p>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_document_type_label')}</label>
-                              <select
-                                value={it.documentTypeId || ''}
-                                onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, documentTypeId: e.target.value } : x))}
-                                disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
-                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                              >
-                                <option value="">{t('bulk_import_select_document_type')}</option>
-                                {documentTypes.map((dt) => (
-                                  <option key={dt.id} value={dt.id}>
-                                    {dt.name} ({dt.prefix})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="md:col-span-2 border border-border rounded-lg p-3 bg-surface-muted">
-                              <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-secondary">
+                          <div className="mt-3 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <div className="mb-1 flex items-center gap-2">
+                                  <label className="block text-xs font-medium text-ink-secondary">{t('bulk_import_file_code_label')}</label>
+                                  <span
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border bg-surface text-[10px] font-semibold text-ink-soft"
+                                    title={`1) PFX=file type prefix\n2) VV=document version\n3) YYMMDD=date of documents\n4) XXX=running number`}
+                                    aria-label="1) PFX=file type prefix 2) VV=document version 3) YYMMDD=date of documents 4) XXX=running number"
+                                  >
+                                    i
+                                  </span>
+                                </div>
                                 <input
-                                  type="checkbox"
-                                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                                  checked={Boolean(it.expiryOverrideEnabled)}
-                                  disabled={Boolean(it.isClientDocument)}
+                                  type="text"
+                                  value={it.fileCode}
                                   onChange={(e) => {
-                                    const checked = e.target.checked
+                                    const nextCode = e.target.value
                                     setFileItems((prev) => prev.map((x, i) => {
                                       if (i !== idx) return x
                                       return {
                                         ...x,
-                                        expiryOverrideEnabled: checked,
-                                        expiryOverride: checked
-                                          ? {
-                                              trackingEnabled: Boolean(expiryInfo.trackingEnabled),
-                                              startDate: expiryInfo.startDate || getToday(),
-                                              expiryDate: expiryInfo.expiryDate || '',
-                                              remarks: expiryInfo.remarks || '',
-                                              expiringSoonDays: expiryInfo.expiringSoonDays,
-                                              reminder1Days: expiryInfo.reminder1Days,
-                                              reminder2Days: expiryInfo.reminder2Days,
-                                              reminder3Days: expiryInfo.reminder3Days,
-                                              reminder4Days: expiryInfo.reminder4Days,
-                                              reminderRecipients: expiryInfo.reminderRecipients
-                                            }
-                                          : x.expiryOverride
+                                        fileCode: nextCode,
+                                        nonClientFileCode: x.isClientDocument ? x.nonClientFileCode : nextCode,
+                                        documentTypeId: x.documentTypeId || autoMatchDocumentTypeId(nextCode)
                                       }
                                     }))
                                   }}
+                                  disabled={Boolean(it.isClientDocument)}
+                                  placeholder={fileCodeGuide.format}
+                                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm font-mono bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
                                 />
-                                <span>Override expiry for this file</span>
-                              </label>
-                              {it.expiryOverrideEnabled ? (
-                                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-secondary md:col-span-2">
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                                      checked={Boolean(it.expiryOverride?.trackingEnabled)}
-                                      onChange={(e) => {
-                                        const enabled = e.target.checked
-                                        setFileItems((prev) => prev.map((x, i) => {
-                                          if (i !== idx) return x
-                                          return {
-                                            ...x,
-                                            expiryOverride: {
-                                              ...(x.expiryOverride || {}),
-                                              trackingEnabled: enabled,
-                                              startDate: (x.expiryOverride?.startDate || expiryInfo.startDate || getToday()),
-                                              reminderRecipients: x.expiryOverride?.reminderRecipients || createReminderRecipients()
-                                            }
-                                          }
-                                        }))
-                                      }}
-                                    />
-                                    <span>Track expiry (this file)</span>
-                                  </label>
-                                  {it.expiryOverride?.trackingEnabled ? (
-                                    <>
-                                      <div>
-                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Start Date</label>
-                                        <input
-                                          type="date"
-                                          value={it.expiryOverride?.startDate || ''}
-                                          onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), startDate: e.target.value } } : x))}
-                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                                          required
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Date</label>
-                                        <input
-                                          type="date"
-                                          value={it.expiryOverride?.expiryDate || ''}
-                                          onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, expiryOverride: { ...(x.expiryOverride || {}), expiryDate: e.target.value } } : x))}
-                                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                                          required
-                                        />
-                                      </div>
-                                      <div className="md:col-span-2">
-                                        <ReminderRecipientsPicker
-                                          values={it.expiryOverride}
-                                          activeUsers={activeUsers}
-                                          searchValues={recipientSearch.file?.[fileKey] || createReminderSearch()}
-                                          onSearchChange={(levelKey, value) => updateSearchScope(fileKey, levelKey, value)}
-                                          onToggle={(levelKey, userId) => toggleFileRecipient(fileKey, idx, levelKey, userId)}
-                                        />
-                                      </div>
-                                    </>
-                                  ) : null}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_document_type_label')}</label>
+                                <select
+                                  value={it.documentTypeId || ''}
+                                  onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, documentTypeId: e.target.value } : x))}
+                                  disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
+                                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                                >
+                                  <option value="">{t('bulk_import_select_document_type')}</option>
+                                  {documentTypes.map((dt) => (
+                                    <option key={dt.id} value={dt.id}>
+                                      {dt.name} ({dt.prefix})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="md:col-span-2">
+                                <div className="mb-1 flex items-center justify-between gap-3">
+                                  <label className="block text-xs font-medium text-ink-secondary">{t('bulk_import_title_label')}</label>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFile(idx)}
+                                    className="text-xs font-medium text-[var(--dms-color-danger-ink)] hover:opacity-90"
+                                  >
+                                    {t('bulk_import_remove_file')}
+                                  </button>
                                 </div>
-                              ) : null}
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="inline-flex items-start gap-2 text-xs text-ink-secondary">
                                 <input
-                                  type="checkbox"
-                                  className="mt-0.5 h-4 w-4 text-brand rounded focus:ring-brand/20"
-                                  checked={Boolean(it.isClientDocument)}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked
-                                    if (checked && !otherTypeId) {
-                                      setFormError('Document type "Others" not found. Please create it in Configuration > Document Types.')
-                                      return
-                                    }
-                                    setFileItems((prev) => prev.map((x, i) => {
-                                      if (i !== idx) return x
-                                      return applyClientDeclaration(x, checked)
-                                    }))
-                                  }}
+                                  type="text"
+                                  value={it.title}
+                                  onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, title: e.target.value } : x))}
+                                  className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                                 />
-                                <span>
-                                  {t('client_document_declaration')}
-                                </span>
-                              </label>
+                              </div>
                             </div>
 
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-medium text-ink-secondary mb-1">{t('bulk_import_title_label')}</label>
-                              <input
-                                type="text"
-                                value={it.title}
-                                onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, title: e.target.value } : x))}
-                                className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                              />
+                            <div className="rounded-lg border border-border bg-surface-muted px-3 py-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Expiry</p>
+                                  <p className="mt-1 text-sm text-ink">{getExpirySummary(it)}</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {!it.isClientDocument ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openExpiryEditor(idx)}
+                                        className="text-xs font-medium text-brand hover:text-brand-hover"
+                                      >
+                                        {it.expiryOverrideEnabled
+                                          ? 'Change custom expiry'
+                                          : 'Custom expiry tracking'}
+                                      </button>
+                                      {it.expiryOverrideEnabled ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => clearExpiryOverride(idx)}
+                                          className="text-xs font-medium text-ink-secondary hover:text-ink"
+                                        >
+                                          Remove custom setting
+                                        </button>
+                                      ) : null}
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-ink-soft">Not applicable</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="md:col-span-2 flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() => removeFile(idx)}
-                                className="text-sm text-[var(--dms-color-danger-ink)] hover:opacity-90 font-medium"
-                              >
-                                {t('bulk_import_remove_file')}
-                              </button>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -1443,156 +1707,176 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   })}
                 </div>
               </div>
-            )}
+            ) : null}
 
-            <div className="border border-border rounded-lg p-4 space-y-3 bg-surface">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-                <input
-                  type="checkbox"
-                  checked={expiryInfo.trackingEnabled}
-                  onChange={(e) => setExpiryInfo((prev) => ({
-                    ...prev,
-                    trackingEnabled: e.target.checked,
-                    startDate: prev.startDate || getToday(),
-                    ...(e.target.checked && prev.useGlobalRule
-                      ? {
-                          expiringSoonDays: expirySettings.expiringSoonDays,
-                          reminder1Days: expirySettings.reminder1Days,
-                          reminder2Days: expirySettings.reminder2Days,
-                          reminder3Days: expirySettings.reminder3Days,
-                          reminder4Days: expirySettings.reminder4Days
-                        }
-                      : {})
-                  }))}
-                  className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                />
-                Track Expiry (apply to all imported documents)
-              </label>
-              {expiryInfo.trackingEnabled ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
-                      <input
-                        type="date"
-                        value={expiryInfo.startDate}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
-                      <input
-                        type="date"
-                        value={expiryInfo.expiryDate}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs text-ink-muted">
-                      Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
-                    </p>
-                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-                      <input
-                        type="checkbox"
-                        checked={expiryInfo.useGlobalRule}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setExpiryInfo((prev) => ({
-                            ...prev,
-                            useGlobalRule: checked,
-                            ...(checked
-                              ? {
-                                  expiringSoonDays: expirySettings.expiringSoonDays,
-                                  reminder1Days: expirySettings.reminder1Days,
-                                  reminder2Days: expirySettings.reminder2Days,
-                                  reminder3Days: expirySettings.reminder3Days,
-                                  reminder4Days: expirySettings.reminder4Days
-                                }
-                              : {})
-                          }))
-                        }}
-                        className="h-4 w-4 text-brand rounded focus:ring-brand/20"
-                      />
-                      Use Global Defaults
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.expiringSoonDays}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder1Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder2Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder3Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={expiryInfo.reminder4Days}
-                        onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))}
-                        disabled={expiryInfo.useGlobalRule}
-                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
-                      />
-                    </div>
-                  </div>
-                  <ReminderRecipientsPicker
-                    values={expiryInfo}
-                    activeUsers={activeUsers}
-                    searchValues={recipientSearch.global}
-                    onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
-                    onToggle={toggleGlobalRecipient}
+            {currentStep === 4 ? (
+              <div className="border border-border rounded-lg p-4 space-y-3 bg-surface">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                  <input
+                    type="checkbox"
+                    checked={expiryInfo.trackingEnabled}
+                    onChange={(e) => setExpiryInfo((prev) => ({
+                      ...prev,
+                      trackingEnabled: e.target.checked,
+                      startDate: prev.startDate || getToday(),
+                      ...(e.target.checked && prev.useGlobalRule
+                        ? {
+                            expiringSoonDays: expirySettings.expiringSoonDays,
+                            reminder1Days: expirySettings.reminder1Days,
+                            reminder2Days: expirySettings.reminder2Days,
+                            reminder3Days: expirySettings.reminder3Days,
+                            reminder4Days: expirySettings.reminder4Days
+                          }
+                        : {})
+                    }))}
+                    className="h-4 w-4 text-brand rounded focus:ring-brand/20"
                   />
-                </div>
-              ) : null}
-            </div>
+                  Track Expiry (apply to all imported documents)
+                </label>
+                {expiryInfo.trackingEnabled ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
+                        <input
+                          type="date"
+                          value={expiryInfo.startDate}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, startDate: e.target.value }))}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
+                        <input
+                          type="date"
+                          value={expiryInfo.expiryDate}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs text-ink-muted">
+                        Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
+                      </p>
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
+                        <input
+                          type="checkbox"
+                          checked={expiryInfo.useGlobalRule}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setExpiryInfo((prev) => ({
+                              ...prev,
+                              useGlobalRule: checked,
+                              ...(checked
+                                ? {
+                                    expiringSoonDays: expirySettings.expiringSoonDays,
+                                    reminder1Days: expirySettings.reminder1Days,
+                                    reminder2Days: expirySettings.reminder2Days,
+                                    reminder3Days: expirySettings.reminder3Days,
+                                    reminder4Days: expirySettings.reminder4Days
+                                  }
+                                : {})
+                            }))
+                          }}
+                          className="h-4 w-4 text-brand rounded focus:ring-brand/20"
+                        />
+                        Use Global Defaults
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={expiryInfo.expiringSoonDays}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, expiringSoonDays: e.target.value, useGlobalRule: false }))}
+                          disabled={expiryInfo.useGlobalRule}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={expiryInfo.reminder1Days}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder1Days: e.target.value, useGlobalRule: false }))}
+                          disabled={expiryInfo.useGlobalRule}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={expiryInfo.reminder2Days}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder2Days: e.target.value, useGlobalRule: false }))}
+                          disabled={expiryInfo.useGlobalRule}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={expiryInfo.reminder3Days}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder3Days: e.target.value, useGlobalRule: false }))}
+                          disabled={expiryInfo.useGlobalRule}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={expiryInfo.reminder4Days}
+                          onChange={(e) => setExpiryInfo((prev) => ({ ...prev, reminder4Days: e.target.value, useGlobalRule: false }))}
+                          disabled={expiryInfo.useGlobalRule}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft"
+                        />
+                      </div>
+                    </div>
+                    <ReminderRecipientsPicker
+                      values={expiryInfo}
+                      activeUsers={activeUsers}
+                      searchValues={recipientSearch.global}
+                      onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
+                      onToggle={toggleGlobalRecipient}
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-ink-soft">
+                    Expiry tracking is optional. Leave it off if this upload does not need expiry monitoring.
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <div className="px-6 py-4 bg-surface-muted border-t border-border flex justify-end gap-3">
+          <div className="px-6 py-4 bg-surface-muted border-t border-border flex flex-wrap justify-between gap-3">
+            <div className="text-xs text-ink-secondary">
+              Step {currentStep + 1} of {BULK_IMPORT_STEPS.length}
+            </div>
+            <div className="flex flex-wrap justify-end gap-3">
+            {currentStep > 0 ? (
+              <button
+                type="button"
+                onClick={() => goToStep(currentStep - 1)}
+                className="px-4 py-2 text-sm font-medium text-ink-secondary bg-surface border border-border rounded-lg hover:bg-surface-strong transition-colors"
+                disabled={submitting}
+              >
+                {t('previous')}
+              </button>
+            ) : null}
             <button
               onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-ink-secondary bg-surface border border-border rounded-lg hover:bg-surface-strong transition-colors"
@@ -1600,15 +1884,214 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             >
               {t('cancel')}
             </button>
-            <button
-              onClick={handleSubmit}
-              data-tour-id="bulk-import-submit"
-              className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-60"
-              disabled={submitting || totalSelectedExceeded}
-            >
-              {submitting ? t('bulk_import_uploading') : t('bulk_import_upload')}
-            </button>
+            {currentStep < BULK_IMPORT_STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-60"
+                disabled={submitting}
+              >
+                {t('next')}
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                data-tour-id="bulk-import-submit"
+                className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-60"
+                disabled={submitting || totalSelectedExceeded}
+              >
+                {submitting ? t('bulk_import_uploading') : t('bulk_import_upload')}
+              </button>
+            )}
+            </div>
           </div>
+
+          {expiryEditor.open && expiryEditor.draft ? (
+            <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-3xl rounded-2xl border border-border bg-surface shadow-dms-lg">
+                <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-ink">Custom Expiry Tracking</h3>
+                    <p className="mt-1 text-xs text-ink-secondary truncate">
+                      {fileItems[expiryEditor.itemIndex]?.file?.name || 'Selected file'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeExpiryEditor}
+                    className="rounded-lg p-1 text-ink-soft hover:bg-surface-muted hover:text-ink"
+                    aria-label="Close custom expiry editor"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="max-h-[68vh] overflow-y-auto px-5 py-4 space-y-4">
+                  <div className="rounded-lg border border-border bg-surface-muted px-4 py-3">
+                    <p className="text-sm font-medium text-ink">Set a custom expiry rule for this file.</p>
+                    <p className="mt-2 text-xs text-ink-secondary">
+                      This only applies to the current file and will override the default upload expiry setting.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Start Date</label>
+                      <input
+                        type="date"
+                        value={expiryEditor.draft.startDate || ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), startDate: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-secondary mb-2">Expiry Date</label>
+                      <input
+                        type="date"
+                        value={expiryEditor.draft.expiryDate || ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), expiryDate: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <details className="rounded-xl border border-border bg-surface">
+                    <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-ink marker:hidden">
+                      More options
+                    </summary>
+                    <div className="space-y-4 border-t border-border px-4 py-4">
+                      <div>
+                        <label className="block text-sm font-medium text-ink-secondary mb-2">Remarks</label>
+                        <textarea
+                          rows="3"
+                          value={expiryEditor.draft.remarks || ''}
+                          onChange={(e) => setExpiryEditor((prev) => ({
+                            ...prev,
+                            draft: { ...(prev.draft || {}), remarks: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-ink-secondary mb-2">Expiring Soon Days</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={expiryEditor.draft.expiringSoonDays ?? ''}
+                            onChange={(e) => setExpiryEditor((prev) => ({
+                              ...prev,
+                              draft: { ...(prev.draft || {}), expiringSoonDays: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 1</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={expiryEditor.draft.reminder1Days ?? ''}
+                            onChange={(e) => setExpiryEditor((prev) => ({
+                              ...prev,
+                              draft: { ...(prev.draft || {}), reminder1Days: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 2</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={expiryEditor.draft.reminder2Days ?? ''}
+                            onChange={(e) => setExpiryEditor((prev) => ({
+                              ...prev,
+                              draft: { ...(prev.draft || {}), reminder2Days: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 3</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={expiryEditor.draft.reminder3Days ?? ''}
+                            onChange={(e) => setExpiryEditor((prev) => ({
+                              ...prev,
+                              draft: { ...(prev.draft || {}), reminder3Days: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-ink-secondary mb-2">Reminder 4</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={expiryEditor.draft.reminder4Days ?? ''}
+                            onChange={(e) => setExpiryEditor((prev) => ({
+                              ...prev,
+                              draft: { ...(prev.draft || {}), reminder4Days: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                          />
+                        </div>
+                      </div>
+
+                      <ReminderRecipientsPicker
+                        values={expiryEditor.draft}
+                        activeUsers={activeUsers}
+                        searchValues={expiryEditorSearch}
+                        onSearchChange={updateExpiryEditorSearch}
+                        onToggle={toggleExpiryEditorRecipient}
+                      />
+                    </div>
+                  </details>
+                </div>
+
+                <div className="flex flex-wrap justify-between gap-3 border-t border-border bg-surface-muted px-5 py-4">
+                  <div>
+                    {fileItems[expiryEditor.itemIndex]?.expiryOverrideEnabled ? (
+                      <button
+                        type="button"
+                        onClick={() => clearExpiryOverride(expiryEditor.itemIndex)}
+                        className="text-sm font-medium text-ink-secondary hover:text-ink"
+                      >
+                        Use default instead
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={closeExpiryEditor}
+                      className="px-4 py-2 text-sm font-medium text-ink-secondary bg-surface border border-border rounded-lg hover:bg-surface-strong transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveExpiryEditor}
+                      className="px-4 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors"
+                    >
+                      Save custom expiry
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

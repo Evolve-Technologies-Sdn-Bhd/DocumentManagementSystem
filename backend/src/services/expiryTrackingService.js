@@ -572,7 +572,7 @@ class ExpiryTrackingService {
     }
 
     if (filters.company) {
-      and.push({ companySnapshot: { contains: String(filters.company), mode: 'insensitive' } })
+      and.push({ companySnapshot: { contains: String(filters.company) } })
     }
 
     if (filters.expiryDateFrom || filters.expiryDateTo) {
@@ -587,7 +587,7 @@ class ExpiryTrackingService {
     if (filters.documentTypeId) documentWhere.documentTypeId = parseInt(filters.documentTypeId, 10)
     if (filters.department) {
       documentWhere.owner = {
-        department: { contains: String(filters.department), mode: 'insensitive' }
+        department: { contains: String(filters.department) }
       }
     }
 
@@ -599,8 +599,8 @@ class ExpiryTrackingService {
       const keyword = String(filters.search).trim()
       and.push({
         OR: [
-          { document: { title: { contains: keyword, mode: 'insensitive' } } },
-          { document: { fileCode: { contains: keyword, mode: 'insensitive' } } }
+          { document: { title: { contains: keyword } } },
+          { document: { fileCode: { contains: keyword } } }
         ]
       })
     }

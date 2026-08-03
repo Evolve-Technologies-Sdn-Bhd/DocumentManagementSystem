@@ -61,12 +61,12 @@ export default function ActionMenu({ actions, dataTourId }) {
   const dropdown = isOpen && (
     <>
       <div 
-        className="fixed inset-0 z-[9998]" 
+        className="fixed inset-0 z-[70]" 
         onClick={() => setIsOpen(false)} 
       />
       <div 
         ref={dropdownRef}
-        className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[9999]"
+        className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[71]"
         style={{
           top: `${dropdownPosition.top}px`,
           left: `${dropdownPosition.left}px`

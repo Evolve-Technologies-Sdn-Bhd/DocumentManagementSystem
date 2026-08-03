@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `Document` ADD COLUMN `contentFormat` ENUM('FILE', 'RICH_TEXT', 'CHECKLIST', 'FORM', 'LINK', 'TABLE') NOT NULL DEFAULT 'FILE';
+

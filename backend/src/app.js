@@ -18,9 +18,11 @@ const auditRoutes = require('./routes/audit');
 const systemRoutes = require('./routes/system');
 const usersRoutes = require('./routes/users');
 const rolesRoutes = require('./routes/roles');
+const divisionsRoutes = require('./routes/divisions');
 const epcRegistryRoutes = require('./routes/epcRegistry');
 const projectTrackingRoutes = require('./routes/projectTracking');
 const expiryTrackingRoutes = require('./routes/expiryTracking');
+const crmRoutes = require('./routes/crm');
 const notificationService = require('./services/notificationService');
 
 const app = express();
@@ -126,7 +128,8 @@ app.get(['/api', '/api/'], (req, res) => {
       notifications: '/api/notifications',
       epcRegistry: '/api/epc-registry',
       projectTracking: '/api/project-tracking',
-      expiryTracking: '/api/expiry-tracking'
+      expiryTracking: '/api/expiry-tracking',
+      crm: '/api/crm'
     }
   }, 'API root');
 });
@@ -144,15 +147,27 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/divisions', divisionsRoutes);
 app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
+app.use('/api/crm', crmRoutes);
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access
 const configService = require('./services/configService');
-const { authenticate } = require('./middleware/auth');
+const { authenticate, authorizePermission } = require('./middleware/auth');
 const asyncHandler = require('./utils/asyncHandler');
+const documentController = require('./controllers/documentController');
+const { uploadDocument } = require('./middleware/upload');
+
+app.post(
+  '/api/files/upload',
+  authenticate,
+  authorizePermission('documents.published', 'create'),
+  uploadDocument.array('files'),
+  documentController.bulkImportPublished
+);
 
 app.get('/api/workflows', authenticate, asyncHandler(async (req, res) => {
   const workflows = await configService.getWorkflows();

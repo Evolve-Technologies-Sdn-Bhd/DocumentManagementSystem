@@ -1,11 +1,17 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const config = require('../config/app');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const { UnauthorizedError, NotFoundError, BadRequestError } = require('../utils/errors');
 const { generateEmployeeId } = require('../utils/employeeIdGenerator');
 const securityService = require('./securityService');
 
 class AuthService {
+  buildPasswordResetSecret(user) {
+    return `${config.jwtSecret}:${user.password}`;
+  }
+
   stripSensitiveUser(user) {
     const hasAuthenticator = Boolean(user.twoFactorSecret)
     const {
@@ -434,6 +440,135 @@ class AuthService {
       where: { id: userId },
       data: { password: hashedPassword }
     });
+  }
+
+  async createPasswordResetCode(email) {
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) {
+      throw new BadRequestError('Email is required');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    });
+
+    if (!user || user.status !== 'ACTIVE') {
+      return null;
+    }
+
+    const expiresInMinutes = parseInt(process.env.PASSWORD_RESET_CODE_MINUTES || '10', 10) || 10;
+    const cooldownSeconds = parseInt(process.env.PASSWORD_RESET_CODE_RESEND_COOLDOWN_SECONDS || '60', 10) || 60;
+
+    const existing = await prisma.passwordResetCode.findUnique({
+      where: { userId: user.id }
+    });
+
+    const now = new Date();
+    if (existing?.lastSentAt) {
+      const cooldownUntil = new Date(existing.lastSentAt.getTime() + cooldownSeconds * 1000);
+      if (cooldownUntil > now) {
+        return { user, code: null, expiresInMinutes, cooldownSeconds };
+      }
+    }
+
+    const code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+
+    await prisma.passwordResetCode.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+        consumedAt: null
+      },
+      update: {
+        codeHash,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: now,
+        consumedAt: null
+      }
+    });
+
+    return { user, code, expiresInMinutes, cooldownSeconds };
+  }
+
+  async verifyPasswordResetCode(email, code) {
+    const normalizedEmail = String(email || '').trim();
+    const normalizedCode = String(code || '').trim();
+    if (!normalizedEmail || !normalizedCode) {
+      return { ok: false };
+    }
+
+    const maxAttempts = parseInt(process.env.PASSWORD_RESET_CODE_MAX_ATTEMPTS || '5', 10) || 5;
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    });
+
+    if (!user || user.status !== 'ACTIVE') {
+      return { ok: false };
+    }
+
+    const record = await prisma.passwordResetCode.findUnique({
+      where: { userId: user.id }
+    });
+
+    const now = new Date();
+    if (!record) return { ok: false };
+    if (record.consumedAt) return { ok: false };
+    if (record.expiresAt <= now) return { ok: false };
+    if (record.attempts >= maxAttempts) return { ok: false };
+
+    const match = await bcrypt.compare(normalizedCode, record.codeHash);
+    if (!match) {
+      await prisma.passwordResetCode.update({
+        where: { userId: user.id },
+        data: { attempts: { increment: 1 } }
+      });
+      return { ok: false };
+    }
+
+    return { ok: true, user };
+  }
+
+  async resetPasswordWithCode(email, code, newPassword) {
+    const verification = await this.verifyPasswordResetCode(email, code);
+    if (!verification.ok || !verification.user) {
+      throw new UnauthorizedError('Invalid or expired reset code');
+    }
+
+    const user = verification.user;
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const now = new Date();
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          failedAttempts: 0,
+          lockedUntil: null,
+          twoFactorCode: null,
+          twoFactorCodeExpiry: null
+        }
+      }),
+      prisma.userSession.deleteMany({
+        where: { userId: user.id }
+      }),
+      prisma.trustedDevice.deleteMany({
+        where: { userId: user.id }
+      }),
+      prisma.passwordResetCode.update({
+        where: { userId: user.id },
+        data: { consumedAt: now }
+      })
+    ]);
+
+    return user;
   }
 
   /**

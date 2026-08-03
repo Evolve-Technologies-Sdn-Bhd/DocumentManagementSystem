@@ -909,7 +909,7 @@ export default function ExpiryTracking() {
                     <Th>Days Left</Th>
                     <Th>Expiry Status</Th>
                     <Th>Renewal Status</Th>
-                    <Th>Action</Th>
+                    <Th stickyRight>Action</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -933,7 +933,7 @@ export default function ExpiryTracking() {
                         <Td>{record.daysLeft ?? '-'}</Td>
                         <Td><ExpiryStatusBadge status={record.expiryStatus} /></Td>
                         <Td><RenewalStatusBadge status={record.renewalStatus} /></Td>
-                        <Td>
+                        <Td stickyRight>
                           <div className="flex justify-end">
                             <ActionMenu
                               dataTourId="expiry-action-menu"

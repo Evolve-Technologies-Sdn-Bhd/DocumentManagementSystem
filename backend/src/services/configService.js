@@ -5,7 +5,55 @@ const fs = require('fs/promises');
 const path = require('path');
 const appConfig = require('../config/app');
 
+let maintenanceSettingsCache = null;
+let maintenanceSettingsCacheAt = 0;
+const MAINTENANCE_SETTINGS_CACHE_TTL_MS = 5000;
+
 class ConfigService {
+  getDefaultCrmFbEnquiryLookups() {
+    return {
+      channels: [
+        'Facebook Post/Ad',
+        'Messenger',
+        'Comment',
+        'Referral from FB'
+      ],
+      industryTypes: [
+        'Construction',
+        'Manufacturing',
+        'Retail',
+        'Services',
+        'Education',
+        'Healthcare',
+        'Other'
+      ]
+    }
+  }
+
+  normalizeCrmFbEnquiryLookups(input) {
+    const defaults = this.getDefaultCrmFbEnquiryLookups()
+    const source = input && typeof input === 'object' ? input : {}
+    const normalizeList = (items, fallback) => {
+      const rawItems = Array.isArray(items) ? items : fallback
+      const seen = new Set()
+      return rawItems
+        .map((item) => String(item ?? '').trim())
+        .filter(Boolean)
+        .filter((item) => {
+          const key = item.toLowerCase()
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .slice(0, 100)
+    }
+
+    return {
+      channels: normalizeList(source.channels, defaults.channels),
+      industryTypes: normalizeList(source.industryTypes, defaults.industryTypes)
+    }
+  }
+
   getDefaultDocumentNumberingSettings() {
     return {
       separator: '/',
@@ -227,6 +275,40 @@ class ConfigService {
       where: { key },
       data: { value }
     });
+  }
+
+  async upsertConfiguration(key, value, description = null) {
+    return await prisma.configuration.upsert({
+      where: { key },
+      update: { value, description: description ?? undefined },
+      create: { key, value, description }
+    })
+  }
+
+  async getCrmFbEnquiryLookups() {
+    const record = await prisma.configuration.findUnique({
+      where: { key: 'crm.fbEnquiry.lookups' }
+    })
+
+    if (!record?.value) {
+      return this.getDefaultCrmFbEnquiryLookups()
+    }
+
+    try {
+      return this.normalizeCrmFbEnquiryLookups(JSON.parse(record.value))
+    } catch {
+      return this.getDefaultCrmFbEnquiryLookups()
+    }
+  }
+
+  async updateCrmFbEnquiryLookups(input) {
+    const lookups = this.normalizeCrmFbEnquiryLookups(input)
+    await this.upsertConfiguration(
+      'crm.fbEnquiry.lookups',
+      JSON.stringify(lookups),
+      'CRM FB enquiry lookup values for channels and industry types'
+    )
+    return lookups
   }
 
   // ============================================
@@ -983,6 +1065,56 @@ class ConfigService {
     });
 
     return JSON.parse(config.value);
+  }
+
+  normalizeMaintenanceSettings(settings) {
+    const enabled = Boolean(settings?.enabled);
+    const message =
+      typeof settings?.message === 'string' && settings.message.trim()
+        ? settings.message.trim()
+        : 'System is under maintenance';
+
+    return { enabled, message };
+  }
+
+  async getMaintenanceSettings(options = {}) {
+    const { bypassCache = false } = options;
+    const now = Date.now();
+    if (!bypassCache && maintenanceSettingsCache && (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS) {
+      return maintenanceSettingsCache;
+    }
+
+    const config = await prisma.configuration.findUnique({
+      where: { key: 'maintenance_settings' }
+    });
+
+    let parsed = null;
+    if (config?.value) {
+      try {
+        parsed = JSON.parse(config.value);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    maintenanceSettingsCache = this.normalizeMaintenanceSettings(parsed || null);
+    maintenanceSettingsCacheAt = now;
+    return maintenanceSettingsCache;
+  }
+
+  async updateMaintenanceSettings(settings) {
+    const normalized = this.normalizeMaintenanceSettings(settings || null);
+    const value = JSON.stringify(normalized);
+
+    const config = await prisma.configuration.upsert({
+      where: { key: 'maintenance_settings' },
+      update: { value, description: 'Maintenance mode settings' },
+      create: { key: 'maintenance_settings', value, description: 'Maintenance mode settings' }
+    });
+
+    maintenanceSettingsCache = this.normalizeMaintenanceSettings(JSON.parse(config.value));
+    maintenanceSettingsCacheAt = Date.now();
+    return maintenanceSettingsCache;
   }
 }
 

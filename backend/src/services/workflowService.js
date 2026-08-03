@@ -3,9 +3,73 @@ const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/err
 const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
+const divisionScopeService = require('./divisionScopeService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class WorkflowService {
+  async assertUserHasRole(userId, roleName, message) {
+    const normalizedUserId = Number.parseInt(userId, 10)
+    if (!Number.isFinite(normalizedUserId)) {
+      throw new BadRequestError(message)
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: normalizedUserId },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: { select: { name: true } }
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      throw new BadRequestError(message)
+    }
+
+    const normalizedRoleName = String(roleName || '').toLowerCase()
+    const hasRole = (user.roles || []).some((r) => String(r?.role?.name || '').toLowerCase() === normalizedRoleName)
+    if (!hasRole) {
+      throw new BadRequestError(message)
+    }
+  }
+
+  queueSubmitForReviewFollowUps({ documentId, updated, userId }) {
+    setImmediate(async () => {
+      const taskStart = startTimer()
+      const timings = { documentId, userId }
+
+      try {
+        const notifyStart = startTimer()
+        try {
+          console.log(`[WorkflowService] Queueing submit-for-review notifications for document ${documentId}`)
+          const reviewerCount = await notificationService.notifyDocumentSubmittedWithEmail(documentId, updated)
+          timings.notifiedReviewerCount = reviewerCount
+        } catch (error) {
+          console.error('[WorkflowService] Failed to send submit-for-review notifications:', error)
+        } finally {
+          timings.notifyDocumentSubmittedMs = roundMs(getElapsedMs(notifyStart))
+        }
+
+        console.log('[submit-review-followup]', JSON.stringify({
+          success: true,
+          timings,
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      } catch (error) {
+        console.error('[submit-review-followup]', JSON.stringify({
+          success: false,
+          documentId,
+          userId,
+          error: { message: error.message, code: error.code || null },
+          totalBackgroundMs: roundMs(getElapsedMs(taskStart))
+        }))
+      }
+    })
+  }
+
   queuePublishFollowUps({ documentId, updated, document, expiryInfo, userId, skipExpirySync = false }) {
     setImmediate(async () => {
       const taskStart = startTimer()
@@ -147,14 +211,7 @@ class WorkflowService {
       }
     });
 
-    // Send notifications to reviewers
-    try {
-      console.log(`[Notification] Sending document submission notification for document ${documentId}`);
-      const reviewerCount = await notificationService.notifyDocumentSubmittedWithEmail(documentId, updated);
-      console.log(`[Notification] Notified ${reviewerCount} reviewers about document submission`);
-    } catch (error) {
-      console.error('[Notification] Failed to send notification for document submission:', error);
-    }
+    this.queueSubmitForReviewFollowUps({ documentId, updated, userId })
 
     return updated;
   }
@@ -183,6 +240,25 @@ class WorkflowService {
     if (action === 'APPROVE') {
       if (!skipApproval && !approverId) {
         throw new BadRequestError('First approver must be assigned');
+      }
+
+      if (!skipApproval && approverId) {
+        await this.assertUserHasRole(approverId, 'approver', 'Selected approver must have Approver role')
+        const effectiveDivisionIds = document.folderId
+          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+          : document.divisionId
+            ? [document.divisionId]
+            : []
+
+        if (effectiveDivisionIds.length === 0) {
+          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+        }
+
+        const allowedDivisions = new Set(effectiveDivisionIds)
+        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(approverId)
+        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+          throw new BadRequestError('Selected approver must belong to the same division as the document');
+        }
       }
 
       // Upload reviewed file if provided
@@ -382,6 +458,25 @@ class WorkflowService {
       // Upload approved file if provided
       if (file) {
         await this.saveWorkflowFileVersion(document, documentId, userId, file);
+      }
+
+      if (secondApproverId) {
+        await this.assertUserHasRole(secondApproverId, 'approver', 'Selected approver must have Approver role')
+        const effectiveDivisionIds = document.folderId
+          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+          : document.divisionId
+            ? [document.divisionId]
+            : []
+
+        if (effectiveDivisionIds.length === 0) {
+          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+        }
+
+        const allowedDivisions = new Set(effectiveDivisionIds)
+        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(secondApproverId)
+        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+          throw new BadRequestError('Selected approver must belong to the same division as the document');
+        }
       }
 
       // If second approver assigned, move to second approval
@@ -631,6 +726,11 @@ class WorkflowService {
       throw new NotFoundError('Folder');
     }
 
+    const folderDivisionIds = await divisionScopeService.getEffectiveFolderDivisionIds(folderId)
+    if (document.divisionId && folderDivisionIds.length > 0 && !folderDivisionIds.includes(document.divisionId)) {
+      throw new ForbiddenError('Selected folder does not match the document division scope')
+    }
+
     const normalizeVersionSegment = (versionSegment) => {
       const raw = String(versionSegment || '').trim()
       if (!raw) return ''
@@ -649,6 +749,7 @@ class WorkflowService {
       data: {
         status: 'PUBLISHED',
         stage: 'PUBLISHED',
+        divisionId: document.divisionId || null,
         folderId,
         publishedById: userId,
         publishedAt: new Date()

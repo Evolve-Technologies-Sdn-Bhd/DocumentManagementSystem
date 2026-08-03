@@ -779,7 +779,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_version_date')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_updated_by')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_change_summary')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
+                <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase border-l border-border">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-surface divide-y divide-border">
@@ -812,7 +812,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
                 </tr>
               ) : (
                 paginatedVersions.map((version) => (
-                <tr key={version.id} className="hover:bg-surface-muted">
+                <tr key={version.id} className="group hover:bg-surface-muted">
                   <td className="px-4 py-3 text-sm font-medium text-brand">{version.fileCode}</td>
                   <td className="px-4 py-3 text-sm text-ink">{version.title}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.projectCategory}</td>
@@ -825,7 +825,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.versionDate}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.updatedBy}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary max-w-xs truncate">{version.changeSummary}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-3 text-sm border-l border-border">
                     <ActionMenu
                       actions={[
                         { label: t('mr_compare'), onClick: () => handleCompare(version) }
@@ -1122,7 +1122,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_obsolete_date')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_reason')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_replaced_by')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
+                <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase border-l border-border">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-surface divide-y divide-border">
@@ -1155,7 +1155,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
                 </tr>
               ) : (
                 paginatedDocuments.map((doc) => (
-                <tr key={doc.id} className="hover:bg-surface-muted">
+                <tr key={doc.id} className="group hover:bg-surface-muted">
                   <td className="px-4 py-3 text-sm font-medium text-ink-secondary">{doc.fileCode}</td>
                   <td className="px-4 py-3 text-sm text-ink">{doc.title}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{doc.type}</td>
@@ -1163,7 +1163,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
                   <td className="px-4 py-3 text-sm text-ink-secondary">{doc.obsoleteDate}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{doc.reason}</td>
                   <td className="px-4 py-3 text-sm text-brand font-medium">{doc.replacedBy}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-3 text-sm border-l border-border">
                     <ActionMenu
                       actions={[
                         { label: t('mr_view_archive'), onClick: () => handleViewArchive(doc) }
@@ -1429,7 +1429,7 @@ function OldVersionRegister({ projectCategories = [] }) {
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_current_version')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_archived_date')}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_retention_until')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
+                <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase border-l border-border">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="bg-surface divide-y divide-border">
@@ -1462,7 +1462,7 @@ function OldVersionRegister({ projectCategories = [] }) {
                 </tr>
               ) : (
                 paginatedVersions.map((version) => (
-                <tr key={version.id} className="hover:bg-surface-muted">
+                <tr key={version.id} className="group hover:bg-surface-muted">
                   <td className="px-4 py-3 text-sm font-medium text-brand">{version.fileCode}</td>
                   <td className="px-4 py-3 text-sm text-ink">{version.title}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.projectCategory}</td>
@@ -1474,7 +1474,7 @@ function OldVersionRegister({ projectCategories = [] }) {
                   </td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.archivedDate}</td>
                   <td className="px-4 py-3 text-sm text-ink-secondary">{version.retentionUntil}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-3 text-sm border-l border-border">
                     <ActionMenu
                       actions={[
                         { label: t('mr_restore'), onClick: () => handleRestore(version) }

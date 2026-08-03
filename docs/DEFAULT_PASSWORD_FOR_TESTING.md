@@ -194,8 +194,9 @@ Create a new endpoint and UI for users to change their password:
 
 ### Step 3: Implement Password Reset Flow
 - `POST /api/auth/forgot-password` - Request reset
-- `POST /api/auth/reset-password` - Reset with token
-- Email notification with reset link
+- `POST /api/auth/verify-reset-code` - Verify code
+- `POST /api/auth/reset-password-code` - Reset with code
+- Email notification with 6-digit reset code
 
 ## Current User Database
 

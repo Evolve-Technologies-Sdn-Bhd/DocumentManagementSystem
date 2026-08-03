@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import EmptyState from './EmptyState'
@@ -15,19 +16,19 @@ import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
+const workflowStages = [
+  { id: 'ndr', label: 'NDR' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'review', label: 'Review' },
+  { id: 'approval', label: 'Approval' },
+  { id: 'publish', label: 'Published' },
+  { id: 'superseded', label: 'Archived' }
+]
+
 // Progress Tracker Component
 function ProgressTracker({ currentStage, trackingId }) {
   const { t } = usePreferences()
-  const stages = [
-    { id: 'ndr', label: 'NDR' },
-    { id: 'draft', label: 'Draft' },
-    { id: 'review', label: 'Review' },
-    { id: 'approval', label: 'Approval' },
-    { id: 'publish', label: 'Published' },
-    { id: 'superseded', label: 'Archived' }
-  ]
-
-  const currentIndex = stages.findIndex(s => s.id === currentStage)
+  const currentIndex = workflowStages.findIndex((s) => s.id === currentStage)
 
   return (
     <AppSurface padding="lg" className="space-y-4">
@@ -36,10 +37,10 @@ function ProgressTracker({ currentStage, trackingId }) {
       </h2>
 
       <div className="hidden md:flex items-center gap-0.5 overflow-x-auto">
-        {stages.map((stage, index) => {
+        {workflowStages.map((stage, index) => {
           const isActive = index <= currentIndex
           const isFirst = index === 0
-          const isLast = index === stages.length - 1
+          const isLast = index === workflowStages.length - 1
 
           return (
             <div
@@ -62,7 +63,7 @@ function ProgressTracker({ currentStage, trackingId }) {
       </div>
 
       <div className="md:hidden space-y-2">
-        {stages.map((stage, index) => {
+        {workflowStages.map((stage, index) => {
           const isActive = index <= currentIndex
 
           return (
@@ -74,6 +75,103 @@ function ProgressTracker({ currentStage, trackingId }) {
             >
               {stage.label}
             </div>
+          )
+        })}
+      </div>
+    </AppSurface>
+  )
+}
+
+function StageFilterBar({ documents, stageFilter, onStageFilterChange, onClear }) {
+  const stageCounts = workflowStages.reduce((acc, stage) => {
+    acc[stage.id] = documents.filter((doc) => mapStatusToStage(doc.status, doc.stage, doc.reviewedAt, doc.approvedAt, doc.publishedAt) === stage.id).length
+    return acc
+  }, {})
+  const activeStage = workflowStages.find((stage) => stage.id === stageFilter)
+
+  return (
+    <AppSurface padding="lg" className="space-y-4 border border-brand/15 bg-brand/5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-ink">Filter List By Workflow Stage</h3>
+          <p className="mt-1 text-sm text-ink-muted">Tracker atas kekal untuk selected document, bar ini tapis senarai di bawah.</p>
+          {activeStage && (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-brand/12 px-3 py-1 text-xs font-medium text-[var(--dms-color-info-ink)] ring-1 ring-brand/15">
+              <span className="text-ink-muted">Filtered by:</span>
+              <span>{activeStage.label}</span>
+            </div>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={onClear}
+          disabled={stageFilter === 'all'}
+        >
+          Clear Filter
+        </Button>
+      </div>
+
+      <div className="hidden md:flex items-center gap-0.5 overflow-x-auto">
+        {workflowStages.map((stage, index) => {
+          const isActive = stageFilter === stage.id
+          const isFirst = index === 0
+          const isLast = index === workflowStages.length - 1
+
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => onStageFilterChange(stageFilter === stage.id ? 'all' : stage.id)}
+              className={`relative flex h-12 flex-1 items-center justify-center text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-brand text-ink-inverse shadow-dms-soft'
+                  : 'bg-brand/10 text-[var(--dms-color-info-ink)] hover:bg-brand/15'
+              } ${
+                isFirst ? 'rounded-l-lg' : ''
+              } ${
+                isLast ? 'rounded-r-lg' : !isLast ? 'clip-arrow-right' : ''
+              } ${
+                !isFirst ? 'clip-arrow-left' : ''
+              }`}
+              style={{ minWidth: isLast ? '180px' : '120px' }}
+            >
+              <span className="px-2 text-center">
+                {stage.label}
+                <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  isActive
+                    ? 'bg-white/20 text-ink-inverse'
+                    : 'bg-white/70 text-[var(--dms-color-info-ink)]'
+                }`}>
+                  {stageCounts[stage.id] ?? 0}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 md:hidden">
+        {workflowStages.map((stage) => {
+          const isActive = stageFilter === stage.id
+
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => onStageFilterChange(stageFilter === stage.id ? 'all' : stage.id)}
+              className={`rounded-2xl p-3 text-left text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-brand text-ink-inverse shadow-dms-soft'
+                  : 'bg-brand/10 text-[var(--dms-color-info-ink)]'
+              }`}
+            >
+              <div>{stage.label}</div>
+              <div className={`mt-1 text-xs ${isActive ? 'text-white/80' : 'text-[var(--dms-color-info-ink)]/80'}`}>
+                {stageCounts[stage.id] ?? 0} docs
+              </div>
+            </button>
           )
         })}
       </div>
@@ -131,24 +229,6 @@ const mapStatusToStage = (status, stage, reviewedAt, approvedAt, publishedAt) =>
   return 'draft'
 }
 
-const summaryCards = (t) => [
-  { label: t('status_pending_ack'), status: 'Pending Acknowledgment', tone: 'warning' },
-  { label: t('status_draft'), status: 'Draft', tone: 'neutral' },
-  { label: t('status_in_review'), status: 'Waiting for Review', tone: 'info' },
-  { label: t('status_in_approval'), status: 'Waiting for Approval', tone: 'brand' },
-  { label: t('status_published'), status: 'Published', tone: 'success' },
-  { label: t('status_archived'), status: 'Obsolete', tone: 'danger' }
-]
-
-const summaryToneClassMap = {
-  warning: 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-border-default)]',
-  neutral: 'bg-surface-muted text-ink-secondary border-border',
-  info: 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-border-default)]',
-  brand: 'bg-brand/10 text-brand border-brand/20',
-  success: 'bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] border-[var(--dms-color-border-default)]',
-  danger: 'bg-[var(--dms-color-danger-soft)] text-[var(--dms-color-danger-ink)] border-[var(--dms-color-border-default)]'
-}
-
 const getDisplayFileCode = (doc) => (
   doc.rawStatus === 'PENDING_ACKNOWLEDGMENT' || (doc.fileCode && doc.fileCode.startsWith('PENDING-'))
     ? '-'
@@ -167,6 +247,7 @@ export default function MyDocumentsStatus() {
   const [selectedDocDetails, setSelectedDocDetails] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [stageFilter, setStageFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [showDetailsPanel, setShowDetailsPanel] = useState(false)
@@ -210,18 +291,32 @@ export default function MyDocumentsStatus() {
     return status === filterValue
   }
 
+  const matchesStageFilter = (doc, filterValue) => {
+    if (filterValue === 'all') return true
+    return mapStatusToStage(doc.status, doc.stage, doc.reviewedAt, doc.approvedAt, doc.publishedAt) === filterValue
+  }
+
+  const clearListFilters = () => {
+    setStatusFilter('All')
+    setStageFilter('all')
+  }
+
   // Filter and search documents
   useEffect(() => {
     let filtered = documents
 
     // Apply status filter
     if (statusFilter !== 'All') {
-      filtered = filtered.filter(doc => matchesStatusFilter(doc, statusFilter))
+      filtered = filtered.filter((doc) => matchesStatusFilter(doc, statusFilter))
+    }
+
+    if (stageFilter !== 'all') {
+      filtered = filtered.filter((doc) => matchesStageFilter(doc, stageFilter))
     }
 
     // Apply search
     if (searchQuery) {
-      filtered = filtered.filter(doc =>
+      filtered = filtered.filter((doc) =>
         doc.fileCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
@@ -229,7 +324,7 @@ export default function MyDocumentsStatus() {
 
     setFilteredDocuments(filtered)
     setCurrentPage(1) // Reset to first page when filtering
-  }, [documents, statusFilter, searchQuery])
+  }, [documents, statusFilter, stageFilter, searchQuery])
 
   const loadDocuments = async () => {
     setLoading(true)
@@ -395,26 +490,31 @@ export default function MyDocumentsStatus() {
       })
     }
 
-    return (
-      <div className="fixed inset-y-0 right-0 z-50 w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-96">
-        <div className="sticky top-0 border-b border-border bg-surface p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-ink">{t('doc_details')}</h3>
-            <IconButton
-              onClick={() => setShowDetailsPanel(false)}
-              size="sm"
-              aria-label="Close details"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </IconButton>
+    const panel = (
+      <>
+        <div
+          className="fixed inset-0 z-[89] bg-overlay transition-opacity"
+          onClick={() => setShowDetailsPanel(false)}
+        />
+        <div className="fixed inset-y-0 right-0 z-[90] w-full transform overflow-y-auto border-l border-border bg-surface shadow-dms-lg transition-transform duration-300 ease-in-out sm:w-96">
+          <div className="sticky top-0 border-b border-border bg-surface p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink">{t('doc_details')}</h3>
+              <IconButton
+                onClick={() => setShowDetailsPanel(false)}
+                size="sm"
+                aria-label="Close details"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </IconButton>
+            </div>
           </div>
-        </div>
 
-        <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6">
           {/* Document Info */}
-          <div className="space-y-3">
+            <div className="space-y-3">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{t('file_code')}</label>
               <p className="mt-1 text-sm font-semibold text-ink">{getDisplayFileCode(selectedDocDetails)}</p>
@@ -482,9 +582,9 @@ export default function MyDocumentsStatus() {
             )}
           </div>
 
-          <div className="border-t border-border pt-6">
-            <h4 className="mb-4 text-sm font-semibold text-ink">{t('workflow_history')}</h4>
-            <div className="space-y-4">
+            <div className="border-t border-border pt-6">
+              <h4 className="mb-4 text-sm font-semibold text-ink">{t('workflow_history')}</h4>
+              <div className="space-y-4">
               {workflowHistory.map((item, index) => (
                 <div key={index} className="flex gap-3">
                   <div className="flex flex-col items-center">
@@ -524,11 +624,15 @@ export default function MyDocumentsStatus() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     )
+
+    if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return panel
+    return ReactDOM.createPortal(panel, document.body)
   }
 
   return (
@@ -545,14 +649,6 @@ export default function MyDocumentsStatus() {
           setRemarksLoading(false)
         }}
       />
-
-      {/* Overlay when details panel is open */}
-      {showDetailsPanel && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 transition-opacity"
-          onClick={() => setShowDetailsPanel(false)}
-        />
-      )}
 
       {/* Document Details Panel */}
       {showDetailsPanel && <DocumentDetailsPanel />}
@@ -572,41 +668,31 @@ export default function MyDocumentsStatus() {
           </AppSurface>
         )}
 
-        {!loading && documents.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            {summaryCards(t).map((item) => {
-              const count = documents.filter((doc) => matchesStatusFilter(doc, item.status)).length
-              const isActive = statusFilter === item.status
-
-              return (
-                <AppSurface
-                  key={item.status}
-                  as="button"
-                  type="button"
-                  onClick={() => setStatusFilter(item.status)}
-                  padding="md"
-                  className={[
-                    'text-left transition-all',
-                    isActive ? summaryToneClassMap[item.tone] : 'border-border hover:border-brand/20 hover:bg-surface-muted'
-                  ].join(' ')}
-                >
-                  <div className="text-2xl font-semibold text-ink">{count}</div>
-                  <div className="mt-1 text-xs text-ink-muted">{item.label}</div>
-                </AppSurface>
-              )
-            })}
-          </div>
-        )}
-
         {currentTracking ? (
-          <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
-        ) : (
-          <AppSurface padding="lg">
-            <EmptyPanelState
-              title={t('select_doc_track')}
-              description={t('click_doc_view')}
+          <div className="space-y-4">
+            <ProgressTracker currentStage={currentStage} trackingId={currentTracking} />
+            <StageFilterBar
+              documents={documents}
+              stageFilter={stageFilter}
+              onStageFilterChange={setStageFilter}
+              onClear={clearListFilters}
             />
-          </AppSurface>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <AppSurface padding="lg">
+              <EmptyPanelState
+                title={t('select_doc_track')}
+                description={t('click_doc_view')}
+              />
+            </AppSurface>
+            <StageFilterBar
+              documents={documents}
+              stageFilter={stageFilter}
+              onStageFilterChange={setStageFilter}
+              onClear={clearListFilters}
+            />
+          </div>
         )}
 
         <AppSurface padding="lg" className="space-y-6" data-tour-id="my-docs-list-card">
@@ -672,7 +758,7 @@ export default function MyDocumentsStatus() {
                     <Th>{t('version')}</Th>
                     <Th>{t('last_updated')}</Th>
                     <Th>{t('status')}</Th>
-                    <Th align="center">{t('actions')}</Th>
+                    <Th stickyRight align="center">{t('actions')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -690,9 +776,9 @@ export default function MyDocumentsStatus() {
                       <td colSpan="7" className="px-4 py-4">
                         <EmptyState
                           message={t('no_docs_found')}
-                          description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
-                          actionLabel={searchQuery ? t('clear_search') : (statusFilter !== 'All' ? t('clear_filter') : null)}
-                          onAction={searchQuery ? () => setSearchQuery('') : (statusFilter !== 'All' ? () => setStatusFilter('All') : null)}
+                          description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
+                          actionLabel={searchQuery ? t('clear_search') : ((statusFilter !== 'All' || stageFilter !== 'all') ? t('clear_filter') : null)}
+                          onAction={searchQuery ? () => setSearchQuery('') : ((statusFilter !== 'All' || stageFilter !== 'all') ? clearListFilters : null)}
                         />
                       </td>
                     </tr>
@@ -720,7 +806,7 @@ export default function MyDocumentsStatus() {
                         <Td>{doc.version}</Td>
                         <Td>{formatDate(doc.updatedAt || doc.lastUpdated)}</Td>
                         <Td><StatusBadge status={doc.status} /></Td>
-                        <Td align="center">
+                        <Td stickyRight align="center">
                           <Button
                             type="button"
                             onClick={(e) => {
@@ -750,9 +836,9 @@ export default function MyDocumentsStatus() {
             ) : currentDocuments.length === 0 ? (
               <EmptyState
                 message={t('no_docs_found')}
-                description={searchQuery || statusFilter !== 'All' ? t('try_adjusting') : t('no_docs_yet')}
-                actionLabel={searchQuery ? t('clear_search') : null}
-                onAction={searchQuery ? () => setSearchQuery('') : null}
+                description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
+                actionLabel={searchQuery ? t('clear_search') : ((statusFilter !== 'All' || stageFilter !== 'all') ? t('clear_filter') : null)}
+                onAction={searchQuery ? () => setSearchQuery('') : ((statusFilter !== 'All' || stageFilter !== 'all') ? clearListFilters : null)}
               />
             ) : (
               currentDocuments.map((doc) => (

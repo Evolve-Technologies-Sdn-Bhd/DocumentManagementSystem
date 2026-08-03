@@ -71,10 +71,10 @@ export default function SystemReports() {
     {
       id: 'document-request',
       name: 'Document Request Report',
-      description: 'Summary of new document requests (NDR) and version requests (NVR) with acknowledgment status',
+      description: 'Summary of new document, version, supersede, and obsolete requests across the request lifecycle',
       category: 'Requests',
       estimatedTime: '1 minute',
-      metrics: ['Total requests', 'Pending acknowledgment', 'Acknowledged', 'By document type', 'By requester']
+      metrics: ['Total requests', 'By request type', 'By status', 'By document type', 'By requester']
     },
     {
       id: 'security-audit',
@@ -103,14 +103,7 @@ export default function SystemReports() {
   ]
 
   const handleViewReport = (reportId) => {
-    // Navigate to report viewer with default 30-day date range
-    const today = new Date()
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-    const params = new URLSearchParams({
-      dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
-      dateTo: today.toISOString().split('T')[0]
-    })
-    navigate(`/reports/${reportId}?${params.toString()}`)
+    navigate(`/reports/${reportId}`)
   }
 
   const handleDownloadReport = async (report) => {

@@ -314,7 +314,7 @@ function RolesManagement() {
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_users_count')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
               <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_active')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('action')}</th>
+              <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -324,7 +324,7 @@ function RolesManagement() {
               <tr><td colSpan="6" className="text-center py-12 text-gray-500">{t('rp_no_roles')}</td></tr>
             ) : (
               pageItems.map((role) => (
-                <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={role.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4 font-medium text-gray-900">{role.roleName}</td>
                   <td className="py-4 px-4 text-gray-600">{role.description}</td>
                   <td className="py-4 px-4 text-gray-700">{role.usersCount}</td>
@@ -343,7 +343,7 @@ function RolesManagement() {
                       </button>
                     </div>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
                     <ActionMenu
                       actions={role._originalData?.isSystem ? [
                         { label: t('rp_edit_permissions'), onClick: () => handleEdit(role) }
@@ -627,7 +627,8 @@ function UsersManagement() {
           firstName,
           lastName,
           department: userData.department || null,
-          roleIds: roleIds.length > 0 ? roleIds : undefined
+          roleIds: roleIds.length > 0 ? roleIds : undefined,
+          divisionIds: Array.isArray(userData.divisionIds) ? userData.divisionIds : undefined
         }
         
         await api.post('/users', createPayload)
@@ -727,7 +728,7 @@ function UsersManagement() {
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_department')}</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
               <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_active')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('action')}</th>
+              <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -737,7 +738,7 @@ function UsersManagement() {
               <tr><td colSpan="7" className="text-center py-12 text-gray-500">{t('rp_no_users')}</td></tr>
             ) : (
               pageItems.map((user) => (
-                <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={user.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                   <td className="py-4 px-4 font-medium text-gray-900">{user.userName}</td>
                   <td className="py-4 px-4 text-gray-600">{user.email}</td>
                   <td className="py-4 px-4">
@@ -765,7 +766,7 @@ function UsersManagement() {
                       </button>
                     </div>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
                     <ActionMenu
                       actions={[
                         { label: t('rp_edit'), onClick: () => handleEdit(user), dividerAfter: true },

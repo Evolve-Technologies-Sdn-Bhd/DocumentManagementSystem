@@ -13,6 +13,8 @@ const ROUTE_PRIORITY = [
   { path: '/dashboard', module: 'dashboard' },
   { path: '/project-tracking', module: 'projectTracking' },
   { path: '/expiry-tracking', module: 'expiryTracking' },
+  { path: '/tender-book', module: 'crm.tenderBook' },
+  { path: '/fb-enquiries', module: 'crm.fbEnquiry' },
   { path: '/new-document-request', module: 'newDocumentRequest' },
   { path: '/my-documents', module: 'myDocumentsStatus' },
   { path: '/drafts', module: 'documents.draft' },

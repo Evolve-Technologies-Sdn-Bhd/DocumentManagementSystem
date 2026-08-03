@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { DocumentTextIcon, UserIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon, XCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { DocumentTextIcon, EyeIcon, EyeSlashIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import api from '../api/axios'
 import { getDefaultRoute } from '../utils/defaultRoute'
 import { updateUserData } from '../utils/userDataEvents'
@@ -35,26 +35,16 @@ export default function Login() {
   const [loginPageSettings, setLoginPageSettings] = useState(() => normalizeLoginPageSettings(initialLoginPageSettings))
   const [settingsReady, setSettingsReady] = useState(() => !!initialLoginPageSettings)
   const [showPassword, setShowPassword] = useState(false)
-  const [showChangePassword, setShowChangePassword] = useState(false)
-  const [changePasswordData, setChangePasswordData] = useState({
-    username: '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  })
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [changePasswordMessage, setChangePasswordMessage] = useState('')
-  const [changePasswordLoading, setChangePasswordLoading] = useState(false)
-  const [passwordStrength, setPasswordStrength] = useState({
-    score: 0,
-    hasMinLength: false,
-    hasUpperCase: false,
-    hasLowerCase: false,
-    hasNumber: false,
-    hasSpecialChar: false
-  })
+  const [authPanel, setAuthPanel] = useState('login')
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [forgotPasswordCode, setForgotPasswordCode] = useState('')
+  const [forgotNewPassword, setForgotNewPassword] = useState('')
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('')
+  const [forgotShowNewPassword, setForgotShowNewPassword] = useState(false)
+  const [forgotShowConfirmPassword, setForgotShowConfirmPassword] = useState(false)
+  const [forgotPasswordFeedback, setForgotPasswordFeedback] = useState(null)
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotResendTimer, setForgotResendTimer] = useState(0)
   const navigate = useNavigate()
 
   // Resend Timer
@@ -67,6 +57,16 @@ export default function Login() {
     }
     return () => clearInterval(interval)
   }, [resendTimer])
+
+  useEffect(() => {
+    let interval
+    if (forgotResendTimer > 0) {
+      interval = setInterval(() => {
+        setForgotResendTimer((prev) => prev - 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [forgotResendTimer])
 
   useEffect(() => {
     setBranding(readBranding())
@@ -107,15 +107,14 @@ export default function Login() {
     }
   }, [])
 
-  async function submit(e) {
-    e.preventDefault()
+  async function loginWithCredentials(nextEmail, nextPassword) {
     setError(null)
     setLoading(true)
     
     try {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
-      const res = await api.post('/auth/login', { email, password })
+      const res = await api.post('/auth/login', { email: nextEmail, password: nextPassword })
       // Backend returns: { success: true, message: "...", data: { user, accessToken, refreshToken } }
       
       // Check for 2FA Requirement
@@ -171,6 +170,11 @@ export default function Login() {
       setLoading(false)
       console.error(err)
     }
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    await loginWithCredentials(email, password)
   }
 
   // 2FA Handlers
@@ -254,111 +258,108 @@ export default function Login() {
     }
   }
 
-  // Password strength checker
-  const checkPasswordStrength = (password) => {
-    const strength = {
-      score: 0,
-      hasMinLength: password.length >= 8,
-      hasUpperCase: /[A-Z]/.test(password),
-      hasLowerCase: /[a-z]/.test(password),
-      hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*]/.test(password)
-    }
-    
-    // Calculate score
-    if (strength.hasMinLength) strength.score++
-    if (strength.hasUpperCase) strength.score++
-    if (strength.hasLowerCase) strength.score++
-    if (strength.hasNumber) strength.score++
-    if (strength.hasSpecialChar) strength.score++
-    
-    setPasswordStrength(strength)
-  }
-
-  const handleNewPasswordChange = (value) => {
-    setChangePasswordData(prev => ({ ...prev, newPassword: value }))
-    checkPasswordStrength(value)
-  }
-
-  async function handleChangePassword(e) {
+  async function handleForgotPassword(e) {
     e.preventDefault()
-    setChangePasswordMessage('')
-    
-    // Validation
-    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
-      setChangePasswordMessage('New passwords do not match')
-      return
-    }
-    
-    const meetsAllPasswordRequirements =
-      passwordStrength.hasMinLength &&
-      passwordStrength.hasUpperCase &&
-      passwordStrength.hasLowerCase &&
-      passwordStrength.hasNumber &&
-      passwordStrength.hasSpecialChar
+    setError(null)
+    setForgotPasswordFeedback(null)
+    setForgotPasswordLoading(true)
 
-    if (!meetsAllPasswordRequirements) {
-      setChangePasswordMessage('new password set does not follow password requirements')
-      return
-    }
-    
-    setChangePasswordLoading(true)
-    
     try {
-      // First, login to verify username and current password
-      const loginRes = await api.post('/auth/login', { 
-        email: changePasswordData.username, 
-        password: changePasswordData.currentPassword 
+      const res = await api.post('/auth/forgot-password', {
+        email: forgotPasswordEmail.trim()
       })
-      
-      // Handle 2FA enabled accounts
-      if (loginRes.data?.data?.requires2FA) {
-        setChangePasswordMessage('Two-factor authentication is enabled. Please log in normally and change your password from Profile Settings.')
-        setChangePasswordLoading(false)
-        return
-      }
 
-      const token = loginRes.data?.data?.accessToken
-      if (!token) {
-        throw new Error('Authentication failed')
-      }
-      
-      // Then change the password
-      const changeRes = await api.post('/auth/change-password', {
-        currentPassword: changePasswordData.currentPassword,
-        newPassword: changePasswordData.newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      setForgotPasswordFeedback({
+        type: 'success',
+        message: res.data?.message || 'If the email is registered, a reset code has been sent.'
       })
-      
-      setChangePasswordMessage('Password changed successfully! Redirecting to login...')
-      setTimeout(() => {
-        setShowChangePassword(false)
-        setChangePasswordData({
-          username: '',
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        })
-        setPasswordStrength({
-          score: 0,
-          hasMinLength: false,
-          hasUpperCase: false,
-          hasLowerCase: false,
-          hasNumber: false,
-          hasSpecialChar: false
-        })
-        setChangePasswordMessage('')
-      }, 2000)
+      setAuthPanel('forgot_code')
+      setForgotResendTimer(60)
     } catch (err) {
-      const backendMessage = err.response?.data?.message
-      setChangePasswordMessage(
-        backendMessage && /validation failed/i.test(backendMessage)
-          ? 'new password set does not follow password requirements'
-          : (backendMessage || 'Failed to change password. Please check your credentials.')
-      )
+      setForgotPasswordFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to send reset code. Please try again.'
+      })
     } finally {
-      setChangePasswordLoading(false)
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleResendForgotCode() {
+    if (forgotResendTimer > 0) return
+    setError(null)
+    setForgotPasswordFeedback(null)
+    setForgotPasswordLoading(true)
+
+    try {
+      const res = await api.post('/auth/forgot-password', {
+        email: forgotPasswordEmail.trim()
+      })
+
+      setForgotPasswordFeedback({
+        type: 'success',
+        message: res.data?.message || 'If the email is registered, a reset code has been sent.'
+      })
+      setForgotResendTimer(60)
+    } catch (err) {
+      setForgotPasswordFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to resend reset code. Please try again.'
+      })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleVerifyForgotCode(e) {
+    e.preventDefault()
+    setError(null)
+    setForgotPasswordFeedback(null)
+    setForgotPasswordLoading(true)
+
+    try {
+      await api.post('/auth/verify-reset-code', {
+        email: forgotPasswordEmail.trim(),
+        code: forgotPasswordCode.trim()
+      })
+      setAuthPanel('forgot_new')
+    } catch (err) {
+      const nextMessage = err.response?.data?.message || 'Invalid or expired reset code'
+      setForgotPasswordFeedback({ type: 'error', message: nextMessage })
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
+
+  async function handleResetPasswordWithCode(e) {
+    e.preventDefault()
+    setError(null)
+    setForgotPasswordFeedback(null)
+
+    const nextNewPassword = forgotNewPassword
+    const nextConfirm = forgotConfirmPassword
+    if (nextNewPassword !== nextConfirm) {
+      setForgotPasswordFeedback({ type: 'error', message: 'Passwords do not match' })
+      return
+    }
+
+    setForgotPasswordLoading(true)
+    try {
+      await api.post('/auth/reset-password-code', {
+        email: forgotPasswordEmail.trim(),
+        code: forgotPasswordCode.trim(),
+        newPassword: nextNewPassword
+      })
+
+      setEmail(forgotPasswordEmail.trim())
+      setPassword(nextNewPassword)
+      setAuthPanel('login')
+      await loginWithCredentials(forgotPasswordEmail.trim(), nextNewPassword)
+    } catch (err) {
+      const nextMessage = err.response?.data?.message || 'Failed to reset password'
+      setForgotPasswordFeedback({ type: 'error', message: nextMessage })
+    } finally {
+      setForgotPasswordLoading(false)
     }
   }
 
@@ -387,6 +388,7 @@ export default function Login() {
   const showRequiredAsterisk = formCopy.showRequiredAsterisk !== false
   const inputClass = 'w-full rounded-[10px] border border-[#D9DEE8] bg-white px-4 py-[10px] text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
   const passwordInputClass = `${inputClass} pr-12`
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-gray-600 focus:outline-none'
   const heroBackgroundStyle = hero.heroImage
     ? `linear-gradient(90deg, rgba(23, 23, 35, 0.58), rgba(12, 25, 58, 0.32)), url('${hero.heroImage}')`
     : `linear-gradient(135deg, var(--dms-login-bg-start, #3F3F46), var(--dms-login-bg-end, #0F172A))`
@@ -642,7 +644,7 @@ export default function Login() {
                     </button>
                   </div>
                 </form>
-              ) : !showChangePassword ? (
+              ) : authPanel === 'login' ? (
               <form onSubmit={submit} className="space-y-5">
                 {/* Email/Username Input */}
                 <div>
@@ -680,7 +682,8 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                      className={passwordToggleClass}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="h-4.5 w-4.5" />
@@ -710,7 +713,15 @@ export default function Login() {
                   {formCopy.showForgotPassword ? (
                     <button
                       type="button"
-                      onClick={() => setShowChangePassword(true)}
+                      onClick={() => {
+                        setError(null)
+                        setForgotPasswordFeedback(null)
+                        setAuthPanel('forgot_email')
+                        setForgotPasswordEmail(email)
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                      }}
                       className="whitespace-nowrap text-sm font-medium text-blue-600 transition-colors hover:text-blue-800"
                     >
                       {formCopy.forgotPasswordText || t('forgot_password_q')}
@@ -743,244 +754,298 @@ export default function Login() {
                   {loading ? t('logging_in') : formCopy.loginButtonLabel}
                 </button>
               </form>
-              ) : (
-                /* Change Password Form */
-                <form onSubmit={handleChangePassword} className="space-y-5">
+              ) : authPanel === 'forgot_email' ? (
+                <form onSubmit={handleForgotPassword} className="space-y-5">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('change_password_title')}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{t('change_password_desc')}</p>
+                    <h3 className="mb-2 text-xl font-semibold text-gray-900">Forgot Password</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                      Enter your registered email address and we will send you a 6-digit reset code.
+                    </p>
                   </div>
-                  
-                  {changePasswordMessage && (
-                    <div className={`p-3 rounded-lg border ${changePasswordMessage.includes('Failed') || changePasswordMessage.includes('not match') || changePasswordMessage.includes('weak') || changePasswordMessage.includes('requirements') ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-                      <p className={`text-sm ${changePasswordMessage.includes('Failed') || changePasswordMessage.includes('not match') || changePasswordMessage.includes('weak') || changePasswordMessage.includes('requirements') ? 'text-red-800' : 'text-green-800'}`}>{changePasswordMessage}</p>
+
+                  {forgotPasswordFeedback ? (
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        forgotPasswordFeedback.type === 'error'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm ${
+                          forgotPasswordFeedback.type === 'error' ? 'text-red-800' : 'text-green-800'
+                        }`}
+                      >
+                        {forgotPasswordFeedback.message}
+                      </p>
                     </div>
-                  )}
-                  
-                  {/* Username */}
+                  ) : null}
+
                   <div>
-                    <label htmlFor="changeUsername" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      <UserIcon className="inline h-4 w-4 mr-1" />
-                      {t('username_or_email')}
+                    <label htmlFor="forgotPasswordEmail" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Email
                     </label>
                     <input
-                      type="text"
-                      id="changeUsername"
-                      value={changePasswordData.username}
-                      onChange={e => setChangePasswordData(prev => ({ ...prev, username: e.target.value }))}
+                      type="email"
+                      id="forgotPasswordEmail"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
                       required
-                      className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
-                      placeholder="username or email"
+                      className={inputClass}
+                      placeholder="name@company.com"
                     />
                   </div>
-                  
-                  {/* Current Password */}
-                  <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      <LockClosedIcon className="inline h-4 w-4 mr-1" />
-                      {t('current_password')}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showCurrentPassword ? "text" : "password"}
-                        id="currentPassword"
-                        value={changePasswordData.currentPassword}
-                        onChange={e => setChangePasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                        required
-                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {showCurrentPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* New Password */}
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      <LockClosedIcon className="inline h-4 w-4 mr-1" />
-                      {t('new_password')}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? "text" : "password"}
-                        id="newPassword"
-                        value={changePasswordData.newPassword}
-                        onChange={e => handleNewPasswordChange(e.target.value)}
-                        required
-                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {showNewPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    
-                    {/* Password Strength Indicator */}
-                    {changePasswordData.newPassword && (
-                      <div className="mt-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full transition-all duration-300 ${
-                                passwordStrength.score <= 2 ? 'bg-red-500' :
-                                passwordStrength.score === 3 ? 'bg-yellow-500' :
-                                passwordStrength.score === 4 ? 'bg-blue-500' :
-                                'bg-green-500'
-                              }`}
-                              style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-xs font-medium ${
-                            passwordStrength.score <= 2 ? 'text-red-600' :
-                            passwordStrength.score === 3 ? 'text-yellow-600' :
-                            passwordStrength.score === 4 ? 'text-blue-600' :
-                            'text-green-600'
-                          }`}>
-                            {passwordStrength.score <= 2 ? t('weak') :
-                             passwordStrength.score === 3 ? t('fair') :
-                             passwordStrength.score === 4 ? t('good') :
-                             t('strong')}
-                          </span>
-                        </div>
-                        
-                        {/* Requirements Checklist */}
-                        <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
-                          <p className="text-xs font-medium text-gray-700 mb-2">{t('pass_req_title')}</p>
-                          <div className="flex items-center gap-2">
-                            {passwordStrength.hasMinLength ? 
-                              <CheckCircleIcon className="h-4 w-4 text-green-500" /> : 
-                              <XCircleIcon className="h-4 w-4 text-red-500" />}
-                            <span className={`text-xs ${passwordStrength.hasMinLength ? 'text-green-700' : 'text-red-700'}`}>
-                              {t('pass_req_min_len')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {passwordStrength.hasUpperCase ? 
-                              <CheckCircleIcon className="h-4 w-4 text-green-500" /> : 
-                              <XCircleIcon className="h-4 w-4 text-red-500" />}
-                            <span className={`text-xs ${passwordStrength.hasUpperCase ? 'text-green-700' : 'text-red-700'}`}>
-                              {t('pass_req_upper')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {passwordStrength.hasLowerCase ? 
-                              <CheckCircleIcon className="h-4 w-4 text-green-500" /> : 
-                              <XCircleIcon className="h-4 w-4 text-red-500" />}
-                            <span className={`text-xs ${passwordStrength.hasLowerCase ? 'text-green-700' : 'text-red-700'}`}>
-                              {t('pass_req_lower')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {passwordStrength.hasNumber ? 
-                              <CheckCircleIcon className="h-4 w-4 text-green-500" /> : 
-                              <XCircleIcon className="h-4 w-4 text-red-500" />}
-                            <span className={`text-xs ${passwordStrength.hasNumber ? 'text-green-700' : 'text-red-700'}`}>
-                              {t('pass_req_number')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {passwordStrength.hasSpecialChar ? 
-                              <CheckCircleIcon className="h-4 w-4 text-green-500" /> : 
-                              <XCircleIcon className="h-4 w-4 text-red-500" />}
-                            <span className={`text-xs ${passwordStrength.hasSpecialChar ? 'text-green-700' : 'text-red-700'}`}>
-                              {t('pass_req_special')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Confirm Password */}
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      <LockClosedIcon className="inline h-4 w-4 mr-1" />
-                      {t('confirm_new_password')}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showConfirmPassword ? "text" : "password"}
-                        id="confirmPassword"
-                        value={changePasswordData.confirmPassword}
-                        onChange={e => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        required
-                        className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-4 py-3 pr-11 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                      </button>
-                    </div>
-                    {changePasswordData.confirmPassword && changePasswordData.newPassword !== changePasswordData.confirmPassword && (
-                      <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                        <XCircleIcon className="h-3.5 w-3.5" />
-                        {t('pass_mismatch')}
-                      </p>
-                    )}
-                    {changePasswordData.confirmPassword && changePasswordData.newPassword === changePasswordData.confirmPassword && (
-                      <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
-                        <CheckCircleIcon className="h-3.5 w-3.5" />
-                        {t('pass_match')}
-                      </p>
-                    )}
-                  </div>
-                  
+
                   <div className="space-y-2.5 pt-2">
                     <button
                       type="submit"
-                      disabled={changePasswordLoading}
-                      className="w-full rounded-2xl py-3.5 text-base font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={forgotPasswordLoading}
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold transition-colors focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
                       style={{
-                        backgroundColor: changePasswordLoading ? 'var(--dms-login-btn-bg, #2563EB)' : `var(--dms-login-btn-bg, #2563EB)`,
-                        color: `var(--dms-login-btn-text, #FFFFFF)`,
+                        backgroundColor: 'var(--dms-login-btn-bg, #2563EB)',
+                        color: 'var(--dms-login-btn-text, #FFFFFF)',
                       }}
                       onMouseEnter={(e) => {
-                        if (!changePasswordLoading) {
-                          e.target.style.backgroundColor = `var(--dms-login-btn-hover, #1D4ED8)`
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-hover, #1D4ED8)'
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!changePasswordLoading) {
-                          e.target.style.backgroundColor = `var(--dms-login-btn-bg, #2563EB)`
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-bg, #2563EB)'
                         }
                       }}
                     >
-                      {changePasswordLoading ? t('changing_password') : t('change_password_title')}
+                      {forgotPasswordLoading ? 'Sending code...' : 'Send code'}
                     </button>
-                    
+
                     <button
                       type="button"
                       onClick={() => {
-                        setShowChangePassword(false)
-                        setChangePasswordData({
-                          username: '',
-                          currentPassword: '',
-                          newPassword: '',
-                          confirmPassword: ''
-                        })
-                        setPasswordStrength({
-                          score: 0,
-                          hasMinLength: false,
-                          hasUpperCase: false,
-                          hasLowerCase: false,
-                          hasNumber: false,
-                          hasSpecialChar: false
-                        })
-                        setChangePasswordMessage('')
+                        setError(null)
+                        setAuthPanel('login')
+                        setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                        setForgotPasswordFeedback(null)
+                      }}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      {t('back_to_login')}
+                    </button>
+                  </div>
+                </form>
+              ) : authPanel === 'forgot_code' ? (
+                <form onSubmit={handleVerifyForgotCode} className="space-y-5">
+                  <div>
+                    <h3 className="mb-2 text-xl font-semibold text-gray-900">Verify Reset Code</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                      Enter the 6-digit code sent to your email.
+                    </p>
+                  </div>
+
+                  {forgotPasswordFeedback ? (
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        forgotPasswordFeedback.type === 'error'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm ${
+                          forgotPasswordFeedback.type === 'error' ? 'text-red-800' : 'text-green-800'
+                        }`}
+                      >
+                        {forgotPasswordFeedback.message}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label htmlFor="forgotPasswordCode" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Reset Code
+                    </label>
+                    <input
+                      type="text"
+                      id="forgotPasswordCode"
+                      value={forgotPasswordCode}
+                      onChange={(e) => setForgotPasswordCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      className="w-full rounded-2xl border border-gray-200 bg-[#F3F7FD] px-5 py-4 text-center font-mono text-2xl tracking-[0.5em] text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-300"
+                      placeholder="000000"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="space-y-2.5 pt-2">
+                    <button
+                      type="submit"
+                      disabled={forgotPasswordLoading || forgotPasswordCode.length !== 6}
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold transition-colors focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        backgroundColor: 'var(--dms-login-btn-bg, #2563EB)',
+                        color: 'var(--dms-login-btn-text, #FFFFFF)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-hover, #1D4ED8)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-bg, #2563EB)'
+                        }
+                      }}
+                    >
+                      {forgotPasswordLoading ? 'Verifying...' : 'Verify code'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResendForgotCode}
+                      disabled={forgotResendTimer > 0 || forgotPasswordLoading}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {forgotResendTimer > 0 ? `Resend code (${forgotResendTimer}s)` : 'Resend code'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setAuthPanel('login')
+                        setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                        setForgotPasswordFeedback(null)
+                      }}
+                      className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                    >
+                      {t('back_to_login')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPasswordWithCode} className="space-y-5">
+                  <div>
+                    <h3 className="mb-2 text-xl font-semibold text-gray-900">Set New Password</h3>
+                    <p className="mb-4 text-sm text-gray-600">
+                      Enter a new password for your account.
+                    </p>
+                  </div>
+
+                  {forgotPasswordFeedback ? (
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        forgotPasswordFeedback.type === 'error'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                      }`}
+                    >
+                      <p
+                        className={`text-sm ${
+                          forgotPasswordFeedback.type === 'error' ? 'text-red-800' : 'text-green-800'
+                        }`}
+                      >
+                        {forgotPasswordFeedback.message}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label htmlFor="forgotNewPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={forgotShowNewPassword ? 'text' : 'password'}
+                        id="forgotNewPassword"
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        required
+                        className={passwordInputClass}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForgotShowNewPassword(!forgotShowNewPassword)}
+                        className={passwordToggleClass}
+                        aria-label={forgotShowNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {forgotShowNewPassword ? (
+                          <EyeSlashIcon className="h-4.5 w-4.5" />
+                        ) : (
+                          <EyeIcon className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="forgotConfirmPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={forgotShowConfirmPassword ? 'text' : 'password'}
+                        id="forgotConfirmPassword"
+                        value={forgotConfirmPassword}
+                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        required
+                        className={passwordInputClass}
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForgotShowConfirmPassword(!forgotShowConfirmPassword)}
+                        className={passwordToggleClass}
+                        aria-label={forgotShowConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {forgotShowConfirmPassword ? (
+                          <EyeSlashIcon className="h-4.5 w-4.5" />
+                        ) : (
+                          <EyeIcon className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2">
+                    <button
+                      type="submit"
+                      disabled={forgotPasswordLoading}
+                      className="w-full rounded-2xl py-3.5 text-base font-semibold transition-colors focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      style={{
+                        backgroundColor: 'var(--dms-login-btn-bg, #2563EB)',
+                        color: 'var(--dms-login-btn-text, #FFFFFF)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-hover, #1D4ED8)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!forgotPasswordLoading) {
+                          e.target.style.backgroundColor = 'var(--dms-login-btn-bg, #2563EB)'
+                        }
+                      }}
+                    >
+                      {forgotPasswordLoading ? 'Updating password...' : 'Reset password & sign in'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setAuthPanel('login')
+                        setForgotPasswordEmail('')
+                        setForgotPasswordCode('')
+                        setForgotNewPassword('')
+                        setForgotConfirmPassword('')
+                        setForgotPasswordFeedback(null)
                       }}
                       className="w-full rounded-2xl border-2 border-gray-300 py-3.5 text-base font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                     >

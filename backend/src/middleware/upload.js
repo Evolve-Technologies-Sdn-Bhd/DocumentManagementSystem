@@ -332,5 +332,6 @@ module.exports = {
   uploadTemplate,
   uploadProfileImage,
   uploadLandingPdf,
+  createUploadMiddleware,
   updateFileUploadSettingsCache
 };

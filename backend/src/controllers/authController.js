@@ -4,6 +4,8 @@ const securityService = require('../services/securityService');
 const twoFactorService = require('../services/twoFactorService');
 const trustedDeviceService = require('../services/trustedDeviceService');
 const auditSettingsService = require('../services/auditSettingsService');
+const emailService = require('../services/emailService');
+const configService = require('../services/configService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
 const prisma = require('../config/database');
@@ -15,6 +17,30 @@ class AuthController {
   getClientIp(req) {
     const { getClientIp } = require('../utils/clientIp')
     return getClientIp(req) || 'Unknown'
+  }
+
+  isSystemAdminUser(user) {
+    if (!user) return false
+    if (user?.permissions?.all === true) return true
+
+    const roles = Array.isArray(user.roles) ? user.roles : []
+    const systemNames = new Set(['system administrator', 'system_admin', 'system-admin'])
+
+    return roles.some((roleData) => {
+      const role = roleData?.role || roleData
+      const roleName = String(role?.name || role?.displayName || '').toLowerCase()
+      if (systemNames.has(roleName)) return true
+
+      let permissions = role?.permissions
+      if (typeof permissions === 'string') {
+        try {
+          permissions = JSON.parse(permissions)
+        } catch {
+          permissions = null
+        }
+      }
+      return permissions?.all === true
+    })
   }
 
   /**
@@ -34,13 +60,16 @@ class AuthController {
     const ipAddress = this.getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
+    const maintenance = await configService.getMaintenanceSettings();
+    const maintenanceEnabled = maintenance?.enabled === true;
+
     // First check if 2FA would be required (check system setting and validate credentials)
     const is2FASystemEnabled = await twoFactorService.is2FAEnabled();
     
     let result;
     try {
       // Pre-validate to check if user has 2FA enabled before creating session
-      result = await authService.login(email, password, ipAddress, userAgent, { skipSession: is2FASystemEnabled });
+      result = await authService.login(email, password, ipAddress, userAgent, { skipSession: is2FASystemEnabled || maintenanceEnabled });
     } catch (error) {
       // Log failed login attempt
       try {
@@ -72,6 +101,15 @@ class AuthController {
         console.error('Failed to record login audit event:', auditError);
       }
       throw error; // Re-throw to let error handler respond
+    }
+
+    if (maintenanceEnabled && !this.isSystemAdminUser(result.user)) {
+      return ResponseFormatter.error(
+        res,
+        maintenance.message || 'System is under maintenance',
+        503,
+        { code: 'MAINTENANCE_MODE', maintenance }
+      );
     }
     
     const isUser2FAEnabled = result.user.twoFactorEnabled;
@@ -217,6 +255,41 @@ class AuthController {
       ]);
     }
 
+    const maintenance = await configService.getMaintenanceSettings();
+    if (maintenance?.enabled) {
+      const session = await prisma.userSession.findUnique({
+        where: { refreshToken },
+        include: {
+          user: {
+            include: {
+              roles: {
+                include: {
+                  role: {
+                    select: {
+                      id: true,
+                      name: true,
+                      displayName: true,
+                      permissions: true,
+                      isSystem: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!session?.user || !this.isSystemAdminUser(session.user)) {
+        return ResponseFormatter.error(
+          res,
+          maintenance.message || 'System is under maintenance',
+          503,
+          { code: 'MAINTENANCE_MODE', maintenance }
+        );
+      }
+    }
+
     const tokens = await authService.refreshToken(refreshToken);
 
     return ResponseFormatter.success(
@@ -224,6 +297,67 @@ class AuthController {
       tokens,
       'Token refreshed successfully'
     );
+  });
+
+  /**
+   * Request password reset code via email
+   * POST /api/auth/forgot-password
+   */
+  forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+      return ResponseFormatter.validationError(res, [
+        { field: 'email', message: 'Email is required' }
+      ]);
+    }
+
+    const resetPayload = await authService.createPasswordResetCode(email);
+
+    if (resetPayload?.user?.email && resetPayload?.code) {
+      Promise.resolve().then(async () => {
+        await emailService.sendPasswordResetCodeEmail(resetPayload.user.email, {
+          firstName: resetPayload.user.firstName,
+          code: resetPayload.code,
+          expiresInMinutes: resetPayload.expiresInMinutes
+        });
+
+        await auditLogService.logAuth(resetPayload.user.id, 'PASSWORD_RESET_REQUESTED', req, {
+          email: resetPayload.user.email
+        });
+      }).catch((error) => {
+        console.error('Failed to send password reset code email:', error);
+      });
+    }
+
+    return ResponseFormatter.success(
+      res,
+      null,
+      'If the email is registered, a reset code has been sent.',
+      200
+    );
+  });
+
+  /**
+   * Verify reset code
+   * POST /api/auth/verify-reset-code
+   */
+  verifyResetCode = asyncHandler(async (req, res) => {
+    const { email, code } = req.body;
+
+    const errors = [];
+    if (!email) errors.push({ field: 'email', message: 'Email is required' });
+    if (!code) errors.push({ field: 'code', message: 'Reset code is required' });
+    if (errors.length > 0) {
+      return ResponseFormatter.validationError(res, errors);
+    }
+
+    const verification = await authService.verifyPasswordResetCode(email, code);
+    if (!verification.ok) {
+      return ResponseFormatter.error(res, 'Invalid or expired reset code', 400);
+    }
+
+    return ResponseFormatter.success(res, null, 'Reset code verified', 200);
   });
 
   /**
@@ -329,6 +463,43 @@ class AuthController {
   });
 
   /**
+   * Complete password reset using emailed code
+   * POST /api/auth/reset-password-code
+   */
+  resetPasswordWithCode = asyncHandler(async (req, res) => {
+    const { email, code, newPassword } = req.body;
+
+    const errors = [];
+    if (!email) errors.push({ field: 'email', message: 'Email is required' });
+    if (!code) errors.push({ field: 'code', message: 'Reset code is required' });
+    if (!newPassword) errors.push({ field: 'newPassword', message: 'New password is required' });
+
+    if (errors.length > 0) {
+      return ResponseFormatter.validationError(res, errors);
+    }
+
+    const passwordValidation = await securityService.validatePassword(newPassword);
+    if (!passwordValidation.valid) {
+      return ResponseFormatter.validationError(
+        res,
+        passwordValidation.errors.map((err) => ({ field: 'newPassword', message: err }))
+      );
+    }
+
+    const user = await authService.resetPasswordWithCode(email, code, newPassword);
+
+    await auditLogService.logAuth(user.id, 'PASSWORD_RESET_COMPLETED', req, {
+      email: user.email
+    });
+
+    return ResponseFormatter.success(
+      res,
+      null,
+      'Password reset successfully'
+    );
+  });
+
+  /**
    * Get user sessions
    * GET /api/auth/sessions
    */
@@ -370,6 +541,36 @@ class AuthController {
         { field: 'userId', message: 'User ID is required' },
         { field: 'code', message: 'Verification code is required' }
       ]);
+    }
+
+    const maintenance = await configService.getMaintenanceSettings();
+    if (maintenance?.enabled) {
+      const user = await prisma.user.findUnique({
+        where: { id: parseInt(userId) },
+        include: {
+          roles: {
+            include: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  permissions: true,
+                  isSystem: true
+                }
+              }
+            }
+          }
+        }
+      });
+      if (!this.isSystemAdminUser(user)) {
+        return ResponseFormatter.error(
+          res,
+          maintenance.message || 'System is under maintenance',
+          503,
+          { code: 'MAINTENANCE_MODE', maintenance }
+        );
+      }
     }
 
     const enabledMethods = await twoFactorService.getEnabledMethods();
@@ -429,6 +630,36 @@ class AuthController {
       return ResponseFormatter.validationError(res, [
         { field: 'userId', message: 'User ID is required' }
       ]);
+    }
+
+    const maintenance = await configService.getMaintenanceSettings();
+    if (maintenance?.enabled) {
+      const user = await prisma.user.findUnique({
+        where: { id: parseInt(userId) },
+        include: {
+          roles: {
+            include: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  permissions: true,
+                  isSystem: true
+                }
+              }
+            }
+          }
+        }
+      });
+      if (!this.isSystemAdminUser(user)) {
+        return ResponseFormatter.error(
+          res,
+          maintenance.message || 'System is under maintenance',
+          503,
+          { code: 'MAINTENANCE_MODE', maintenance }
+        );
+      }
     }
 
     if ((method || 'email') !== 'email') {

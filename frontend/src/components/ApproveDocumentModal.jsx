@@ -47,7 +47,9 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
     const fetchApprovers = async () => {
       try {
         setLoadingApprovers(true)
-        const res = await api.get('/users')
+        const res = await api.get('/users', {
+          params: document?.id ? { documentId: document.id, roleName: 'approver' } : { roleName: 'approver' }
+        })
         const users = res.data.data?.users || res.data.users || []
         
         // Get document owner ID to exclude from approvers
@@ -65,7 +67,6 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
           console.error('Error getting current user:', error)
         }
         
-        // Filter users who have roles with Approval permissions
         const approvers = users.filter(user => {
           // Exclude document owner from approvers list
           if (documentOwnerId && user.id === documentOwnerId) {
@@ -76,22 +77,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
           if (currentUserId && user.id === currentUserId) {
             return false
           }
-          
-          const userRoles = user.roles || []
-          
-          return userRoles.some(userRole => {
-            const role = userRole.role || {}
-            const roleName = (role.name || userRole.name || '').toLowerCase()
-            const permissions = role.permissions || {}
-            
-            // Only include users with Approver or Administrator roles
-            const isApproverRole = ['approver', 'administrator', 'admin'].includes(roleName)
-            const hasApprovalPermission = 
-              permissions?.reviewApproval?.approve ||
-              permissions?.['documents.reviewApproval']?.approve
-            
-            return isApproverRole || hasApprovalPermission
-          })
+          return user.status === 'ACTIVE'
         })
         
         const formattedApprovers = approvers.map(user => ({
@@ -109,7 +95,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
     }
     
     fetchApprovers()
-  }, [])
+  }, [document?.id])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target

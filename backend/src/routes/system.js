@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requireSystemAdmin } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const prisma = require('../config/database');
@@ -9,6 +9,7 @@ const backupController = require('../controllers/backupController');
 const configController = require('../controllers/configController');
 const cleanupController = require('../controllers/cleanupController');
 const securityService = require('../services/securityService');
+const divisionScopeService = require('../services/divisionScopeService')
 const { uploadLandingPdf } = require('../middleware/upload');
 
 /**
@@ -26,11 +27,18 @@ router.get('/info', authenticate, asyncHandler(async (req, res) => {
       where: { status: 'ACTIVE' }
     });
 
+    const docScopeWhere = divisionScopeService.isAdminUser(req.user)
+      ? null
+      : await divisionScopeService.buildAccessibleDocumentWhere(req.user, {})
+
     // Get total documents count
-    const totalDocuments = await prisma.document.count();
+    const totalDocuments = await prisma.document.count({
+      where: docScopeWhere || undefined
+    });
 
     // Get storage information from DocumentVersion table (where file sizes are stored)
     const versions = await prisma.documentVersion.findMany({
+      where: docScopeWhere ? { document: docScopeWhere } : undefined,
       select: { fileSize: true }
     });
 
@@ -55,8 +63,8 @@ router.get('/info', authenticate, asyncHandler(async (req, res) => {
     // Get database size estimate (count records in major tables)
     const [auditLogCount, documentCount, versionCount, userCount] = await Promise.all([
       prisma.auditLog.count(),
-      prisma.document.count(),
-      prisma.documentVersion.count(),
+      prisma.document.count({ where: docScopeWhere || undefined }),
+      prisma.documentVersion.count({ where: docScopeWhere ? { document: docScopeWhere } : undefined }),
       prisma.user.count()
     ]);
     
@@ -178,6 +186,10 @@ router.put('/config/departments/:id', authenticate, configController.updateDepar
 router.patch('/config/departments/:id/restore', authenticate, configController.restoreDepartment);
 router.delete('/config/departments/:id', authenticate, configController.deleteDepartment);
 
+// CRM FB Enquiry lookups
+router.get('/config/crm-fb-enquiry-lookups', authenticate, configController.getCrmFbEnquiryLookups);
+router.put('/config/crm-fb-enquiry-lookups', authenticate, configController.updateCrmFbEnquiryLookups);
+
 // Document Numbering Settings
 router.get('/config/document-numbering', authenticate, configController.getDocumentNumberingSettings);
 router.put('/config/document-numbering', authenticate, configController.updateDocumentNumberingSettings);
@@ -220,6 +232,8 @@ router.get('/config/company-info', authenticate, configController.getCompanyInfo
 router.put('/config/company-info', authenticate, configController.updateCompanyInfo);
 router.get('/config/theme-settings', authenticate, configController.getThemeSettings);
 router.put('/config/theme-settings', authenticate, configController.updateThemeSettings);
+router.get('/config/maintenance-settings', authenticate, requireSystemAdmin, configController.getMaintenanceSettings);
+router.put('/config/maintenance-settings', authenticate, requireSystemAdmin, configController.updateMaintenanceSettings);
 
 // Security Settings
 router.get('/config/security-settings', authenticate, asyncHandler(async (req, res) => {

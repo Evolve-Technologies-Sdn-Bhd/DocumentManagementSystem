@@ -282,3 +282,30 @@ exports.getBranding = asyncHandler(async (req, res) => {
 
   return ResponseFormatter.success(res, { companyInfo, theme }, 'Branding retrieved successfully');
 });
+
+exports.getMaintenanceStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
+  const config = await prisma.configuration.findUnique({
+    where: { key: 'maintenance_settings' }
+  });
+
+  let parsed = null;
+  if (config?.value) {
+    try {
+      parsed = JSON.parse(config.value);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  const enabled = Boolean(parsed?.enabled);
+  const message =
+    typeof parsed?.message === 'string' && parsed.message.trim()
+      ? parsed.message.trim()
+      : 'System is under maintenance';
+
+  return ResponseFormatter.success(res, { enabled, message }, 'Maintenance status retrieved successfully');
+});

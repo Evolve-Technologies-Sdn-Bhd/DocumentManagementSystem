@@ -3,12 +3,71 @@ const fileStorageService = require('./fileStorageService');
 const documentAssignmentService = require('./documentAssignmentService');
 const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
+const divisionScopeService = require('./divisionScopeService')
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const DocumentNumbering = require('../utils/documentNumbering');
 const path = require('path');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 class DocumentService {
+  normalizeContentFormat(value) {
+    const v = String(value || '').trim().toUpperCase()
+    if (!v) return 'FILE'
+    if (['FILE', 'RICH_TEXT', 'CHECKLIST', 'FORM', 'LINK', 'TABLE'].includes(v)) return v
+    return 'FILE'
+  }
+
+  async getAccessibleFolderIdsForUser(userOrUserId = null) {
+    if (!userOrUserId) return []
+
+    if (typeof userOrUserId === 'object') {
+      return divisionScopeService.getAccessibleFolderIdsForUser(userOrUserId)
+    }
+
+    return divisionScopeService.getAccessibleFolderIdsForUser({ id: userOrUserId })
+  }
+
+  async getAccessibleDivisionIdsForUser(userOrUserId = null) {
+    if (!userOrUserId) return []
+
+    if (typeof userOrUserId === 'object') {
+      if (userOrUserId.permissions?.all === true) {
+        const rows = await prisma.division.findMany({ select: { id: true } })
+        return rows.map((r) => r.id)
+      }
+      return Array.isArray(userOrUserId.divisionIds) && userOrUserId.divisionIds.length > 0
+        ? divisionScopeService.normalizeDivisionIds(userOrUserId.divisionIds)
+        : divisionScopeService.getUserDivisionIds(userOrUserId.id)
+    }
+
+    return divisionScopeService.getUserDivisionIds(userOrUserId)
+  }
+
+  buildAccessibleReadScopeClause(accessibleFolderIds = [], accessibleDivisionIds = [], preferredFolderIds = null) {
+    const scopedFolderIds = Array.isArray(preferredFolderIds) && preferredFolderIds.length > 0
+      ? preferredFolderIds.filter((id) => accessibleFolderIds.includes(id))
+      : accessibleFolderIds
+
+    return {
+      OR: [
+        { folderId: { in: scopedFolderIds } },
+        {
+          AND: [
+            { folderId: null },
+            { divisionId: { in: accessibleDivisionIds } }
+          ]
+        }
+      ]
+    }
+  }
+
+  async resolveDocumentDivisionId(data = {}, creatorId) {
+    const requestedDivisionId = data?.divisionId ? Number.parseInt(data.divisionId, 10) : null
+    if (Number.isFinite(requestedDivisionId)) return requestedDivisionId
+
+    return divisionScopeService.getPrimaryDivisionIdForUser({ id: creatorId })
+  }
+
   queueDocumentVersionEncryption(versionId, expectedFilePath = null) {
     setImmediate(async () => {
       const taskStart = startTimer()
@@ -591,7 +650,8 @@ class DocumentService {
    * Create new document
    */
   async createDocument(data, creatorId) {
-    const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential, dateOfDocument } = data;
+    const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential, dateOfDocument, contentFormat } = data;
+    const divisionId = await this.resolveDocumentDivisionId(data, creatorId)
 
     // Generate file code
     const fileCode = await this.generateFileCode(
@@ -606,10 +666,12 @@ class DocumentService {
       data: {
         fileCode,
         isConfidential: Boolean(isConfidential),
+        contentFormat: this.normalizeContentFormat(contentFormat),
         title,
         description,
         documentTypeId,
         projectCategoryId: projectCategoryId || null,
+        divisionId,
         folderId: folderId ? parseInt(folderId) : null,
         createdById: creatorId,
         ownerId: creatorId,
@@ -701,7 +763,8 @@ class DocumentService {
   }
 
   async createDocumentWithFileCode(data, creatorId, options = {}) {
-    const { fileCode, title, description, documentTypeId, projectCategoryId, folderId } = data
+    const { fileCode, title, description, documentTypeId, projectCategoryId, folderId, contentFormat } = data
+    const divisionId = await this.resolveDocumentDivisionId(data, creatorId)
     const normalizedFileCode = await this.normalizeFileCodeFromSystemSettings(fileCode)
     if (!normalizedFileCode) {
       throw new BadRequestError('File code is required')
@@ -742,10 +805,12 @@ class DocumentService {
     const document = await prisma.document.create({
       data: {
         fileCode: normalizedFileCode,
+        contentFormat: this.normalizeContentFormat(contentFormat),
         title,
         description,
         documentTypeId,
         projectCategoryId: pcId,
+        divisionId,
         folderId: folderId ? parseInt(folderId, 10) : null,
         createdById: creatorId,
         ownerId: creatorId,
@@ -1242,6 +1307,20 @@ class DocumentService {
       throw new NotFoundError('Document');
     }
 
+    if (userId) {
+      const [accessibleFolderIds, accessibleDivisionIds] = await Promise.all([
+        this.getAccessibleFolderIdsForUser(user || userId),
+        this.getAccessibleDivisionIdsForUser(user || userId)
+      ])
+
+      const withinFolderScope = document.folderId && accessibleFolderIds.includes(document.folderId)
+      const withinDivisionScope = !document.folderId && document.divisionId && accessibleDivisionIds.includes(document.divisionId)
+
+      if (!withinFolderScope && !withinDivisionScope) {
+        throw new ForbiddenError('You do not have access to this document')
+      }
+    }
+
     // Enforce access control if userId is provided
     if (userId) {
       const hasAccess = await documentAssignmentService.canAccessDocument(documentId, user || userId);
@@ -1310,6 +1389,12 @@ class DocumentService {
   async listDocuments(filters = {}, pagination = {}, userOrUserId = null) {
     const user = typeof userOrUserId === 'object' && userOrUserId ? userOrUserId : null
     const userId = user ? user.id : userOrUserId
+    const [accessibleFolderIds, accessibleDivisionIds] = userId
+      ? await Promise.all([
+          this.getAccessibleFolderIdsForUser(user || userId),
+          this.getAccessibleDivisionIdsForUser(user || userId)
+        ])
+      : [[], []]
 
     const {
       status,
@@ -1384,9 +1469,20 @@ class DocumentService {
     if (createdById) where.createdById = createdById;
     if (ownerId) where.ownerId = ownerId;
     if (Array.isArray(folderIds) && folderIds.length > 0) {
-      where.folderId = { in: folderIds };
+      where.AND = [
+        ...(where.AND || []),
+        this.buildAccessibleReadScopeClause(accessibleFolderIds, accessibleDivisionIds, folderIds)
+      ]
     } else if (folderId !== undefined) {
-      where.folderId = folderId;
+      where.AND = [
+        ...(where.AND || []),
+        this.buildAccessibleReadScopeClause(accessibleFolderIds, accessibleDivisionIds, [folderId])
+      ]
+    } else if (userId) {
+      where.AND = [
+        ...(where.AND || []),
+        this.buildAccessibleReadScopeClause(accessibleFolderIds, accessibleDivisionIds)
+      ]
     }
 
     if (search) {
@@ -2024,6 +2120,8 @@ class DocumentService {
     // Add more entropy to avoid collisions
     const tempFileCode = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${creatorId}`;
 
+    const divisionId = await divisionScopeService.getPrimaryDivisionIdForUser({ id: creatorId })
+
     // Create document request
     const document = await prisma.document.create({
       data: {
@@ -2032,6 +2130,7 @@ class DocumentService {
         description,
         documentTypeId,
         projectCategoryId: projectCategoryId || null,
+        divisionId: divisionId || null,
         folderId: null,
         createdById: creatorId,
         ownerId: creatorId,
@@ -2328,8 +2427,8 @@ class DocumentService {
       throw new BadRequestError('Can only submit documents with DRAFT, DRAFTING, ACKNOWLEDGED or RETURNED status');
     }
 
-    // Check if file is uploaded
-    if (!document.versions || document.versions.length === 0) {
+    const contentFormat = this.normalizeContentFormat(document.contentFormat)
+    if (contentFormat === 'FILE' && (!document.versions || document.versions.length === 0)) {
       throw new BadRequestError('Please upload document file before submitting for review');
     }
 
@@ -2343,6 +2442,52 @@ class DocumentService {
     
     if (parsedReviewerIds.length === 0) {
       throw new BadRequestError('Invalid reviewer IDs provided');
+    }
+
+    const reviewerUsers = await prisma.user.findMany({
+      where: { id: { in: parsedReviewerIds } },
+      select: {
+        id: true,
+        roles: {
+          select: {
+            role: { select: { name: true } }
+          }
+        }
+      }
+    })
+    const reviewerRoleIds = new Set(
+      reviewerUsers
+        .filter((user) => (user.roles || []).some((r) => String(r?.role?.name || '').toLowerCase() === 'reviewer'))
+        .map((user) => user.id)
+    )
+    const invalidReviewerRoleIds = parsedReviewerIds.filter((id) => !reviewerRoleIds.has(id))
+    if (invalidReviewerRoleIds.length > 0) {
+      throw new BadRequestError('Selected reviewer(s) must have Reviewer role')
+    }
+
+    const effectiveDivisionIds = document.folderId
+      ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+      : document.divisionId
+        ? [document.divisionId]
+        : []
+
+    if (effectiveDivisionIds.length === 0) {
+      throw new BadRequestError('Document division scope is not set. Please assign a division before submitting for review');
+    }
+
+    const allowedDivisions = new Set(effectiveDivisionIds)
+    const reviewerDivisions = await Promise.all(
+      parsedReviewerIds.map(async (reviewerId) => ({
+        reviewerId,
+        divisionIds: await divisionScopeService.getUserDivisionIds(reviewerId)
+      }))
+    )
+    const invalidReviewerIds = reviewerDivisions
+      .filter((entry) => entry.divisionIds.length === 0 || !entry.divisionIds.some((id) => allowedDivisions.has(id)))
+      .map((entry) => entry.reviewerId)
+
+    if (invalidReviewerIds.length > 0) {
+      throw new BadRequestError('Selected reviewer(s) must belong to the same division as the document');
     }
 
     // Update document status to PENDING_REVIEW

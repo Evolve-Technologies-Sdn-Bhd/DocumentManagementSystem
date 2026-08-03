@@ -7,7 +7,6 @@ import DashboardHeader from './dashboard/DashboardHeader'
 import DashboardMetricCard from './dashboard/DashboardMetricCard'
 import DashboardQuickActions from './dashboard/DashboardQuickActions'
 import DashboardActivityTable from './dashboard/DashboardActivityTable'
-import DashboardAttentionPanel from './dashboard/DashboardAttentionPanel'
 import DashboardStatusChart from './dashboard/DashboardStatusChart'
 import DashboardExpiryOverview from './dashboard/DashboardExpiryOverview'
 import DashboardSkeleton from './dashboard/DashboardSkeleton'
@@ -28,6 +27,92 @@ const BadgeCheckIcon = (props) => (
 const ClipboardListIcon = (props) => (
   <svg {...props} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 5H7a2 2 0 00-2 2v11a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 104 0M9 5a2 2 0 014 0m-6 5h6m-6 4h6m-6 4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 )
+
+function DashboardMetricsPanel({
+  label,
+  description,
+  cards,
+  summaryItems = [],
+  tone = 'personal',
+  gridClassName = 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+}) {
+  const isPersonal = tone === 'personal'
+  const panelClassName = isPersonal
+    ? 'border border-[var(--dms-color-info-ink)]/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(232,244,255,0.98)_48%,rgba(217,236,255,0.98)_100%)] shadow-[0_18px_40px_rgba(20,81,123,0.14)]'
+    : 'border border-[var(--dms-color-border-strong)]/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(242,247,252,0.98)_45%,rgba(229,238,248,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
+  const badgeClassName = isPersonal
+    ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/10'
+    : 'bg-surface text-ink ring-1 ring-[var(--dms-color-border-strong)]/15'
+  const accentClassName = isPersonal
+    ? 'from-[var(--dms-color-info-default)]/20 via-[var(--dms-color-info-ink)]/10 to-transparent'
+    : 'from-slate-400/20 via-slate-500/10 to-transparent'
+  const secondaryAccentClassName = isPersonal
+    ? 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),rgba(255,255,255,0))]'
+    : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.88),rgba(255,255,255,0))]'
+  const cardClassName = isPersonal
+    ? 'border border-white/70 bg-white/72 backdrop-blur-sm shadow-[0_12px_30px_rgba(26,87,140,0.10)] hover:border-[var(--dms-color-info-ink)]/15 hover:shadow-[0_16px_34px_rgba(26,87,140,0.15)]'
+    : 'border border-white/70 bg-white/76 backdrop-blur-sm shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:border-[var(--dms-color-border-strong)]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]'
+  const summaryValueClassName = isPersonal ? 'text-[var(--dms-color-info-ink)]' : 'text-ink'
+
+  return (
+    <AppSurface
+      variant="muted"
+      padding="lg"
+      className={['relative overflow-hidden rounded-[28px]', panelClassName].join(' ')}
+    >
+      <div className={['pointer-events-none absolute inset-0 bg-gradient-to-br', accentClassName].join(' ')} />
+      <div className={['pointer-events-none absolute inset-x-8 top-0 h-28 blur-3xl', secondaryAccentClassName].join(' ')} />
+
+      <div className="relative z-10 space-y-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl space-y-2">
+            <span className={['inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', badgeClassName].join(' ')}>
+              {label}
+            </span>
+            <p className="max-w-2xl text-sm leading-6 text-ink-secondary">
+              {description}
+            </p>
+          </div>
+
+          {summaryItems.length > 0 && (
+            <div className="flex w-full lg:w-auto lg:justify-end">
+              {summaryItems.map((item) => (
+                <div
+                  key={item.key}
+                  className="min-w-[132px] rounded-2xl border border-white/60 bg-white/78 px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                    {item.label}
+                  </div>
+                  <div className={['mt-2 text-2xl font-semibold leading-none', summaryValueClassName].join(' ')}>
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-[24px] border border-white/55 bg-white/38 p-1.5 backdrop-blur-sm">
+          <div className={['grid gap-4', gridClassName].join(' ')}>
+            {cards.map((card) => (
+              <DashboardMetricCard
+                key={card.key}
+                title={card.title}
+                value={card.value}
+                description={card.description}
+                icon={card.icon}
+                tone={card.tone}
+                surfaceClassName={cardClassName}
+                surfaceStyle={card.surfaceStyle}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </AppSurface>
+  )
+}
 
 const getCurrentUserFromStorage = () => {
   try {
@@ -290,68 +375,6 @@ export default function Dashboard() {
     }
   ]
 
-  const attentionItems = [
-    {
-      key: 'assigned-action',
-      label: t('dashboard_attention_assigned'),
-      description: t('dashboard_attention_assigned_desc'),
-      count: assignedQueue.length,
-      tone: 'critical',
-      to: '/review-approval'
-    },
-    {
-      key: 'returned',
-      label: t('dashboard_attention_returned'),
-      description: t('dashboard_attention_returned_desc'),
-      count: returnedCount,
-      tone: 'warning',
-      to: '/my-documents'
-    },
-    {
-      key: 'pending-ack',
-      label: t('dashboard_attention_pending_ack'),
-      description: t('dashboard_attention_pending_ack_desc'),
-      count: pendingAcknowledgmentCount,
-      tone: 'warning',
-      to: '/my-documents'
-    },
-    {
-      key: 'expired',
-      label: t('dashboard_attention_expired'),
-      description: t('dashboard_attention_expired_desc'),
-      count: expiryStats?.expired ?? 0,
-      tone: 'critical',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'expiring-today',
-      label: t('dashboard_attention_expiring_today'),
-      description: t('dashboard_attention_expiring_today_desc'),
-      count: expiryStats?.expiringToday ?? 0,
-      tone: 'critical',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'expiring-soon',
-      label: t('dashboard_attention_expiring_soon'),
-      description: t('dashboard_attention_expiring_soon_desc'),
-      count: expiryStats?.expiringSoon ?? 0,
-      tone: 'info',
-      to: '/expiry-tracking'
-    },
-    {
-      key: 'drafts',
-      label: t('dashboard_attention_drafts'),
-      description: t('dashboard_attention_drafts_desc'),
-      count: draftsCount,
-      tone: 'info',
-      to: '/drafts'
-    }
-  ]
-    .filter((item) => item.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
   const documentStats = adminStats?.documents || {}
   const activeMetrics = dashboardMode === 'admin'
     ? {
@@ -395,61 +418,6 @@ export default function Dashboard() {
         }
       ]
     : statusChartItems
-  const activeAttentionItems = dashboardMode === 'admin'
-    ? [
-        {
-          key: 'pending-review',
-          label: t('dashboard_attention_pending_review'),
-          description: t('dashboard_attention_pending_review_desc'),
-          count: documentStats.pendingReview ?? adminMetrics?.pendingReviews ?? 0,
-          tone: 'warning',
-          to: '/review-approval'
-        },
-        {
-          key: 'pending-approval',
-          label: t('dashboard_attention_pending_approval'),
-          description: t('dashboard_attention_pending_approval_desc'),
-          count: documentStats.pendingApproval ?? 0,
-          tone: 'warning',
-          to: '/review-approval'
-        },
-        {
-          key: 'expired',
-          label: t('dashboard_attention_expired'),
-          description: t('dashboard_attention_expired_desc'),
-          count: expiryStats?.expired ?? 0,
-          tone: 'critical',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'expiring-today',
-          label: t('dashboard_attention_expiring_today'),
-          description: t('dashboard_attention_expiring_today_desc'),
-          count: expiryStats?.expiringToday ?? 0,
-          tone: 'critical',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'expiring-soon',
-          label: t('dashboard_attention_expiring_soon'),
-          description: t('dashboard_attention_expiring_soon_desc'),
-          count: expiryStats?.expiringSoon ?? 0,
-          tone: 'info',
-          to: '/expiry-tracking'
-        },
-        {
-          key: 'drafts',
-          label: t('dashboard_attention_drafts'),
-          description: t('dashboard_attention_drafts_desc'),
-          count: documentStats.draft ?? adminMetrics?.drafts ?? 0,
-          tone: 'info',
-          to: '/drafts'
-        }
-      ]
-        .filter((item) => item.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-    : attentionItems
   const activeRecentViewAllLabel = dashboardMode === 'admin' ? t('view_all_logs') : t('dashboard_open_my_documents')
   const activeRecentViewAllTo = dashboardMode === 'admin' ? '/logs' : '/my-documents'
   const personalMetricCards = [
@@ -459,7 +427,8 @@ export default function Dashboard() {
       value: metrics.drafts ?? 0,
       description: t('dashboard_metric_my_drafts_desc'),
       icon: DocumentTextIcon,
-      tone: 'indigo'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'needs-action',
@@ -467,7 +436,8 @@ export default function Dashboard() {
       value: metrics.needsMyAction ?? 0,
       description: t('dashboard_metric_needs_action_desc'),
       icon: ClockIcon,
-      tone: 'warning'
+      tone: 'warning',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'waiting',
@@ -475,7 +445,8 @@ export default function Dashboard() {
       value: metrics.awaitingReview ?? 0,
       description: t('dashboard_metric_waiting_desc'),
       icon: ClipboardListIcon,
-      tone: 'success'
+      tone: 'success',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     },
     {
       key: 'published',
@@ -483,25 +454,19 @@ export default function Dashboard() {
       value: metrics.published ?? 0,
       description: t('dashboard_metric_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'neutral'
+      tone: 'neutral',
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
     }
   ]
   const systemMetricCards = [
-    {
-      key: 'drafts',
-      title: t('docs_in_draft'),
-      value: activeMetrics.drafts ?? 0,
-      description: t('draft_desc'),
-      icon: DocumentTextIcon,
-      tone: 'indigo'
-    },
     {
       key: 'queue',
       title: t('dashboard_metric_global_queue'),
       value: activeMetrics.queue ?? 0,
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
-      tone: 'warning'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     },
     {
       key: 'published',
@@ -509,7 +474,8 @@ export default function Dashboard() {
       value: activeMetrics.published ?? 0,
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'success'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     },
     {
       key: 'superseded',
@@ -517,10 +483,25 @@ export default function Dashboard() {
       value: activeMetrics.superseded ?? 0,
       description: t('archived_desc'),
       icon: ArchiveBoxIcon,
-      tone: 'neutral'
+      tone: 'indigo',
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
     }
   ]
   const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
+  const personalSummaryItems = [
+    {
+      key: 'total-personal',
+      label: t('dashboard_status_total'),
+      value: personalMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
+    }
+  ]
+  const systemSummaryItems = [
+    {
+      key: 'system-total',
+      label: t('dashboard_status_total'),
+      value: systemMetricCards.reduce((sum, card) => sum + Number(card.value || 0), 0)
+    }
+  ]
 
   const expiryItems = [
     {
@@ -563,16 +544,30 @@ export default function Dashboard() {
         <>
           {dashboardMode === 'admin' && (
             <section className="space-y-3" data-tour-id="dashboard-personal-metrics">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
-                  {t('dashboard_metric_personal_label')}
-                </p>
-                <p className="text-sm text-ink-secondary">
-                  {t('dashboard_metric_personal_desc')}
-                </p>
-              </div>
+              <DashboardMetricsPanel
+                label={t('dashboard_metric_personal_label')}
+                description={t('dashboard_metric_personal_desc')}
+                cards={personalMetricCards}
+                summaryItems={personalSummaryItems}
+                tone="personal"
+                gridClassName="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+              />
+            </section>
+          )}
+
+          <section className="space-y-3" data-tour-id="dashboard-metrics">
+            {dashboardMode === 'admin' ? (
+              <DashboardMetricsPanel
+                label={t('dashboard_metric_system_label')}
+                description={t('dashboard_metric_system_desc')}
+                cards={systemMetricCards}
+                summaryItems={systemSummaryItems}
+                tone="system"
+                gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              />
+            ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {personalMetricCards.map((card) => (
+                {activeMetricCards.map((card) => (
                   <DashboardMetricCard
                     key={card.key}
                     title={card.title}
@@ -580,46 +575,24 @@ export default function Dashboard() {
                     description={card.description}
                     icon={card.icon}
                     tone={card.tone}
+                    surfaceStyle={card.surfaceStyle}
                   />
                 ))}
               </div>
-            </section>
-          )}
-
-          <section className="space-y-3" data-tour-id="dashboard-metrics">
-            {dashboardMode === 'admin' && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">
-                  {t('dashboard_metric_system_label')}
-                </p>
-                <p className="text-sm text-ink-secondary">
-                  {t('dashboard_metric_system_desc')}
-                </p>
-              </div>
             )}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {activeMetricCards.map((card) => (
-                <DashboardMetricCard
-                  key={card.key}
-                  title={card.title}
-                  value={card.value}
-                  description={card.description}
-                  icon={card.icon}
-                  tone={card.tone}
-                />
-              ))}
-            </div>
           </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <div data-tour-id="dashboard-attention-panel">
-              <DashboardAttentionPanel
-                title={dashboardMode === 'admin' ? t('dashboard_attention_admin_title') : t('dashboard_attention_title')}
-                subtitle={dashboardMode === 'admin' ? t('dashboard_attention_admin_subtitle') : t('dashboard_attention_subtitle')}
-                items={activeAttentionItems}
-                emptyTitle={t('dashboard_attention_empty_title')}
-                emptyDescription={t('dashboard_attention_empty_desc')}
-                actionLabel={t('dashboard_attention_action')}
+            <div data-tour-id="dashboard-expiry-overview">
+              <DashboardExpiryOverview
+                title={t('dashboard_expiry_title')}
+                subtitle={t('dashboard_expiry_subtitle')}
+                stats={expiryStats}
+                items={expiryItems}
+                totalLabel={t('dashboard_expiry_total')}
+                actionLabel={t('dashboard_expiry_action')}
+                emptyTitle={t('dashboard_expiry_empty_title')}
+                emptyDescription={t('dashboard_expiry_empty_desc')}
               />
             </div>
             <div data-tour-id="dashboard-status-chart">
@@ -636,19 +609,6 @@ export default function Dashboard() {
 
           <div data-tour-id="dashboard-quick-actions">
             <DashboardQuickActions />
-          </div>
-
-          <div data-tour-id="dashboard-expiry-overview">
-            <DashboardExpiryOverview
-              title={t('dashboard_expiry_title')}
-              subtitle={t('dashboard_expiry_subtitle')}
-              stats={expiryStats}
-              items={expiryItems}
-              totalLabel={t('dashboard_expiry_total')}
-              actionLabel={t('dashboard_expiry_action')}
-              emptyTitle={t('dashboard_expiry_empty_title')}
-              emptyDescription={t('dashboard_expiry_empty_desc')}
-            />
           </div>
 
           <div data-tour-id="dashboard-recent-activity">

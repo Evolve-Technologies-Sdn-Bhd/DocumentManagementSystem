@@ -70,6 +70,23 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
       actions: ['view', 'edit', 'renew', 'export']
     },
     {
+      id: 'crm',
+      name: 'CRM Registers',
+      description: 'Tender book and enquiry registers',
+      submodules: [
+        {
+          id: 'crm.tenderBook',
+          name: 'Tender Book Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        },
+        {
+          id: 'crm.fbEnquiry',
+          name: 'FB Enquiry Register',
+          actions: ['view', 'create', 'update', 'delete', 'import', 'export']
+        }
+      ]
+    },
+    {
       id: 'configuration',
       name: 'Configuration',
       description: 'System configuration and settings',
@@ -442,7 +459,7 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">

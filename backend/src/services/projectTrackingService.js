@@ -4,6 +4,82 @@ const documentService = require('./documentService');
 const documentAssignmentService = require('./documentAssignmentService')
 const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
+const notificationService = require('./notificationService')
+const divisionScopeService = require('./divisionScopeService')
+
+const getAllowedDivisionIdsForUser = (user) => {
+  return divisionScopeService.normalizeDivisionIds(user?.divisionIds || [])
+}
+
+const assertUserCanAccessProjectDivision = (user, projectDivisionId) => {
+  if (divisionScopeService.isAdminUser(user)) return
+
+  const allowedDivisionIds = getAllowedDivisionIdsForUser(user)
+  if (allowedDivisionIds.length === 0) {
+    throw new ForbiddenError("You don't have access to this project")
+  }
+
+  const normalizedProjectDivisionId = Number.isFinite(projectDivisionId) ? projectDivisionId : Number.parseInt(projectDivisionId, 10)
+  if (!Number.isFinite(normalizedProjectDivisionId) || !allowedDivisionIds.includes(normalizedProjectDivisionId)) {
+    throw new ForbiddenError("You don't have access to this project")
+  }
+}
+
+const requireAccessibleProject = async (projectId, user, extra = {}) => {
+  const normalizedProjectId = Number.parseInt(projectId, 10)
+  if (!Number.isFinite(normalizedProjectId)) {
+    throw new ValidationError('Invalid projectId')
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: normalizedProjectId },
+    ...extra
+  })
+
+  if (!project) throw new NotFoundError('Project')
+  assertUserCanAccessProjectDivision(user, project.divisionId)
+  return project
+}
+
+const uniq = (arr) => Array.from(new Set(arr))
+
+const getProjectLinkedDivisionIds = async (projectId, db = prisma) => {
+  const links = await db.projectDocumentLink.findMany({
+    where: { iteration: { projectId } },
+    select: {
+      document: { select: { folderId: true, divisionId: true } }
+    }
+  })
+
+  const docs = links.map((l) => l.document).filter(Boolean)
+  const folderIds = uniq(docs.map((d) => d.folderId).filter((id) => id != null))
+
+  const folderDivisions = folderIds.length
+    ? await db.folderDivision.findMany({
+      where: { folderId: { in: folderIds } },
+      select: { folderId: true, divisionId: true }
+    })
+    : []
+
+  const folderDivisionMap = new Map()
+  folderDivisions.forEach((fd) => {
+    const current = folderDivisionMap.get(fd.folderId) || []
+    current.push(fd.divisionId)
+    folderDivisionMap.set(fd.folderId, current)
+  })
+
+  const divisionIds = []
+  docs.forEach((d) => {
+    if (d.folderId != null) {
+      const ids = folderDivisionMap.get(d.folderId) || []
+      ids.forEach((id) => divisionIds.push(id))
+      return
+    }
+    if (d.divisionId != null) divisionIds.push(d.divisionId)
+  })
+
+  return uniq(divisionIds).filter((id) => id != null)
+}
 
 // #region debug-point A:runtime-reporter
 const __ptDebugReport = (payload) => {
@@ -40,6 +116,46 @@ const assertProjectCanProgress = (project, actionLabel) => {
   }
 
   throw new ValidationError(`This project is ${status.toLowerCase()}. Update the project status before you can ${actionLabel}.`)
+}
+
+const formatUserDisplayName = (user) => {
+  if (!user) return ''
+  return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
+}
+
+const notifyRequiredDocumentPicAssigned = async ({
+  projectId,
+  projectName,
+  projectCode,
+  stageName,
+  documentTypeName,
+  picUserId,
+  assignedBy
+}) => {
+  if (!picUserId) return
+
+  const link = `/project-tracking/${projectId}?tab=projects`
+  const title = 'Required Document PIC Assigned'
+  const assignedByLabel = formatUserDisplayName(assignedBy) || 'Project PIC'
+  const message = `You have been assigned as PIC for ${documentTypeName} in ${stageName} under project ${projectName}.`
+
+  await notificationService.sendNotification(
+    picUserId,
+    'requiredDocumentPicAssigned',
+    title,
+    message,
+    link,
+    {
+      title,
+      message,
+      projectName,
+      projectCode,
+      stageName,
+      documentType: documentTypeName,
+      assignedBy: assignedByLabel,
+      link: notificationService.buildAbsoluteLink(link)
+    }
+  )
 }
 
 const resolveEffectiveRequirementForStageDocument = async (db, { projectId, projectCategoryId, stageId, documentTypeId }) => {
@@ -92,6 +208,7 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 
   return {
     id: true,
+    divisionId: true,
     folderId: true,
     fileCode: true,
     title: true,
@@ -246,8 +363,12 @@ const canUserAccessFolderAction = async (folderId, user, roleIds = [], action, c
 const serializeLinkedDocumentForUser = async (document, user, userRoleIds = [], folderAccessCache) => {
   if (!document) return document
   const confidentialOk = canInteractWithLinkedDocument(document, user, userRoleIds)
-  const canViewFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'view', folderAccessCache)
-  const canDownloadFolder = await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'download', folderAccessCache)
+  const canViewFolder = document.folderId
+    ? await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'view', folderAccessCache)
+    : user?.permissions?.all === true || (Boolean(document.divisionId) && Array.isArray(user?.divisionIds) && user.divisionIds.includes(document.divisionId))
+  const canDownloadFolder = document.folderId
+    ? await canUserAccessFolderAction(document.folderId, user, userRoleIds, 'download', folderAccessCache)
+    : user?.permissions?.all === true || (Boolean(document.divisionId) && Array.isArray(user?.divisionIds) && user.divisionIds.includes(document.divisionId))
   const canAccess = confidentialOk && canViewFolder && canDownloadFolder
   const { ownerId, createdById, confidentialAccess, ...safeDocument } = document
   return {
@@ -512,7 +633,7 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
     select: { id: true, stageId: true, documentTypeId: true, status: true, isManualOverride: true }
   })
 
-  const toWaiveIds = []
+  const toDeleteIds = []
   const toPendingIds = []
 
   for (const item of existingItems) {
@@ -521,14 +642,17 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
     const isRequired = requiredKeys.has(key)
     const status = String(item.status || '').toUpperCase()
 
-    if (!isRequired && status === 'PENDING') toWaiveIds.push(item.id)
+    if (!isRequired) {
+      toDeleteIds.push(item.id)
+      continue
+    }
+
     if (isRequired && status === 'WAIVED') toPendingIds.push(item.id)
   }
 
-  if (toWaiveIds.length > 0) {
-    await db.projectIterationDocumentItem.updateMany({
-      where: { id: { in: toWaiveIds } },
-      data: { status: 'WAIVED', completedAt: new Date() }
+  if (toDeleteIds.length > 0) {
+    await db.projectIterationDocumentItem.deleteMany({
+      where: { id: { in: toDeleteIds } }
     })
   }
 
@@ -540,7 +664,7 @@ const syncChecklistItemsFromRequirements = async (projectId, iterationId, db = p
   }
 }
 
-exports.listProjects = async ({ projectCategoryId, search }) => {
+exports.listProjects = async ({ projectCategoryId, search, user } = {}) => {
   const where = {};
   if (projectCategoryId) where.projectCategoryId = projectCategoryId;
   if (search) {
@@ -550,10 +674,17 @@ exports.listProjects = async ({ projectCategoryId, search }) => {
     ];
   }
 
+  if (!divisionScopeService.isAdminUser(user)) {
+    const divisionIds = getAllowedDivisionIdsForUser(user)
+    if (divisionIds.length === 0) return []
+    where.divisionId = { in: divisionIds }
+  }
+
   return prisma.project.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       iterations: {
@@ -581,11 +712,11 @@ exports.updateProject = async (
     deliverables,
     managerId,
     status,
-    updatedById
+    updatedById,
+    user
   }
 ) => {
-  const existing = await prisma.project.findUnique({
-    where: { id: projectId },
+  const existing = await requireAccessibleProject(projectId, user, {
     select: {
       id: true,
       name: true,
@@ -601,10 +732,10 @@ exports.updateProject = async (
       deliverables: true,
       managerId: true,
       status: true,
-      code: true
+      code: true,
+      divisionId: true
     }
   })
-  if (!existing) throw new NotFoundError('Project')
 
   const nextData = {}
   if (name !== undefined) {
@@ -675,6 +806,7 @@ exports.updateProject = async (
     where: { id: projectId },
     data: nextData,
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -695,6 +827,7 @@ exports.updateProject = async (
       metadata: {
         projectId,
         code: existing.code,
+        divisionId: existing.divisionId,
         previousStatus: existing.status,
         nextStatus: project.status,
         changedFields: Object.keys(nextData)
@@ -705,12 +838,83 @@ exports.updateProject = async (
   return project
 }
 
-exports.deleteProject = async (projectId, { deletedById }) => {
+exports.assignProjectDivision = async (projectId, { divisionId, actorId, user } = {}) => {
+  if (!divisionScopeService.isAdminUser(user)) {
+    throw new ForbiddenError("You don't have access to assign a division for this project")
+  }
+
+  const normalizedProjectId = Number.parseInt(projectId, 10)
+  if (!Number.isFinite(normalizedProjectId)) {
+    throw new ValidationError('Invalid projectId')
+  }
+
+  const normalizedDivisionId = divisionId === undefined || divisionId === null || divisionId === ''
+    ? null
+    : Number.parseInt(divisionId, 10)
+  if (!Number.isFinite(normalizedDivisionId)) {
+    throw new ValidationError('divisionId is required')
+  }
+
+  const division = await prisma.division.findUnique({
+    where: { id: normalizedDivisionId },
+    select: { id: true, code: true, name: true, isActive: true }
+  })
+  if (!division) throw new NotFoundError('Division')
+  if (!division.isActive) throw new ValidationError('Division is inactive')
+
   const existing = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, code: true }
+    where: { id: normalizedProjectId },
+    select: { id: true, code: true, divisionId: true }
   })
   if (!existing) throw new NotFoundError('Project')
+  if (existing.divisionId != null) throw new ValidationError('Project division is already set')
+
+  const linkedDivisionIds = await getProjectLinkedDivisionIds(existing.id, prisma)
+  if (linkedDivisionIds.length > 0 && !linkedDivisionIds.includes(normalizedDivisionId)) {
+    throw new ValidationError('Project has linked documents outside the selected division')
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.project.update({
+      where: { id: existing.id },
+      data: { divisionId: normalizedDivisionId }
+    })
+
+    if (actorId != null) {
+      await tx.auditLog.create({
+        data: {
+          userId: actorId,
+          action: 'UPDATE',
+          entity: 'Project',
+          entityId: existing.id,
+          description: `projectId=${existing.id} assigned divisionId=${normalizedDivisionId}`,
+          metadata: {
+            projectId: existing.id,
+            code: existing.code,
+            previousDivisionId: null,
+            nextDivisionId: normalizedDivisionId
+          }
+        }
+      })
+    }
+  })
+
+  return prisma.project.findUnique({
+    where: { id: existing.id },
+    include: {
+      division: true,
+      projectCategory: true,
+      manager: { select: { id: true, email: true, firstName: true, lastName: true } },
+      createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
+      iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
+    }
+  })
+}
+
+exports.deleteProject = async (projectId, { deletedById, user } = {}) => {
+  const existing = await requireAccessibleProject(projectId, user, {
+    select: { id: true, code: true, divisionId: true }
+  })
 
   await prisma.project.delete({ where: { id: projectId } })
 
@@ -721,7 +925,7 @@ exports.deleteProject = async (projectId, { deletedById }) => {
       entity: 'Project',
       entityId: projectId,
       description: `projectId=${projectId} deleted project ${existing.code}`,
-      metadata: { projectId, code: existing.code }
+      metadata: { projectId, code: existing.code, divisionId: existing.divisionId }
     }
   })
 }
@@ -739,9 +943,11 @@ exports.createProject = async ({
   scope,
   objective,
   deliverables,
+  divisionId,
   projectCategoryId,
   managerId,
-  createdById
+  createdById,
+  user
 }) => {
   const existing = await prisma.project.findUnique({ where: { code }, select: { id: true } });
   if (existing) throw new ConflictError('Project code already exists');
@@ -749,12 +955,28 @@ exports.createProject = async ({
   const category = await prisma.projectCategory.findUnique({ where: { id: projectCategoryId }, select: { id: true } });
   if (!category) throw new NotFoundError('Project category');
 
+  const allowedDivisionIds = divisionScopeService.isAdminUser(user) ? null : getAllowedDivisionIdsForUser(user)
+  const normalizedDivisionId = divisionId === undefined || divisionId === null || divisionId === ''
+    ? null
+    : Number.parseInt(divisionId, 10)
+
+  const resolvedDivisionId = normalizedDivisionId || (await divisionScopeService.getPrimaryDivisionIdForUser(user))
+  if (!divisionScopeService.isAdminUser(user)) {
+    if (!resolvedDivisionId) {
+      throw new ForbiddenError("You don't have access to create a project without a division")
+    }
+    if (!allowedDivisionIds || allowedDivisionIds.length === 0 || !allowedDivisionIds.includes(resolvedDivisionId)) {
+      throw new ForbiddenError("You don't have access to create a project for this division")
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const project = await tx.project.create({
       data: {
         code,
         name,
         description,
+        divisionId: resolvedDivisionId || null,
         clientName,
         clientPic,
         teamMembers,
@@ -791,13 +1013,14 @@ exports.createProject = async ({
         entity: 'Project',
         entityId: project.id,
         description: `projectId=${project.id} created project ${code}`,
-        metadata: { projectId: project.id, code, status: 'ACTIVE' }
+        metadata: { projectId: project.id, code, status: 'ACTIVE', divisionId: project.divisionId || null }
       }
     })
 
     return tx.project.findUnique({
       where: { id: project.id },
       include: {
+        division: true,
         projectCategory: true,
         manager: { select: { id: true, email: true, firstName: true, lastName: true } },
         createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -808,17 +1031,15 @@ exports.createProject = async ({
 };
 
 exports.getProject = async (projectId, { user } = {}) => {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+  const project = await requireAccessibleProject(projectId, user, {
     include: {
+      division: true,
       projectCategory: true,
       manager: { select: { id: true, email: true, firstName: true, lastName: true } },
       createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
       iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
     }
-  });
-
-  if (!project) throw new NotFoundError('Project');
+  })
 
   const enabledStages = mapEnabledStagesForView(await getEnabledStagesForProject(project.id));
   const stageNameMap = new Map(enabledStages.map((stage) => [stage.stageId, stage.name]));
@@ -858,6 +1079,254 @@ exports.getProject = async (projectId, { user } = {}) => {
     }))
   };
 };
+
+exports.assertProjectAccess = async (projectId, user) => {
+  await requireAccessibleProject(projectId, user, { select: { id: true, divisionId: true } })
+}
+
+exports.listProjectRequiredDocuments = async (projectId, { user } = {}) => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, managerId: true }
+  })
+  if (!project) throw new NotFoundError('Project')
+
+  const canAssign = Boolean(user?.id && user.id === project.managerId)
+
+  const items = await prisma.projectIterationDocumentItem.findMany({
+    where: { iteration: { projectId } },
+    select: {
+      stageId: true,
+      documentTypeId: true,
+      stage: { select: { id: true, name: true } },
+      documentType: { select: { id: true, name: true, prefix: true, isActive: true } }
+    }
+  })
+  const requiredEntries = Array.from(
+    new Map(
+      items
+        .filter((it) => it.stageId && it.documentTypeId)
+        .map((it) => [`${it.stageId}:${it.documentTypeId}`, it])
+    ).values()
+  )
+  if (requiredEntries.length === 0) {
+    return { canAssign, requiredDocuments: [] }
+  }
+  const stageIds = Array.from(new Set(requiredEntries.map((it) => it.stageId)))
+  const documentTypeIds = Array.from(new Set(requiredEntries.map((it) => it.documentTypeId)))
+
+  const [assignments, links] = await Promise.all([
+    prisma.projectRequiredDocumentPicAssignment.findMany({
+      where: { projectId, stageId: { in: stageIds }, documentTypeId: { in: documentTypeIds } },
+      include: {
+        stage: { select: { id: true, name: true } },
+        picUser: { select: { id: true, email: true, firstName: true, lastName: true } },
+        assignedBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    }),
+    prisma.projectDocumentLink.findMany({
+      where: {
+        iteration: { projectId },
+        stageId: { in: stageIds },
+        document: { documentTypeId: { in: documentTypeIds } }
+      },
+      select: {
+        stageId: true,
+        linkedAt: true,
+        document: { select: { documentTypeId: true } }
+      }
+    })
+  ])
+
+  const buildKey = (stageId, documentTypeId) => `${stageId}:${documentTypeId}`
+  const assignmentByStageAndDocType = new Map(assignments.map((a) => [buildKey(a.stageId, a.documentTypeId), a]))
+  const linkStatsByStageAndDocType = new Map()
+  links.forEach((l) => {
+    const stageId = l.stageId
+    const dtid = l.document?.documentTypeId
+    if (!stageId || !dtid) return
+    const key = buildKey(stageId, dtid)
+    const current = linkStatsByStageAndDocType.get(key) || { responded: false, lastLinkedAt: null }
+    const nextLast = !current.lastLinkedAt || l.linkedAt > current.lastLinkedAt ? l.linkedAt : current.lastLinkedAt
+    linkStatsByStageAndDocType.set(key, { responded: true, lastLinkedAt: nextLast })
+  })
+
+  const requiredDocuments = requiredEntries
+    .slice()
+    .sort((a, b) => {
+      const stageCompare = String(a.stage?.name || '').localeCompare(String(b.stage?.name || ''))
+      if (stageCompare !== 0) return stageCompare
+      return String(a.documentType?.name || '').localeCompare(String(b.documentType?.name || ''))
+    })
+    .map((entry) => {
+      const assignment = assignmentByStageAndDocType.get(buildKey(entry.stageId, entry.documentTypeId)) || null
+      const stats = linkStatsByStageAndDocType.get(buildKey(entry.stageId, entry.documentTypeId)) || { responded: false, lastLinkedAt: null }
+      return {
+        stage: entry.stage,
+        stageId: entry.stageId,
+        documentType: entry.documentType,
+        assignment: assignment
+          ? {
+              id: assignment.id,
+              stage: assignment.stage,
+              picUser: assignment.picUser,
+              assignedBy: assignment.assignedBy,
+              assignedAt: assignment.assignedAt
+            }
+          : null,
+        status: {
+          responded: Boolean(stats.responded),
+          lastLinkedAt: stats.lastLinkedAt
+        }
+      }
+    })
+
+  return { canAssign, requiredDocuments }
+}
+
+exports.setProjectRequiredDocumentPic = async (
+  projectId,
+  { stageId, documentTypeId, picUserId, assignedById }
+) => {
+  if (!projectId) throw new ValidationError('Invalid projectId')
+  if (!stageId) throw new ValidationError('stageId is required')
+  if (!documentTypeId) throw new ValidationError('documentTypeId is required')
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, managerId: true, name: true, code: true }
+  })
+  if (!project) throw new NotFoundError('Project')
+
+  if (assignedById !== project.managerId) {
+    throw new ForbiddenError("Only the Project PIC can assign PIC for required documents")
+  }
+
+  const docType = await prisma.documentType.findUnique({
+    where: { id: documentTypeId },
+    select: { id: true, name: true }
+  })
+  if (!docType) throw new NotFoundError('Document type')
+
+  const stage = await prisma.projectStageDefinition.findUnique({
+    where: { id: stageId },
+    select: { id: true, name: true }
+  })
+  if (!stage) throw new NotFoundError('Project stage')
+
+  const requirementExists = await prisma.projectIterationDocumentItem.findFirst({
+    where: {
+      iteration: { projectId },
+      stageId,
+      documentTypeId
+    },
+    select: { id: true }
+  })
+  if (!requirementExists) {
+    throw new ValidationError('Required document row not found for this project stage')
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.projectRequiredDocumentPicAssignment.findUnique({
+      where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
+      select: { id: true, picUserId: true }
+    })
+
+    if (!picUserId) {
+      await tx.projectRequiredDocumentPicAssignment.deleteMany({
+        where: { projectId, stageId, documentTypeId }
+      })
+
+      await tx.auditLog.create({
+        data: {
+          userId: assignedById,
+          action: 'DELETE',
+          entity: 'ProjectRequiredDocumentPicAssignment',
+          entityId: existing?.id || null,
+          description: `projectId=${projectId} unassigned PIC for stageId=${stageId} documentTypeId=${documentTypeId}`,
+          metadata: {
+            projectId,
+            stageId,
+            documentTypeId,
+            previousPicUserId: existing?.picUserId || null
+          }
+        }
+      })
+
+      return { assignment: null }
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: picUserId },
+      select: { id: true, email: true, firstName: true, lastName: true }
+    })
+    if (!user) throw new NotFoundError('User')
+
+    const assignedBy = await tx.user.findUnique({
+      where: { id: assignedById },
+      select: { id: true, email: true, firstName: true, lastName: true }
+    })
+
+    const now = new Date()
+    const assignment = await tx.projectRequiredDocumentPicAssignment.upsert({
+      where: { projectId_stageId_documentTypeId: { projectId, stageId, documentTypeId } },
+      update: {
+        picUserId,
+        assignedById,
+        assignedAt: now
+      },
+      create: {
+        projectId,
+        stageId,
+        documentTypeId,
+        picUserId,
+        assignedById,
+        assignedAt: now
+      },
+      include: {
+        picUser: { select: { id: true, email: true, firstName: true, lastName: true } },
+        assignedBy: { select: { id: true, email: true, firstName: true, lastName: true } }
+      }
+    })
+
+    await tx.auditLog.create({
+      data: {
+        userId: assignedById,
+        action: existing ? 'UPDATE' : 'CREATE',
+        entity: 'ProjectRequiredDocumentPicAssignment',
+        entityId: assignment.id,
+        description: `projectId=${projectId} set PIC for stageId=${stageId} documentTypeId=${documentTypeId} to userId=${picUserId}`,
+        metadata: {
+          projectId,
+          stageId,
+          documentTypeId,
+          previousPicUserId: existing?.picUserId || null,
+          picUserId
+        }
+      }
+    })
+
+    return { assignment, notificationContext: { picUserId, assignedBy } }
+  })
+
+  if (result?.notificationContext?.picUserId) {
+    try {
+      await notifyRequiredDocumentPicAssigned({
+        projectId,
+        projectName: project.name,
+        projectCode: project.code,
+        stageName: stage.name,
+        documentTypeName: docType.name,
+        picUserId: result.notificationContext.picUserId,
+        assignedBy: result.notificationContext.assignedBy
+      })
+    } catch (error) {
+      console.error('Failed to send required document PIC assignment notification:', error)
+    }
+  }
+
+  return { assignment: result.assignment }
+}
 
 exports.createIteration = async (projectId, { name, createdById }) => {
   const project = await prisma.project.findUnique({
@@ -1870,6 +2339,19 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
   const andWhere = []
   if (user?.id) {
     andWhere.push(documentAssignmentService.buildAccessWhereClause(user.id, roleIds))
+    const accessibleFolderIds = await divisionScopeService.getAccessibleFolderIdsForUser(user)
+    const accessibleDivisionIds = Array.isArray(user?.divisionIds) ? divisionScopeService.normalizeDivisionIds(user.divisionIds) : []
+    andWhere.push({
+      OR: [
+        { folderId: { in: accessibleFolderIds } },
+        {
+          AND: [
+            { folderId: null },
+            { divisionId: { in: accessibleDivisionIds } }
+          ]
+        }
+      ]
+    })
   }
   if (user) {
     andWhere.push(confidentialAccessService.buildConfidentialWhereClause(user, roleIds))
@@ -1971,6 +2453,7 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
       title: doc.title,
       status: doc.status,
       isConfidential: doc.isConfidential,
+      canAccess: true,
       updatedAt: doc.updatedAt,
       documentTypeId: doc.documentTypeId,
       documentType: doc.documentType,
@@ -1980,6 +2463,7 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         title: doc.title,
         status: doc.status,
         isConfidential: doc.isConfidential,
+        canAccess: true,
         updatedAt: doc.updatedAt,
         documentTypeId: doc.documentTypeId,
         documentType: doc.documentType
@@ -2482,6 +2966,31 @@ exports.updateProjectSetupStages = async (projectId, stages, { updatedById }) =>
         stageId: { notIn: Array.from(stageIdSet) }
       }
     })
+
+    const enabledRows = await getEnabledStagesForProject(projectId, tx)
+    const enabledStageIds = new Set(enabledRows.map((row) => row.stageId))
+    const projectIterations = await tx.projectIteration.findMany({
+      where: { projectId },
+      include: { currentStage: true }
+    })
+
+    for (const iteration of projectIterations) {
+      if (iteration.currentStageId && enabledStageIds.has(iteration.currentStageId)) continue
+
+      const currentSort = iteration.currentStage?.sortOrder ?? -1
+      const replacement =
+        enabledRows.find((row) => (row.sortOrder ?? row.stage?.sortOrder ?? 0) > currentSort) ||
+        enabledRows[enabledRows.length - 1] ||
+        null
+
+      const nextStageId = replacement?.stageId || null
+      if (nextStageId === (iteration.currentStageId || null)) continue
+
+      await tx.projectIteration.update({
+        where: { id: iteration.id },
+        data: { currentStageId: nextStageId }
+      })
+    }
 
     await tx.auditLog.create({
       data: {

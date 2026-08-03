@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, EyeIcon, EyeSlashIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import api from '../api/axios'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
@@ -397,6 +397,11 @@ function SecuritySettings() {
     new: '',
     confirm: ''
   })
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  })
   const [passwordStrength, setPasswordStrength] = useState(defaultPasswordStrength)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [twoFactorMethod, setTwoFactorMethod] = useState('email')
@@ -410,6 +415,14 @@ function SecuritySettings() {
   const [sessions, setSessions] = useState([])
   const [loadingSessions, setLoadingSessions] = useState(true)
   const [changingPassword, setChangingPassword] = useState(false)
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:text-ink focus:outline-none'
+
+  const togglePasswordVisibility = (field) => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [field]: !prev[field]
+    }))
+  }
 
   const checkPasswordStrength = (password) => {
     const strength = {
@@ -666,23 +679,51 @@ function SecuritySettings() {
             <label className="mb-2 block text-sm font-medium text-ink-secondary">
               {t('current_password')}
             </label>
-            <input
-              type="password"
-              value={passwords.current}
-              onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
+            <div className="relative">
+              <input
+                type={passwordVisibility.current ? 'text' : 'password'}
+                value={passwords.current}
+                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <button
+                type="button"
+                onClick={() => togglePasswordVisibility('current')}
+                className={passwordToggleClass}
+                aria-label={passwordVisibility.current ? 'Hide password' : 'Show password'}
+              >
+                {passwordVisibility.current ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-ink-secondary">
               {t('new_password')}
             </label>
-            <input
-              type="password"
-              value={passwords.new}
-              onChange={(e) => handleNewPasswordChange(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
+            <div className="relative">
+              <input
+                type={passwordVisibility.new ? 'text' : 'password'}
+                value={passwords.new}
+                onChange={(e) => handleNewPasswordChange(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <button
+                type="button"
+                onClick={() => togglePasswordVisibility('new')}
+                className={passwordToggleClass}
+                aria-label={passwordVisibility.new ? 'Hide password' : 'Show password'}
+              >
+                {passwordVisibility.new ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {passwords.new && (
               <div className="mt-3 space-y-2">
                 <div className="flex items-center gap-2">
@@ -760,12 +801,26 @@ function SecuritySettings() {
             <label className="mb-2 block text-sm font-medium text-ink-secondary">
               {t('confirm_new_password')}
             </label>
-            <input
-              type="password"
-              value={passwords.confirm}
-              onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
+            <div className="relative">
+              <input
+                type={passwordVisibility.confirm ? 'text' : 'password'}
+                value={passwords.confirm}
+                onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <button
+                type="button"
+                onClick={() => togglePasswordVisibility('confirm')}
+                className={passwordToggleClass}
+                aria-label={passwordVisibility.confirm ? 'Hide password' : 'Show password'}
+              >
+                {passwordVisibility.confirm ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
           <button
             onClick={handlePasswordChange}

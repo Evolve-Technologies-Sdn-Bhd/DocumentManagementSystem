@@ -1,3 +1,5 @@
+import { resolveBackendAssetUrl } from './normalizeUrl'
+
 const DEFAULT_FEATURE_PILLS = [
   'RFID Tracking',
   'Live Dashboard',
@@ -51,8 +53,8 @@ export const DEFAULT_LOGIN_FORM_COPY = {
   passwordLabel: 'Password',
   passwordPlaceholder: 'Enter your password',
   rememberMeLabel: 'Keep me logged in',
-  showForgotPassword: false,
-  forgotPasswordText: 'Change Password?',
+  showForgotPassword: true,
+  forgotPasswordText: 'Forgot Password?',
   showRequiredAsterisk: true,
   loginButtonLabel: 'Sign In',
   backToHomeText: 'Back to home'
@@ -118,7 +120,7 @@ export function normalizeLoginPageSettings(settings) {
     heroSection: {
       brandName: merged.heroSection?.brandName || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.brandName,
       platformLabel: merged.heroSection?.platformLabel || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.platformLabel,
-      heroImage: merged.heroSection?.heroImage || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroImage,
+      heroImage: resolveBackendAssetUrl(merged.heroSection?.heroImage || DEFAULT_LOGIN_PAGE_SETTINGS.heroSection.heroImage),
       heroFocalX: focalX,
       heroFocalY: focalY,
       heroTextOffsetX: textOffsetX,

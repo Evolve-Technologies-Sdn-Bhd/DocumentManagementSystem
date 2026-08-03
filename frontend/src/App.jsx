@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import HomePage from './components/HomePage'
 import DiagnosticPage from './components/DiagnosticPage'
 import Dashboard from './components/Dashboard'
@@ -10,25 +10,33 @@ import ReviewAndApproval from './components/ReviewAndApproval'
 import PublishedDocuments from './components/PublishedDocuments'
 import SupersededObsolete from './components/SupersededObsolete'
 import Configuration from './components/Configuration'
+import SystemReports from './components/SystemReports'
 import LogsReports from './pages/LogsReports'
 import ReportViewer from './components/ReportViewer'
 import MasterRecord from './pages/MasterRecord'
 import ProfileSettings from './pages/ProfileSettings'
 import DocumentLink from './pages/DocumentLink'
 import PublicShare from './pages/PublicShare'
+import Maintenance from './pages/Maintenance'
 import Login from './components/Login'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import SessionProvider from './components/SessionProvider'
 import RfidEpcRegistry from './components/RfidEpcRegistry'
 import ExpiryTracking from './components/ExpiryTracking'
+import TenderBookRegister from './components/TenderBookRegister'
+import FbEnquiryRegister from './components/FbEnquiryRegister'
 import { PreferencesProvider } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
+import { getUserPermissions } from './utils/permissions'
 
 const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
 
 export default function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   useLayoutEffect(() => {
     const savedTheme = readThemeSettings()
     const savedCompanyInfo = readCompanyInfo()
@@ -57,6 +65,36 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    const checkMaintenance = async () => {
+      try {
+        const res = await api.get('/public/maintenance-status', { timeout: 4000 })
+        const enabled = Boolean(res?.data?.data?.enabled)
+        const message =
+          res?.data?.data?.message || res?.data?.message || 'System is under maintenance'
+
+        try {
+          localStorage.setItem('maintenanceStatus', JSON.stringify({ enabled, message }))
+        } catch {}
+
+        if (!mounted) return
+
+        const permissions = getUserPermissions()
+        const isSystemAdmin = permissions?.all === true
+        const path = location.pathname
+
+        if (enabled && !isSystemAdmin && path !== '/maintenance' && path !== '/login') {
+          navigate('/maintenance', { replace: true })
+        }
+      } catch {}
+    }
+    checkMaintenance()
+    return () => {
+      mounted = false
+    }
+  }, [location.pathname, navigate])
+
   return (
     <PreferencesProvider>
     <SessionProvider>
@@ -66,6 +104,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/diagnostic" element={<DiagnosticPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/documents/:id" element={<DocumentLink />} />
           <Route path="/share/:token" element={<PublicShare />} />
           
@@ -130,6 +169,26 @@ export default function App() {
             <ProtectedRoute module="expiryTracking" action="view">
               <Layout>
                 <ExpiryTracking />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tender-book"
+          element={
+            <ProtectedRoute module="crm.tenderBook" requireAny>
+              <Layout>
+                <TenderBookRegister />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fb-enquiries"
+          element={
+            <ProtectedRoute module="crm.fbEnquiry" requireAny>
+              <Layout>
+                <FbEnquiryRegister />
               </Layout>
             </ProtectedRoute>
           }
@@ -218,7 +277,15 @@ export default function App() {
         <Route
           path="/logs"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute
+              module={[
+                'logsReport.activityLogs',
+                'logsReport.userActivity',
+                'logsReport.reports',
+                'logsReport.analytics'
+              ]}
+              requireAny
+            >
               <Layout>
                 <LogsReports />
               </Layout>
@@ -228,9 +295,9 @@ export default function App() {
         <Route
           path="/reports"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
-                <LogsReports />
+                <SystemReports />
               </Layout>
             </ProtectedRoute>
           }
@@ -238,7 +305,7 @@ export default function App() {
         <Route
           path="/reports/:reportType"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
                 <ReportViewer />
               </Layout>

@@ -44,6 +44,7 @@ model User {
   roles                     UserRole[]
   sessions                  UserSession[]
   trustedDevices            TrustedDevice[]
+  passwordResetCode         PasswordResetCode?
   preferences               UserPreference?
   createdDocuments          Document[]                 @relation("DocumentCreator")
   ownedDocuments            Document[]                 @relation("DocumentOwner")
@@ -83,9 +84,39 @@ model User {
   expiryWatchers            DocumentExpiryWatcher[]
   expiryReminderRecipients  DocumentExpiryReminderRecipient[]
   createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
+  divisions                  UserDivision[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicUser")
+  projectRequiredDocumentPicAssignedActions ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicAssignedBy")
+  crmTenderEntriesCreated    CrmTenderEntry[]   @relation("CrmTenderCreatedBy")
+  crmFbEnquiryEntriesCreated CrmFbEnquiryEntry[] @relation("CrmFbEnquiryCreatedBy")
+  crmFbEnquiryAssigneeEntries CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeUser")
+  crmFbEnquiryAssigneeEntriesCreated CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeCreatedBy")
+  crmFbEnquiryFollowUpLogsAssigned CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpAssignedTo")
+  crmFbEnquiryFollowUpLogsCreated CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpCreatedBy")
+  crmTenderAssigneeEntries CrmTenderAssignee[] @relation("CrmTenderAssigneeUser")
+  crmTenderAssigneeEntriesCreated CrmTenderAssignee[] @relation("CrmTenderAssigneeCreatedBy")
+  crmTenderFollowUpLogsAssigned CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpAssignedTo")
+  crmTenderFollowUpLogsCreated CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpCreatedBy")
 
   @@index([email])
   @@index([employeeId])
+}
+
+model PasswordResetCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @unique
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  lastSentAt DateTime  @default(now())
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([consumedAt])
 }
 
 enum UserStatus {
@@ -227,6 +258,7 @@ model DocumentType {
   projectItems        ProjectIterationDocumentItem[]
   projectSetupDefaultRequirements ProjectSetupDocumentRequirementDefault[]
   projectSetupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 }
 
 model ProjectCategory {
@@ -256,6 +288,34 @@ model Department {
   updatedAt   DateTime @updatedAt
 }
 
+model Division {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   UserDivision[]
+  folders FolderDivision[]
+  documents Document[]
+  projects Project[]
+}
+
+model UserDivision {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, divisionId])
+  @@index([userId])
+  @@index([divisionId])
+}
+
 model Folder {
   id                 Int      @id @default(autoincrement())
   name               String
@@ -272,9 +332,24 @@ model Folder {
   documents   Document[]
   createdBy   User               @relation("FolderCreator", fields: [createdById], references: [id])
   permissions FolderPermission[]
+  divisions   FolderDivision[]
 
   @@index([parentId])
   @@index([createdById])
+}
+
+model FolderDivision {
+  id         Int      @id @default(autoincrement())
+  folderId   Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  folder   Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, divisionId])
+  @@index([folderId])
+  @@index([divisionId])
 }
 
 model FolderPermission {
@@ -306,10 +381,12 @@ model Document {
   fileCode          String        // e.g., DOC-2025-001
   isClientDocument  Boolean       @default(false)
   isConfidential    Boolean       @default(false)
+  contentFormat     ContentFormat @default(FILE)
   title             String
   description       String?       @db.Text
   documentTypeId    Int
   projectCategoryId Int?
+  divisionId        Int?
   folderId          Int? // Folder assignment
   status            DocStatus     @default(DRAFT)
   stage             WorkflowStage @default(DRAFT)
@@ -347,6 +424,7 @@ model Document {
   // Relations
   documentType           DocumentType               @relation(fields: [documentTypeId], references: [id])
   projectCategory        ProjectCategory?           @relation(fields: [projectCategoryId], references: [id], onDelete: SetNull)
+  division               Division?                  @relation(fields: [divisionId], references: [id], onDelete: SetNull)
   folder                 Folder?                    @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdBy              User                       @relation("DocumentCreator", fields: [createdById], references: [id])
   owner                  User                       @relation("DocumentOwner", fields: [ownerId], references: [id])
@@ -377,10 +455,20 @@ model Document {
   @@index([stage])
   @@index([documentTypeId])
   @@index([projectCategoryId])
+  @@index([divisionId])
   @@index([folderId])
   @@index([createdById])
   @@index([ownerId])
   @@index([createdAt])
+}
+
+enum ContentFormat {
+  FILE
+  RICH_TEXT
+  CHECKLIST
+  FORM
+  LINK
+  TABLE
 }
 
 enum AccessSubjectType {
@@ -496,6 +584,7 @@ model Project {
   code              String        @unique
   name              String
   description       String?       @db.Text
+  divisionId        Int?
   clientName        String?
   clientPic         String?
   teamMembers       String?       @db.Text
@@ -512,6 +601,7 @@ model Project {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  division        Division?        @relation(fields: [divisionId], references: [id], onDelete: Restrict)
   projectCategory ProjectCategory  @relation(fields: [projectCategoryId], references: [id], onDelete: Restrict)
   manager         User             @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
   createdBy       User             @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -519,7 +609,9 @@ model Project {
   setupStageOverrides ProjectSetupStageOverride[]
   setupRequirementOverrides ProjectSetupDocumentRequirementOverride[]
   changeRequests  ProjectChangeRequest[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
+  @@index([divisionId])
   @@index([projectCategoryId])
   @@index([managerId])
   @@index([createdById])
@@ -602,6 +694,7 @@ model ProjectStageDefinition {
   setupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
   items               ProjectIterationDocumentItem[]
   links               ProjectDocumentLink[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -846,6 +939,31 @@ model ProjectDocumentLink {
   @@index([itemId])
   @@index([documentId])
   @@index([linkedById])
+}
+
+model ProjectRequiredDocumentPicAssignment {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  stageId        Int
+  documentTypeId Int
+  picUserId      Int
+  assignedById   Int
+  assignedAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage        ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  picUser      User         @relation("ProjectRequiredDocumentPicUser", fields: [picUserId], references: [id], onDelete: Restrict)
+  assignedBy   User         @relation("ProjectRequiredDocumentPicAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, stageId, documentTypeId], map: "PRDPICA_pid_sid_dtid_key")
+  @@index([projectId])
+  @@index([stageId])
+  @@index([documentTypeId])
+  @@index([picUserId])
+  @@index([assignedById])
+  @@index([assignedAt])
 }
 
 model DocumentVersion {
@@ -1557,4 +1675,163 @@ model Inquiry {
   @@index([email])
   @@index([status])
   @@index([submittedAt])
+}
+
+enum CrmTenderStatus {
+  DRAFT
+  SUBMITTED
+  PENDING
+  KIV
+  WON
+  LOST
+}
+
+model CrmTenderEntry {
+  id                   Int             @id @default(autoincrement())
+  tenderRefNo          String?
+  title                String
+  clientName           String?
+  contactPerson        String?
+  submissionDeadline   DateTime?
+  status               CrmTenderStatus @default(DRAFT)
+  tenderValueCents     Int             @default(0)
+  estimatedProfitCents Int             @default(0)
+  source               String?
+  documentLink         String?
+  followUpNotes        String?         @db.Text
+  nextFollowUpAt       DateTime?
+  createdById          Int
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  createdBy User @relation("CrmTenderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  fbEnquiry CrmFbEnquiryEntry? @relation("CrmTenderFromFbEnquiry")
+  assignees CrmTenderAssignee[] @relation("CrmTenderAssignees")
+  followUpLogs CrmTenderFollowUpLog[] @relation("CrmTenderFollowUps")
+
+  @@index([tenderRefNo])
+  @@index([status])
+  @@index([submissionDeadline])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmTenderAssignee {
+  id         Int @id @default(autoincrement())
+  tenderId   Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  tender    CrmTenderEntry @relation("CrmTenderAssignees", fields: [tenderId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmTenderAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmTenderAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([tenderId, userId])
+  @@index([tenderId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmTenderFollowUpLog {
+  id           Int @id @default(autoincrement())
+  tenderId     Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  tender     CrmTenderEntry @relation("CrmTenderFollowUps", fields: [tenderId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmTenderFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmTenderFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenderId])
+  @@index([assignedToId])
+  @@index([followUpAt])
+  @@index([createdAt])
+}
+
+model CrmTenderSequence {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
+enum CrmFbEnquiryStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  NO_RESPONSE
+  QUOTATION_ISSUED
+}
+
+model CrmFbEnquiryEntry {
+  id                  Int                @id @default(autoincrement())
+  name                String?
+  enquiryDate         DateTime
+  email               String?
+  company             String?
+  contact             String             @unique
+  address             String?            @map("location")
+  state               String?
+  channel             String?
+  industryType        String?
+  interestedProduct   String?
+  painPoint           String?            @db.Text
+  status              CrmFbEnquiryStatus @default(NEW)
+  potentialValueCents Int                @default(0)
+  documentLink        String?
+  followUpNotes       String?            @db.Text
+  nextFollowUpAt      DateTime?
+  tenderEntryId       Int?               @unique
+  createdById         Int
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  createdBy User @relation("CrmFbEnquiryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignees CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssignees")
+  followUpLogs CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUps")
+  tenderEntry CrmTenderEntry? @relation("CrmTenderFromFbEnquiry", fields: [tenderEntryId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([enquiryDate])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryAssignee {
+  id         Int @id @default(autoincrement())
+  enquiryId  Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  enquiry   CrmFbEnquiryEntry @relation("CrmFbEnquiryAssignees", fields: [enquiryId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmFbEnquiryAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmFbEnquiryAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([enquiryId, userId])
+  @@index([enquiryId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryFollowUpLog {
+  id           Int @id @default(autoincrement())
+  enquiryId    Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  enquiry    CrmFbEnquiryEntry @relation("CrmFbEnquiryFollowUps", fields: [enquiryId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmFbEnquiryFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmFbEnquiryFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([enquiryId])
+  @@index([assignedToId])
+  @@index([followUpAt])
+  @@index([createdAt])
 }

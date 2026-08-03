@@ -9,6 +9,7 @@ router.use(authenticate)
 
 const requirePermission = (moduleKey, action) => {
   return (req, _res, next) => {
+    if (req.user?.permissions?.all === true) return next()
     const allowed = !!req.user?.permissions?.[moduleKey]?.[action]
     if (!allowed) {
       return next(new ForbiddenError("You don't have permission to perform this action"))

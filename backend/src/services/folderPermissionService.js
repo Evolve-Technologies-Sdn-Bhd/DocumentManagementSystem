@@ -1,5 +1,6 @@
 const prisma = require('../config/database')
 const { ForbiddenError, BadRequestError, NotFoundError } = require('../utils/errors')
+const divisionScopeService = require('./divisionScopeService')
 
 class FolderPermissionService {
   isAdminRoleNames(roleNames) {
@@ -76,7 +77,11 @@ class FolderPermissionService {
     const folder = await this.getFolderById(folderId)
     const roleNames = user?.roles || []
 
+    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
+    if (!withinDivisionScope) return false
+
     if (String(folder.accessMode || 'PUBLIC').toUpperCase() === 'PUBLIC') return true
+    if (user?.permissions?.all === true) return true
     if (this.isAdminRoleNames(roleNames)) return true
 
     const roleIds = await this.getRoleIdsByNames(roleNames)
@@ -110,6 +115,9 @@ class FolderPermissionService {
 
   async assertCanManage(folderId, user) {
     const folder = await this.getFolderById(folderId)
+    if (user?.permissions?.all === true) return true
+    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
+    if (!withinDivisionScope) throw new ForbiddenError(`You don't have permission to manage this folder`)
     if (this.isAdminRoleNames(user?.roles || [])) return true
     if (folder.createdById === user?.id) return true
     throw new ForbiddenError(`You don't have permission to manage this folder`)
