@@ -13,12 +13,19 @@ export default function MultiSelectSearchDropdown({
   const [search, setSearch] = useState('')
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 320, placement: 'bottom' })
   const buttonRef = useRef(null)
-  const selectedIds = useMemo(() => new Set((value || []).map((v) => Number(v)).filter(Boolean)), [value])
+  const selectedKeys = useMemo(() => new Set((value || []).map((v) => String(v))), [value])
 
   const safeOptions = useMemo(() => (Array.isArray(options) ? options : []), [options])
+  const optionValueByKey = useMemo(() => {
+    const map = new Map()
+    safeOptions.forEach((opt) => {
+      map.set(String(opt?.value), opt?.value)
+    })
+    return map
+  }, [safeOptions])
   const selectedOptions = useMemo(
-    () => safeOptions.filter((opt) => selectedIds.has(Number(opt?.value))),
-    [safeOptions, selectedIds]
+    () => safeOptions.filter((opt) => selectedKeys.has(String(opt?.value))),
+    [safeOptions, selectedKeys]
   )
 
   const buttonText = useMemo(() => {
@@ -57,12 +64,12 @@ export default function MultiSelectSearchDropdown({
   }, [isOpen])
 
   const toggleOption = (optValue) => {
-    const id = Number(optValue)
-    if (!id) return
-    const next = new Set(selectedIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    onChange?.(Array.from(next))
+    const key = String(optValue)
+    const next = new Set(selectedKeys)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    const nextValues = Array.from(next).map((k) => optionValueByKey.get(k)).filter((v) => v !== undefined)
+    onChange?.(nextValues)
   }
 
   const dropdown = isOpen && (
@@ -90,8 +97,7 @@ export default function MultiSelectSearchDropdown({
           ) : (
             <div className="space-y-1">
               {filteredOptions.map((opt) => {
-                const id = Number(opt?.value)
-                const checked = selectedIds.has(id)
+                const checked = selectedKeys.has(String(opt?.value))
                 return (
                   <button
                     key={String(opt?.value)}
@@ -166,4 +172,3 @@ export default function MultiSelectSearchDropdown({
     </>
   )
 }
-
