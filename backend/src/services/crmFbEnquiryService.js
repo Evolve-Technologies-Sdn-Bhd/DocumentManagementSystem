@@ -111,10 +111,24 @@ class CrmFbEnquiryService {
   }
 
   normalizeListQuery(query = {}) {
-    const page = Math.max(Number(query.page || 1), 1)
-    const limit = Math.min(Math.max(Number(query.limit || 15), 1), 100)
+    const pageRaw = Number(query.page)
+    const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1
+
+    const limitRaw = Number(query.limit)
+    const limit = Number.isFinite(limitRaw) && limitRaw >= 1
+      ? Math.min(Math.floor(limitRaw), 100)
+      : 15
+
     const search = String(query.search || '').trim()
-    const status = String(query.status || 'all').trim()
+    const statusToken = String(query.status || 'all').trim()
+    let status = 'all'
+    if (statusToken && statusToken.toLowerCase() !== 'all') {
+      const normalized = statusToken.toUpperCase()
+      if (!this.getAllowedStatuses().includes(normalized)) {
+        throw new BadRequestError('invalid status')
+      }
+      status = normalized
+    }
     const name = String(query.name || '').trim()
     const email = String(query.email || '').trim()
     const company = String(query.company || '').trim()

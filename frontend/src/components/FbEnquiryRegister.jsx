@@ -87,7 +87,8 @@ export default function FbEnquiryRegister() {
       console.error('Failed to load FB enquiries:', error)
       setRecords([])
       setTotal(0)
-      setErrorMessage('Unable to load enquiries right now. Please try again.')
+      const serverMessage = error?.response?.data?.message
+      setErrorMessage(serverMessage || 'Unable to load enquiries right now. Please try again.')
     } finally {
       setLoading(false)
     }

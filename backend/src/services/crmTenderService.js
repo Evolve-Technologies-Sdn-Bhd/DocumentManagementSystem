@@ -30,6 +30,32 @@ class CrmTenderService {
     return ['DRAFT', 'SUBMITTED', 'PENDING', 'KIV', 'WON', 'LOST']
   }
 
+  normalizeOptionalRmFilterToCents(value, fieldName) {
+    if (value === undefined) return undefined
+    const raw = String(value ?? '').trim()
+    if (!raw) return undefined
+    const cleaned = raw.replace(/rm/ig, '').replace(/,/g, '').trim()
+    const num = Number(cleaned)
+    if (!Number.isFinite(num) || num < 0) {
+      throw new BadRequestError(`invalid ${fieldName}`)
+    }
+    return Math.round(num * 100)
+  }
+
+  normalizeOptionalIsoDateFilter(value, fieldName) {
+    if (value === undefined) return undefined
+    const raw = String(value ?? '').trim()
+    if (!raw) return undefined
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      throw new BadRequestError(`invalid ${fieldName}`)
+    }
+    const date = new Date(`${raw}T00:00:00`)
+    if (!Number.isFinite(date.getTime())) {
+      throw new BadRequestError(`invalid ${fieldName}`)
+    }
+    return date
+  }
+
   normalizeOptionalUrl(value, fieldName = 'documentLink') {
     const text = this.normalizeOptionalText(value)
     if (!text) return text
@@ -91,17 +117,115 @@ class CrmTenderService {
   }
 
   normalizeListQuery(query = {}) {
-    const page = Math.max(Number(query.page || 1), 1)
-    const limit = Math.min(Math.max(Number(query.limit || 15), 1), 100)
+    const pageRaw = Number(query.page)
+    const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1
+
+    const limitRaw = Number(query.limit)
+    const limit = Number.isFinite(limitRaw) && limitRaw >= 1
+      ? Math.min(Math.floor(limitRaw), 100)
+      : 15
+
     const search = String(query.search || '').trim()
-    const status = String(query.status || 'all').trim()
-    return { page, limit, search, status }
+    const statusToken = String(query.status || 'all').trim()
+    let status = 'all'
+    if (statusToken && statusToken.toLowerCase() !== 'all') {
+      const normalized = statusToken.toUpperCase()
+      if (!this.getAllowedStatuses().includes(normalized)) {
+        throw new BadRequestError('invalid status')
+      }
+      status = normalized
+    }
+
+    const tenderRefNo = String(query.tenderRefNo || '').trim()
+    const title = String(query.title || '').trim()
+    const clientName = String(query.clientName || '').trim()
+    const contactPerson = String(query.contactPerson || '').trim()
+    const source = String(query.source || '').trim()
+    const followUpNotes = String(query.followUpNotes || '').trim()
+
+    const submissionDeadlineFrom = this.normalizeOptionalIsoDateFilter(query.submissionDeadlineFrom, 'submissionDeadlineFrom')
+    const submissionDeadlineTo = this.normalizeOptionalIsoDateFilter(query.submissionDeadlineTo, 'submissionDeadlineTo')
+
+    const tenderValueMinCents = this.normalizeOptionalRmFilterToCents(query.tenderValueMinRm, 'tenderValueMinRm')
+    const tenderValueMaxCents = this.normalizeOptionalRmFilterToCents(query.tenderValueMaxRm, 'tenderValueMaxRm')
+    const estimatedProfitMinCents = this.normalizeOptionalRmFilterToCents(query.estimatedProfitMinRm, 'estimatedProfitMinRm')
+    const estimatedProfitMaxCents = this.normalizeOptionalRmFilterToCents(query.estimatedProfitMaxRm, 'estimatedProfitMaxRm')
+
+    return {
+      page,
+      limit,
+      search,
+      status,
+      tenderRefNo,
+      title,
+      clientName,
+      contactPerson,
+      source,
+      followUpNotes,
+      submissionDeadlineFrom,
+      submissionDeadlineTo,
+      tenderValueMinCents,
+      tenderValueMaxCents,
+      estimatedProfitMinCents,
+      estimatedProfitMaxCents
+    }
   }
 
-  buildWhere({ search, status }) {
+  buildWhere({
+    search,
+    status,
+    tenderRefNo,
+    title,
+    clientName,
+    contactPerson,
+    source,
+    followUpNotes,
+    submissionDeadlineFrom,
+    submissionDeadlineTo,
+    tenderValueMinCents,
+    tenderValueMaxCents,
+    estimatedProfitMinCents,
+    estimatedProfitMaxCents
+  }) {
     const where = {}
     if (status && status !== 'all') {
       where.status = status
+    }
+    if (tenderRefNo) {
+      where.tenderRefNo = { contains: tenderRefNo, mode: 'insensitive' }
+    }
+    if (title) {
+      where.title = { contains: title, mode: 'insensitive' }
+    }
+    if (clientName) {
+      where.clientName = { contains: clientName, mode: 'insensitive' }
+    }
+    if (contactPerson) {
+      where.contactPerson = { contains: contactPerson, mode: 'insensitive' }
+    }
+    if (source) {
+      where.source = { contains: source, mode: 'insensitive' }
+    }
+    if (followUpNotes) {
+      where.followUpNotes = { contains: followUpNotes, mode: 'insensitive' }
+    }
+    if (submissionDeadlineFrom || submissionDeadlineTo) {
+      where.submissionDeadline = {
+        ...(submissionDeadlineFrom ? { gte: submissionDeadlineFrom } : {}),
+        ...(submissionDeadlineTo ? { lte: submissionDeadlineTo } : {})
+      }
+    }
+    if (tenderValueMinCents != null || tenderValueMaxCents != null) {
+      where.tenderValueCents = {
+        ...(tenderValueMinCents != null ? { gte: tenderValueMinCents } : {}),
+        ...(tenderValueMaxCents != null ? { lte: tenderValueMaxCents } : {})
+      }
+    }
+    if (estimatedProfitMinCents != null || estimatedProfitMaxCents != null) {
+      where.estimatedProfitCents = {
+        ...(estimatedProfitMinCents != null ? { gte: estimatedProfitMinCents } : {}),
+        ...(estimatedProfitMaxCents != null ? { lte: estimatedProfitMaxCents } : {})
+      }
     }
     if (search) {
       where.OR = [
@@ -109,7 +233,8 @@ class CrmTenderService {
         { title: { contains: search, mode: 'insensitive' } },
         { clientName: { contains: search, mode: 'insensitive' } },
         { contactPerson: { contains: search, mode: 'insensitive' } },
-        { source: { contains: search, mode: 'insensitive' } }
+        { source: { contains: search, mode: 'insensitive' } },
+        { followUpNotes: { contains: search, mode: 'insensitive' } }
       ]
     }
     return where
@@ -175,8 +300,9 @@ class CrmTenderService {
   }
 
   async list(query = {}) {
-    const { page, limit, search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const { page, limit } = normalized
+    const where = this.buildWhere(normalized)
 
     const [total, records] = await Promise.all([
       prisma.crmTenderEntry.count({ where }),
@@ -197,8 +323,8 @@ class CrmTenderService {
   }
 
   async summary(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const [aggregate, grouped] = await Promise.all([
       prisma.crmTenderEntry.aggregate({
@@ -464,8 +590,8 @@ class CrmTenderService {
   }
 
   async exportXlsx(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const records = await prisma.crmTenderEntry.findMany({
       where,
@@ -546,8 +672,8 @@ class CrmTenderService {
   }
 
   async exportCsv(query = {}) {
-    const { search, status } = this.normalizeListQuery(query)
-    const where = this.buildWhere({ search, status })
+    const normalized = this.normalizeListQuery(query)
+    const where = this.buildWhere(normalized)
 
     const records = await prisma.crmTenderEntry.findMany({
       where,

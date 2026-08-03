@@ -33,7 +33,22 @@ export default function TenderBookRegister() {
   const canImport = hasPermission('crm.tenderBook', 'import')
   const canExport = hasPermission('crm.tenderBook', 'export')
 
-  const [filters, setFilters] = useState({ search: '', status: 'all' })
+  const [filters, setFilters] = useState({
+    search: '',
+    status: 'all',
+    tenderRefNo: '',
+    title: '',
+    clientName: '',
+    contactPerson: '',
+    source: '',
+    followUpNotes: '',
+    submissionDeadlineFrom: '',
+    submissionDeadlineTo: '',
+    tenderValueMinRm: '',
+    tenderValueMaxRm: '',
+    estimatedProfitMinRm: '',
+    estimatedProfitMaxRm: ''
+  })
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(15)
   const [total, setTotal] = useState(0)
@@ -81,7 +96,8 @@ export default function TenderBookRegister() {
       console.error('Failed to load tender entries:', error)
       setRecords([])
       setTotal(0)
-      setErrorMessage('Unable to load tender entries right now. Please try again.')
+      const serverMessage = error?.response?.data?.message
+      setErrorMessage(serverMessage || 'Unable to load tender entries right now. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -125,7 +141,22 @@ export default function TenderBookRegister() {
   }
 
   const resetFilters = () => {
-    const next = { search: '', status: 'all' }
+    const next = {
+      search: '',
+      status: 'all',
+      tenderRefNo: '',
+      title: '',
+      clientName: '',
+      contactPerson: '',
+      source: '',
+      followUpNotes: '',
+      submissionDeadlineFrom: '',
+      submissionDeadlineTo: '',
+      tenderValueMinRm: '',
+      tenderValueMaxRm: '',
+      estimatedProfitMinRm: '',
+      estimatedProfitMaxRm: ''
+    }
     setFilters(next)
     setPage(1)
     loadRecords(next, 1, limit)
@@ -398,7 +429,22 @@ export default function TenderBookRegister() {
       loadSummary(filters)
     }, 300)
     return () => window.clearTimeout(timeoutId)
-  }, [filters.search, filters.status])
+  }, [
+    filters.search,
+    filters.status,
+    filters.tenderRefNo,
+    filters.title,
+    filters.clientName,
+    filters.contactPerson,
+    filters.source,
+    filters.followUpNotes,
+    filters.submissionDeadlineFrom,
+    filters.submissionDeadlineTo,
+    filters.tenderValueMinRm,
+    filters.tenderValueMaxRm,
+    filters.estimatedProfitMinRm,
+    filters.estimatedProfitMaxRm
+  ])
 
   const renderSummaryCard = (label, value, subLabel = null) => (
     <AppSurface padding="md" className="border border-border">
@@ -430,14 +476,87 @@ export default function TenderBookRegister() {
       )}
 
       <AppSurface padding="lg" className="space-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <TextInput
+            value={filters.search}
+            placeholder="Keyword..."
+            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+          />
+          <TextInput
+            value={filters.tenderRefNo}
+            placeholder="Tender Ref"
+            onChange={(e) => setFilters((prev) => ({ ...prev, tenderRefNo: e.target.value }))}
+          />
+          <TextInput
+            value={filters.clientName}
+            placeholder="Client"
+            onChange={(e) => setFilters((prev) => ({ ...prev, clientName: e.target.value }))}
+          />
+          <TextInput
+            value={filters.title}
+            placeholder="Title"
+            onChange={(e) => setFilters((prev) => ({ ...prev, title: e.target.value }))}
+          />
+          <TextInput
+            value={filters.contactPerson}
+            placeholder="Contact"
+            onChange={(e) => setFilters((prev) => ({ ...prev, contactPerson: e.target.value }))}
+          />
+          <TextInput
+            value={filters.source}
+            placeholder="Source"
+            onChange={(e) => setFilters((prev) => ({ ...prev, source: e.target.value }))}
+          />
+          <TextInput
+            value={filters.followUpNotes}
+            placeholder="Notes"
+            onChange={(e) => setFilters((prev) => ({ ...prev, followUpNotes: e.target.value }))}
+          />
+          <div className="grid grid-cols-2 gap-3">
             <TextInput
-              value={filters.search}
-              placeholder="Search..."
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+              type="date"
+              value={filters.submissionDeadlineFrom}
+              placeholder="Deadline From"
+              onChange={(e) => setFilters((prev) => ({ ...prev, submissionDeadlineFrom: e.target.value }))}
+            />
+            <TextInput
+              type="date"
+              value={filters.submissionDeadlineTo}
+              placeholder="Deadline To"
+              onChange={(e) => setFilters((prev) => ({ ...prev, submissionDeadlineTo: e.target.value }))}
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              inputMode="decimal"
+              value={filters.tenderValueMinRm}
+              placeholder="Tender Value Min (RM)"
+              onChange={(e) => setFilters((prev) => ({ ...prev, tenderValueMinRm: e.target.value }))}
+            />
+            <TextInput
+              inputMode="decimal"
+              value={filters.tenderValueMaxRm}
+              placeholder="Tender Value Max (RM)"
+              onChange={(e) => setFilters((prev) => ({ ...prev, tenderValueMaxRm: e.target.value }))}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              inputMode="decimal"
+              value={filters.estimatedProfitMinRm}
+              placeholder="Est. Profit Min (RM)"
+              onChange={(e) => setFilters((prev) => ({ ...prev, estimatedProfitMinRm: e.target.value }))}
+            />
+            <TextInput
+              inputMode="decimal"
+              value={filters.estimatedProfitMaxRm}
+              placeholder="Est. Profit Max (RM)"
+              onChange={(e) => setFilters((prev) => ({ ...prev, estimatedProfitMaxRm: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="w-full lg:w-60">
             <SelectField value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}>
               {statusOptions.map((opt) => (
@@ -447,7 +566,11 @@ export default function TenderBookRegister() {
               ))}
             </SelectField>
           </div>
-          <div className="flex gap-2 lg:ml-auto">
+
+          <div className="flex flex-wrap gap-2 lg:ml-auto">
+            <Button variant="secondary" onClick={resetFilters}>
+              Reset
+            </Button>
             {canImport && (
               <Button variant="secondary" onClick={handleImportClick}>
                 Import Excel/CSV
