@@ -26,14 +26,7 @@ export function resolveBackendAssetUrl(urlOrPath) {
   } catch {}
 
   if (value.startsWith('/uploads/')) {
-    const apiOrigin = getApiOrigin()
-    if (!apiOrigin) return value
-
-    try {
-      return new URL(value, apiOrigin).toString()
-    } catch {
-      return value
-    }
+    return value
   }
 
   return value

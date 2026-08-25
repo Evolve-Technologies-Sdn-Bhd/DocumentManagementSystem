@@ -4,9 +4,10 @@ const auditLogService = require('../services/auditLogService');
 const epcRegistryService = require('../services/epcRegistryService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
-const { ConflictError, ForbiddenError, BadRequestError } = require('../utils/errors');
+const { ConflictError, ForbiddenError, BadRequestError, UnauthorizedError } = require('../utils/errors');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 const config = require('../config/app');
 const prisma = require('../config/database');
 const documentAssignmentService = require('../services/documentAssignmentService');
@@ -137,21 +138,87 @@ const normalizeContentFormat = (value) => {
   return 'FILE'
 }
 
+const parseContentData = (raw) => {
+  if (!raw || raw === 'null' || raw === 'undefined') return null
+  if (typeof raw === 'object') return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (_) {
+    return null
+  }
+}
+
+const deriveContentText = (contentFormat, contentData, fallback) => {
+  const fb = String(fallback || '').trim()
+  if (!contentData || typeof contentData !== 'object') return fb
+  try {
+    if (contentFormat === 'RICH_TEXT') {
+      const p = String(contentData.plain || '').trim()
+      return p || fb
+    }
+    if (contentFormat === 'CHECKLIST') {
+      const items = Array.isArray(contentData.items) ? contentData.items : []
+      const joined = items.map((i) => `${i?.checked ? '[x]' : '[ ]'} ${String(i?.text || '')}`).join('\n').trim()
+      return joined || fb
+    }
+    if (contentFormat === 'FORM') {
+      const title = String(contentData.title || '').trim()
+      const desc = String(contentData.description || '').trim()
+      const fields = Array.isArray(contentData.fields) ? contentData.fields : []
+      const lines = []
+      if (title) lines.push(title)
+      if (desc) lines.push(desc)
+      fields.forEach((f, i) => {
+        lines.push(`${i + 1}. ${String(f?.label || 'Untitled')}${f?.required ? ' *' : ''}`)
+        if (Array.isArray(f?.options)) {
+          f.options.forEach((o, j) => lines.push(`   - ${String(o?.label || '')}`))
+        }
+      })
+      const joined = lines.join('\n').trim()
+      return joined || fb
+    }
+  } catch (_) {}
+  return fb
+}
+
 class DocumentController {
   /**
    * Create new document
    * POST /api/documents
    */
   createDocument = asyncHandler(async (req, res) => {
-    const { title, description, documentTypeId, projectCategoryId, folderId, contentFormat } = req.body;
+    const { title, description, documentTypeId, projectCategoryId, folderId, contentFormat, divisionId } = req.body;
 
     // Validation
     const errors = [];
     if (!title) errors.push({ field: 'title', message: 'Title is required' });
     if (!documentTypeId) errors.push({ field: 'documentTypeId', message: 'Document type is required' });
 
+    const requestedDivisionId = divisionId ? Number.parseInt(divisionId, 10) : null
+    if (divisionId !== undefined && divisionId !== null && divisionId !== '' && !Number.isFinite(requestedDivisionId)) {
+      errors.push({ field: 'divisionId', message: 'Invalid division' })
+    }
+
     if (errors.length > 0) {
       return ResponseFormatter.validationError(res, errors);
+    }
+
+    if (Number.isFinite(requestedDivisionId) && !divisionScopeService.isAdminUser(req.user)) {
+      const userDivisionIds = Array.isArray(req.user?.divisionIds) && req.user.divisionIds.length > 0
+        ? divisionScopeService.normalizeDivisionIds(req.user.divisionIds)
+        : await divisionScopeService.getUserDivisionIds(req.user.id)
+
+      if (!userDivisionIds.includes(requestedDivisionId)) {
+        return ResponseFormatter.validationError(res, [
+          { field: 'divisionId', message: 'Invalid division' }
+        ])
+      }
+    }
+
+    const folderIdInt = folderId ? parseInt(folderId, 10) : null
+    if (Number.isFinite(folderIdInt)) {
+      await folderPermissionService.assertCan(folderIdInt, req.user, 'create')
     }
 
     const document = await documentService.createDocument({
@@ -159,8 +226,9 @@ class DocumentController {
       description,
       documentTypeId: parseInt(documentTypeId),
       projectCategoryId: projectCategoryId ? parseInt(projectCategoryId) : null,
-      folderId: folderId ? parseInt(folderId) : null,
-      contentFormat: normalizeContentFormat(contentFormat)
+      folderId: folderIdInt,
+      contentFormat: normalizeContentFormat(contentFormat),
+      divisionId: Number.isFinite(requestedDivisionId) ? requestedDivisionId : undefined
     }, req.user.id);
 
     return ResponseFormatter.success(
@@ -989,7 +1057,6 @@ class DocumentController {
         latestReturnAt &&
         Math.abs(latestVersionUploadedAt - latestReturnAt) <= 5 * 60 * 1000
       );
-      
       return {
         id: doc.id,
         fileCode: doc.fileCode,
@@ -1017,7 +1084,11 @@ class DocumentController {
         createdBy: doc.createdBy ? `${doc.createdBy.firstName || ''} ${doc.createdBy.lastName || ''}`.trim() || doc.createdBy.email : '',
         owner: doc.owner ? `${doc.owner.firstName || ''} ${doc.owner.lastName || ''}`.trim() || doc.owner.email : '',
         createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt
+        updatedAt: doc.updatedAt,
+        creationMode: doc.creationMode || 'FILE_BASED',
+        isSmartDocument: (doc.creationMode && String(doc.creationMode).toUpperCase() === 'SMART_DOCUMENT') || Boolean(doc.smartTemplateVersionId),
+        smartTemplateVersionId: doc.smartTemplateVersionId || (latestVersion ? latestVersion.smartTemplateVersionId : null),
+        smartTemplateName: (doc.smartTemplateVersionId && latestVersion?.smartTemplateVersion?.smartTemplate?.templateName) || (latestVersion?.smartTemplateVersion?.smartTemplate?.templateName) || null
       };
     });
 
@@ -1140,6 +1211,19 @@ class DocumentController {
       // Get latest version for filename
       const latestVersion = doc.versions && doc.versions.length > 0 ? doc.versions[0] : null;
       
+      const latestVersionSmartTplId =
+        latestVersion && (latestVersion.smartTemplateVersionId || latestVersion.smart_template_version_id)
+          ? Number(latestVersion.smartTemplateVersionId || latestVersion.smart_template_version_id)
+          : null;
+      const docSmartTplId = doc.smartTemplateVersionId || doc.smart_template_version_id
+        ? Number(doc.smartTemplateVersionId || doc.smart_template_version_id)
+        : null;
+      const docCreationMode = doc.creationMode ? String(doc.creationMode).toUpperCase() : 'FILE_BASED';
+      const smartFlag =
+        docCreationMode === 'SMART_DOCUMENT' ||
+        Boolean(docSmartTplId) ||
+        Boolean(latestVersionSmartTplId);
+
       return {
         id: doc.id,
         fileCode: doc.fileCode,
@@ -1153,8 +1237,12 @@ class DocumentController {
           requiresExpiryTracking: Boolean(doc.documentType?.requiresExpiryTracking),
           allowRenewal: Boolean(doc.documentType?.allowRenewal)
         },
+        creationMode: docCreationMode,
+        smartTemplateVersionId: docSmartTplId || latestVersionSmartTplId || null,
+        isSmartDocument: smartFlag,
         version: doc.version,
         fileName: latestVersion?.fileName || null,
+        versions: doc.versions || [],
         submittedDate: doc.submittedAt ? new Date(doc.submittedAt).toLocaleDateString('en-GB') : '',
         submittedBy: doc.owner ? `${doc.owner.firstName || ''} ${doc.owner.lastName || ''}`.trim() || doc.owner.email : '',
         ownerId: doc.owner?.id || null,
@@ -1220,18 +1308,35 @@ class DocumentController {
     const formattedSupersedeRequests = supersedeRequests.map(req => {
       const doc = req.document;
       const latestVersion = doc.versions && doc.versions.length > 0 ? doc.versions[0] : null;
-      
+
+      const latestVersionSmartTplId =
+        latestVersion && (latestVersion.smartTemplateVersionId || latestVersion.smart_template_version_id)
+          ? Number(latestVersion.smartTemplateVersionId || latestVersion.smart_template_version_id)
+          : null;
+      const docSmartTplId = doc.smartTemplateVersionId || doc.smart_template_version_id
+        ? Number(doc.smartTemplateVersionId || doc.smart_template_version_id)
+        : null;
+      const docCreationMode = doc.creationMode ? String(doc.creationMode).toUpperCase() : 'FILE_BASED';
+      const smartFlag =
+        docCreationMode === 'SMART_DOCUMENT' ||
+        Boolean(docSmartTplId) ||
+        Boolean(latestVersionSmartTplId);
+
       // Determine display stage
       let displayStage = req.stage === 'REVIEW' ? 'Review' : 'Approval';
-      
+
       return {
         id: req.id,
         documentId: doc.id,
         fileCode: doc.fileCode,
         title: `${doc.title} (${req.actionType === 'OBSOLETE' ? 'Obsolete' : 'Supersede'} Request)`,
         documentType: doc.documentType?.name || '',
+        creationMode: docCreationMode,
+        smartTemplateVersionId: docSmartTplId || latestVersionSmartTplId || null,
+        isSmartDocument: smartFlag,
         version: doc.version,
         fileName: latestVersion?.fileName || null,
+        versions: doc.versions || [],
         submittedDate: req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-GB') : '',
         submittedBy: req.requestedBy ? `${req.requestedBy.firstName || ''} ${req.requestedBy.lastName || ''}`.trim() || req.requestedBy.email : '',
         lastUpdated: req.updatedAt ? new Date(req.updatedAt).toLocaleDateString('en-GB') : '',
@@ -1765,16 +1870,18 @@ class DocumentController {
 
     const document = await documentService.getDocumentById(documentId, req.user);
     if (document?.folderId) {
-      await folderPermissionService.assertCan(document.folderId, req.user, 'download')
+      const isOwner = Number(document.ownerId) === Number(req.user.id)
+      const isCreator = Number(document.createdById) === Number(req.user.id)
+      if (!isOwner && !isCreator) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'download')
+      }
     }
 
     let version;
     if (versionId) {
-      // Get specific version
       const versions = await documentService.getDocumentVersions(documentId);
       version = versions.find(v => v.id === parseInt(versionId));
     } else {
-      // Get latest version
       const versions = await documentService.getDocumentVersions(documentId);
       version = versions[0];
     }
@@ -1783,6 +1890,214 @@ class DocumentController {
       return ResponseFormatter.notFound(res, 'Document version');
     }
 
+    // --- Smart Document handling: serve PDF instead of raw .txt content ---
+    const smartDetails = await prisma.documentVersion.findUnique({
+      where: { id: Number(version.id) },
+      select: {
+        smartTemplateVersionId: true,
+        smartFinalPdfPath: true,
+        smartFinalPdfFileSize: true,
+        smartFinalPdfGeneratedAt: true
+      }
+    });
+
+    const isSmartDocument = Boolean(smartDetails?.smartTemplateVersionId);
+
+    if (isSmartDocument) {
+      const smartDocumentPdfService = require('../services/smartDocumentPdfService');
+      const smartDocumentGenerator = require('../services/smartDocumentGenerator');
+      const smartDocumentFormatter = require('../services/smartDocumentFormatter');
+      const smartDocumentContentService = require('../services/smartDocumentContentService');
+
+      // Try to use cached final PDF if it exists
+      if (smartDetails.smartFinalPdfPath) {
+        const cachedPath = resolveExistingFilePath(smartDetails.smartFinalPdfPath);
+        if (cachedPath) {
+          await auditLogService.logDocument(req.user.id, 'DOWNLOAD', document, req, {
+            fileName: version.fileName,
+            versionId: version.id,
+            smartDocument: true,
+            pdfSource: 'cached'
+          });
+
+          const fileCode = (document && document.fileCode) || `doc-v${version.id}`;
+          const verLabel = version.version || '1.0';
+          const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+          const rawPdfName = pdfBaseName;
+          const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+          const encodedPdfName = encodeURIComponent(rawPdfName);
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+          let cachedFileSize = smartDetails.smartFinalPdfFileSize;
+          if (!cachedFileSize) {
+            try { cachedFileSize = fs.statSync(cachedPath).size; } catch (_) { /* ignore */ }
+          }
+          if (cachedFileSize) res.setHeader('Content-Length', cachedFileSize);
+          return res.sendFile(cachedPath);
+        }
+      }
+
+      // No cached PDF — generate on the fly
+      const dv = await prisma.documentVersion.findUnique({
+        where: { id: Number(version.id) },
+        include: {
+          document: { include: { smartDocumentStyleProfile: true } },
+          smartDocumentContent: true,
+          smartTemplateVersion: {
+            include: {
+              smartTemplate: { include: { styleProfile: true } },
+              formFields: true,
+              fieldMappings: true
+            }
+          }
+        }
+      });
+
+      if (!dv.smartTemplateVersion) {
+        return ResponseFormatter.error(res, 'Smart template version not assigned to document version', 400);
+      }
+
+      let smartDocumentContent = dv.smartDocumentContent;
+      if (!smartDocumentContent) {
+        try {
+          smartDocumentContent = await smartDocumentContentService.getOrCreateContentForDocumentVersion({
+            documentVersionId: Number(version.id),
+            smartTemplateVersionId: Number(dv.smartTemplateVersionId),
+            createdById: Number(
+              dv.document?.ownerId || dv.document?.createdById || req.user.id
+            ),
+          });
+        } catch (createErr) {
+          console.warn('[downloadDocument] Could not auto-create smart content:', createErr?.message || createErr);
+        }
+      }
+
+      if (!smartDocumentContent) {
+        return ResponseFormatter.error(res, 'Smart document content not initialized for this document version', 400);
+      }
+
+      const templateVersion = dv.smartTemplateVersion;
+      const formFields = templateVersion.formFields || [];
+      const fieldMappings = templateVersion.fieldMappings || [];
+
+      const resolvedStyleProfile =
+        (dv.document &&
+          dv.document.smartDocumentStyleProfile &&
+          dv.document.smartDocumentStyleProfile.isActive !== false &&
+          dv.document.smartDocumentStyleProfile) ||
+        (templateVersion.smartTemplate && templateVersion.smartTemplate.styleProfile) ||
+        templateVersion.formattingSnapshot ||
+        {};
+      const styleProfile = resolvedStyleProfile;
+
+      const fieldValuesMap = smartDocumentContent.fieldValuesJson && typeof smartDocumentContent.fieldValuesJson === 'object'
+        ? smartDocumentContent.fieldValuesJson
+        : {};
+      const autoSnapshot = smartDocumentContent.autoFieldSnapshotJson && typeof smartDocumentContent.autoFieldSnapshotJson === 'object'
+        ? smartDocumentContent.autoFieldSnapshotJson
+        : {};
+
+      const systemValues = {
+        referenceCode: autoSnapshot.referenceCode || (dv.document && dv.document.fileCode) || '',
+        version: version.version || dv.version || '',
+        documentTypeName: autoSnapshot.documentTypeName || '',
+        preparedByFullName: autoSnapshot.preparedByFullName || '',
+        reviewedByFullName: autoSnapshot.reviewedByFullName || '',
+        approvedByFullName: autoSnapshot.approvedByFullName || '',
+        preparedDate: autoSnapshot.preparedDate || dv.uploadedAt || new Date(),
+        publishedDate: autoSnapshot.publishedDate || (dv.isPublished ? (dv.uploadedAt || new Date()) : undefined)
+      };
+
+      const finalSystemValues = {
+        ...systemValues,
+        referenceCode: systemValues.referenceCode || (dv.document && dv.document.fileCode) || '',
+        version: systemValues.version || version.version || dv.version || '',
+        revision: systemValues.version || version.version || dv.version || '',
+        docCode: systemValues.referenceCode || (dv.document && dv.document.fileCode) || '',
+        fileCode: (dv.document && dv.document.fileCode) || systemValues.referenceCode || '',
+        preparedByName: systemValues.preparedByFullName || systemValues.preparedByName || '',
+        approvedByName: systemValues.approvedByFullName || systemValues.approvedByName || '',
+        reviewedByName: systemValues.reviewedByFullName || systemValues.reviewedByName || ''
+      };
+
+      let templateBuffer;
+      if (templateVersion.templateFilePath) {
+        const absTpl = resolveExistingFilePath(templateVersion.templateFilePath);
+        if (!absTpl) {
+          return ResponseFormatter.notFound(res, 'Template DOCX file is missing on server. File was likely moved or deleted.');
+        }
+        try {
+          templateBuffer = await fs.promises.readFile(absTpl);
+        } catch (e) {
+          return ResponseFormatter.error(res, 'Failed to read template DOCX file: ' + e.message, 500);
+        }
+      } else {
+        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 500);
+      }
+
+      let docxBuf;
+      try {
+        docxBuf = await smartDocumentGenerator.generateDocx({
+          templateBuffer,
+          fieldValuesMap,
+          formFields,
+          fieldMappings,
+          styleProfile,
+          systemValues: finalSystemValues
+        });
+      } catch (e) {
+        console.error('[downloadDocument] DOCX generation failed:', e);
+        return ResponseFormatter.error(res, 'DOCX generation failed: ' + e.message, 500);
+      }
+
+      try {
+        docxBuf = await smartDocumentFormatter.applyStyleProfileToDocxBuffer({
+          docxBuffer: docxBuf,
+          styleProfile,
+          headerValues: finalSystemValues,
+          footerValues: finalSystemValues
+        });
+      } catch (e) {
+        console.warn('[downloadDocument] Style formatting step failed, falling back to raw docx:', e.message);
+      }
+
+      let pdfBuffer;
+      try {
+        const conversionResult = await smartDocumentPdfService.convertDocxBufferToPdf(docxBuf, {
+          workDirSuffix: 'smart-doc-download',
+          styleProfile,
+          systemValues: finalSystemValues,
+          headerValues: finalSystemValues,
+          footerValues: finalSystemValues
+        });
+        pdfBuffer = conversionResult.pdfBuffer;
+      } catch (e) {
+        console.error('[downloadDocument] PDF conversion failed:', e);
+        return ResponseFormatter.error(res, 'PDF conversion failed: ' + e.message, 500);
+      }
+
+      await auditLogService.logDocument(req.user.id, 'DOWNLOAD', document, req, {
+        fileName: version.fileName,
+        versionId: version.id,
+        smartDocument: true,
+        pdfSource: 'generated'
+      });
+
+      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
+      const verLabel = version.version || dv.version || '1.0';
+      const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+      const rawPdfName = pdfBaseName;
+      const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+      const encodedPdfName = encodeURIComponent(rawPdfName);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      return res.send(pdfBuffer);
+    }
+
+    // --- Normal document flow (unchanged) ---
     const absolutePath = resolveExistingFilePath(version.filePath)
 
     if (!absolutePath) {
@@ -1824,7 +2139,11 @@ class DocumentController {
 
     const document = await documentService.getDocumentById(documentId, req.user);
     if (document?.folderId) {
-      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      const isOwner = Number(document.ownerId) === Number(req.user.id)
+      const isCreator = Number(document.createdById) === Number(req.user.id)
+      if (!isOwner && !isCreator) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      }
     }
 
     let version;
@@ -1873,6 +2192,198 @@ class DocumentController {
     }).catch(() => {})
     // #endregion
 
+    // --- Smart Document handling: serve PDF preview instead of raw .txt content ---
+    const previewSmartDetails = await prisma.documentVersion.findUnique({
+      where: { id: Number(version.id) },
+      select: {
+        smartTemplateVersionId: true,
+        smartFinalPdfPath: true,
+        smartFinalPdfFileSize: true,
+        smartFinalPdfGeneratedAt: true
+      }
+    });
+
+    const isPreviewSmartDocument = Boolean(previewSmartDetails?.smartTemplateVersionId);
+
+    if (isPreviewSmartDocument) {
+      const smartDocumentPdfService = require('../services/smartDocumentPdfService');
+      const smartDocumentGenerator = require('../services/smartDocumentGenerator');
+      const smartDocumentFormatter = require('../services/smartDocumentFormatter');
+      const smartDocumentContentService = require('../services/smartDocumentContentService');
+
+      if (previewSmartDetails.smartFinalPdfPath) {
+        const cachedPath = resolveExistingFilePath(previewSmartDetails.smartFinalPdfPath);
+        if (cachedPath) {
+          const fileCode = (document && document.fileCode) || `doc-v${version.id}`;
+          const verLabel = version.version || '1.0';
+          const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+          const rawPdfName = pdfBaseName;
+          const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+          const encodedPdfName = encodeURIComponent(rawPdfName);
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `inline; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+          let cachedFileSize = previewSmartDetails.smartFinalPdfFileSize;
+          if (!cachedFileSize) {
+            try { cachedFileSize = fs.statSync(cachedPath).size; } catch (_) { /* ignore */ }
+          }
+          if (cachedFileSize) res.setHeader('Content-Length', cachedFileSize);
+          return res.sendFile(cachedPath);
+        }
+      }
+
+      const dv = await prisma.documentVersion.findUnique({
+        where: { id: Number(version.id) },
+        include: {
+          document: { include: { smartDocumentStyleProfile: true } },
+          smartDocumentContent: true,
+          smartTemplateVersion: {
+            include: {
+              smartTemplate: { include: { styleProfile: true } },
+              formFields: true,
+              fieldMappings: true
+            }
+          }
+        }
+      });
+
+      if (!dv.smartTemplateVersion) {
+        return ResponseFormatter.error(res, 'Smart template version not assigned to document version', 400);
+      }
+
+      let smartDocumentContent = dv.smartDocumentContent;
+      if (!smartDocumentContent) {
+        try {
+          smartDocumentContent = await smartDocumentContentService.getOrCreateContentForDocumentVersion({
+            documentVersionId: Number(version.id),
+            smartTemplateVersionId: Number(dv.smartTemplateVersionId),
+            createdById: Number(
+              dv.document?.ownerId || dv.document?.createdById || req.user.id
+            ),
+          });
+        } catch (createErr) {
+          console.warn('[previewDocument] Could not auto-create smart content:', createErr?.message || createErr);
+        }
+      }
+
+      if (!smartDocumentContent) {
+        return ResponseFormatter.error(res, 'Smart document content not initialized for this document version', 400);
+      }
+
+      const templateVersion = dv.smartTemplateVersion;
+      const formFields = templateVersion.formFields || [];
+      const fieldMappings = templateVersion.fieldMappings || [];
+
+      const resolvedStyleProfile =
+        (dv.document &&
+          dv.document.smartDocumentStyleProfile &&
+          dv.document.smartDocumentStyleProfile.isActive !== false &&
+          dv.document.smartDocumentStyleProfile) ||
+        (templateVersion.smartTemplate && templateVersion.smartTemplate.styleProfile) ||
+        templateVersion.formattingSnapshot ||
+        {};
+      const styleProfile = resolvedStyleProfile;
+
+      const fieldValuesMap = smartDocumentContent.fieldValuesJson && typeof smartDocumentContent.fieldValuesJson === 'object'
+        ? smartDocumentContent.fieldValuesJson
+        : {};
+      const autoSnapshot = smartDocumentContent.autoFieldSnapshotJson && typeof smartDocumentContent.autoFieldSnapshotJson === 'object'
+        ? smartDocumentContent.autoFieldSnapshotJson
+        : {};
+
+      const systemValues = {
+        referenceCode: autoSnapshot.referenceCode || (dv.document && dv.document.fileCode) || '',
+        version: version.version || dv.version || '',
+        documentTypeName: autoSnapshot.documentTypeName || '',
+        preparedByFullName: autoSnapshot.preparedByFullName || '',
+        reviewedByFullName: autoSnapshot.reviewedByFullName || '',
+        approvedByFullName: autoSnapshot.approvedByFullName || '',
+        preparedDate: autoSnapshot.preparedDate || dv.uploadedAt || new Date(),
+        publishedDate: autoSnapshot.publishedDate || (dv.isPublished ? (dv.uploadedAt || new Date()) : undefined)
+      };
+
+      const finalSystemValues = {
+        ...systemValues,
+        referenceCode: systemValues.referenceCode || (dv.document && dv.document.fileCode) || '',
+        version: systemValues.version || version.version || dv.version || '',
+        revision: systemValues.version || version.version || dv.version || '',
+        docCode: systemValues.referenceCode || (dv.document && dv.document.fileCode) || '',
+        fileCode: (dv.document && dv.document.fileCode) || systemValues.referenceCode || '',
+        preparedByName: systemValues.preparedByFullName || systemValues.preparedByName || '',
+        approvedByName: systemValues.approvedByFullName || systemValues.approvedByName || '',
+        reviewedByName: systemValues.reviewedByFullName || systemValues.reviewedByName || ''
+      };
+
+      let templateBuffer;
+      if (templateVersion.templateFilePath) {
+        const absTpl = resolveExistingFilePath(templateVersion.templateFilePath);
+        if (!absTpl) {
+          return ResponseFormatter.notFound(res, 'Template DOCX file is missing on server. File was likely moved or deleted.');
+        }
+        try {
+          templateBuffer = await fs.promises.readFile(absTpl);
+        } catch (e) {
+          return ResponseFormatter.error(res, 'Failed to read template DOCX file: ' + e.message, 500);
+        }
+      } else {
+        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 500);
+      }
+
+      let docxBuf;
+      try {
+        docxBuf = await smartDocumentGenerator.generateDocx({
+          templateBuffer,
+          fieldValuesMap,
+          formFields,
+          fieldMappings,
+          styleProfile,
+          systemValues: finalSystemValues
+        });
+      } catch (e) {
+        console.error('[previewDocument] DOCX generation failed:', e);
+        return ResponseFormatter.error(res, 'DOCX generation failed: ' + e.message, 500);
+      }
+
+      try {
+        docxBuf = await smartDocumentFormatter.applyStyleProfileToDocxBuffer({
+          docxBuffer: docxBuf,
+          styleProfile,
+          headerValues: finalSystemValues,
+          footerValues: finalSystemValues
+        });
+      } catch (e) {
+        console.warn('[previewDocument] Style formatting step failed, falling back to raw docx:', e.message);
+      }
+
+      let pdfBuffer;
+      try {
+        const conversionResult = await smartDocumentPdfService.convertDocxBufferToPdf(docxBuf, {
+          workDirSuffix: 'smart-doc-preview',
+          styleProfile,
+          systemValues: finalSystemValues,
+          headerValues: finalSystemValues,
+          footerValues: finalSystemValues
+        });
+        pdfBuffer = conversionResult.pdfBuffer;
+      } catch (e) {
+        console.error('[previewDocument] PDF conversion failed:', e);
+        return ResponseFormatter.error(res, 'PDF conversion failed: ' + e.message, 500);
+      }
+
+      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
+      const verLabel = version.version || dv.version || '1.0';
+      const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+      const rawPdfName = pdfBaseName;
+      const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+      const encodedPdfName = encodeURIComponent(rawPdfName);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      return res.send(pdfBuffer);
+    }
+
+    // --- Normal document flow (unchanged) ---
     const absolutePath = resolveExistingFilePath(version.filePath)
 
     if (!absolutePath) {
@@ -1907,7 +2418,11 @@ class DocumentController {
 
     const document = await documentService.getDocumentById(documentId, req.user)
     if (document?.folderId) {
-      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      const isOwner = Number(document.ownerId) === Number(req.user.id)
+      const isCreator = Number(document.createdById) === Number(req.user.id)
+      if (!isOwner && !isCreator) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      }
     }
 
     const status = String(document?.status || '').toUpperCase()
@@ -1963,7 +2478,11 @@ class DocumentController {
 
     const document = await documentService.getDocumentById(documentId, req.user)
     if (document?.folderId) {
-      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      const isOwner = Number(document.ownerId) === Number(req.user.id)
+      const isCreator = Number(document.createdById) === Number(req.user.id)
+      if (!isOwner && !isCreator) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      }
     }
 
     const links = await documentShareLinkService.listLinks({ documentId })
@@ -1978,7 +2497,11 @@ class DocumentController {
 
     const document = await documentService.getDocumentById(documentId, req.user)
     if (document?.folderId) {
-      await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      const isOwner = Number(document.ownerId) === Number(req.user.id)
+      const isCreator = Number(document.createdById) === Number(req.user.id)
+      if (!isOwner && !isCreator) {
+        await folderPermissionService.assertCan(document.folderId, req.user, 'view')
+      }
     }
 
     const linkId = req.params.linkId
@@ -2436,8 +2959,102 @@ class DocumentController {
     );
   });
 
+  /**
+   * Delete draft document (hard delete)
+   * - Only allowed for DRAFT / ACKNOWLEDGED / RETURNED / PENDING_ACKNOWLEDGMENT status documents
+   * - Owner, creator, or admin only
+   * - Also deletes all NDR records, code registry entries, assignments, audit logs, versions, smart answers, upload files
+   * - Requires password verification in request body: { confirmPassword }
+   * DELETE /api/documents/drafts/:id
+   */
+  deleteDraft = asyncHandler(async (req, res) => {
+    const rawId = req.params?.id
+    const documentId = Number.parseInt(rawId, 10)
+    if (!Number.isFinite(documentId)) {
+      return ResponseFormatter.validationError(res, [{ field: 'id', message: 'Invalid document id' }])
+    }
+
+    const confirmPassword = String(req.body?.confirmPassword || '').trim()
+    if (!confirmPassword) {
+      return ResponseFormatter.validationError(res, [{ field: 'confirmPassword', message: 'Password is required to confirm deletion' }])
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { password: true }
+    })
+    if (!currentUser) {
+      throw new UnauthorizedError('User not found')
+    }
+    const isPasswordValid = await bcrypt.compare(confirmPassword, currentUser.password)
+    if (!isPasswordValid) {
+      throw new UnauthorizedError('Incorrect password. Deletion cancelled.')
+    }
+
+    const isAdmin = Boolean(req.user?.roles?.some(roleName =>
+      ['Admin', 'Administrator', 'ADMIN', 'admin'].includes(String(roleName || ''))
+    ))
+
+    let draftInfo = null
+    try {
+      draftInfo = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: {
+          id: true,
+          fileCode: true,
+          title: true,
+          status: true,
+          stage: true,
+          ownerId: true,
+          createdById: true
+        }
+      })
+    } catch (_e) { /* ignore */ }
+
+    const result = await documentService.deleteDraft(documentId, req.user.id, isAdmin)
+
+    try {
+      await auditLogService.logDocument(req.user.id, 'DELETE_DRAFT', draftInfo, req, {
+        fileCode: draftInfo?.fileCode || result?.fileCode,
+        title: draftInfo?.title,
+        statusBefore: draftInfo?.status,
+        stageBefore: draftInfo?.stage,
+        deletedRegisters: result?.deletedRegisters || null,
+        deletedFiles: result?.deletedFiles || 0
+      })
+    } catch (_e) { /* ignore audit log failure - deletion already happened */ }
+
+    return ResponseFormatter.success(
+      res,
+      result,
+      `Draft ${result.fileCode ? `(${result.fileCode}) ` : ''}deleted successfully. Related records and file code have been removed from the system.`
+    )
+  });
+
   createDraft = asyncHandler(async (req, res) => {
-    const { fileCode, title, versionNo, documentType, comments, contentFormat, divisionId } = req.body;
+    const { fileCode, title, versionNo, documentType, comments, contentFormat, divisionId, creationMode, smartTemplateVersionId, smartDocumentStyleProfileId } = req.body;
+    const rawContentData = req.body?.contentData
+    const rawContentText = req.body?.contentText
+
+    const normalizedCreationMode = String(creationMode || '').toUpperCase() === 'SMART_DOCUMENT' ? 'SMART_DOCUMENT' : 'FILE_BASED';
+
+    try {
+      if (normalizedCreationMode === 'SMART_DOCUMENT' && smartTemplateVersionId) {
+        const stvId = Number(smartTemplateVersionId);
+        if (Number.isFinite(stvId)) {
+          const stv = await prisma.smartTemplateVersion.findUnique({ where: { id: stvId }});
+          if (!stv) {
+            return ResponseFormatter.validationError(res, [
+              { field: 'smartTemplateVersionId', message: 'Invalid smart template version' }
+            ]);
+          }
+        }
+      } else if (normalizedCreationMode === 'SMART_DOCUMENT' && !smartTemplateVersionId) {
+        console.warn('[createDraft] SMART_DOCUMENT mode but smartTemplateVersionId not provided; user may attach template later in Smart Editor');
+      }
+    } catch (smartErr) {
+      console.error('[createDraft] smart template validation error:', smartErr?.message || smartErr);
+    }
 
     const errors = [];
     if (!fileCode) errors.push({ field: 'fileCode', message: 'File code is required' });
@@ -2449,14 +3066,23 @@ class DocumentController {
     }
 
     const normalizedContentFormat = normalizeContentFormat(contentFormat)
+    const parsedContentData = parseContentData(rawContentData)
+    const mergedContentText = deriveContentText(
+      normalizedContentFormat,
+      parsedContentData,
+      String(rawContentText || comments || '')
+    )
+
     const trimmedFileCode = String(fileCode || '').trim();
     const normalizedFileCode = await documentService.normalizeFileCodeFromSystemSettings(trimmedFileCode);
     const candidateFileCodes = Array.from(new Set([trimmedFileCode, normalizedFileCode].filter(Boolean)));
+    const uid = Number(req.user.id);
 
     const existingDocument = await prisma.document.findFirst({
       where: {
         fileCode: { in: candidateFileCodes },
-        ownerId: req.user.id
+        status: { in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'] },
+        OR: [{ ownerId: uid }, { createdById: uid }]
       }
     });
 
@@ -2486,20 +3112,41 @@ class DocumentController {
       documentId = existingDocument.id;
       savedFileCode = existingDocument.fileCode;
 
-      if (String(existingDocument.stage || '').toUpperCase() !== 'DRAFT') {
+      const stUpper = String(existingDocument.status || '').toUpperCase()
+      const stageUpper = String(existingDocument.stage || '').toUpperCase()
+      const isUpdatable =
+        (stUpper === 'DRAFT' && stageUpper === 'DRAFT') ||
+        (stUpper === 'RETURNED' && stageUpper === 'DRAFT') ||
+        (stUpper === 'ACKNOWLEDGED')
+
+      if (!isUpdatable) {
         return ResponseFormatter.error(res, 'File code already exists and cannot be modified in this stage', 409)
       }
 
-      await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          title,
-          description: comments,
-          version: versionNo || existingDocument.version,
-          contentFormat: normalizedContentFormat,
-          ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
-        }
-      });
+      let finalStage = stageUpper
+      if (stUpper === 'ACKNOWLEDGED' && stageUpper !== 'DRAFT') {
+        finalStage = 'DRAFT'
+      }
+
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            title,
+            description: comments,
+            version: versionNo || existingDocument.version,
+            contentFormat: normalizedContentFormat,
+            contentData: parsedContentData,
+            contentText: mergedContentText || null,
+            creationMode: normalizedCreationMode,
+            ...(Number.isFinite(Number(smartDocumentStyleProfileId)) ? { smartDocumentStyleProfileId: Number(smartDocumentStyleProfileId) } : {}),
+            ...(finalStage !== stageUpper ? { stage: finalStage } : {}),
+            ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
+          }
+        });
+      } catch (docUpdErr) {
+        console.error('[createDraft] existing document update error (smart fields):', docUpdErr?.message || docUpdErr);
+      }
     } else {
       const docType = await documentService.getDocumentTypeByName(documentType);
       if (!docType) {
@@ -2514,26 +3161,54 @@ class DocumentController {
         description: comments,
         documentTypeId: docType.id,
         projectCategoryId: null,
-        divisionId,
+        divisionId: Number.isFinite(requestedDivisionId) ? requestedDivisionId : null,
         folderId: null,
-        contentFormat: normalizedContentFormat
+        contentFormat: normalizedContentFormat,
+        contentData: parsedContentData,
+        contentText: mergedContentText || null,
       }, req.user.id, {
         version: versionNo || '1.0',
-        status: 'ACKNOWLEDGED',
         status: 'ACKNOWLEDGED',
         stage: 'DRAFT'
       });
 
       documentId = newDocument.id;
       savedFileCode = newDocument.fileCode;
+
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            creationMode: normalizedCreationMode,
+            ...(Number.isFinite(Number(smartDocumentStyleProfileId)) ? { smartDocumentStyleProfileId: Number(smartDocumentStyleProfileId) } : {})
+          }
+        });
+      } catch (docPatchErr) {
+        console.error('[createDraft] new document post-patch error (smart fields):', docPatchErr?.message || docPatchErr);
+      }
     }
 
     if (req.file) {
       const uploadedVersion = await documentService.uploadDocumentVersion(
         documentId,
         req.file,
-        req.user.id
+        req.user.id,
+        {
+          contentData: parsedContentData,
+          contentText: mergedContentText || null,
+        }
       );
+
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          await prisma.documentVersion.update({
+            where: { id: uploadedVersion.id },
+            data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+          });
+        }
+      } catch (verUpdErr) {
+        console.error('[createDraft] upload version smartTemplateVersionId patch error:', verUpdErr?.message || verUpdErr);
+      }
 
       const actorUserId = req.user?.id || null
       const auditReq = buildAuditRequestContext(req)
@@ -2550,6 +3225,55 @@ class DocumentController {
           versionNo
         });
       })
+    } else if (parsedContentData) {
+      try {
+        await documentService.syncContentVersion(documentId, {
+          version: versionNo || '1.0',
+          uploadedById: req.user.id,
+          contentData: parsedContentData,
+          contentText: mergedContentText || null,
+        })
+      } catch (err) {
+        console.error('[createDraft] syncContentVersion failed:', err?.message || err)
+      }
+
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          const latest = await prisma.documentVersion.findFirst({
+            where: { documentId },
+            orderBy: { id: 'desc' },
+            take: 1,
+            select: { id: true }
+          });
+          if (latest) {
+            await prisma.documentVersion.update({
+              where: { id: latest.id },
+              data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+            });
+          }
+        }
+      } catch (verPatchErr) {
+        console.error('[createDraft] sync version smartTemplateVersionId patch error:', verPatchErr?.message || verPatchErr);
+      }
+    } else {
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          const latest = await prisma.documentVersion.findFirst({
+            where: { documentId },
+            orderBy: { id: 'desc' },
+            take: 1,
+            select: { id: true }
+          });
+          if (latest) {
+            await prisma.documentVersion.update({
+              where: { id: latest.id },
+              data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+            });
+          }
+        }
+      } catch (verPatchErr) {
+        console.error('[createDraft] placeholder smartTemplateVersionId patch error:', verPatchErr?.message || verPatchErr);
+      }
     }
 
     const document = await prisma.document.findUnique({
@@ -2570,7 +3294,29 @@ class DocumentController {
    * POST /api/documents/drafts/submit-for-review
    */
   createDraftAndSubmitForReview = asyncHandler(async (req, res) => {
-    const { fileCode, title, versionNo, documentType, comments, reviewers, contentFormat, divisionId } = req.body;
+    const { fileCode, title, versionNo, documentType, comments, reviewers, contentFormat, divisionId, creationMode, smartTemplateVersionId, smartDocumentStyleProfileId } = req.body;
+    const rawContentData = req.body?.contentData
+    const rawContentText = req.body?.contentText
+
+    const normalizedCreationMode = String(creationMode || '').toUpperCase() === 'SMART_DOCUMENT' ? 'SMART_DOCUMENT' : 'FILE_BASED';
+
+    try {
+      if (normalizedCreationMode === 'SMART_DOCUMENT' && smartTemplateVersionId) {
+        const stvId = Number(smartTemplateVersionId);
+        if (Number.isFinite(stvId)) {
+          const stv = await prisma.smartTemplateVersion.findUnique({ where: { id: stvId }});
+          if (!stv) {
+            return ResponseFormatter.validationError(res, [
+              { field: 'smartTemplateVersionId', message: 'Invalid smart template version' }
+            ]);
+          }
+        }
+      } else if (normalizedCreationMode === 'SMART_DOCUMENT' && !smartTemplateVersionId) {
+        console.warn('[createDraftAndSubmitForReview] SMART_DOCUMENT mode but smartTemplateVersionId not provided; user may attach template later in Smart Editor');
+      }
+    } catch (smartErr) {
+      console.error('[createDraftAndSubmitForReview] smart template validation error:', smartErr?.message || smartErr);
+    }
 
     // Validation
     const errors = [];
@@ -2578,8 +3324,14 @@ class DocumentController {
     if (!title) errors.push({ field: 'title', message: 'Title is required' });
     if (!documentType) errors.push({ field: 'documentType', message: 'Document type is required' });
     const normalizedContentFormat = normalizeContentFormat(contentFormat)
+    const parsedContentData = parseContentData(rawContentData)
+    const mergedContentText = deriveContentText(
+      normalizedContentFormat,
+      parsedContentData,
+      String(rawContentText || comments || '')
+    )
     if (normalizedContentFormat === 'FILE' && !req.file) errors.push({ field: 'file', message: 'File is required' });
-    
+
     // Parse reviewers
     let reviewerIds = [];
     if (reviewers) {
@@ -2602,12 +3354,14 @@ class DocumentController {
     const trimmedFileCode = String(fileCode || '').trim();
     const normalizedFileCode = await documentService.normalizeFileCodeFromSystemSettings(trimmedFileCode);
     const candidateFileCodes = Array.from(new Set([trimmedFileCode, normalizedFileCode].filter(Boolean)));
+    const uid = Number(req.user.id);
 
     // Check if document with this file code already exists
     const existingDocument = await prisma.document.findFirst({
       where: {
         fileCode: { in: candidateFileCodes },
-        ownerId: req.user.id
+        status: { in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'] },
+        OR: [{ ownerId: uid }, { createdById: uid }]
       }
     });
 
@@ -2638,24 +3392,42 @@ class DocumentController {
       documentId = existingDocument.id;
       savedFileCode = existingDocument.fileCode;
 
-      if (String(existingDocument.stage || '').toUpperCase() !== 'DRAFT') {
+      const stUpper = String(existingDocument.status || '').toUpperCase()
+      const stageUpper = String(existingDocument.stage || '').toUpperCase()
+      const isUpdatable =
+        (stUpper === 'DRAFT' && stageUpper === 'DRAFT') ||
+        (stUpper === 'RETURNED' && stageUpper === 'DRAFT') ||
+        (stUpper === 'ACKNOWLEDGED')
+
+      if (!isUpdatable) {
         return ResponseFormatter.error(res, 'File code already exists and cannot be modified in this stage', 409)
       }
-      
-      // Update document details
-      await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          title,
-          description: comments,
-          version: versionNo || existingDocument.version,
-          contentFormat: normalizedContentFormat,
-          ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
-        }
-      });
+
+      let finalStage = stageUpper
+      if (stUpper === 'ACKNOWLEDGED' && stageUpper !== 'DRAFT') {
+        finalStage = 'DRAFT'
+      }
+
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            title,
+            description: comments,
+            version: versionNo || existingDocument.version,
+            contentFormat: normalizedContentFormat,
+            contentData: parsedContentData,
+            contentText: mergedContentText || null,
+            creationMode: normalizedCreationMode,
+            ...(Number.isFinite(Number(smartDocumentStyleProfileId)) ? { smartDocumentStyleProfileId: Number(smartDocumentStyleProfileId) } : {}),
+            ...(finalStage !== stageUpper ? { stage: finalStage } : {}),
+            ...(Number.isFinite(requestedDivisionId) ? { divisionId: requestedDivisionId } : {})
+          }
+        });
+      } catch (docUpdErr) {
+        console.error('[createDraftAndSubmitForReview] existing document update error (smart fields):', docUpdErr?.message || docUpdErr);
+      }
     } else {
-      // This shouldn't happen in normal flow since we're selecting from existing file codes
-      // But handle it just in case
       const docType = await documentService.getDocumentTypeByName(documentType);
       if (!docType) {
         return ResponseFormatter.validationError(res, [
@@ -2671,7 +3443,9 @@ class DocumentController {
         projectCategoryId: null,
         divisionId: Number.isFinite(requestedDivisionId) ? requestedDivisionId : null,
         folderId: null,
-        contentFormat: normalizedContentFormat
+        contentFormat: normalizedContentFormat,
+        contentData: parsedContentData,
+        contentText: mergedContentText || null,
       }, req.user.id, {
         version: versionNo || '1.0',
         status: 'ACKNOWLEDGED',
@@ -2680,14 +3454,41 @@ class DocumentController {
 
       documentId = newDocument.id;
       savedFileCode = newDocument.fileCode;
+
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            creationMode: normalizedCreationMode,
+            ...(Number.isFinite(Number(smartDocumentStyleProfileId)) ? { smartDocumentStyleProfileId: Number(smartDocumentStyleProfileId) } : {})
+          }
+        });
+      } catch (docPatchErr) {
+        console.error('[createDraftAndSubmitForReview] new document post-patch error (smart fields):', docPatchErr?.message || docPatchErr);
+      }
     }
 
     if (req.file) {
       const uploadedVersion = await documentService.uploadDocumentVersion(
         documentId,
         req.file,
-        req.user.id
+        req.user.id,
+        {
+          contentData: parsedContentData,
+          contentText: mergedContentText || null,
+        }
       );
+
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          await prisma.documentVersion.update({
+            where: { id: uploadedVersion.id },
+            data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+          });
+        }
+      } catch (verUpdErr) {
+        console.error('[createDraftAndSubmitForReview] upload version smartTemplateVersionId patch error:', verUpdErr?.message || verUpdErr);
+      }
 
       const actorUserId = req.user?.id || null
       const auditReq = buildAuditRequestContext(req)
@@ -2716,6 +3517,55 @@ class DocumentController {
 
         return backgroundTimings
       })
+    } else if (parsedContentData) {
+      try {
+        await documentService.syncContentVersion(documentId, {
+          version: versionNo || '1.0',
+          uploadedById: req.user.id,
+          contentData: parsedContentData,
+          contentText: mergedContentText || null,
+        })
+      } catch (err) {
+        console.error('[createDraftAndSubmitForReview] syncContentVersion failed:', err?.message || err)
+      }
+
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          const latest = await prisma.documentVersion.findFirst({
+            where: { documentId },
+            orderBy: { id: 'desc' },
+            take: 1,
+            select: { id: true }
+          });
+          if (latest) {
+            await prisma.documentVersion.update({
+              where: { id: latest.id },
+              data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+            });
+          }
+        }
+      } catch (verPatchErr) {
+        console.error('[createDraftAndSubmitForReview] sync version smartTemplateVersionId patch error:', verPatchErr?.message || verPatchErr);
+      }
+    } else {
+      try {
+        if (normalizedCreationMode === 'SMART_DOCUMENT' && Number.isFinite(Number(smartTemplateVersionId))) {
+          const latest = await prisma.documentVersion.findFirst({
+            where: { documentId },
+            orderBy: { id: 'desc' },
+            take: 1,
+            select: { id: true }
+          });
+          if (latest) {
+            await prisma.documentVersion.update({
+              where: { id: latest.id },
+              data: { smartTemplateVersionId: Number(smartTemplateVersionId) }
+            });
+          }
+        }
+      } catch (verPatchErr) {
+        console.error('[createDraftAndSubmitForReview] placeholder smartTemplateVersionId patch error:', verPatchErr?.message || verPatchErr);
+      }
     }
 
     // Submit for review

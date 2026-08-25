@@ -74,26 +74,31 @@ class AuthService {
   async login(email, password, ipAddress, userAgent, options = {}) {
     const { skipSession = false } = options;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        roles: {
-          include: {
-            role: {
-              select: {
-                id: true,
-                name: true,
-                displayName: true,
-                description: true,
-                permissions: true,
-                isSystem: true
+    let user;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          roles: {
+            include: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                  displayName: true,
+                  description: true,
+                  permissions: true,
+                  isSystem: true
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    } catch (err) {
+      if (err && err.isOperational) throw err;
+      throw new UnauthorizedError('Invalid credentials');
+    }
 
     if (!user) {
       throw new UnauthorizedError('Invalid credentials');

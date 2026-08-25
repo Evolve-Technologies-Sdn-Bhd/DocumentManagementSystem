@@ -15,19 +15,19 @@ const actions = [
     key: 'my-documents',
     labelKey: 'quick_actions_my_documents',
     descriptionKey: 'quick_actions_my_documents_desc',
-    to: '/my-documents'
+    to: '/documents/my-documents'
   },
   {
     key: 'drafts',
     labelKey: 'quick_actions_drafts',
     descriptionKey: 'quick_actions_drafts_desc',
-    to: '/drafts'
+    to: '/documents/drafts'
   },
   {
     key: 'review-approval',
     labelKey: 'quick_actions_review_approval',
     descriptionKey: 'quick_actions_review_approval_desc',
-    to: '/review-approval'
+    to: '/documents/review-approval'
   }
 ]
 

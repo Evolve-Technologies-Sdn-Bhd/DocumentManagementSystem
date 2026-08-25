@@ -903,9 +903,14 @@ class ConfigService {
   }
 
   async getLoginPageSettings() {
-    const config = await prisma.configuration.findUnique({
-      where: { key: 'login_page_settings' }
-    });
+    let config = null
+    try {
+      config = await prisma.configuration.findUnique({
+        where: { key: 'login_page_settings' }
+      })
+    } catch {
+      config = null
+    }
 
     if (config?.value) {
       try {
@@ -1084,9 +1089,14 @@ class ConfigService {
       return maintenanceSettingsCache;
     }
 
-    const config = await prisma.configuration.findUnique({
-      where: { key: 'maintenance_settings' }
-    });
+    let config = null
+    try {
+      config = await prisma.configuration.findUnique({
+        where: { key: 'maintenance_settings' }
+      })
+    } catch {
+      config = null
+    }
 
     let parsed = null;
     if (config?.value) {

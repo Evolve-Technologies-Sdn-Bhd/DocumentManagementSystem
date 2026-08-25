@@ -598,7 +598,7 @@ export default function ReviewAndApproval() {
             {/* Actions */}
             <PermissionGate module="documents.draft" action="create">
               <Button
-                onClick={() => navigate('/drafts')}
+                onClick={() => navigate('/documents/drafts')}
                 data-tour-id="ra-btn-upload-new-draft"
               >
                 <span className="flex items-center gap-2">

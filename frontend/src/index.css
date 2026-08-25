@@ -350,3 +350,119 @@ button:focus-visible,
     padding-right: var(--dms-layout-page-gutter-desktop);
   }
 }
+
+/* ========================================
+   Uniform Modal Styling (matches AddTemplateModal reference)
+   Applied to .modal-uniform wrapper to normalize all pop-up forms
+   ======================================== */
+.modal-uniform,
+.modal-uniform * {
+  --dms-color-bg-surface: #ffffff;
+  --dms-color-bg-surface-muted: #f9fafb;
+  --dms-color-bg-surface-strong: #ffffff;
+  --dms-color-text-primary: #111827;
+  --dms-color-text-secondary: #111827;
+  --dms-color-text-muted: #4b5563;
+  --dms-color-text-soft: #6b7280;
+  --dms-color-text-meta: #6b7280;
+  --dms-color-text-inverse: #ffffff;
+  --dms-color-text-on-brand: #ffffff;
+  --dms-color-text-on-danger: #ffffff;
+  --dms-color-border-default: #e5e7eb;
+  --dms-color-border-strong: #d1d5db;
+  --dms-color-brand-primary: #2563eb;
+  --dms-color-brand-primary-hover: #1d4ed8;
+  --dms-color-brand-secondary: #2563eb;
+  --dms-radius-sm: 8px;
+  --dms-radius-md: 8px;
+  --dms-radius-lg: 8px;
+  --dms-shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --dms-shadow-md: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --dms-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Normalize radii: rounded-2xl, rounded-[18px], rounded-dms-lg inside modals -> rounded-lg */
+.modal-uniform .rounded-2xl,
+.modal-uniform .rounded-dms,
+.modal-uniform .rounded-dms-lg,
+.modal-uniform .rounded-dms-sm,
+.modal-uniform .rounded-xl {
+  border-radius: 0.5rem !important; /* rounded-lg = 8px */
+}
+.modal-uniform .rounded-\[18px\] {
+  border-radius: 0.5rem !important;
+}
+
+/* Normalize font sizes for labels and text inside modal forms */
+.modal-uniform label,
+.modal-uniform .text-ink-secondary,
+.modal-uniform .text-ink-muted,
+.modal-uniform .text-ink-soft {
+  color: #111827; /* gray-900 - match ref labels text-gray-900 */
+  font-weight: 500; /* font-medium */
+  font-size: 0.875rem; /* text-sm */
+}
+.modal-uniform .text-ink-muted,
+.modal-uniform .text-ink-soft {
+  color: #6b7280; /* gray-500 for helper/subtle text */
+  font-weight: 400;
+}
+
+/* Ensure shadow matches reference shadow-xl */
+.modal-uniform .shadow-dms-lg,
+.modal-uniform .shadow-dms-card,
+.modal-uniform .shadow-dms-soft {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Helper panel backgrounds inside modals */
+.modal-uniform .dms-surface,
+.modal-uniform .dms-surface-muted {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+/* ========================================
+   Standardized Table Styling (matches MasterDataManagement reference)
+   All tables wrapped with ui/TableContainer → class="ui-table-wrapper"
+   ======================================== */
+.ui-table-wrapper thead > tr {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.ui-table-wrapper tbody > tr {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* ========================================
+   Uniform Button Styling (matches "Add New Template" reference)
+   Safety-net CSS var overrides inside .modal-uniform for any buttons
+   still using semantic brand/surface vars instead of literal classes.
+   ======================================== */
+.modal-uniform button,
+.modal-uniform [class*="btn-"],
+.modal-uniform [role="button"] {
+  font-size: 0.875rem; /* text-sm = 14px */
+  font-weight: 500;    /* font-medium */
+  line-height: 1.25rem;
+}
+.modal-uniform [class*="bg-brand"],
+.modal-uniform [class*="bg-blue-600"],
+.modal-uniform [class*="bg-brand-primary"] {
+  background-color: #003366 !important;
+}
+.modal-uniform [class*="bg-brand"]:hover,
+.modal-uniform [class*="bg-blue-600"]:hover {
+  background-color: #002244 !important;
+}
+.modal-uniform [class*="bg-gray-200"]:hover {
+  background-color: #e5e7eb !important;
+}
+/* focus-visible ring should be brand navy, not blue-500 */
+.modal-uniform button:focus-visible,
+.modal-uniform [role="button"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.3) !important;
+}

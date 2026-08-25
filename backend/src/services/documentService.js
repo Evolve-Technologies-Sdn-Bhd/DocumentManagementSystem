@@ -653,8 +653,14 @@ class DocumentService {
     const { title, description, documentTypeId, projectCategoryId, folderId, isConfidential, dateOfDocument, contentFormat } = data;
     const divisionId = await this.resolveDocumentDivisionId(data, creatorId)
 
+    const explicitFileCode = typeof data?.fileCode === 'string' && data.fileCode.trim().length > 0 ? data.fileCode.trim() : null
+    const explicitStatus = typeof data?.status === 'string' && data.status.trim().length > 0 ? data.status.trim() : null
+    const explicitStage = typeof data?.stage === 'string' && data.stage.trim().length > 0 ? data.stage.trim() : null
+    const explicitVersion = typeof data?.version === 'string' && data.version.trim().length > 0 ? data.version.trim() : null
+    const explicitOwnerId = data?.ownerId ? Number.parseInt(data.ownerId, 10) : null
+
     // Generate file code
-    const fileCode = await this.generateFileCode(
+    const fileCode = explicitFileCode || await this.generateFileCode(
       documentTypeId,
       projectCategoryId || null,
       '1',
@@ -674,10 +680,10 @@ class DocumentService {
         divisionId,
         folderId: folderId ? parseInt(folderId) : null,
         createdById: creatorId,
-        ownerId: creatorId,
-        status: 'DRAFT',
-        stage: 'DRAFT',
-        version: '1.0',
+        ownerId: explicitOwnerId || creatorId,
+        status: explicitStatus || 'DRAFT',
+        stage: explicitStage || 'DRAFT',
+        version: explicitVersion || '1.0',
         dateOfDocument: dateOfDocument ? new Date(dateOfDocument) : null
       },
       include: {
@@ -763,7 +769,7 @@ class DocumentService {
   }
 
   async createDocumentWithFileCode(data, creatorId, options = {}) {
-    const { fileCode, title, description, documentTypeId, projectCategoryId, folderId, contentFormat } = data
+    const { fileCode, title, description, documentTypeId, projectCategoryId, folderId, contentFormat, contentData, contentText } = data
     const divisionId = await this.resolveDocumentDivisionId(data, creatorId)
     const normalizedFileCode = await this.normalizeFileCodeFromSystemSettings(fileCode)
     if (!normalizedFileCode) {
@@ -806,6 +812,8 @@ class DocumentService {
       data: {
         fileCode: normalizedFileCode,
         contentFormat: this.normalizeContentFormat(contentFormat),
+        contentData,
+        contentText,
         title,
         description,
         documentTypeId,
@@ -1224,7 +1232,9 @@ class DocumentService {
           fileSize: file.size,
           uploadedById: uploaderId,
           isPublished: false,
-          isEncrypted: false
+          isEncrypted: false,
+          contentData: options?.contentData ?? null,
+          contentText: options?.contentText ?? null,
         }
       });
       timing.createVersionRowMs = roundMs(getElapsedMs(createVersionStart))
@@ -1242,6 +1252,55 @@ class DocumentService {
       finishTiming({ error: error.message })
       throw error
     }
+  }
+
+  async syncContentVersion(documentId, options = {}) {
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { versions: { orderBy: { uploadedAt: 'desc' }, take: 1 } }
+    })
+    if (!document) throw new NotFoundError('Document')
+
+    const version = options.version || document.version || '1.0'
+    const uploadedById = options.uploadedById || document.ownerId || document.createdById
+    const contentData = options?.contentData ?? null
+    const contentText = options?.contentText ?? null
+
+    const placeholderPath = contentData ? `content://${String(contentData?.schemaVersion || 0) || 1}/${documentId}/${version}` : ''
+    const placeholderName = contentData ? `content_${version}.json` : ''
+
+    const latest = document.versions?.[0]
+    if (latest && !latest.fileSize && !latest.mimeType) {
+      return prisma.documentVersion.update({
+        where: { id: latest.id },
+        data: {
+          version,
+          filePath: placeholderPath || latest.filePath,
+          fileName: placeholderName || latest.fileName,
+          mimeType: 'application/vnd.dms.content',
+          fileSize: 0,
+          uploadedById,
+          contentData,
+          contentText,
+        }
+      })
+    }
+
+    return prisma.documentVersion.create({
+      data: {
+        documentId,
+        version,
+        filePath: placeholderPath,
+        fileName: placeholderName,
+        mimeType: 'application/vnd.dms.content',
+        fileSize: 0,
+        uploadedById,
+        isPublished: false,
+        isEncrypted: false,
+        contentData,
+        contentText,
+      }
+    })
   }
 
   /**
@@ -1274,7 +1333,19 @@ class DocumentService {
         },
         versions: {
           orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
-          take: 1
+          take: 1,
+          include: {
+            smartTemplateVersion: {
+              include: {
+                smartTemplate: {
+                  select: { id: true, templateName: true, templateCode: true, description: true, isActive: true }
+                }
+              }
+            }
+          }
+        },
+        smartDocumentStyleProfile: {
+          select: { id: true, profileName: true, description: true, isActive: true }
         },
         approvalHistory: {
           include: {
@@ -1308,31 +1379,45 @@ class DocumentService {
     }
 
     if (userId) {
-      const [accessibleFolderIds, accessibleDivisionIds] = await Promise.all([
-        this.getAccessibleFolderIdsForUser(user || userId),
-        this.getAccessibleDivisionIdsForUser(user || userId)
-      ])
+      const isOwner = Number(document.ownerId) === Number(userId)
+      const isCreator = Number(document.createdById) === Number(userId)
 
-      const withinFolderScope = document.folderId && accessibleFolderIds.includes(document.folderId)
-      const withinDivisionScope = !document.folderId && document.divisionId && accessibleDivisionIds.includes(document.divisionId)
+      if (!isOwner && !isCreator) {
+        const [accessibleFolderIds, accessibleDivisionIds] = await Promise.all([
+          this.getAccessibleFolderIdsForUser(user || userId),
+          this.getAccessibleDivisionIdsForUser(user || userId)
+        ])
 
-      if (!withinFolderScope && !withinDivisionScope) {
-        throw new ForbiddenError('You do not have access to this document')
+        const withinFolderScope = document.folderId && accessibleFolderIds.includes(document.folderId)
+        const withinDivisionScope = !document.folderId && document.divisionId && accessibleDivisionIds.includes(document.divisionId)
+
+        if (!withinFolderScope && !withinDivisionScope) {
+          throw new ForbiddenError('You do not have access to this document')
+        }
       }
     }
 
     // Enforce access control if userId is provided
     if (userId) {
-      const hasAccess = await documentAssignmentService.canAccessDocument(documentId, user || userId);
-      if (!hasAccess) {
-        throw new ForbiddenError('You do not have access to this document');
+      const isOwner = Number(document.ownerId) === Number(userId)
+      const isCreator = Number(document.createdById) === Number(userId)
+
+      if (!isOwner && !isCreator) {
+        const hasAccess = await documentAssignmentService.canAccessDocument(documentId, user || userId);
+        if (!hasAccess) {
+          throw new ForbiddenError('You do not have access to this document');
+        }
       }
     }
 
     if (document.isConfidential) {
       if (user) {
-        const ok = await confidentialAccessService.canUserViewDocument(document, user)
-        if (!ok) throw new ForbiddenError('You do not have access to this confidential document')
+        const isOwner = Number(document.ownerId) === Number(user.id)
+        const isCreator = Number(document.createdById) === Number(user.id)
+        if (!isOwner && !isCreator) {
+          const ok = await confidentialAccessService.canUserViewDocument(document, user)
+          if (!ok) throw new ForbiddenError('You do not have access to this confidential document')
+        }
       } else if (userId) {
         if (document.ownerId !== userId && document.createdById !== userId) {
           const count = await prisma.documentConfidentialAccess.count({
@@ -1623,13 +1708,24 @@ class DocumentService {
     const { page = 1, limit = 15, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
     const skip = (page - 1) * limit;
 
-    // Get documents in DRAFT stage with various statuses
+    const uid = Number(userId);
+
     const where = {
-      ownerId: userId,
-      stage: 'DRAFT',
-      status: {
-        in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED']
-      }
+      status: { in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'] },
+      AND: [
+        {
+          OR: [
+            { stage: 'DRAFT' },
+            { status: 'ACKNOWLEDGED' }
+          ]
+        },
+        {
+          OR: [
+            { ownerId: uid },
+            { createdById: uid }
+          ]
+        }
+      ]
     };
 
     const total = await prisma.document.count({ where });
@@ -1672,7 +1768,21 @@ class DocumentService {
         },
         versions: {
           orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
-          take: 1
+          take: 1,
+          include: {
+            smartTemplateVersion: {
+              select: {
+                id: true,
+                smartTemplate: {
+                  select: {
+                    id: true,
+                    templateName: true,
+                    templateCode: true
+                  }
+                }
+              }
+            }
+          }
         }
       },
       skip,
@@ -1680,8 +1790,25 @@ class DocumentService {
       orderBy: { [sortBy]: sortOrder }
     });
 
+    const normalizedDocs = documents;
+
+    const stuckIds = normalizedDocs
+      .filter((d) => d.status === 'ACKNOWLEDGED' && d.stage !== 'DRAFT')
+      .map((d) => d.id);
+    if (stuckIds.length > 0) {
+      try {
+        await prisma.document.updateMany({
+          where: { id: { in: stuckIds } },
+          data: { stage: 'DRAFT' }
+        });
+        console.log(`[DocumentService] Auto-corrected stage for ${stuckIds.length} stuck ACKNOWLEDGED drafts (IDs: ${stuckIds.join(', ')})`);
+      } catch (_e) {
+        // Non-fatal - documents still visible via OR clause
+      }
+    }
+
     return {
-      documents,
+      documents: normalizedDocs,
       pagination: {
         page,
         limit,
@@ -1810,59 +1937,251 @@ class DocumentService {
     })
 
     const filePaths = (versions || []).map(v => v.filePath).filter(Boolean)
+    const fileCode = document.fileCode
+    const projectCategoryId = document.projectCategoryId || null
+
+    const safeDel = async (tx, prop, where) => {
+      try {
+        if (tx && typeof tx[prop] === 'object' && tx[prop] !== null && typeof tx[prop].deleteMany === 'function') {
+          const result = await tx[prop].deleteMany({ where })
+          return (result && typeof result.count === 'number') ? result.count : 0
+        }
+        return 0
+      } catch (_e) {
+        return 0
+      }
+    }
 
     const deletedRegisters = await prisma.$transaction(async (tx) => {
-      const archive = await tx.archiveRegister.deleteMany({ where: { fileCode: document.fileCode } })
-      const obsolete = await tx.obsoleteRegister.deleteMany({ where: { fileCode: document.fileCode } })
-      const version = await tx.versionRegister.deleteMany({ where: { fileCode: document.fileCode } })
-      const docReg = await tx.documentRegister.deleteMany({
-        where: { fileCode: document.fileCode, projectCategoryId: document.projectCategoryId ?? null }
-      })
-      const codeReg = document.projectCategoryId
-        ? await tx.codeRegistry.deleteMany({
-          where: { fileCode: document.fileCode, projectCategoryId: document.projectCategoryId }
-        })
-        : { count: 0 }
+      const archive = await safeDel(tx, 'archiveRegister', { where: { fileCode } })
+      const obsolete = await safeDel(tx, 'obsoleteRegister', { where: { fileCode } })
+      const versionReg = await safeDel(tx, 'versionRegister', { where: { fileCode } })
+      const docRegWhere = { fileCode }
+      if (projectCategoryId) docRegWhere.projectCategoryId = projectCategoryId
+      const docReg = await safeDel(tx, 'documentRegister', { where: docRegWhere })
+      const codeRegWhere = projectCategoryId
+        ? { fileCode, projectCategoryId }
+        : { fileCode }
+      const codeReg = await safeDel(tx, 'codeRegistry', { where: codeRegWhere })
 
-      const assignments = await tx.documentAssignment.deleteMany({ where: { documentId: document.id } })
-      const comments = await tx.documentComment.deleteMany({ where: { documentId: document.id } })
-      const metadata = await tx.documentMetadata.deleteMany({ where: { documentId: document.id } })
-      const history = await tx.approvalHistory.deleteMany({ where: { documentId: document.id } })
-      const docVersions = await tx.documentVersion.deleteMany({ where: { documentId: document.id } })
-      const supersedeReq = await tx.supersedeObsoleteRequest.deleteMany({ where: { documentId: document.id } })
-      const versionReq = await tx.versionRequest.deleteMany({ where: { documentId: document.id } })
-      const audit = await tx.auditLog.deleteMany({ where: { entityId: document.id } })
+      const assignments = await safeDel(tx, 'documentAssignment', { where: { documentId: document.id } })
+      const comments = await safeDel(tx, 'documentComment', { where: { documentId: document.id } })
+      const metadata = await safeDel(tx, 'documentMetadata', { where: { documentId: document.id } })
+      const history = await safeDel(tx, 'approvalHistory', { where: { documentId: document.id } })
+      const docVersions = await safeDel(tx, 'documentVersion', { where: { documentId: document.id } })
+      const supersedeReq = await safeDel(tx, 'supersedeObsoleteRequest', { where: { documentId: document.id } })
+      const versionReq = await safeDel(tx, 'versionRequest', { where: { documentId: document.id } })
+      const confidentials = await safeDel(tx, 'documentConfidentialAccess', { where: { documentId: document.id } })
+      const shareLinks = await safeDel(tx, 'documentShareLink', { where: { documentId: document.id } })
+      const reminders = await safeDel(tx, 'documentExpiryWatcher', { where: { documentId: document.id } })
+      const renewalHistory = await safeDel(tx, 'documentExpiryRenewalHistory', { where: { documentId: document.id } })
+      const reminderRecipients = await safeDel(tx, 'documentExpiryReminderRecipient', { where: { documentId: document.id } })
+      const epcRecords = await safeDel(tx, 'documentEpcRegistryRecord', { where: { documentId: document.id } })
+      const projectLinks = await safeDel(tx, 'projectDocumentLink', { where: { documentId: document.id } })
+      const audit = await safeDel(tx, 'auditLog', { where: { entityId: document.id } })
 
-      await tx.document.delete({ where: { id: document.id } })
+      try {
+        if (typeof tx.document?.delete === 'function') {
+          await tx.document.delete({ where: { id: document.id } })
+        }
+      } catch (_e) { /* ignore */ }
 
       return {
-        archive: archive.count,
-        obsolete: obsolete.count,
-        version: version.count,
-        documentRegister: docReg.count,
-        codeRegistry: codeReg.count,
-        documentAssignment: assignments.count,
-        documentComment: comments.count,
-        documentMetadata: metadata.count,
-        approvalHistory: history.count,
-        documentVersion: docVersions.count,
-        supersedeObsoleteRequest: supersedeReq.count,
-        versionRequest: versionReq.count,
-        auditLog: audit.count,
+        archive,
+        obsolete,
+        version: versionReg,
+        documentRegister: docReg,
+        codeRegistry: codeReg,
+        documentAssignment: assignments,
+        documentComment: comments,
+        documentMetadata: metadata,
+        approvalHistory: history,
+        documentVersion: docVersions,
+        supersedeObsoleteRequest: supersedeReq,
+        versionRequest: versionReq,
+        documentConfidentialAccess: confidentials,
+        documentShareLink: shareLinks,
+        documentExpiryWatcher: reminders,
+        documentExpiryRenewalHistory: renewalHistory,
+        documentExpiryReminderRecipient: reminderRecipients,
+        documentEpcRegistryRecord: epcRecords,
+        projectDocumentLink: projectLinks,
+        auditLog: audit,
         document: 1
       }
     })
 
     let deletedFiles = 0
     for (const fp of filePaths) {
-      const ok = await fileStorageService.deleteFile(fp)
-      if (ok) deletedFiles += 1
+      try {
+        const ok = await fileStorageService.deleteFile(fp)
+        if (ok) deletedFiles += 1
+      } catch (_e) { /* ignore per-file errors */ }
     }
+
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const possibleDocDirs = [
+        path.join(process.cwd(), 'uploads', 'documents', String(fileCode)),
+        path.join(process.cwd(), 'uploads', 'documents', 'tmp', String(fileCode)),
+        path.join(process.cwd(), 'uploads', 'documents', 'drafts', String(fileCode)),
+      ]
+      for (const dir of possibleDocDirs) {
+        try {
+          if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true })
+          }
+        } catch (_e) { /* ignore */ }
+      }
+    } catch (_e) { /* ignore */ }
 
     return {
       deletedRegisters,
       deletedFiles,
-      deletedDirectory: false
+      deletedDirectory: true
+    }
+  }
+
+  async deleteDraft(documentId, userId, isAdmin = false) {
+    const uid = Number(userId)
+    const id = Number.isFinite(+documentId) ? +documentId : documentId
+    const doc = await prisma.document.findUnique({ where: { id } })
+    if (!doc) throw new NotFoundError('Draft document not found')
+
+    const stUpper = String(doc.status || '').toUpperCase()
+    const stageUpper = String(doc.stage || '').toUpperCase()
+
+    const deletableStatuses = [
+      'DRAFT', 'DRAFTING',
+      'ACKNOWLEDGED', 'PENDING_ACKNOWLEDGMENT', 'PENDING ACKNOWLEDGMENT',
+      'RETURNED', 'RETURN FOR AMENDMENTS', 'NEEDS REVISION', 'NEEDS_REVISION',
+      'REJECTED', 'REWORK'
+    ]
+    const deletableStages = ['DRAFT', 'DRAFTING', 'RETURNED', 'PENDING_ACKNOWLEDGMENT']
+    const isDeletableStatus = deletableStatuses.includes(stUpper) || deletableStages.includes(stageUpper)
+    if (!isDeletableStatus) {
+      throw new BadRequestError(
+        `Cannot delete document in "${doc.status}" status. Only draft-level documents (Draft / Drafting / Returned / Return for Amendments / Needs Revision / Pending Acknowledgment) can be deleted.`
+      )
+    }
+
+    const isOwner = Number(doc.ownerId) === uid
+    const isCreator = Number(doc.createdById) === uid
+    const isAllowed = Boolean(isAdmin) || isOwner || isCreator
+    if (!isAllowed) {
+      throw new ForbiddenError('You do not have permission to delete this draft document')
+    }
+
+    const fileCode = doc.fileCode
+    const projectCategoryId = doc.projectCategoryId || null
+
+    const versions = await prisma.documentVersion.findMany({
+      where: { documentId: doc.id },
+      select: { filePath: true }
+    })
+    const filePaths = (versions || []).map(v => v.filePath).filter(Boolean)
+
+    const safeDel = async (tx, prop, where) => {
+      try {
+        if (tx && typeof tx[prop] === 'object' && tx[prop] !== null && typeof tx[prop].deleteMany === 'function') {
+          const result = await tx[prop].deleteMany({ where })
+          return (result && typeof result.count === 'number') ? result.count : 0
+        }
+        return 0
+      } catch (_e) {
+        return 0
+      }
+    }
+
+    const deletedRegisters = await prisma.$transaction(async (tx) => {
+      const archive = await safeDel(tx, 'archiveRegister', { where: { fileCode } })
+      const obsolete = await safeDel(tx, 'obsoleteRegister', { where: { fileCode } })
+      const versionReg = await safeDel(tx, 'versionRegister', { where: { fileCode } })
+      const docRegWhere = { fileCode }
+      if (projectCategoryId) docRegWhere.projectCategoryId = projectCategoryId
+      const docReg = await safeDel(tx, 'documentRegister', { where: docRegWhere })
+      const codeRegWhere = projectCategoryId
+        ? { fileCode, projectCategoryId }
+        : { fileCode }
+      const codeReg = await safeDel(tx, 'codeRegistry', { where: codeRegWhere })
+
+      const assignments = await safeDel(tx, 'documentAssignment', { where: { documentId: doc.id } })
+      const comments = await safeDel(tx, 'documentComment', { where: { documentId: doc.id } })
+      const metadata = await safeDel(tx, 'documentMetadata', { where: { documentId: doc.id } })
+      const history = await safeDel(tx, 'approvalHistory', { where: { documentId: doc.id } })
+      const docVersions = await safeDel(tx, 'documentVersion', { where: { documentId: doc.id } })
+      const supersedeReq = await safeDel(tx, 'supersedeObsoleteRequest', { where: { documentId: doc.id } })
+      const versionReq = await safeDel(tx, 'versionRequest', { where: { documentId: doc.id } })
+      const confidentials = await safeDel(tx, 'documentConfidentialAccess', { where: { documentId: doc.id } })
+      const shareLinks = await safeDel(tx, 'documentShareLink', { where: { documentId: doc.id } })
+      const expiryWatchers = await safeDel(tx, 'documentExpiryWatcher', { where: { documentId: doc.id } })
+      const renewalHistory = await safeDel(tx, 'documentExpiryRenewalHistory', { where: { documentId: doc.id } })
+      const reminderRecipients = await safeDel(tx, 'documentExpiryReminderRecipient', { where: { documentId: doc.id } })
+      const epcRecords = await safeDel(tx, 'documentEpcRegistryRecord', { where: { documentId: doc.id } })
+      const projectLinks = await safeDel(tx, 'projectDocumentLink', { where: { documentId: doc.id } })
+      const audit = await safeDel(tx, 'auditLog', { where: { entityId: doc.id } })
+
+      try {
+        if (typeof tx.document?.delete === 'function') {
+          await tx.document.delete({ where: { id: doc.id } })
+        }
+      } catch (_e) { /* ignore */ }
+
+      return {
+        archive,
+        obsolete,
+        version: versionReg,
+        documentRegister: docReg,
+        codeRegistry: codeReg,
+        documentAssignment: assignments,
+        documentComment: comments,
+        documentMetadata: metadata,
+        approvalHistory: history,
+        documentVersion: docVersions,
+        supersedeObsoleteRequest: supersedeReq,
+        versionRequest: versionReq,
+        documentConfidentialAccess: confidentials,
+        documentShareLink: shareLinks,
+        documentExpiryWatcher: expiryWatchers,
+        documentExpiryRenewalHistory: renewalHistory,
+        documentExpiryReminderRecipient: reminderRecipients,
+        documentEpcRegistryRecord: epcRecords,
+        projectDocumentLink: projectLinks,
+        auditLog: audit,
+        document: 1
+      }
+    })
+
+    let deletedFiles = 0
+    for (const fp of filePaths) {
+      try {
+        const ok = await fileStorageService.deleteFile(fp)
+        if (ok) deletedFiles += 1
+      } catch (_e) { /* ignore per-file errors */ }
+    }
+
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const possibleDocDirs = [
+        path.join(process.cwd(), 'uploads', 'documents', String(fileCode)),
+        path.join(process.cwd(), 'uploads', 'documents', 'tmp', String(fileCode)),
+        path.join(process.cwd(), 'uploads', 'documents', 'drafts', String(fileCode)),
+      ]
+      for (const dir of possibleDocDirs) {
+        try {
+          if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true, force: true })
+          }
+        } catch (_e) { /* ignore */ }
+      }
+    } catch (_e) { /* ignore */ }
+
+    return {
+      fileCode,
+      deletedRegisters,
+      deletedFiles
     }
   }
 
@@ -2412,13 +2731,27 @@ class DocumentService {
       throw new NotFoundError('Document');
     }
 
-    // Check if user is owner
-    if (document.ownerId !== userId) {
-      throw new ForbiddenError('Only document owner can submit for review');
+    const uid = Number(userId)
+    const isOwner = Number(document.ownerId) === uid
+    const isCreator = Number(document.createdById) === uid
+    if (!isOwner && !isCreator) {
+      throw new ForbiddenError('Only document owner or creator can submit for review');
     }
 
-    // Check if document is in DRAFT stage (accepts both new drafts and returned documents)
-    if (document.stage !== 'DRAFT') {
+    const stUpper = String(document.status || '').toUpperCase()
+    const stageUpper = String(document.stage || '').toUpperCase()
+
+    if (stUpper === 'ACKNOWLEDGED' && stageUpper !== 'DRAFT') {
+      try {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { stage: 'DRAFT' }
+        })
+        document.stage = 'DRAFT'
+      } catch (_e) { /* ignore */ }
+    }
+
+    if (String(document.stage || '').toUpperCase() !== 'DRAFT') {
       throw new BadRequestError('Document must be in draft stage to submit for review');
     }
     

@@ -1,3 +1,26 @@
+process.on('uncaughtException', (err) => {
+  const ts = new Date().toISOString();
+  console.error(`\n[${ts}] UNCAUGHT EXCEPTION (exit -1 signal):`);
+  console.error(err && err.stack ? err.stack : String(err));
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const logPath = path.join(__dirname, '../_crash_backend.log');
+    fs.appendFileSync(logPath, `\n\n===== [${ts}] UNCAUGHT EXCEPTION =====\n` + (err && err.stack ? err.stack : String(err)) + '\n');
+  } catch (_) {}
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  const ts = new Date().toISOString();
+  console.error(`\n[${ts}] UNHANDLED PROMISE REJECTION (will likely crash next):`);
+  console.error(reason && reason.stack ? reason.stack : String(reason));
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const logPath = path.join(__dirname, '../_crash_backend.log');
+    fs.appendFileSync(logPath, `\n\n===== [${ts}] UNHANDLED REJECTION at promise: ${String(promise)} =====\n` + (reason && reason.stack ? reason.stack : String(reason)) + '\n');
+  } catch (_) {}
+});
 const app = require('./app');
 const dotenv = require('dotenv');
 const fs = require('fs');

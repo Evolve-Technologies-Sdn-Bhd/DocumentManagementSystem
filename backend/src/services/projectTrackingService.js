@@ -1554,7 +1554,7 @@ exports.updateIterationItemStatus = async (itemId, { status, updatedById }) => {
   })
 }
 
-exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
+exports.linkDocumentToItem = async (itemId, { documentId, linkedById, user }) => {
   return prisma.$transaction(async (tx) => {
     const item = await tx.projectIterationDocumentItem.findUnique({
       where: { id: itemId },
@@ -1562,7 +1562,7 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
         iteration: {
           include: {
             project: {
-              select: { id: true, status: true, projectCategoryId: true }
+              select: { id: true, status: true, projectCategoryId: true, divisionId: true }
             }
           }
         }
@@ -1570,12 +1570,26 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById }) => {
     });
     if (!item) throw new NotFoundError('Project item');
     assertProjectCanProgress(item.iteration.project, 'link documents to this project')
+    if (item.iteration.project.divisionId != null && user) {
+      assertUserCanAccessProjectDivision(user, item.iteration.project.divisionId)
+    }
 
     const doc = await tx.document.findUnique({
       where: { id: documentId },
-      select: { id: true, status: true, isConfidential: true }
+      select: { id: true, status: true, isConfidential: true, folderId: true, divisionId: true }
     });
     if (!doc) throw new NotFoundError('Document');
+
+    if (user) {
+      const docAccessible = doc.folderId
+        ? await divisionScopeService.canUserAccessFolder(user, doc.folderId)
+        : (doc.divisionId != null
+            ? divisionScopeService.normalizeDivisionIds(user?.divisionIds || []).includes(Number(doc.divisionId)) || divisionScopeService.isAdminUser(user)
+            : true);
+      if (!docAccessible) {
+        throw new ForbiddenError("You don't have access to link this document")
+      }
+    }
 
     const exists = await tx.projectDocumentLink.findFirst({
       where: { projectIterationId: item.projectIterationId, documentId },
@@ -1762,24 +1776,38 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
   )
 }
 
-exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedById }) => {
+exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedById, user }) => {
   return prisma.$transaction(async (tx) => {
     const iteration = await tx.projectIteration.findUnique({
       where: { id: iterationId },
       include: {
         project: {
-          select: { id: true, status: true }
+          select: { id: true, status: true, divisionId: true }
         }
       }
     })
     if (!iteration) throw new NotFoundError('Project iteration')
     assertProjectCanProgress(iteration.project, 'link documents to this project')
+    if (iteration.project.divisionId != null && user) {
+      assertUserCanAccessProjectDivision(user, iteration.project.divisionId)
+    }
 
     const stage = await tx.projectStageDefinition.findUnique({ where: { id: stageId }, select: { id: true } })
     if (!stage) throw new NotFoundError('Project stage')
 
-    const doc = await tx.document.findUnique({ where: { id: documentId }, select: { id: true, status: true } })
+    const doc = await tx.document.findUnique({ where: { id: documentId }, select: { id: true, status: true, folderId: true, divisionId: true } })
     if (!doc) throw new NotFoundError('Document')
+
+    if (user) {
+      const docAccessible = doc.folderId
+        ? await divisionScopeService.canUserAccessFolder(user, doc.folderId)
+        : (doc.divisionId != null
+            ? divisionScopeService.normalizeDivisionIds(user?.divisionIds || []).includes(Number(doc.divisionId)) || divisionScopeService.isAdminUser(user)
+            : true);
+      if (!docAccessible) {
+        throw new ForbiddenError("You don't have access to link this document")
+      }
+    }
 
     const exists = await tx.projectDocumentLink.findFirst({
       where: { projectIterationId: iterationId, documentId },
@@ -1842,7 +1870,7 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId, { user } 
   return { removedLinkId: link.id }
 }
 
-exports.createDocumentFromItem = async (itemId, { title, description, dateOfDocument, createdById }) => {
+exports.createDocumentFromItem = async (itemId, { title, description, dateOfDocument, createdById, user }) => {
   const item = await prisma.projectIterationDocumentItem.findUnique({
     where: { id: itemId },
     include: {
@@ -1857,6 +1885,9 @@ exports.createDocumentFromItem = async (itemId, { title, description, dateOfDocu
   })
   if (!item) throw new NotFoundError('Project item')
   assertProjectCanProgress(item.iteration.project, 'create new documents for this project')
+  if (item.iteration.project.divisionId != null && user) {
+    assertUserCanAccessProjectDivision(user, item.iteration.project.divisionId)
+  }
 
   const projectCategoryId = item.iteration.project.projectCategoryId
   const projectId = item.iteration.project.id
@@ -1915,13 +1946,16 @@ exports.createDocumentFromItem = async (itemId, { title, description, dateOfDocu
   return { document, link }
 }
 
-exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, title, description, dateOfDocument, createdById }) => {
+exports.createDocumentForStage = async (iterationId, stageId, { documentTypeId, title, description, dateOfDocument, createdById, user }) => {
   const iteration = await prisma.projectIteration.findUnique({
     where: { id: iterationId },
     include: { project: true }
   })
   if (!iteration) throw new NotFoundError('Project iteration')
   assertProjectCanProgress(iteration.project, 'create new documents for this project')
+  if (iteration.project.divisionId != null && user) {
+    assertUserCanAccessProjectDivision(user, iteration.project.divisionId)
+  }
 
   const stage = await prisma.projectStageDefinition.findUnique({ where: { id: stageId }, select: { id: true } })
   if (!stage) throw new NotFoundError('Project stage')

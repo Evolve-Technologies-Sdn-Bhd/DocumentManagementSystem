@@ -102,7 +102,7 @@ export default function CrmImportModal({
             className="hidden"
             onChange={handleFileChange}
           />
-          <div className="text-sm font-semibold text-ink">Selected file</div>
+          <div className="text-sm font-semibold text-gray-900">Selected file</div>
 
           <div
             onDragEnter={(e) => {
@@ -122,12 +122,12 @@ export default function CrmImportModal({
             }}
             onDrop={handleDrop}
             className={[
-              'rounded-2xl border border-dashed px-4 py-6 text-center text-sm',
-              dragActive ? 'border-brand bg-brand/5 text-ink' : 'border-border bg-surface-muted text-ink-muted'
+              'rounded-lg border border-dashed px-4 py-6 text-center text-sm',
+              dragActive ? 'border-blue-500 bg-blue-50 text-gray-900' : 'border-gray-300 bg-gray-50 text-gray-500'
             ].join(' ')}
           >
-            <div className="font-semibold text-ink">{selectedFile ? selectedFile.name : dropLabel}</div>
-            <div className="mt-1 text-xs text-ink-muted">or select a file from your computer</div>
+            <div className="font-medium text-gray-900">{selectedFile ? selectedFile.name : dropLabel}</div>
+            <div className="mt-1 text-xs text-gray-500">or select a file from your computer</div>
             <div className="mt-4 flex justify-center">
               <Button variant="secondary" onClick={handlePickFile}>
                 {chooseButtonLabel}

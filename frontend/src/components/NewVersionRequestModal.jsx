@@ -302,7 +302,7 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
             ) : null}
             {/* Select Document (File Code Search) */}
             <div className="relative document-search">
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Select Document (Search File Code) <span className="text-red-500">*</span>
               </label>
               <TextInput
@@ -330,21 +330,21 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
               
               {/* Dropdown for available documents */}
               {showDropdown && (
-                <AppSurface padding="none" className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto rounded-2xl">
+                <AppSurface padding="none" className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto rounded-lg">
                   {filteredDocuments.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-ink-muted">No published documents found</div>
+                    <div className="px-3 py-2 text-sm text-gray-500">No published documents found</div>
                   ) : (
                     filteredDocuments.map((doc) => (
                       <button
                         key={doc.id}
                         type="button"
                         onClick={() => handleDocumentSelect(doc)}
-                        className="w-full text-left px-3 py-2 hover:bg-surface-muted transition-colors border-b border-border/70 last:border-0"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-200/70 last:border-0"
                       >
-                        <div className="text-sm font-semibold text-ink">{doc.fileCode}</div>
-                        <div className="text-xs text-ink-muted">{doc.title}</div>
+                        <div className="text-sm font-semibold text-gray-900">{doc.fileCode}</div>
+                        <div className="text-xs text-gray-500">{doc.title}</div>
                         {doc.projectCategory && (
-                          <div className="text-xs text-brand mt-0.5">
+                          <div className="text-xs text-blue-600 mt-0.5">
                             {doc.projectCategory.name}
                           </div>
                         )}
@@ -354,14 +354,14 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
                 </AppSurface>
               )}
               {selectedDocument && (
-                <p className="text-xs text-ink-muted mt-2">
-                  <span className="font-semibold text-ink">New File Code will be:</span> {computeNewFileCode(selectedDocument.fileCode, formData.changeType)}
+                <p className="text-xs text-gray-500 mt-2">
+                  <span className="font-semibold text-gray-900">New File Code will be:</span> {computeNewFileCode(selectedDocument.fileCode, formData.changeType)}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Change Type <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -369,34 +369,34 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
                   type="button"
                   disabled={!selectedDocument}
                   onClick={() => setFormData({ ...formData, changeType: 'minor' })}
-                  className={`p-3 rounded-lg border text-left transition-colors disabled:opacity-60 ${
+                  className={`p-3 rounded-lg border-2 text-left transition-colors disabled:opacity-60 ${
                     formData.changeType === 'minor'
-                      ? 'border-brand bg-blue-50/40'
-                      : 'border-border hover:bg-surface-muted'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="text-sm font-semibold text-ink">Minor change</div>
-                  <div className="text-xs text-ink-muted mt-1">01 → 01a, 01a → 01b (alphabet sequence)</div>
+                  <div className="text-sm font-semibold text-gray-900">Minor change</div>
+                  <div className="text-xs text-gray-500 mt-1">01 → 01a, 01a → 01b (alphabet sequence)</div>
                 </button>
                 <button
                   type="button"
                   disabled={!selectedDocument}
                   onClick={() => setFormData({ ...formData, changeType: 'major' })}
-                  className={`p-3 rounded-lg border text-left transition-colors disabled:opacity-60 ${
+                  className={`p-3 rounded-lg border-2 text-left transition-colors disabled:opacity-60 ${
                     formData.changeType === 'major'
-                      ? 'border-brand bg-blue-50/40'
-                      : 'border-border hover:bg-surface-muted'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="text-sm font-semibold text-ink">Major change</div>
-                  <div className="text-xs text-ink-muted mt-1">01 → 02 → 03 (numeric increment)</div>
+                  <div className="text-sm font-semibold text-gray-900">Major change</div>
+                  <div className="text-xs text-gray-500 mt-1">01 → 02 → 03 (numeric increment)</div>
                 </button>
               </div>
             </div>
 
             {/* Document Title */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Title <span className="text-red-500">*</span>
               </label>
               <TextInput
@@ -406,39 +406,39 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Document title"
                 disabled={!selectedDocument}
-                className={selectedDocument ? '' : 'bg-surface-muted'}
+                className={selectedDocument ? '' : 'bg-gray-50'}
               />
             </div>
 
             {/* Document Type & Project Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Document Type
                 </label>
                 <TextInput
                   type="text"
                   value={formData.documentType}
                   disabled
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Project Category
                 </label>
                 <TextInput
                   type="text"
                   value={formData.projectCategory}
                   disabled
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                 />
               </div>
             </div>
 
             {/* Date of Document */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Date of Document <span className="text-red-500">*</span>
               </label>
               <TextInput
@@ -447,13 +447,13 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
                 value={formData.dateOfDocument}
                 onChange={(e) => setFormData({ ...formData, dateOfDocument: e.target.value })}
                 disabled={!selectedDocument}
-                className={selectedDocument ? '' : 'bg-surface-muted'}
+                className={selectedDocument ? '' : 'bg-gray-50'}
               />
             </div>
 
             {/* Remarks */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Remarks
               </label>
               <TextArea
@@ -475,7 +475,7 @@ export default function NewVersionRequestModal({ onClose, onSubmit }) {
           type="button"
           onClick={handleSubmitRequest}
           disabled={loading || loadingDocuments || !formData.documentId || !formData.title || !formData.dateOfDocument}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
+          className="bg-blue-600 hover:bg-blue-700 text-white"
           loading={loading}
           loadingText={`Sending Request... ${submitProgress}%`}
         >

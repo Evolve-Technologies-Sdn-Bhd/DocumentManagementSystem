@@ -213,17 +213,17 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
                   key={doc.id}
                   type="button"
                   onClick={() => handleSelectDocumentToObsolete(doc)}
-                  className="w-full text-left p-4 border border-border rounded-2xl bg-surface hover:bg-surface-muted transition-colors"
+                  className="w-full text-left p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <div className="font-semibold text-ink">{doc.fileCode}</div>
-                  <div className="text-sm text-ink-secondary">{doc.title}</div>
-                  <div className="text-xs text-ink-muted mt-1">
+                  <div className="font-semibold text-gray-900">{doc.fileCode}</div>
+                  <div className="text-sm text-gray-700">{doc.title}</div>
+                  <div className="text-xs text-gray-500 mt-1">
                     {doc.documentType} • Version {doc.version}
                   </div>
                 </button>
               ))}
               {publishedDocs.length === 0 ? (
-                <div className="text-center py-8 text-ink-muted">No published documents found</div>
+                <div className="text-center py-8 text-gray-500">No published documents found</div>
               ) : null}
             </div>
           </ModalBody>
@@ -265,13 +265,13 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
             {/* Select Document Button */}
             {!formData.fileCode && (
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Select Document <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowDocumentSearch(true)}
-                  className="w-full rounded-[18px] border-2 border-dashed border-border bg-surface-muted px-4 py-4 text-sm font-semibold text-ink-secondary hover:border-brand hover:text-brand transition-colors"
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600 transition-colors"
                 >
                   <svg className="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -286,11 +286,11 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
               <AppSurface variant="muted" padding="md">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <label className="text-xs font-semibold text-ink-muted uppercase tracking-wide">Selected Document</label>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Selected Document</label>
                     <div className="mt-2 space-y-1">
-                      <div className="text-sm font-semibold text-ink">{formData.fileCode}</div>
-                      <div className="text-sm text-ink-secondary">{formData.title}</div>
-                      <div className="text-xs text-ink-muted">
+                      <div className="text-sm font-semibold text-gray-900">{formData.fileCode}</div>
+                      <div className="text-sm text-gray-700">{formData.title}</div>
+                      <div className="text-xs text-gray-500">
                         {formData.documentType} • Version {formData.version}
                       </div>
                     </div>
@@ -310,7 +310,7 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
                       })
                       setSearchQuery('')
                     }}
-                    className="text-ink-soft hover:text-ink"
+                    className="text-gray-500 hover:text-gray-900"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -322,7 +322,7 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
 
             {/* Action Type */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Action Type <span className="text-red-500">*</span>
               </label>
               <SelectField
@@ -339,7 +339,7 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
             {/* Superseding Document Search (only for SUPERSEDE action) */}
             {formData.action === 'SUPERSEDE' && formData.fileCode && (
               <div className="relative superseding-doc-search">
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Search Superseding Document <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -375,9 +375,9 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
                 
                 {/* Search Results Dropdown */}
                 {showResults && (
-                  <AppSurface padding="none" className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-2xl">
+                  <AppSurface padding="none" className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-lg">
                     {loadingPublishedDocs ? (
-                      <div className="px-4 py-3 text-sm text-ink-muted text-center">
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">
                         Loading documents...
                       </div>
                     ) : searchResults.length > 0 ? (
@@ -386,9 +386,9 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
                           key={doc.id}
                           type="button"
                           onClick={() => handleSelectSupersedingDocument(doc)}
-                          className="w-full text-left px-4 py-3 hover:bg-surface-muted border-b border-border/70 last:border-0"
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-200/70 last:border-0"
                         >
-                          <div className="font-semibold text-ink">{doc.fileCode}</div>
+                          <div className="font-semibold text-gray-900">{doc.fileCode}</div>
                           <div className="text-sm text-gray-600">{doc.title}</div>
                           <div className="text-xs text-gray-500 mt-1">
                             {doc.documentType} • Version {doc.version}
@@ -396,14 +396,14 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
                         </button>
                       ))
                     ) : (
-                      <div className="px-4 py-3 text-sm text-ink-muted text-center">
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">
                         No published documents found
                       </div>
                     )}
                   </AppSurface>
                 )}
 
-                <p className="mt-1 text-xs text-ink-muted">
+                <p className="mt-1 text-xs text-gray-500">
                   Search for published documents only. Documents already marked as superseded or obsolete will not appear.
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
 
             {/* Reason */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Reason for {formData.action === 'SUPERSEDE' ? 'Supersede' : 'Obsolete'} <span className="text-red-500">*</span>
               </label>
               <TextArea

@@ -7,8 +7,8 @@ export default function SelectField({
   ...props
 }) {
   const classes = [
-    'h-10 w-full rounded-2xl border bg-surface px-3 text-sm text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/30',
-    invalid ? 'border-red-300 focus-visible:ring-red-200/80' : 'border-border',
+    'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900',
+    invalid ? 'border-red-300 focus:ring-red-200/80 focus:border-red-500' : 'border-gray-300',
     className
   ].filter(Boolean).join(' ')
 

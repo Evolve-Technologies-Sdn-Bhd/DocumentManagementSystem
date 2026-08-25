@@ -29,9 +29,9 @@ const formatUserLabel = (user) => `${user?.firstName || ''} ${user?.lastName || 
 function Field({ label, children, hint = null }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-ink">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-gray-900">{label}</label>
       {children}
-      {hint ? <p className="mt-1 text-xs text-ink-soft">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
     </div>
   )
 }
@@ -339,18 +339,18 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="File Code">
-              <TextInput value={document?.fileCode || ''} readOnly className="bg-surface-muted text-ink-muted" />
+              <TextInput value={document?.fileCode || ''} readOnly className="bg-gray-50 text-gray-500" />
             </Field>
             <Field label="Version">
-              <TextInput value={document?.version || ''} readOnly className="bg-surface-muted text-ink-muted" />
+              <TextInput value={document?.version || ''} readOnly className="bg-gray-50 text-gray-500" />
             </Field>
             <div className="md:col-span-2">
               <Field label="Document Title">
-                <TextInput value={document?.title || ''} readOnly className="bg-surface-muted text-ink-muted" />
+                <TextInput value={document?.title || ''} readOnly className="bg-gray-50 text-gray-500" />
               </Field>
             </div>
             <Field label="Document Type">
-              <TextInput value={document?.documentType || ''} readOnly className="bg-surface-muted text-ink-muted" />
+              <TextInput value={document?.documentType || ''} readOnly className="bg-gray-50 text-gray-500" />
             </Field>
             <Field label="File Name" hint="You may rename the file before publishing.">
               <TextInput value={newFileName} onChange={(e) => setNewFileName(e.target.value)} placeholder="Enter published file name" />
@@ -382,17 +382,17 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
           <AppSurface padding="lg" variant="panel" className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold text-ink">Expiry Info</h3>
-                <p className="mt-1 text-sm text-ink-muted">
+                <h3 className="text-sm font-semibold text-gray-900">Expiry Info</h3>
+                <p className="mt-1 text-sm text-gray-500">
                   Expiry tracking is linked directly to this document. You can keep the global reminder schedule or adjust it for this document only.
                 </p>
               </div>
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <input
                   type="checkbox"
                   checked={expiryInfo.trackingEnabled}
                   onChange={(e) => setExpiryInfo((prev) => ({ ...prev, trackingEnabled: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                 />
                 Track Expiry
               </label>
@@ -415,10 +415,10 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                 </div>
 
                 <AppSurface padding="md" variant="panel" className="space-y-4">
-                  <p className="text-sm text-ink-muted">
+                  <p className="text-sm text-gray-500">
                     Global defaults: expiring soon in {expirySettings.expiringSoonDays} day(s), reminders at {expirySettings.reminder1Days}, {expirySettings.reminder2Days}, {expirySettings.reminder3Days}, and {expirySettings.reminder4Days} day(s) before expiry.
                   </p>
-                  <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                  <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
                     <input
                       type="checkbox"
                       checked={expiryInfo.useGlobalRule}
@@ -438,7 +438,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                             : {})
                         }))
                       }}
-                      className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                     />
                     Use Global Defaults
                   </label>
@@ -461,8 +461,8 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h4 className="text-sm font-semibold text-ink">Reminder Recipients</h4>
-                      <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
+                      <h4 className="text-sm font-semibold text-gray-900">Reminder Recipients</h4>
+                      <p className="text-xs text-gray-500">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
                     </div>
                     {REMINDER_LEVELS.map((level) => {
                       const selectedIds = new Set(expiryInfo.reminderRecipients?.[level.key] || [])
@@ -478,39 +478,39 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                       const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
 
                       return (
-                        <details key={level.key} className="rounded-xl border border-border bg-surface">
+                        <details key={level.key} className="rounded-xl border border-gray-200 bg-white">
                           <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-ink">{level.label}</p>
-                              <p className="text-xs text-ink-soft">{expiryInfo[level.daysField] ?? '-'} day(s) before expiry</p>
-                              <p className="mt-1 truncate text-xs text-ink-soft">
+                              <p className="text-sm font-semibold text-gray-900">{level.label}</p>
+                              <p className="text-xs text-gray-500">{expiryInfo[level.daysField] ?? '-'} day(s) before expiry</p>
+                              <p className="mt-1 truncate text-xs text-gray-500">
                                 Owner + {selectedIds.size} extra recipient(s)
                                 {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
                               </p>
                             </div>
                             <div className="shrink-0 text-right">
-                              <p className="text-xs font-medium text-ink-soft">Click to expand</p>
-                              <p className="text-xs text-ink-soft">Owner included automatically</p>
+                              <p className="text-xs font-medium text-gray-500">Click to expand</p>
+                              <p className="text-xs text-gray-500">Owner included automatically</p>
                             </div>
                           </summary>
-                          <div className="space-y-3 border-t border-border px-4 py-3">
+                          <div className="space-y-3 border-t border-gray-200 px-4 py-3">
                             <TextInput
                               value={recipientSearch[level.key] || ''}
                               onChange={(e) => setRecipientSearch((prev) => ({ ...prev, [level.key]: e.target.value }))}
                               placeholder="Search user name"
                             />
                             <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                              <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                              <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                                 <input
                                   type="checkbox"
                                   checked
                                   disabled
-                                  className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                                 />
                                 <span>{ownerName} (Owner)</span>
                               </label>
                               {filteredUsers.length === 0 ? (
-                                <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-ink-soft">
+                                <div className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500">
                                   No matching user found.
                                 </div>
                               ) : (
@@ -518,12 +518,12 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                                   const isOwner = ownerId && user.id === ownerId
                                   if (isOwner) return null
                                   return (
-                                    <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
+                                    <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900">
                                       <input
                                         type="checkbox"
                                         checked={selectedIds.has(user.id)}
                                         onChange={() => toggleRecipient(level.key, user.id)}
-                                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                                       />
                                       <span>{formatUserLabel(user)}</span>
                                     </label>
@@ -539,13 +539,13 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
                 </AppSurface>
               </>
             ) : (
-              <AppSurface padding="md" variant="panel" className="text-sm text-ink-muted">
+              <AppSurface padding="md" variant="panel" className="text-sm text-gray-500">
                 Expiry tracking is disabled for this publication. The document will still publish normally and other flows remain unaffected.
               </AppSurface>
             )}
           </AppSurface>
 
-          <AppSurface padding="md" variant="panel" className="text-sm text-ink-muted">
+          <AppSurface padding="md" variant="panel" className="text-sm text-gray-500">
             Publishing will move the document into the selected folder, mark it as published, update the document register, and create or update the expiry profile when tracking is enabled.
           </AppSurface>
         </ModalBody>

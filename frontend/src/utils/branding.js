@@ -142,7 +142,7 @@ export function readBranding() {
     companyInfo,
     logo: theme?.mainLogo || null,
     logoPlaceholder: theme?.mainLogoPlaceholder || null,
-    companyName: companyInfo?.companyName || 'FileNix',
+    companyName: companyInfo?.companyName || 'Zora Pro DMS',
     welcomeMessage: theme?.loginWelcomeMessage || 'Welcome to {companyName}'
   }
 }

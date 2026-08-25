@@ -389,7 +389,8 @@ exports.linkDocumentToItem = asyncHandler(async (req, res) => {
 
   const result = await projectTrackingService.linkDocumentToItem(itemId, {
     documentId: Number(documentId),
-    linkedById: req.user.id
+    linkedById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, result, 'Document linked successfully');
@@ -416,7 +417,8 @@ exports.linkDocumentToStage = asyncHandler(async (req, res) => {
 
   const result = await projectTrackingService.linkDocumentToStage(iterationId, stageId, {
     documentId: Number(documentId),
-    linkedById: req.user.id
+    linkedById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, result, 'Document linked successfully');
@@ -445,7 +447,8 @@ exports.createDocumentFromItem = asyncHandler(async (req, res) => {
     title: String(title).trim(),
     description: description ? String(description) : null,
     dateOfDocument: normalizeOptionalDate(dateOfDocument, 'dateOfDocument'),
-    createdById: req.user.id
+    createdById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, result, 'Document created successfully');
@@ -466,7 +469,8 @@ exports.createDocumentForStage = asyncHandler(async (req, res) => {
     title: String(title).trim(),
     description: description ? String(description) : null,
     dateOfDocument: normalizeOptionalDate(dateOfDocument, 'dateOfDocument'),
-    createdById: req.user.id
+    createdById: req.user.id,
+    user: req.user
   });
 
   return ResponseFormatter.success(res, result, 'Document created successfully');

@@ -327,11 +327,52 @@ const uploadLandingPdf = async (req, res, next) => {
   }
 };
 
+const logoStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadPath = path.join(config.uploadDir, 'branding', 'logos');
+    try {
+      const fs = require('fs').promises;
+      await fs.mkdir(uploadPath, { recursive: true });
+      cb(null, uploadPath);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    cb(null, `logo-${timestamp}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const logoFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG and PNG images are allowed'), false);
+  }
+};
+
+const uploadLogo = multer({
+  storage: logoStorage,
+  limits: {
+    fileSize: 2 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: logoFileFilter
+});
+
 module.exports = {
   uploadDocument,
   uploadTemplate,
   uploadProfileImage,
   uploadLandingPdf,
+  uploadLogo,
   createUploadMiddleware,
   updateFileUploadSettingsCache
 };

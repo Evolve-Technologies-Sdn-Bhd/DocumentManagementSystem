@@ -1,11 +1,11 @@
 import { resolveBackendAssetUrl } from './normalizeUrl'
 
 const DEFAULT_FEATURE_PILLS = [
-  'RFID Tracking',
-  'Live Dashboard',
-  'MES Integration',
-  'Mobile Handheld',
-  'Receiving & Shipping'
+  'Documents Lifecycle',
+  'Live Document Status',
+  'Project Tracking',
+  'Expiry Tracking',
+  'File Sharing'
 ]
 
 export const DEFAULT_LOGIN_PAGE_SETTINGS = {
@@ -15,32 +15,32 @@ export const DEFAULT_LOGIN_PAGE_SETTINGS = {
   formCardBackground: '#f3f4f6',
   formCardBorderColor: '#e5e7eb',
   heroSection: {
-    brandName: 'Zora Pro ERP',
+    brandName: 'Zora Pro DMS',
     platformLabel: '',
     heroImage: null,
     heroFocalX: 50,
     heroFocalY: 50,
     heroTextOffsetX: 0,
-    heroTextMaxWidth: 420,
-    heroDescriptionMaxWidth: 360,
+    heroTextMaxWidth: 520,
+    heroDescriptionMaxWidth: 420,
     heroFontFamily: '',
-    heroTitleFontSize: 50,
-    heroTitleFontWeight: 800,
-    heroTitleLetterSpacing: -0.03,
-    heroTitleLineHeight: 1.02,
+    heroTitleFontSize: 40,
+    heroTitleFontWeight: 700,
+    heroTitleLetterSpacing: -0.02,
+    heroTitleLineHeight: 1.15,
     heroHighlightColor: '#F6AA3B',
-    heroDescriptionFontSize: 15,
-    heroDescriptionLineHeight: 1.85,
+    heroDescriptionFontSize: 16,
+    heroDescriptionLineHeight: 1.6,
     heroTextShadowEnabled: true,
     heroTitleTextShadow: '0 14px 30px rgba(0, 0, 0, 0.45)',
     heroDescriptionTextShadow: '0 10px 22px rgba(0, 0, 0, 0.35)',
-    featurePillFontSize: 10,
-    featurePillHeight: 24,
-    featurePillPaddingX: 12,
-    headline: 'Smart Warehouse',
-    highlightedHeadline: 'at Your Fingertips',
-    description: 'End-to-end RFID-powered inventory management, MES integration, and real-time analytics - all in one platform.',
-    footerNote: `© ${new Date().getFullYear()} CLB Group - Zora Pro ERP`,
+    featurePillFontSize: 13,
+    featurePillHeight: 30,
+    featurePillPaddingX: 14,
+    headline: 'Smart Office Document Management',
+    highlightedHeadline: 'Access your documents from everywhere',
+    description: 'Streamline Your Document Workflow — From Creation to Archive',
+    footerNote: `© ${new Date().getFullYear()} CLB Group - Zora Pro DMS`,
     featurePills: DEFAULT_FEATURE_PILLS
   }
 }

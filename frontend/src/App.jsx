@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react'
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import HomePage from './components/HomePage'
 import DiagnosticPage from './components/DiagnosticPage'
 import Dashboard from './components/Dashboard'
@@ -15,6 +15,7 @@ import LogsReports from './pages/LogsReports'
 import ReportViewer from './components/ReportViewer'
 import MasterRecord from './pages/MasterRecord'
 import ProfileSettings from './pages/ProfileSettings'
+import SmartDocumentEditor from './pages/SmartDocumentEditor'
 import DocumentLink from './pages/DocumentLink'
 import PublicShare from './pages/PublicShare'
 import Maintenance from './pages/Maintenance'
@@ -216,6 +217,15 @@ export default function App() {
         <Route
           path="/drafts"
           element={
+            <Navigate
+              to={`/documents/drafts${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/documents/drafts"
+          element={
             <ProtectedRoute module="documents.draft" requireAny>
               <Layout>
                 <DraftDocuments />
@@ -224,7 +234,7 @@ export default function App() {
           }
         />
         <Route
-          path="/review-approval"
+          path="/documents/review-approval"
           element={
             <ProtectedRoute module="documents.review" requireAny>
               <Layout>
@@ -234,7 +244,7 @@ export default function App() {
           }
         />
         <Route
-          path="/published"
+          path="/documents/published"
           element={
             <ProtectedRoute module="documents.published" requireAny>
               <Layout>
@@ -244,13 +254,59 @@ export default function App() {
           }
         />
         <Route
-          path="/archived"
+          path="/documents/archived"
           element={
             <ProtectedRoute module="documents.superseded" requireAny>
               <Layout>
                 <SupersededObsolete />
               </Layout>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents/my-documents"
+          element={
+            <ProtectedRoute module="myDocumentsStatus" action="view">
+              <Layout>
+                <MyDocumentsStatus />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review-approval"
+          element={
+            <Navigate
+              to={`/documents/review-approval${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/published"
+          element={
+            <Navigate
+              to={`/documents/published${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/archived"
+          element={
+            <Navigate
+              to={`/documents/archived${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/my-documents"
+          element={
+            <Navigate
+              to={`/documents/my-documents${location.search || ''}${location.hash || ''}`}
+              replace
+            />
           }
         />
         <Route
@@ -328,6 +384,16 @@ export default function App() {
             <ProtectedRoute module="profileSettings" action="view">
               <Layout>
                 <ProfileSettings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/smart-documents/edit/:documentId/:documentVersionId"
+          element={
+            <ProtectedRoute module="documents.draft" requireAny>
+              <Layout>
+                <SmartDocumentEditor />
               </Layout>
             </ProtectedRoute>
           }

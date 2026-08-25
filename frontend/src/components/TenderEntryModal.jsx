@@ -184,15 +184,15 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[95] p-4">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">{isEdit ? 'Edit Tender' : 'Add New Tender'}</h3>
               <p className="text-xs text-gray-600 mt-1">Tender Book Register</p>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 rounded-lg p-2">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 rounded-lg p-2 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -210,24 +210,24 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
           <div className="grid grid-cols-1 gap-4">
             {isEdit && (
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender No / Ref</label>
+                <label className="mb-2 block text-sm font-medium text-gray-900">Tender No / Ref</label>
                 <TextInput value={entry?.tenderRefNo || '-'} disabled />
               </div>
             )}
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender / Project Title</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Tender / Project Title</label>
               <TextInput value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Client / Company</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Client / Company</label>
               <TextInput value={form.clientName} onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Contact Person</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Contact Person</label>
               <TextInput value={form.contactPerson} onChange={(e) => setForm((p) => ({ ...p, contactPerson: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Tender Value (RM)</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Tender Value (RM)</label>
               <TextInput
                 inputMode="decimal"
                 placeholder="0.00"
@@ -237,7 +237,7 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Estimated Profit (RM)</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Estimated Profit (RM)</label>
               <TextInput
                 inputMode="decimal"
                 placeholder="0.00"
@@ -247,11 +247,11 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Submission Deadline</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Submission Deadline</label>
               <TextInput type="date" value={form.submissionDeadline} onChange={(e) => setForm((p) => ({ ...p, submissionDeadline: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Status</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Status</label>
               <SelectField value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -261,21 +261,21 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
               </SelectField>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Source</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Source</label>
               <TextInput value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Documents (Link / Reference)</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Documents (Link / Reference)</label>
               <TextInput value={form.documentLink} onChange={(e) => setForm((p) => ({ ...p, documentLink: e.target.value }))} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Notes</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Follow-up Notes</label>
               <TextArea rows={4} value={form.followUpNotes} onChange={(e) => setForm((p) => ({ ...p, followUpNotes: e.target.value }))} />
             </div>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>

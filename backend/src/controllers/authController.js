@@ -8,6 +8,7 @@ const emailService = require('../services/emailService');
 const configService = require('../services/configService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const asyncHandler = require('../utils/asyncHandler');
+const { UnauthorizedError } = require('../utils/errors');
 const prisma = require('../config/database');
 
 class AuthController {
@@ -60,47 +61,52 @@ class AuthController {
     const ipAddress = this.getClientIp(req);
     const userAgent = req.headers['user-agent'];
 
-    const maintenance = await configService.getMaintenanceSettings();
+    let maintenance;
+    try {
+      maintenance = await configService.getMaintenanceSettings();
+    } catch {
+      maintenance = { enabled: false, message: 'System is under maintenance' };
+    }
     const maintenanceEnabled = maintenance?.enabled === true;
 
-    // First check if 2FA would be required (check system setting and validate credentials)
-    const is2FASystemEnabled = await twoFactorService.is2FAEnabled();
-    
+    let is2FASystemEnabled = false;
+    try {
+      is2FASystemEnabled = await twoFactorService.is2FAEnabled();
+    } catch {
+      is2FASystemEnabled = false;
+    }
+
     let result;
     try {
-      // Pre-validate to check if user has 2FA enabled before creating session
       result = await authService.login(email, password, ipAddress, userAgent, { skipSession: is2FASystemEnabled || maintenanceEnabled });
     } catch (error) {
-      // Log failed login attempt
       try {
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({ where: { email } }).catch(() => null);
         if (user) {
-          await auditLogService.logAuth(user.id, 'LOGIN_FAILED', req, {
-            email,
-            reason: error.message,
-            failedAttempts: user.failedAttempts + 1
-          });
-
-          // Check for security alert (multiple failed logins)
-          await auditSettingsService.checkFailedLoginAlert(
-            user.id,
-            email,
-            ipAddress
-          );
-
-          // Check if account was locked
-          const securitySettings = await securityService.getSecuritySettings();
-          if (user.failedAttempts + 1 >= (securitySettings.maxLoginAttempts || 5)) {
-            await auditLogService.logAuth(user.id, 'ACCOUNT_LOCKED', req, {
+          try {
+            await auditLogService.logAuth(user.id, 'LOGIN_FAILED', req, {
               email,
-              lockoutDuration: securitySettings.lockoutDuration || 30
+              reason: error.message,
+              failedAttempts: user.failedAttempts + 1
             });
-          }
+          } catch {}
+          try {
+            await auditSettingsService.checkFailedLoginAlert(user.id, email, ipAddress);
+          } catch {}
+          try {
+            const securitySettings = await securityService.getSecuritySettings();
+            if (user.failedAttempts + 1 >= (securitySettings.maxLoginAttempts || 5)) {
+              await auditLogService.logAuth(user.id, 'ACCOUNT_LOCKED', req, {
+                email,
+                lockoutDuration: securitySettings.lockoutDuration || 30
+              }).catch(() => {});
+            }
+          } catch {}
         }
-      } catch (auditError) {
-        console.error('Failed to record login audit event:', auditError);
-      }
-      throw error; // Re-throw to let error handler respond
+      } catch {}
+
+      if (error && error.isOperational) throw error;
+      throw new UnauthorizedError('Invalid credentials');
     }
 
     if (maintenanceEnabled && !this.isSystemAdminUser(result.user)) {
@@ -118,18 +124,26 @@ class AuthController {
     if (requires2FA) {
       const trustedToken = trustedDeviceService.getTrustedToken(req);
       if (trustedToken) {
-        const ok = await trustedDeviceService.verifyTrustedDevice(result.user.id, trustedToken);
+        let ok = false;
+        try {
+          ok = await trustedDeviceService.verifyTrustedDevice(result.user.id, trustedToken);
+        } catch {}
         if (ok) {
           const fullResult = await authService.issueTokensForUserId(result.user.id, ipAddress, userAgent);
-          await auditLogService.logAuth(fullResult.user.id, 'LOGIN', req, {
-            email: fullResult.user.email,
-            twoFactorBypassed: true
-          });
+          try {
+            await auditLogService.logAuth(fullResult.user.id, 'LOGIN', req, {
+              email: fullResult.user.email,
+              twoFactorBypassed: true
+            });
+          } catch {}
           return ResponseFormatter.success(res, fullResult, 'Login successful', 200);
         }
       }
 
-      const enabledMethods = await twoFactorService.getEnabledMethods();
+      let enabledMethods = { email: false, app: false };
+      try {
+        enabledMethods = await twoFactorService.getEnabledMethods();
+      } catch {}
       const availableMethods = [];
 
       if (enabledMethods.app && Boolean(result.user.hasAuthenticator)) {
@@ -151,15 +165,18 @@ class AuthController {
       const autoSendEmailCode = availableMethods.length === 1 && defaultMethod === 'email';
 
       if (autoSendEmailCode) {
-        await twoFactorService.sendTwoFactorCode(result.user.id);
+        try {
+          await twoFactorService.sendTwoFactorCode(result.user.id);
+        } catch {}
       }
-      
-      // Log 2FA initiated
-      await auditLogService.logAuth(result.user.id, 'TWO_FACTOR_INITIATED', req, {
-        email: result.user.email,
-        method: defaultMethod,
-        availableMethods
-      });
+
+      try {
+        await auditLogService.logAuth(result.user.id, 'TWO_FACTOR_INITIATED', req, {
+          email: result.user.email,
+          method: defaultMethod,
+          availableMethods
+        });
+      } catch {}
 
       // Return partial response - user needs to verify 2FA
       return ResponseFormatter.success(
@@ -186,16 +203,20 @@ class AuthController {
     if (!result.accessToken) {
       // This shouldn't happen in normal flow, but handle it gracefully
       const fullResult = await authService.login(email, password, ipAddress, userAgent, { skipSession: false });
-      await auditLogService.logAuth(fullResult.user.id, 'LOGIN', req, {
-        email: fullResult.user.email
-      });
+      try {
+        await auditLogService.logAuth(fullResult.user.id, 'LOGIN', req, {
+          email: fullResult.user.email
+        });
+      } catch {}
       return ResponseFormatter.success(res, fullResult, 'Login successful', 200);
     }
 
     // Log successful login (no 2FA)
-    await auditLogService.logAuth(result.user.id, 'LOGIN', req, {
-      email: result.user.email
-    });
+    try {
+      await auditLogService.logAuth(result.user.id, 'LOGIN', req, {
+        email: result.user.email
+      });
+    } catch {}
 
     return ResponseFormatter.success(
       res,

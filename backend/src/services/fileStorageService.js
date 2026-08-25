@@ -206,7 +206,7 @@ class FileStorageService {
 
   /**
    * Save uploaded file
-   * @param {Object} file - Multer file object
+   * @param {Object} file - Multer file object (with .path for disk storage, or .buffer for in-memory)
    * @param {string} destinationPath - Destination directory path
    * @param {string} fileName - New file name
    */
@@ -214,7 +214,23 @@ class FileStorageService {
     await fs.mkdir(destinationPath, { recursive: true });
     
     const filePath = path.join(destinationPath, fileName);
-    await fs.rename(file.path, filePath);
+    
+    if (file && typeof file.path === 'string' && file.path.length > 0) {
+      await fs.rename(file.path, filePath);
+    } else if (Buffer.isBuffer(file && file.buffer)) {
+      await fs.writeFile(filePath, file.buffer);
+    } else if (file && (typeof file.stream === 'function' || file.stream instanceof require('stream').Stream)) {
+      const stream = typeof file.stream === 'function' ? file.stream() : file.stream;
+      const writeStream = require('fs').createWriteStream(filePath);
+      await new Promise((resolve, reject) => {
+        stream.pipe(writeStream);
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+        stream.on('error', reject);
+      });
+    } else {
+      throw new BadRequestError('File must contain either path, buffer, or stream property to save.');
+    }
     
     return filePath;
   }

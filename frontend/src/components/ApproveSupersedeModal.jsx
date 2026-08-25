@@ -135,7 +135,7 @@ export default function ApproveSupersedeModal({ document, onClose, onSubmit }) {
           {/* File Code and Document Action Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 File Code
               </label>
               <input
@@ -236,7 +236,7 @@ export default function ApproveSupersedeModal({ document, onClose, onSubmit }) {
                   disabled
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 outline-none"
                 />
-                <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>

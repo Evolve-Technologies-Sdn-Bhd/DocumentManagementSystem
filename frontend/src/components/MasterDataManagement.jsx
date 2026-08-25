@@ -726,22 +726,19 @@ function ProjectCategoriesManagement() {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{t('mdm_project_categories')}</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="mt-1 text-sm text-gray-600">
             {t('mdm_project_cat_desc')}
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm flex items-center justify-center gap-2 whitespace-nowrap"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <Button onClick={handleAdd}>
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           {t('mdm_add_project_cat')}
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
@@ -1285,22 +1282,19 @@ function DepartmentsManagement() {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{t('mdm_departments')}</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="mt-1 text-sm text-gray-600">
             {t('mdm_dept_desc')}
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm flex items-center justify-center gap-2 whitespace-nowrap"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <Button onClick={handleAdd}>
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           {t('mdm_add_dept')}
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
@@ -1628,15 +1622,12 @@ function DivisionsManagement() {
           <h3 className="text-lg font-semibold text-gray-900">{t('mdm_divisions')}</h3>
           <p className="mt-1 text-sm text-gray-600">{t('mdm_division_desc')}</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-        >
+        <Button onClick={handleAdd}>
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           {t('mdm_add_division')}
-        </button>
+        </Button>
       </div>
 
       <AppSurface variant="panel" padding="md" className="space-y-4">
@@ -1833,7 +1824,7 @@ function CrmLookupsManagement() {
               <button
                 type="button"
                 onClick={() => removeItem(type, item)}
-                className="text-ink-soft hover:text-red-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label={`Remove ${item}`}
               >
                 ×

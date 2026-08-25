@@ -1,0 +1,24 @@
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[2m10:38:51 am[22m [33m[1m[vite][22m[39m [33mwarning: [33mThe character ">" is not valid inside a JSX element[33m
+987|              <div>
+988|                <label className="block text-sm font-medium text-gray-900 mb-2">
+989|                  Document Style Profile (optional) — Override font families, company letterhead header, footer, etc. Manage in Configuration > Template Management > Document Style Profiles.
+   |                                                                                                                                                ^
+990|                </label>
+991|                <SearchableSingleSelect
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Desktop/DocumentManagementSystem/frontend/src/components/NewDraftModal.jsx[39m
+[2m10:38:51 am[22m [33m[1m[vite][22m[39m [33mwarning: [33mThe character ">" is not valid inside a JSX element[33m
+987|              <div>
+988|                <label className="block text-sm font-medium text-gray-900 mb-2">
+989|                  Document Style Profile (optional) — Override font families, company letterhead header, footer, etc. Manage in Configuration > Template Management > Document Style Profiles.
+   |                                                                                                                                                                      ^
+990|                </label>
+991|                <SearchableSingleSelect
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Desktop/DocumentManagementSystem/frontend/src/components/NewDraftModal.jsx[39m
+^C^C

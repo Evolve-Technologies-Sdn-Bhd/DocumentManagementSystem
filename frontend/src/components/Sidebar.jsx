@@ -24,14 +24,14 @@ const menuItems = [
   { 
     name: 'My Documents Status', 
     translationKey: 'my_documents_status',
-    path: '/my-documents',
+    path: '/documents/my-documents',
     module: 'myDocumentsStatus',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
   },
   { 
     name: 'Draft Documents', 
     translationKey: 'draft_documents',
-    path: '/drafts',
+    path: '/documents/drafts',
     module: 'documents.draft',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
   },
@@ -52,14 +52,14 @@ const menuItems = [
   { 
     name: 'Review and Approval', 
     translationKey: 'review_approval',
-    path: '/review-approval',
+    path: '/documents/review-approval',
     module: 'documents.review',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
   },
   { 
     name: 'Published Documents', 
     translationKey: 'published_documents',
-    path: '/published',
+    path: '/documents/published',
     module: 'documents.published',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
   },
@@ -87,7 +87,7 @@ const menuItems = [
   { 
     name: 'Superseded & Obsolete', 
     translationKey: 'superseded_obsolete',
-    path: '/archived',
+    path: '/documents/archived',
     module: 'documents.superseded',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
   },
@@ -137,7 +137,7 @@ const menuSections = [
     key: 'workspace',
     label: 'Workspace',
     icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7.5A2.5 2.5 0 015.5 5h4.379a2.5 2.5 0 011.768.732l.621.622a2.5 2.5 0 001.768.732H18.5A2.5 2.5 0 0121 9.586V16.5A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-9z" /></svg>,
-    paths: ['/new-document-request', '/my-documents', '/drafts']
+    paths: ['/new-document-request', '/documents/my-documents', '/documents/drafts']
   },
   {
     key: 'projects',
@@ -149,7 +149,7 @@ const menuSections = [
     key: 'documentControl',
     label: 'Document Control',
     icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75l2.25 2.25L15 9.75m-9-4.286l5.357-2.143a1.75 1.75 0 011.286 0L18 5.464A1.75 1.75 0 0119.25 7.09v4.26c0 3.76-2.208 7.17-5.643 8.714l-.964.433a1.75 1.75 0 01-1.286 0l-.964-.433A9.545 9.545 0 014.75 11.35V7.09A1.75 1.75 0 016 5.464z" /></svg>,
-    paths: ['/review-approval', '/published', '/expiry-tracking', '/archived']
+    paths: ['/documents/review-approval', '/documents/published', '/expiry-tracking', '/documents/archived']
   },
   {
     key: 'records',
@@ -205,15 +205,21 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
     }
   })
   
-  // Listen for permission changes
+  // Load RFID registry feature flag
   useEffect(() => {
     const loadRfidRegistryStatus = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
       try {
         const res = await api.get('/epc-registry/status')
         const enabled = Boolean(res.data?.data?.enabled)
         setRfidRegistryEnabled(enabled)
       } catch (error) {
-        console.error('Failed to load RFID EPC registry status:', error)
+        const status = error?.response?.status
+        if (status !== 401 && status !== 403) {
+          console.warn('RFID EPC registry check skipped – using saved settings.')
+        }
       }
     }
 
@@ -370,7 +376,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/8 text-sidebar-text">
                   {section.icon}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{section.label}</span>
+                <span className="min-w-0 flex-1 truncate">{section.labelKey ? t(section.labelKey) : section.label}</span>
                 <svg
                   className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${expandedSections[section.key] !== false ? 'rotate-0' : '-rotate-90'}`}
                   fill="none"

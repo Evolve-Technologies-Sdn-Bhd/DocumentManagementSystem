@@ -7,6 +7,7 @@ import Button from './ui/Button'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import AppSurface from './ui/AppSurface'
 
 const getFriendlyViewerError = (err, document) => {
   const statusCode = err?.response?.status
@@ -19,8 +20,8 @@ const getFriendlyViewerError = (err, document) => {
   return err?.response?.data?.message || err?.message || 'Failed to load document'
 }
 
-export default function DocumentViewerModal({ document, onClose }) {
-  const { t } = usePreferences()
+export default function DocumentViewerModal({ document, onClose, onUploadNew }) {
+  const { t, formatDateTime } = usePreferences()
   const [loading, setLoading] = useState(true)
   const [fileUrl, setFileUrl] = useState(null)
   const [htmlContent, setHtmlContent] = useState(null)

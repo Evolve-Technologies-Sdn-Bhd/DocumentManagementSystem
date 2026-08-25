@@ -147,7 +147,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
         <ModalBody>
           {uploadComplete ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                 <div className="flex items-start gap-3">
                   <svg className="mt-0.5 h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -158,10 +158,10 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                   </div>
                 </div>
               </div>
-              <AppSurface variant="muted" padding="md" className="text-sm text-ink-secondary">
-                <div><span className="font-semibold text-ink">File Code:</span> {documentCodeLabel}</div>
-                <div className="mt-1"><span className="font-semibold text-ink">Title:</span> {documentTitleLabel}</div>
-                <div className="mt-1"><span className="font-semibold text-ink">Status:</span> Draft</div>
+              <AppSurface variant="muted" padding="md" className="text-sm text-gray-700">
+                <div><span className="font-semibold text-gray-900">File Code:</span> {documentCodeLabel}</div>
+                <div className="mt-1"><span className="font-semibold text-gray-900">Title:</span> {documentTitleLabel}</div>
+                <div className="mt-1"><span className="font-semibold text-gray-900">Status:</span> Draft</div>
               </AppSurface>
             </div>
           ) : (
@@ -175,7 +175,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                 />
               ) : null}
               <div
-                className="rounded-[18px]"
+                className="rounded-lg"
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
@@ -186,7 +186,7 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                   padding="lg"
                   className={[
                     'border-2 border-dashed text-center transition-colors',
-                    isDragging ? 'border-brand bg-blue-50/40' : 'border-border'
+                    isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                   ].join(' ')}
                 >
                   {selectedFile ? (
@@ -194,8 +194,8 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                       <svg className="w-12 h-12 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-sm font-semibold text-ink">{selectedFile.name}</p>
-                      <p className="text-xs text-ink-muted">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm font-semibold text-gray-900">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       <button
                         type="button"
                         onClick={() => setSelectedFile(null)}
@@ -206,14 +206,14 @@ export default function UploadFileModal({ isOpen, onClose, document, onSuccess, 
                     </div>
                   ) : (
                     <>
-                      <svg className="w-12 h-12 text-ink-soft mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-12 h-12 text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <p className="text-sm font-semibold text-ink mb-1">Drop files here</p>
-                      <p className="text-xs text-ink-muted mb-4">Supported formats: {getAllowedTypesDisplay()}</p>
-                      <p className="text-xs text-ink-soft mb-4">OR</p>
+                      <p className="text-sm font-semibold text-gray-900 mb-1">Drop files here</p>
+                      <p className="text-xs text-gray-500 mb-4">Supported formats: {getAllowedTypesDisplay()}</p>
+                      <p className="text-xs text-gray-500 mb-4">OR</p>
                       <label className="cursor-pointer">
-                        <span className="text-sm text-brand hover:text-brand-hover font-semibold underline underline-offset-2">
+                        <span className="text-sm text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2">
                           Browse files
                         </span>
                         <input

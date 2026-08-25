@@ -1,55 +1,80 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CheckCircleIcon, EyeIcon, EyeSlashIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import api from '../api/axios'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { createDefaultNotificationPreferences, normalizeNotificationPreferences, notificationEventCategories } from '../constants/notificationEvents'
 import { normalizeAppPath } from '../utils/normalizeUrl'
+import PageHeader from '../components/ui/PageHeader'
+import Button from '../components/ui/Button'
+import AppSurface from '../components/ui/AppSurface'
 
-// Tab Navigation Component
-function TabNavigation({ activeTab, onTabChange, t }) {
-  const tabs = [
-    { 
-      id: 'profile', 
-      label: t('profile_info'), 
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-    },
-    { 
-      id: 'security', 
-      label: t('security'), 
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-    },
-    { 
-      id: 'notifications', 
-      label: t('notifications'), 
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-    },
-    { 
-      id: 'preferences', 
-      label: t('preferences'), 
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-    }
-  ]
+const PROFILE_TABS = [
+  {
+    key: 'profile',
+    labelKey: 'profile_info',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'security',
+    labelKey: 'security',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'notifications',
+    labelKey: 'notifications',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+  },
+  {
+    key: 'preferences',
+    labelKey: 'preferences',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      </svg>
+    ),
+  },
+]
 
+function ProfileSubNav({ activeTab, onTabChange, t }) {
   return (
-    <div className="mb-6 border-b border-border" data-tour-id="profile-tabbar">
-      <nav className="flex space-x-8 overflow-x-auto" aria-label="Settings Tabs">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            data-tour-id={`profile-tab-${tab.id}`}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap flex items-center gap-2 ${
-              activeTab === tab.id
-                ? 'border-brand text-brand'
-                : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+    <div className="w-full overflow-x-auto border-b border-ink-muted/10 bg-surface/40 backdrop-blur-sm">
+      <div className="flex min-w-full gap-1 px-1">
+        {PROFILE_TABS.map((tab) => {
+          const active = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onTabChange(tab.key)}
+              data-tour-id={`profile-tab-${tab.key}`}
+              className={[
+                'group relative flex shrink-0 items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all duration-150',
+                active
+                  ? 'text-brand bg-white shadow-[0_-1px_0_0_var(--dms-primary)_inset] border-x border-t border-ink-muted/10'
+                  : 'text-ink-muted hover:text-ink hover:bg-white/60',
+              ].filter(Boolean).join(' ')}
+              aria-current={active ? 'page' : undefined}
+            >
+              <span className={active ? 'text-brand' : 'opacity-70'}>{tab.icon}</span>
+              <span className="whitespace-nowrap">{t(tab.labelKey)}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -211,9 +236,8 @@ function ProfileInformation() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Profile Picture */}
-      <div className="card p-6">
+    <div className="space-y-4">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="mb-4 text-lg font-semibold text-ink">{t('profile_picture')}</h3>
         <div className="flex items-center gap-6">
           <div className="relative">
@@ -229,8 +253,8 @@ function ProfileInformation() {
             <p className="mb-3 text-sm text-ink-secondary">
               {t('upload_photo_desc')}
             </p>
-            <div className="flex gap-3">
-              <label className="cursor-pointer rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover">
+            <div className="flex gap-3 flex-wrap">
+              <label className="cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-50 h-10 px-4 text-sm rounded-2xl bg-brand text-ink-onBrand border border-border shadow-dms-soft hover:bg-brand-hover">
                 {t('upload_new_photo')}
                 <input
                   type="file"
@@ -240,27 +264,26 @@ function ProfileInformation() {
                 />
               </label>
               {profileImage && (
-                <button
+                <Button
                   onClick={() => {
                     setProfileImage(null)
                     setProfileImageFile(null)
                   }}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-muted hover:text-ink"
+                  variant="secondary"
                 >
                   {t('remove')}
-                </button>
+                </Button>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Personal Information */}
-      <div className="card p-6">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="mb-4 text-lg font-semibold text-ink">{t('personal_info')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('first_name')} <span className="text-red-500">*</span>
             </label>
             <input
@@ -271,7 +294,7 @@ function ProfileInformation() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('last_name')} <span className="text-red-500">*</span>
             </label>
             <input
@@ -282,7 +305,7 @@ function ProfileInformation() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('email_address')} <span className="text-red-500">*</span>
             </label>
             <input
@@ -293,7 +316,7 @@ function ProfileInformation() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('phone_number')}
             </label>
             <input
@@ -304,14 +327,13 @@ function ProfileInformation() {
             />
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Work Information */}
-      <div className="card p-6">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="mb-4 text-lg font-semibold text-ink">{t('work_info')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">{t('employee_id')}</label>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">{t('employee_id')}</label>
             <input
               type="text"
               value={formData.employeeId}
@@ -320,7 +342,7 @@ function ProfileInformation() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">{t('department')}</label>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">{t('department')}</label>
             <select
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
@@ -333,7 +355,7 @@ function ProfileInformation() {
             </select>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">{t('position')}</label>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">{t('position')}</label>
             <input
               type="text"
               value={formData.position}
@@ -342,7 +364,7 @@ function ProfileInformation() {
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">{t('date_joined')}</label>
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">{t('date_joined')}</label>
             <input
               type="date"
               value={formData.dateJoined}
@@ -351,23 +373,23 @@ function ProfileInformation() {
             />
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Save Button */}
       <div className="flex justify-end gap-3">
-        <button
+        <Button
+          variant="secondary"
           onClick={() => window.location.reload()}
-          className="rounded-lg border border-border px-6 py-2 font-medium text-ink-secondary transition-colors hover:bg-surface-muted hover:text-ink"
         >
           {t('cancel')}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleSave}
-          disabled={loading}
-          className="rounded-lg bg-brand px-6 py-2 font-medium text-ink-inverse transition-colors hover:bg-brand-hover disabled:opacity-50"
+          loading={loading}
+          loadingText={t('saving')}
+          variant="primary"
         >
-          {loading ? t('saving') : t('save_changes')}
-        </button>
+          {t('save_changes')}
+        </Button>
       </div>
 
       <AlertModal
@@ -670,13 +692,12 @@ function SecuritySettings() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Change Password */}
-      <div className="card p-6">
+    <div className="space-y-4">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="mb-4 text-lg font-semibold text-ink">{t('change_password')}</h3>
         <div className="space-y-4 max-w-md">
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('current_password')}
             </label>
             <div className="relative">
@@ -701,7 +722,7 @@ function SecuritySettings() {
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('new_password')}
             </label>
             <div className="relative">
@@ -798,7 +819,7 @@ function SecuritySettings() {
             )}
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-ink-secondary">
+            <label className="mb-1.5 block text-sm font-medium text-ink-secondary">
               {t('confirm_new_password')}
             </label>
             <div className="relative">
@@ -822,18 +843,18 @@ function SecuritySettings() {
               </button>
             </div>
           </div>
-          <button
+          <Button
             onClick={handlePasswordChange}
-            disabled={changingPassword}
-            className="rounded-lg bg-brand px-6 py-2 font-medium text-ink-inverse transition-colors hover:bg-brand-hover disabled:opacity-50"
+            loading={changingPassword}
+            loadingText={t('updating')}
+            variant="primary"
           >
-            {changingPassword ? t('updating') : t('update_password')}
-          </button>
+            {t('update_password')}
+          </Button>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Two-Factor Authentication */}
-      <div className="card p-6">
+      <AppSurface variant="panel" padding="lg">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h3 className="mb-2 text-lg font-semibold text-ink">{t('two_factor_auth')}</h3>
@@ -872,13 +893,16 @@ function SecuritySettings() {
               </p>
             </div>
             {!hasAuthenticator && (
-              <button
+              <Button
                 onClick={handleSetupAuthenticator}
                 disabled={settingUpAuthenticator}
-                className="px-3 py-1.5 text-xs font-medium bg-brand text-ink-inverse rounded hover:bg-brand-hover disabled:opacity-50"
+                loading={settingUpAuthenticator}
+                loadingText="Generating..."
+                size="sm"
+                variant="primary"
               >
-                {settingUpAuthenticator ? 'Generating...' : 'Set Up App'}
-              </button>
+                Set Up App
+              </Button>
             )}
           </div>
 
@@ -907,13 +931,15 @@ function SecuritySettings() {
                   placeholder="Enter 6-digit code"
                   className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
-                <button
+                <Button
                   onClick={handleVerifyAuthenticator}
-                  disabled={verifyingAuthenticator}
-                  className="px-3 py-2 text-sm font-medium bg-[var(--dms-color-success-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 disabled:opacity-50"
+                  loading={verifyingAuthenticator}
+                  loadingText="Verifying..."
+                  size="sm"
+                  variant="primary"
                 >
-                  {verifyingAuthenticator ? 'Verifying...' : 'Verify'}
-                </button>
+                  Verify
+                </Button>
               </div>
             </div>
           )}
@@ -925,10 +951,9 @@ function SecuritySettings() {
             </p>
           </div>
         )}
-      </div>
+      </AppSurface>
 
-      {/* Active Sessions */}
-      <div className="card p-6">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="text-lg font-semibold text-ink mb-4">{t('active_sessions')}</h3>
         <p className="text-sm text-ink-secondary mb-4">
           {t('active_sessions_desc')}
@@ -967,7 +992,7 @@ function SecuritySettings() {
             </div>
           ))}
         </div>
-      </div>
+      </AppSurface>
 
 
       <ConfirmModal
@@ -1115,7 +1140,7 @@ function NotificationSettings() {
   }
 
   const NotificationCategory = ({ title, icon, items }) => (
-    <div className="card p-5 mb-4">
+    <AppSurface variant="panel" padding="md" className="mb-4">
       <h4 className="text-md font-semibold text-ink mb-3 flex items-center gap-2">
         <span>{icon}</span> {title}
       </h4>
@@ -1140,7 +1165,7 @@ function NotificationSettings() {
           />
         ))}
       </div>
-    </div>
+    </AppSurface>
   )
 
   if (loading) {
@@ -1153,8 +1178,7 @@ function NotificationSettings() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="card p-5">
+      <AppSurface variant="panel" padding="md">
         <h3 className="text-lg font-semibold text-ink mb-2">{t('notification_preferences')}</h3>
         <p className="text-sm text-ink-secondary">
           {t('notification_desc')}
@@ -1164,7 +1188,7 @@ function NotificationSettings() {
             Admin settings control the maximum delivery. If admin turns Email or In-App off for an event, it cannot be enabled here.
           </p>
         )}
-      </div>
+      </AppSurface>
 
       {notificationEventCategories.map((category) => (
         <NotificationCategory
@@ -1175,8 +1199,7 @@ function NotificationSettings() {
         />
       ))}
 
-      {/* Email Digest */}
-      <div className="card p-5">
+      <AppSurface variant="panel" padding="md">
         <h4 className="text-md font-semibold text-ink mb-2">📧 {t('email_digest')}</h4>
         <p className="text-sm text-ink-secondary mb-3">
           {t('email_digest_desc')}
@@ -1191,17 +1214,17 @@ function NotificationSettings() {
           <option value="daily">Daily Digest</option>
           <option value="weekly">Weekly Digest</option>
         </select>
-      </div>
+      </AppSurface>
 
-      {/* Save Button */}
       <div className="flex justify-end gap-3">
-        <button
+        <Button
           onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-2 bg-brand text-ink-inverse rounded-lg hover:bg-brand-hover transition-colors font-medium disabled:opacity-50"
+          loading={saving}
+          loadingText={t('saving')}
+          variant="primary"
         >
-          {saving ? t('saving') : t('save_notification_settings')}
-        </button>
+          {t('save_notification_settings')}
+        </Button>
       </div>
 
       <AlertModal
@@ -1284,13 +1307,12 @@ function PreferencesSettings() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Localization */}
-      <div className="card p-6">
+    <div className="space-y-4">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="text-lg font-semibold text-ink mb-4">{t('localization')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('language')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('language')}</label>
             <select
               value={preferences.language}
               onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
@@ -1302,7 +1324,7 @@ function PreferencesSettings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('timezone')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('timezone')}</label>
             <select
               value={preferences.timezone}
               onChange={(e) => setPreferences({ ...preferences, timezone: e.target.value })}
@@ -1315,7 +1337,7 @@ function PreferencesSettings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('date_format')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('date_format')}</label>
             <select
               value={preferences.dateFormat}
               onChange={(e) => setPreferences({ ...preferences, dateFormat: e.target.value })}
@@ -1327,7 +1349,7 @@ function PreferencesSettings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('time_format')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('time_format')}</label>
             <select
               value={preferences.timeFormat}
               onChange={(e) => setPreferences({ ...preferences, timeFormat: e.target.value })}
@@ -1338,14 +1360,13 @@ function PreferencesSettings() {
             </select>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Display Preferences */}
-      <div className="card p-6">
+      <AppSurface variant="panel" padding="lg">
         <h3 className="text-lg font-semibold text-ink mb-4">{t('display_preferences')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('items_per_page')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('items_per_page')}</label>
             <select
               value={preferences.itemsPerPage}
               onChange={(e) => setPreferences({ ...preferences, itemsPerPage: parseInt(e.target.value) })}
@@ -1359,7 +1380,7 @@ function PreferencesSettings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">{t('default_view')}</label>
+            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('default_view')}</label>
             <select
               value={preferences.defaultView}
               onChange={(e) => setPreferences({ ...preferences, defaultView: e.target.value })}
@@ -1371,10 +1392,9 @@ function PreferencesSettings() {
             </select>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Account Actions */}
-      <div className="card p-6 border border-[var(--dms-color-danger-ink)]/20">
+      <AppSurface variant="panel" padding="lg" className="border border-[var(--dms-color-danger-ink)]/20">
         <h3 className="text-lg font-semibold text-[var(--dms-color-danger-ink)] mb-4">{t('danger_zone')}</h3>
         <div className="space-y-4">
           <div className="flex items-start justify-between p-4 border border-[var(--dms-color-danger-ink)]/20 rounded-lg bg-[var(--dms-color-danger-soft)]">
@@ -1384,9 +1404,9 @@ function PreferencesSettings() {
                 {t('export_data_desc')}
               </p>
             </div>
-            <button className="px-4 py-2 border border-border bg-surface text-ink-secondary rounded-lg hover:bg-surface-muted transition-colors text-sm font-medium whitespace-nowrap ml-4">
+            <Button variant="secondary" className="whitespace-nowrap ml-4" size="md">
               {t('export_btn')}
-            </button>
+            </Button>
           </div>
           <div className="flex items-start justify-between p-4 border border-[var(--dms-color-danger-ink)]/30 rounded-lg bg-[var(--dms-color-danger-soft)]">
             <div className="flex-1">
@@ -1395,25 +1415,27 @@ function PreferencesSettings() {
                 {t('deactivate_desc')}
               </p>
             </div>
-            <button 
+            <Button
               onClick={handleDeactivate}
-              className="px-4 py-2 bg-[var(--dms-color-danger-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 transition-colors text-sm font-medium whitespace-nowrap ml-4"
+              variant="danger"
+              className="whitespace-nowrap ml-4"
+              size="md"
             >
               {t('deactivate_btn')}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </AppSurface>
 
-      {/* Save Button */}
       <div className="flex justify-end">
-        <button
+        <Button
           onClick={handleSave}
-          disabled={saving || loading}
-          className="px-6 py-2 bg-brand text-ink-inverse rounded-lg hover:bg-brand-hover transition-colors font-medium disabled:opacity-50"
+          loading={saving || loading}
+          loadingText={t('saving')}
+          variant="primary"
         >
-          {saving ? t('saving') : t('save_preferences')}
-        </button>
+          {t('save_preferences')}
+        </Button>
       </div>
 
       <ConfirmModal
@@ -1438,25 +1460,24 @@ function PreferencesSettings() {
 
 // Main Profile Settings Component
 export default function ProfileSettings() {
+  const navigate = useNavigate()
   const { t } = usePreferences()
   const [activeTab, setActiveTab] = useState('profile')
 
   return (
-    <div className="p-6 space-y-6" data-tour-id="profile-page">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-ink">{t('profile_settings')}</h1>
-          <p className="mt-2 text-sm text-ink-secondary">
-            {t('manage_account')}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6" data-tour-id="profile-page">
+      <PageHeader
+        title={t('profile_settings')}
+        subtitle={t('manage_account')}
+        actions={
+          <Button variant="secondary" onClick={() => navigate(-1)}>
+            Back
+          </Button>
+        }
+      />
 
-      {/* Tab Navigation */}
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} t={t} />
+      <ProfileSubNav activeTab={activeTab} onTabChange={setActiveTab} t={t} />
 
-      {/* Tab Content */}
       <div>
         {activeTab === 'profile' && <ProfileInformation />}
         {activeTab === 'security' && <SecuritySettings />}

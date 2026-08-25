@@ -19,6 +19,7 @@ router.delete('/requests/:id', authorizePermission('newDocumentRequest', 'create
 // Draft document workflow
 router.post('/drafts', uploadDocument.single('file'), documentController.createDraft);
 router.post('/drafts/submit-for-review', uploadDocument.single('file'), documentController.createDraftAndSubmitForReview);
+router.delete('/drafts/:id', documentController.deleteDraft);
 router.post('/:id/submit-for-review', documentController.submitDraftForReview);
 
 // Version requests (MUST be before generic /:id routes to avoid conflicts)

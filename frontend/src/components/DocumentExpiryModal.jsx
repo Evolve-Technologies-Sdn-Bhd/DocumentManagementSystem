@@ -16,9 +16,9 @@ const toDateInputValue = (value) => {
 function Field({ label, children, hint = null }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-ink">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-gray-900">{label}</label>
       {children}
-      {hint ? <p className="mt-1 text-xs text-ink-soft">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
     </div>
   )
 }
@@ -96,10 +96,10 @@ export default function DocumentExpiryModal({
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Document Name">
-              <TextInput value={document.fileName || document.title || ''} readOnly className="bg-surface-muted text-ink-muted" />
+              <TextInput value={document.fileName || document.title || ''} readOnly className="bg-gray-50 text-gray-600" />
             </Field>
             <Field label="Document Type">
-              <TextInput value={document.documentType || '-'} readOnly className="bg-surface-muted text-ink-muted" />
+              <TextInput value={document.documentType || '-'} readOnly className="bg-gray-50 text-gray-600" />
             </Field>
             <Field label="Start Date">
               <TextInput
@@ -134,13 +134,13 @@ export default function DocumentExpiryModal({
 
           <AppSurface padding="lg" variant="panel" className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-ink">Reminder Rules</h3>
-              <p className="text-sm text-ink-muted">
+              <h3 className="text-sm font-semibold text-gray-900">Reminder Rules</h3>
+              <p className="text-sm text-gray-500">
                 Saving here enables expiry tracking for this document and applies the reminder schedule below.
               </p>
             </div>
 
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
               <input
                 type="checkbox"
                 checked={form.useGlobalRule}
@@ -160,7 +160,7 @@ export default function DocumentExpiryModal({
                       : {})
                   }))
                 }}
-                className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                 disabled={saving}
               />
               Use Global Defaults

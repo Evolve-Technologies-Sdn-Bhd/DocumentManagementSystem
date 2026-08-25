@@ -23,6 +23,9 @@ const epcRegistryRoutes = require('./routes/epcRegistry');
 const projectTrackingRoutes = require('./routes/projectTracking');
 const expiryTrackingRoutes = require('./routes/expiryTracking');
 const crmRoutes = require('./routes/crm');
+const smartTemplatesRoutes = require('./routes/smartTemplates');
+const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
+const smartDocumentsRoutes = require('./routes/smartDocuments');
 const notificationService = require('./services/notificationService');
 
 const app = express();
@@ -129,7 +132,9 @@ app.get(['/api', '/api/'], (req, res) => {
       epcRegistry: '/api/epc-registry',
       projectTracking: '/api/project-tracking',
       expiryTracking: '/api/expiry-tracking',
-      crm: '/api/crm'
+      crm: '/api/crm',
+      smartTemplates: '/api/smart-templates',
+      smartDocumentStyle: '/api/smart-document-style'
     }
   }, 'API root');
 });
@@ -152,6 +157,9 @@ app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/smart-templates', smartTemplatesRoutes);
+app.use('/api/smart-document-style', smartDocumentStyleRoutes);
+app.use('/api/smart-documents', smartDocumentsRoutes);
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access

@@ -80,7 +80,7 @@ export default function Topbar({ onMenu, onGettingStarted, showGettingStartedHin
   }
 
   return (
-    <div className="app-topbar flex h-topbar items-center justify-between border-b border-topbar-border px-3 shadow-md sm:px-4">
+    <div className="app-topbar relative z-50 flex h-topbar items-center justify-between border-b border-topbar-border px-3 shadow-md sm:px-4">
       <BrandLogoPreload src={branding.logo} />
       <div className="flex min-w-0 items-center gap-3">
         <IconButton

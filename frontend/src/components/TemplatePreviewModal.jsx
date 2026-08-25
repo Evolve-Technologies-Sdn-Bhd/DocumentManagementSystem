@@ -29,7 +29,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
         setContentType(null)
         setDocxZoomMode('fit')
         const token = localStorage.getItem('token')
-        const baseURL = import.meta.env.VITE_API_URL || '/api'
+        const baseURL = String(import.meta.env.VITE_API_URL || '').trim() || 'http://localhost:4001/api'
         
         // Fetch the file
         const response = await fetch(`${baseURL}/templates/${template.id}/preview`, {
@@ -116,7 +116,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('token')
-      const baseURL = import.meta.env.VITE_API_URL || '/api'
+      const baseURL = String(import.meta.env.VITE_API_URL || '').trim() || 'http://localhost:4000/api'
       
       const response = await fetch(`${baseURL}/templates/${template.id}/download`, {
         headers: {

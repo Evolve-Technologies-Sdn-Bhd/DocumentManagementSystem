@@ -8,8 +8,10 @@ export default function DocumentLink() {
 
   useEffect(() => {
     const raw = parseInt(id, 10)
-    const docId = Number.isFinite(raw) ? raw : null
-    if (!docId) {
+    const isValidId = Number.isFinite(raw) && String(raw) === String(id)
+    const docId = isValidId ? raw : null
+
+    if (docId === null) {
       navigate('/dashboard', { replace: true })
       return
     }
@@ -38,21 +40,27 @@ export default function DocumentLink() {
         const stage = String(doc?.stage || '').toUpperCase()
 
         if (stage === 'DRAFT') {
-          navigate(`/drafts?docId=${docId}`, { replace: true })
+          const params = new URLSearchParams({ docId: String(docId) })
+          navigate(`/documents/drafts?${params.toString()}`, { replace: true })
           return
         }
 
         if (stage === 'PUBLISHED') {
-          const rawFolderId = parseInt(doc?.folderId, 10)
-          const folderQuery = Number.isFinite(rawFolderId) ? `&folderId=${rawFolderId}` : ''
-          navigate(`/published?docId=${docId}${folderQuery}`, { replace: true })
+          const params = new URLSearchParams({ docId: String(docId) })
+          const folderId = Number(doc?.folderId)
+          if (Number.isFinite(folderId) && folderId > 0) {
+            params.set('folderId', String(folderId))
+          }
+          navigate(`/documents/published?${params.toString()}`, { replace: true })
           return
         }
 
-        navigate(`/review-approval?docId=${docId}`, { replace: true })
+        const params = new URLSearchParams({ docId: String(docId) })
+        navigate(`/documents/review-approval?${params.toString()}`, { replace: true })
       } catch {
         if (cancelled) return
-        navigate(`/review-approval?docId=${docId}`, { replace: true })
+        const params = new URLSearchParams({ docId: String(docId) })
+        navigate(`/documents/review-approval?${params.toString()}`, { replace: true })
       }
     })()
 

@@ -77,12 +77,14 @@ class FolderPermissionService {
     const folder = await this.getFolderById(folderId)
     const roleNames = user?.roles || []
 
-    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
-    if (!withinDivisionScope) return false
-
-    if (String(folder.accessMode || 'PUBLIC').toUpperCase() === 'PUBLIC') return true
     if (user?.permissions?.all === true) return true
     if (this.isAdminRoleNames(roleNames)) return true
+
+    const isPublic = await this._isFolderOrAncestorPublic(folder)
+    if (isPublic) return true
+
+    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
+    if (!withinDivisionScope) return false
 
     const roleIds = await this.getRoleIdsByNames(roleNames)
     const folderIds = []
@@ -103,6 +105,17 @@ class FolderPermissionService {
       if (rows.length > 0) {
         return this.hasActionFromPermRows(rows, action)
       }
+    }
+    return false
+  }
+
+  async _isFolderOrAncestorPublic(startFolder) {
+    let cur = startFolder
+    while (cur) {
+      if (divisionScopeService.isPublicAccessMode(cur.accessMode)) return true
+      if (!cur.inheritPermissions) break
+      if (!cur.parentId) break
+      cur = await this.getFolderById(cur.parentId).catch(() => null)
     }
     return false
   }

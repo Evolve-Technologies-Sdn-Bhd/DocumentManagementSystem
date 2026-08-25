@@ -4,11 +4,11 @@ import api from '../api/axios'
 
 function ModalShell({ title, children, onClose }) {
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">×</button>
         </div>
         <div className="p-6">{children}</div>
       </div>
@@ -169,16 +169,16 @@ export default function DocumentAccessModal({ document, onClose, onSaved, onErro
                   <input
                     value={accessQuery}
                     onChange={(e) => setAccessQuery(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
                     placeholder="Search users or roles"
                   />
-                  <button type="button" onClick={searchSubjects} className="px-4 py-2 rounded-md bg-gray-800 text-white hover:bg-gray-900">
+                  <button type="button" onClick={searchSubjects} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">
                     Search
                   </button>
                 </div>
                 {loadingSubjects && <div className="text-xs text-gray-500">Searching subjects...</div>}
                 {renderedResults.length > 0 && (
-                  <div className="max-h-44 overflow-auto border border-gray-200 rounded-md divide-y">
+                  <div className="max-h-44 overflow-auto border border-gray-200 rounded-lg divide-y">
                     {renderedResults.map((item) => (
                       <button
                         key={item.key}
@@ -200,7 +200,7 @@ export default function DocumentAccessModal({ document, onClose, onSaved, onErro
                 ) : (
                   <div className="space-y-2">
                     {accessEntries.map((entry) => (
-                      <div key={`${entry.subjectType}-${entry.subjectId}`} className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
+                      <div key={`${entry.subjectType}-${entry.subjectId}`} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
                         <span>{entry.label}</span>
                         <button type="button" onClick={() => removeAccessEntry(entry)} className="text-red-600 hover:underline">
                           Remove
@@ -214,10 +214,10 @@ export default function DocumentAccessModal({ document, onClose, onSaved, onErro
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
               Cancel
             </button>
-            <button disabled={saving} type="button" onClick={save} className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+            <button disabled={saving} type="button" onClick={save} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50">
               {saving ? 'Saving...' : 'Save Access'}
             </button>
           </div>

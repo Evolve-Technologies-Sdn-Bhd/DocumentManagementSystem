@@ -11,7 +11,9 @@ import {
   startGlobalLoading
 } from '../utils/globalLoadingStore'
 
-const baseURL = import.meta.env.VITE_API_URL || '/api'
+const _envUrl = String(import.meta.env.VITE_API_URL || '').trim()
+const _DEFAULT_FALLBACK_ABSOLUTE = 'http://localhost:4001/api'
+const baseURL = _envUrl ? _envUrl : _DEFAULT_FALLBACK_ABSOLUTE
 
 const api = axios.create({ baseURL })
 
@@ -86,6 +88,19 @@ api.interceptors.response.use(
   async (error) => {
     const status = error?.response?.status
     const original = error?.config
+
+    if (original?.responseType === 'blob' && error?.response?.data instanceof Blob) {
+      try {
+        const rawText = await error.response.data.text()
+        try {
+          const parsed = JSON.parse(rawText)
+          error.response.data = parsed
+        } catch {
+          error.response.data = { message: rawText }
+        }
+      } catch {}
+    }
+
     const maintenanceCode = error?.response?.data?.errors?.code
     const maintenancePayload = error?.response?.data?.errors?.maintenance
     const maintenanceMessage =

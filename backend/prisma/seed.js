@@ -33,7 +33,7 @@ async function main() {
     // Configuration (36 permissions)
     'configuration.users': { view: true, create: true, edit: true, delete: true, activate: true, deactivate: true },
     'configuration.roles': { view: true, create: true, edit: true, delete: true, assign: true },
-    'configuration.templates': { view: true, read: true, create: true, update: true, delete: true, download: true },
+    'configuration.templates': { view: true, read: true, create: true, edit: true, update: true, delete: true, download: true },
     'configuration.documentTypes': { view: true, create: true, edit: true, delete: true },
     'configuration.masterData': { view: true, create: true, edit: true, delete: true },
     'configuration.settings': { view: true, edit: true },

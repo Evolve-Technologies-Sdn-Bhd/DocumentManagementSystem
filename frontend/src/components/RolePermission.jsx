@@ -276,7 +276,7 @@ function RolesManagement() {
             {t('rp_showing')} {filteredRoles.length} {filteredRoles.length !== 1 ? t('rp_roles_mgmt').toLowerCase() : t('rp_role_name').toLowerCase()}
           </p>
         </div>
-        <button onClick={handleAddRole} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+        <button onClick={handleAddRole} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">
           {t('rp_add_role')}
         </button>
       </div>
@@ -688,7 +688,7 @@ function UsersManagement() {
             {t('rp_showing')} {filteredUsers.length} {t('rp_users_mgmt').toLowerCase()}
           </p>
         </div>
-        <button onClick={handleAddUser} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+        <button onClick={handleAddUser} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">
           {t('rp_add_user')}
         </button>
       </div>

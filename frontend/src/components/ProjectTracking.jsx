@@ -3764,7 +3764,7 @@ function ProjectDetail({ projectId }) {
 
     const currentStatus = String(document.status || '').toUpperCase()
     if (currentStatus === 'DRAFT') {
-      navigate(`/drafts?docId=${document.id}&origin=project-tracking`)
+      navigate(`/documents/drafts?docId=${document.id}&origin=project-tracking`)
       return
     }
 
@@ -3782,21 +3782,21 @@ function ProjectDetail({ projectId }) {
         : null
 
       if (stage === 'DRAFT') {
-        navigate(`/drafts?docId=${document.id}&origin=project-tracking`)
+        navigate(`/documents/drafts?docId=${document.id}&origin=project-tracking`)
         return
       }
 
       if (stage === 'PUBLISHED' && folderId) {
-        navigate(`/published?folderId=${folderId}&docId=${document.id}&origin=project-tracking`)
+        navigate(`/documents/published?folderId=${folderId}&docId=${document.id}&origin=project-tracking`)
         return
       }
 
       if (stage === 'PUBLISHED') {
-        navigate(`/published?docId=${document.id}&origin=project-tracking`)
+        navigate(`/documents/published?docId=${document.id}&origin=project-tracking`)
         return
       }
 
-      navigate(`/review-approval?docId=${document.id}`)
+      navigate(`/documents/review-approval?docId=${document.id}`)
     } catch (error) {
       console.error('Failed to resolve linked document route:', error)
       navigate(`/documents/${document.id}`)
@@ -3807,7 +3807,7 @@ function ProjectDetail({ projectId }) {
     const docId = result?.document?.id
     if (!docId) return
     if (selectedIterationId) await loadItems(selectedIterationId)
-    navigate(`/drafts?docId=${docId}&origin=project-tracking`)
+    navigate(`/documents/drafts?docId=${docId}&origin=project-tracking`)
   }
 
   const createNamedIteration = async ({ name }) => {

@@ -16,6 +16,7 @@ import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import ActionMenu from './ActionMenu'
 
 // Calendar icon
 const CalendarIcon = () => (
@@ -574,10 +575,17 @@ export default function NewDocumentRequest() {
       setAlertModal({
         show: true,
         title: 'Success',
-        message: successMessage,
+        message: isNVR
+          ? successMessage
+          : (successMessage + ' Now you can upload a file manually to create your draft.'),
         type: 'success'
       })
       loadRequests()
+      if (!isNVR) {
+        setTimeout(() => {
+          navigate('/documents/drafts?origin=ndr', { replace: false })
+        }, 1200)
+      }
     } catch (error) {
       console.error('Failed to acknowledge request:', error)
       const errorMessage = error.response?.data?.message || 'Failed to acknowledge request. Please try again.'
@@ -1316,37 +1324,26 @@ export default function NewDocumentRequest() {
                         {renderRequestStatus(req)}
                       </Td>
                       {canAcknowledge && (
-                        <Td className="py-3 whitespace-nowrap">
+                        <Td className="py-3 whitespace-nowrap" align="right" stickyRight>
                           {canAcknowledgeRequest(req) && req.requestType !== 'NVR' ? (
-                            <div className="flex items-center gap-2 flex-nowrap">
-                              <Button
-                                onClick={() => handleAcknowledge(req)}
-                                disabled={acknowledgingId === req.id}
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                              >
-                                {acknowledgingId === req.id ? t('processing') : t('acknowledge_btn')}
-                              </Button>
-                              <Button
-                                onClick={() => openRejectModal(req)}
-                                disabled={acknowledgingId === req.id}
-                                size="sm"
-                                variant="danger"
-                              >
-                                {t('reject_btn')}
-                              </Button>
-                            </div>
+                            <ActionMenu
+                              actions={[
+                                { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(req), disabled: acknowledgingId === req.id },
+                                { label: t('reject_btn'), onClick: () => openRejectModal(req), variant: 'destructive', disabled: acknowledgingId === req.id }
+                              ]}
+                            />
                           ) : canAcknowledgeRequest(req) && req.requestType === 'NVR' ? (
-                            <Button
-                              onClick={() => handleAcknowledge(req)}
-                              disabled={acknowledgingId === req.id}
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              {acknowledgingId === req.id ? t('processing') : t('acknowledge_btn')}
-                            </Button>
+                            <div className="flex justify-end">
+                              <ActionMenu
+                                actions={[
+                                  { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(req), disabled: acknowledgingId === req.id }
+                                ]}
+                              />
+                            </div>
                           ) : req.status === 'Pending Acknowledgment' && !canAcknowledgeRequest(req) ? (
-                            <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
+                            <div className="flex justify-end">
+                              <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
+                            </div>
                           ) : (
                             <span className="text-gray-400 text-xs">-</span>
                           )}

@@ -153,15 +153,15 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[95] p-4">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Follow-up Update</h3>
               <p className="text-xs text-gray-600 mt-1">{tenderLabel}</p>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 rounded-lg p-2">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 rounded-lg p-2 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -202,7 +202,7 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
             <div className="text-sm font-semibold text-gray-900">Follow-up Notes</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-soft">Follow-up Date</label>
+                <label className="mb-2 block text-sm font-medium text-gray-900">Follow-up Date</label>
                 <TextInput
                   type="date"
                   value={followUpDraft.followUpAt}
@@ -210,7 +210,7 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-soft">Who Need To</label>
+                <label className="mb-2 block text-sm font-medium text-gray-900">Who Need To</label>
                 <SelectField
                   value={followUpDraft.assignedToId}
                   onChange={(e) => setFollowUpDraft((p) => ({ ...p, assignedToId: e.target.value }))}
@@ -225,7 +225,7 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-soft">Note</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Note</label>
               <TextArea
                 rows={3}
                 value={followUpDraft.note}
@@ -266,7 +266,7 @@ export default function TenderFollowUpModal({ open, entry, onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>

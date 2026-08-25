@@ -3894,7 +3894,16 @@ export function PreferencesProvider({ children }) {
           localStorage.setItem('userPreferences', JSON.stringify(prefs))
         }
       } catch (error) {
-        console.error('Failed to load preferences:', error)
+        const status = error?.response?.status
+        if (status === 401 || status === 403) return
+        try {
+          const saved = localStorage.getItem('userPreferences')
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            setPreferences({ ...DEFAULT_PREFERENCES, ...parsed })
+          }
+        } catch {}
+        console.warn('Using cached preferences – server temporarily unavailable.')
       } finally {
         setLoading(false)
       }
@@ -3912,7 +3921,9 @@ export function PreferencesProvider({ children }) {
     try {
       await api.put('/user/preferences', updated)
     } catch (error) {
-      console.error('Failed to save preferences:', error)
+      const status = error?.response?.status
+      if (status === 401 || status === 403) return
+      console.warn('Preferences not saved to server – will retry next session.')
     }
   }, [preferences])
 

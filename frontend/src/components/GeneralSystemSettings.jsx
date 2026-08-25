@@ -571,7 +571,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('heroImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.heroImage && (
@@ -645,7 +645,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('aboutImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.aboutImage && (
@@ -721,7 +721,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="image/*" 
                       onChange={(e) => handleIconImageUpload(idx, e)} 
-                      className="w-full rounded-2xl border border-border bg-surface px-2 py-1.5 text-xs text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface file:px-3 file:py-1 file:text-xs file:text-ink-secondary hover:file:bg-surface-muted"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 outline-none file:mr-2 file:rounded-lg file:border-0 file:bg-gray-200 file:px-3 file:py-1 file:text-xs file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                     />
                     <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                   </div>
@@ -901,7 +901,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('workflowImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.workflowImage && (
@@ -990,7 +990,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('contactImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.contactImage && (
@@ -1065,7 +1065,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="application/pdf" 
                       onChange={(e) => handleFooterPdfUpload(idx, e)} 
-                      className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface-muted"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                     />
                     {link.pdf && (
                       <Button
@@ -1138,7 +1138,7 @@ function ThemeAssetField({
             type="file"
             accept={accept}
             onChange={onChange}
-            className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
           />
           <p className="mt-1 text-xs text-ink-muted">{hint}</p>
         </div>

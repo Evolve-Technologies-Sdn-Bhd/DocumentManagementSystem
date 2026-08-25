@@ -130,25 +130,25 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
           {/* File Code and Document Action Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 File Code
               </label>
               <TextInput
                 type="text"
                 value={document?.fileCode || ''}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Action Type
               </label>
               <TextInput
                 type="text"
                 value={document?.actionType || 'Supersede / Obsolete'}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -156,25 +156,25 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
           {/* Document Title and Version */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Title
               </label>
               <TextInput
                 type="text"
                 value={document?.title || ''}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Version / Revision No.
               </label>
               <TextInput
                 type="text"
                 value={document?.version || 'N/A'}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -182,46 +182,46 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
           {/* Document Type and Requested By */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Type
               </label>
               <TextInput
                 type="text"
                 value={document?.documentType || 'N/A'}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Requested By
               </label>
               <TextInput
                 type="text"
                 value={document?.submittedBy || document?.requestedBy || ''}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
 
           {/* Reason for Supersede / Obsolete */}
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Reason for Supersede / Obsolete
             </label>
             <TextArea
               value={document?.reason || 'Exercitation id et irure labore dolore nostrud ad.'}
               disabled
               rows="4"
-              className="bg-surface-muted text-ink-muted outline-none resize-none cursor-not-allowed"
+              className="bg-gray-50 text-gray-500 outline-none resize-none cursor-not-allowed"
             />
           </div>
 
           {/* Replacement File Code (if Supersede) */}
           {document?.actionType === 'Supersede' && (
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Replacement File Code (if Supersede)
               </label>
               <div className="relative">
@@ -229,9 +229,9 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
                   type="text"
                   value={document?.replacementFileCode || ''}
                   disabled
-                  className="bg-surface-muted text-ink-muted pr-10 cursor-not-allowed"
+                  className="bg-gray-50 text-gray-500 pr-10 cursor-not-allowed"
                 />
-                <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -241,12 +241,12 @@ export default function ReviewSupersedeModal({ document, onClose, onSubmit }) {
           )}
 
           {/* Divider */}
-          <div className="border-t border-border my-6"></div>
+          <div className="border-t border-gray-200 my-6"></div>
 
           {/* Review Comments */}
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">
-              Review Comments <span className="text-xs text-ink-muted font-normal">(Optional for proceed, required for reject)</span>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Review Comments <span className="text-xs text-gray-500 font-normal">(Optional for proceed, required for reject)</span>
             </label>
             <TextArea
               name="reviewComments"

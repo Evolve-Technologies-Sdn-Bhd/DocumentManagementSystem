@@ -191,7 +191,7 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
 
         {/* Info Box */}
         <div className="px-6 pt-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               Please make sure a replacement file is available before requesting to supersede, and ensure it goes through the review and approval process.
             </p>
@@ -201,7 +201,7 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
@@ -209,24 +209,24 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
           {/* File Code and Action Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 File Code <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.fileCode}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Action Type <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.action}
                 onChange={(e) => setFormData({ ...formData, action: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="SUPERSEDE">Supersede</option>
@@ -237,39 +237,39 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
 
           {/* Document Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Document Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.title}
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
             />
           </div>
 
           {/* Document Type and Version */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Type <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.documentType}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Version / Revision No.
               </label>
               <input
                 type="text"
                 value={formData.version}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
               />
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
           {/* Superseding Document Search (only for SUPERSEDE action) */}
           {formData.action === 'SUPERSEDE' && (
             <div className="relative" ref={dropdownRef}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Search Superseding Document <span className="text-red-500">*</span>
               </label>
               <input
@@ -330,7 +330,7 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
 
           {/* Requested By */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Requested By <span className="text-red-500">*</span>
             </label>
             <input
@@ -338,45 +338,48 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
               value={formData.requestedBy}
               onChange={(e) => setFormData({ ...formData, requestedBy: e.target.value })}
               placeholder="Enter requester name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
 
           {/* Reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-900 mb-2">
               Reason for {formData.action === 'SUPERSEDE' ? 'Supersede' : 'Obsolete'} <span className="text-red-500">*</span>
             </label>
             <textarea
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               placeholder="Enter reason for supersede or obsolete"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows={4}
               required
             />
           </div>
+        </form>
 
-          {/* Actions */}
-          <div className="flex gap-3 justify-end pt-4">
+        {/* Actions */}
+        <div className="bg-gray-50 border-t border-gray-200 sticky bottom-0 px-6 py-4">
+          <div className="flex gap-3 justify-end">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              onClick={handleSubmit}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   )

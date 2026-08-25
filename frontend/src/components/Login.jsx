@@ -735,19 +735,19 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-1 w-full rounded-[10px] py-3 text-sm font-semibold focus:ring-4 focus:ring-blue-300 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1 w-full rounded-[10px] py-3 text-sm font-medium focus:ring-4 focus:ring-[#003366]/30 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
-                    backgroundColor: loading ? 'var(--dms-login-btn-bg, #2563EB)' : `var(--dms-login-btn-bg, #2563EB)`,
+                    backgroundColor: loading ? 'var(--dms-login-btn-bg, #003366)' : `var(--dms-login-btn-bg, #003366)`,
                     color: `var(--dms-login-btn-text, #FFFFFF)`,
                   }}
                   onMouseEnter={(e) => {
                     if (!loading) {
-                      e.target.style.backgroundColor = `var(--dms-login-btn-hover, #1D4ED8)`
+                      e.target.style.backgroundColor = `var(--dms-login-btn-hover, #002244)`
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!loading) {
-                      e.target.style.backgroundColor = `var(--dms-login-btn-bg, #2563EB)`
+                      e.target.style.backgroundColor = `var(--dms-login-btn-bg, #003366)`
                     }
                   }}
                 >

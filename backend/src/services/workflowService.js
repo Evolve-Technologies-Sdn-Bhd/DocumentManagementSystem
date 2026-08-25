@@ -200,6 +200,20 @@ class WorkflowService {
       }
     });
 
+    try {
+      const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+      if (latestVersion && latestVersion.smartTemplateVersionId) {
+        const smartDocumentContentService = require('./smartDocumentContentService');
+        const ownerUser = await prisma.user.findUnique({ where: { id: document.ownerId }, select: { id: true, fullName: true } });
+        const fileCode = updated.fileCode || null;
+        const rev = latestVersion.versionNo || null;
+        await smartDocumentContentService.snapshotSystemFields({ documentVersionId: latestVersion.id, systemValues: { referenceCode: fileCode, version: rev, documentTypeName: document.documentType?.typeName, preparedByFullName: ownerUser?.fullName, preparedDate: new Date().toISOString().slice(0,10) } });
+        await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+      }
+    } catch (smartErr) {
+      console.error('[workflowService.submitForReview] Smart document hook error:', smartErr?.message || smartErr);
+    }
+
     // Create approval history entry
     await prisma.approvalHistory.create({
       data: {
@@ -277,6 +291,16 @@ class WorkflowService {
           }
         });
 
+        try {
+          const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+          if (latestVersion && latestVersion.smartTemplateVersionId) {
+            const smartDocumentContentService = require('./smartDocumentContentService');
+            await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+          }
+        } catch (smartErr) {
+          console.error('[workflowService.reviewDocument.skipApproval] Smart document hook error:', smartErr?.message || smartErr);
+        }
+
         await documentAssignmentService.removeAssignmentsByType(documentId, 'REVIEW');
 
         await prisma.approvalHistory.create({
@@ -321,6 +345,16 @@ class WorkflowService {
           firstApproverId: approverId
         }
       });
+
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.reviewDocument.approve] Smart document hook error:', smartErr?.message || smartErr);
+      }
 
       // Remove review assignments (reviewers no longer need access)
       await documentAssignmentService.removeAssignmentsByType(documentId, 'REVIEW');
@@ -393,6 +427,16 @@ class WorkflowService {
           reviewedAt: new Date()
         }
       });
+
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.unlockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.reviewDocument.return] Smart document hook error:', smartErr?.message || smartErr);
+      }
 
       // Remove all assignments when returned to draft (owner already has access)
       await documentAssignmentService.removeAllAssignments(documentId);
@@ -494,6 +538,16 @@ class WorkflowService {
         }
       });
 
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.firstApproval.approve] Smart document hook error:', smartErr?.message || smartErr);
+      }
+
       // Remove first approval assignments
       await documentAssignmentService.removeAssignmentsByType(documentId, 'FIRST_APPROVAL');
       
@@ -570,6 +624,16 @@ class WorkflowService {
         }
       });
 
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.unlockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.firstApproval.return] Smart document hook error:', smartErr?.message || smartErr);
+      }
+
       // Remove all assignments when returned to draft
       await documentAssignmentService.removeAllAssignments(documentId);
       console.log(`[WorkflowService] Removed all assignments - document returned to draft from first approval`);
@@ -624,6 +688,16 @@ class WorkflowService {
         }
       });
 
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.secondApproval.approve] Smart document hook error:', smartErr?.message || smartErr);
+      }
+
       // Remove second approval assignments (owner has access)
       await documentAssignmentService.removeAssignmentsByType(documentId, 'SECOND_APPROVAL');
       console.log(`[WorkflowService] Removed SECOND_APPROVAL assignments - document ready to publish`);
@@ -673,6 +747,16 @@ class WorkflowService {
           secondApprovedAt: new Date()
         }
       });
+
+      try {
+        const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
+        if (latestVersion && latestVersion.smartTemplateVersionId) {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.unlockContentForDocumentVersion(latestVersion.id);
+        }
+      } catch (smartErr) {
+        console.error('[workflowService.secondApproval.return] Smart document hook error:', smartErr?.message || smartErr);
+      }
 
       // Remove all assignments when returned to draft
       await documentAssignmentService.removeAllAssignments(documentId);
@@ -778,6 +862,21 @@ class WorkflowService {
         where: { id: latestVersion.id },
         data: updateData
       });
+
+      if (latestVersion.smartTemplateVersionId) {
+        try {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+        } catch (smartErr) {
+          console.error('[workflowService.publishDocument] Smart document lock error:', smartErr?.message || smartErr);
+        }
+        try {
+          const smartDocumentPdfService = require('./smartDocumentPdfService');
+          await smartDocumentPdfService.generateFinalPdfForDocumentVersion({ documentVersionId: latestVersion.id });
+        } catch (pdfErr) {
+          console.error('[workflowService.publishDocument] Failed to auto-generate final smart PDF:', pdfErr?.message || pdfErr);
+        }
+      }
     }
 
     await prisma.approvalHistory.create({
@@ -916,6 +1015,21 @@ class WorkflowService {
         where: { id: latestVersion.id },
         data: { isPublished: true }
       });
+
+      if (latestVersion.smartTemplateVersionId) {
+        try {
+          const smartDocumentContentService = require('./smartDocumentContentService');
+          await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
+        } catch (smartErr) {
+          console.error('[workflowService.acknowledgeDocument] Smart document lock error:', smartErr?.message || smartErr);
+        }
+        try {
+          const smartDocumentPdfService = require('./smartDocumentPdfService');
+          await smartDocumentPdfService.generateFinalPdfForDocumentVersion({ documentVersionId: latestVersion.id });
+        } catch (pdfErr) {
+          console.error('[workflowService.acknowledgeDocument] Failed to auto-generate final smart PDF:', pdfErr?.message || pdfErr);
+        }
+      }
     }
 
     await prisma.approvalHistory.create({

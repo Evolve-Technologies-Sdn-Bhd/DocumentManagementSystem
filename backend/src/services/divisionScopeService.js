@@ -13,6 +13,10 @@ class DivisionScopeService {
     })
   }
 
+  isPublicAccessMode(accessMode) {
+    return String(accessMode || 'PUBLIC').toUpperCase() === 'PUBLIC'
+  }
+
   normalizeDivisionIds(divisionIds = []) {
     return Array.from(new Set((Array.isArray(divisionIds) ? divisionIds : []).map((id) => Number.parseInt(id, 10)).filter((id) => Number.isFinite(id))))
   }
@@ -42,6 +46,7 @@ class DivisionScopeService {
       select: {
         id: true,
         parentId: true,
+        accessMode: true,
         inheritPermissions: true,
         divisions: {
           select: { divisionId: true }
@@ -54,12 +59,39 @@ class DivisionScopeService {
       byId.set(folder.id, {
         id: folder.id,
         parentId: folder.parentId,
+        accessMode: folder.accessMode,
         inheritPermissions: Boolean(folder.inheritPermissions),
         divisionIds: Array.from(new Set((folder.divisions || []).map((entry) => entry.divisionId).filter((id) => Number.isFinite(id))))
       })
     }
 
     return byId
+  }
+
+  isFolderPubliclyAccessible(folderId, folderGraph, cache = new Map()) {
+    const normalizedFolderId = Number.parseInt(folderId, 10)
+    if (!Number.isFinite(normalizedFolderId)) return false
+    if (cache.has(normalizedFolderId)) return cache.get(normalizedFolderId)
+
+    const folder = folderGraph.get(normalizedFolderId)
+    if (!folder) {
+      cache.set(normalizedFolderId, false)
+      return false
+    }
+
+    if (this.isPublicAccessMode(folder.accessMode)) {
+      cache.set(normalizedFolderId, true)
+      return true
+    }
+
+    if (folder.inheritPermissions && folder.parentId) {
+      const parentPublic = this.isFolderPubliclyAccessible(folder.parentId, folderGraph, cache)
+      cache.set(normalizedFolderId, parentPublic)
+      return parentPublic
+    }
+
+    cache.set(normalizedFolderId, false)
+    return false
   }
 
   resolveEffectiveFolderDivisionIds(folderId, folderGraph, cache = new Map()) {
@@ -95,14 +127,18 @@ class DivisionScopeService {
 
   async getAccessibleFolderIdsForDivisionIds(divisionIds = []) {
     const normalizedDivisionIds = this.normalizeDivisionIds(divisionIds)
-    if (normalizedDivisionIds.length === 0) return []
-
     const targetDivisions = new Set(normalizedDivisionIds)
     const folderGraph = await this.getFolderGraph()
     const effectiveCache = new Map()
+    const publicCache = new Map()
     const accessibleIds = []
 
     for (const folder of folderGraph.values()) {
+      if (this.isFolderPubliclyAccessible(folder.id, folderGraph, publicCache)) {
+        accessibleIds.push(folder.id)
+        continue
+      }
+      if (targetDivisions.size === 0) continue
       const effectiveDivisionIds = this.resolveEffectiveFolderDivisionIds(folder.id, folderGraph, effectiveCache)
       if (effectiveDivisionIds.some((divisionId) => targetDivisions.has(divisionId))) {
         accessibleIds.push(folder.id)
@@ -119,7 +155,7 @@ class DivisionScopeService {
     }
 
     const divisionIds = Array.isArray(user?.divisionIds) && user.divisionIds.length > 0
-      ? user.divisionIds
+      ? this.normalizeDivisionIds(user.divisionIds)
       : await this.getUserDivisionIds(user?.id)
 
     return this.getAccessibleFolderIdsForDivisionIds(divisionIds)
@@ -131,13 +167,19 @@ class DivisionScopeService {
     const normalizedFolderId = Number.parseInt(folderId, 10)
     if (!Number.isFinite(normalizedFolderId)) return false
 
+    const folderGraph = await this.getFolderGraph()
+
+    if (this.isFolderPubliclyAccessible(normalizedFolderId, folderGraph, new Map())) {
+      return true
+    }
+
     const userDivisionIds = Array.isArray(user?.divisionIds) && user.divisionIds.length > 0
-      ? user.divisionIds
+      ? this.normalizeDivisionIds(user.divisionIds)
       : await this.getUserDivisionIds(user?.id)
 
     if (userDivisionIds.length === 0) return false
 
-    const effectiveDivisionIds = await this.getEffectiveFolderDivisionIds(normalizedFolderId)
+    const effectiveDivisionIds = this.resolveEffectiveFolderDivisionIds(normalizedFolderId, folderGraph, new Map())
     if (effectiveDivisionIds.length === 0) return false
 
     const allowed = new Set(userDivisionIds)
@@ -147,12 +189,22 @@ class DivisionScopeService {
   async buildAccessibleDocumentWhere(user, extraWhere = {}) {
     if (this.isAdminUser(user)) return extraWhere
 
-    const accessibleFolderIds = await this.getAccessibleFolderIdsForUser(user)
+    const folderGraph = await this.getFolderGraph()
+    const publicCache = new Map()
+    const publicFolderIds = []
+    for (const folder of folderGraph.values()) {
+      if (this.isFolderPubliclyAccessible(folder.id, folderGraph, publicCache)) {
+        publicFolderIds.push(folder.id)
+      }
+    }
+
     const divisionIds = Array.isArray(user?.divisionIds) && user.divisionIds.length > 0
       ? this.normalizeDivisionIds(user.divisionIds)
       : await this.getUserDivisionIds(user?.id)
 
-    if (accessibleFolderIds.length === 0 && divisionIds.length === 0) {
+    const accessibleFolderIds = await this.getAccessibleFolderIdsForUser(user)
+
+    if (accessibleFolderIds.length === 0 && divisionIds.length === 0 && publicFolderIds.length === 0) {
       return {
         AND: [
           extraWhere,
@@ -167,13 +219,14 @@ class DivisionScopeService {
         {
           OR: [
             { folderId: { in: accessibleFolderIds } },
+            publicFolderIds.length > 0 ? { folderId: { in: publicFolderIds } } : null,
             {
               AND: [
                 { folderId: null },
                 { divisionId: { in: divisionIds } }
               ]
             }
-          ]
+          ].filter(Boolean)
         }
       ]
     }
