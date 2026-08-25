@@ -20,7 +20,7 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "5.22.0",
     "archiver": "^7.0.1",
     "axios": "^1.17.2",
     "bcryptjs": "^2.4.3",
@@ -41,7 +41,7 @@
     "nodemailer": "^6.9.8",
     "pizzip": "^3.2.0",
     "postcss": "^8.5.23",
-    "prisma": "^5.22.0",
+    "prisma": "5.22.0",
     "puppeteer-core": "^25.8.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0"
@@ -50,16 +50,18 @@
     "nodemon": "^3.1.10"
   },
   "overrides": {
+    "@prisma/client": "5.22.0",
     "axios": "^1.17.2",
     "brace-expansion": "^2.1.4",
     "dompurify": "^3.4.13",
     "follow-redirects": "^1.15.12",
     "form-data": "^4.0.6",
-    "glob": "^10.7.0",
+    "glob": "^10.4.5",
     "inflight": "npm:lru-cache@^10.0.0",
     "minimatch": "^9.0.7",
     "nanoid": "^5.1.5",
     "postcss": "^8.5.23",
+    "prisma": "5.22.0",
     "rimraf": "^5.0.10",
     "uuid": "^10.0.0"
   }
