@@ -992,7 +992,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">
-                Document Style Profile <span className="text-red-500">*</span> — Font families, company letterhead header, footer, etc. Default is set by the Smart Template. Manage in Configuration > Template Management > Document Style Profiles.
+                Document Style Profile <span className="text-red-500">*</span> — Font families, company letterhead header, footer, etc. Default is set by the Smart Template. Manage in Configuration &gt; Template Management &gt; Document Style Profiles.
               </label>
               <SearchableSingleSelect
                 value={selectedSmartStyleProfileId}
