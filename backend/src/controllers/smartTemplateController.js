@@ -15,7 +15,8 @@ const fileStorageService = require('../services/fileStorageService');
 
 const INPUT_TYPES = [
   'TEXT', 'TEXTAREA', 'RICH_TEXT', 'NUMBER', 'DATE', 'TIME', 'DATETIME',
-  'DROPDOWN', 'CHECKBOX', 'USER_LOOKUP', 'TABLE', 'IMAGE', 'ATTACHMENT',
+  'DROPDOWN', 'SINGLE_SELECT', 'MULTI_SELECT',
+  'CHECKBOX', 'USER_LOOKUP', 'TABLE', 'IMAGE', 'ATTACHMENT',
   'REPEATER', 'SYSTEM_GENERATED'
 ]
 
