@@ -1208,6 +1208,7 @@ export default function SmartTemplateDesigner({ templateId, onBack, saveNotifica
           fieldKey: f.fieldKey,
           fieldLabel: f.fieldLabel,
           fieldHelpText: f.fieldHelpText !== undefined ? f.fieldHelpText : (f.helpText || null),
+          placeholderHint: f.placeholderHint !== undefined ? (f.placeholderHint || null) : null,
           inputType: f.inputType,
           smartTemplateSectionId: f.smartTemplateSectionId ?? (f.sectionId ? Number(f.sectionId) : null),
           sortOrder: Number(f.sortOrder ?? 0),
@@ -1215,6 +1216,7 @@ export default function SmartTemplateDesigner({ templateId, onBack, saveNotifica
           isEditableAuthor: !!f.isEditableAuthor,
           isEditableReviewer: !!f.isEditableReviewer,
           isVisibleInForm: !!f.isVisibleInForm,
+          isVisibleInPreview: f.isVisibleInPreview !== undefined ? Boolean(f.isVisibleInPreview) : true,
           isSearchable: !!f.isSearchable,
           isSupportingField: !!f.isSupportingField,
           optionsJson: tryParseJson(f.optionsJson, null),
@@ -1224,7 +1226,8 @@ export default function SmartTemplateDesigner({ templateId, onBack, saveNotifica
           repeaterSchemaJson: tryParseJson(f.repeaterSchemaJson, null),
           imageConfigJson: tryParseJson(f.imageConfigJson, null),
           attachmentConfigJson: tryParseJson(f.attachmentConfigJson, null),
-          systemFieldConfigJson: tryParseJson(f.systemFieldConfigJson, null)
+          systemFieldConfigJson: tryParseJson(f.systemFieldConfigJson, null),
+          visibilityRulesJson: tryParseJson(f.visibilityRulesJson, null)
         })),
         ...newFields
       ]
@@ -1305,7 +1308,26 @@ export default function SmartTemplateDesigner({ templateId, onBack, saveNotifica
 
   const displayTemplate = actualCreateMode ? (template || { id: null, templateName: '', templateCode: '', documentTypeId: '', styleProfileId: '', isActive: true, includeRevisionInDoc: false, includeFileCodeInDoc: false, includePreparedBy: false, includeDates: false, versions: [] }) : template
 
-  const [activeDesignVersionId, setActiveDesignVersionId] = useState(null)
+  const STORAGE_KEY_VERSION = effectiveTemplateId
+    ? `dms:smpl:ver:${String(effectiveTemplateId)}`
+    : null
+
+  const [activeDesignVersionId, setActiveDesignVersionId] = useState(() => {
+    if (!STORAGE_KEY_VERSION) return null
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_VERSION)
+      return raw ? Number(raw) || null : null
+    } catch { return null }
+  })
+
+  useEffect(() => {
+    if (!STORAGE_KEY_VERSION) return
+    if (activeDesignVersionId == null) {
+      try { localStorage.removeItem(STORAGE_KEY_VERSION) } catch {}
+    } else {
+      try { localStorage.setItem(STORAGE_KEY_VERSION, String(activeDesignVersionId)) } catch {}
+    }
+  }, [STORAGE_KEY_VERSION, activeDesignVersionId])
 
   function resolveActiveVersion(versionsOrNull) {
     const versions = Array.isArray(versionsOrNull) ? versionsOrNull : []
@@ -1324,7 +1346,10 @@ export default function SmartTemplateDesigner({ templateId, onBack, saveNotifica
     if (activeDesignVersionId) {
       const versions = Array.isArray(displayTemplate?.versions) ? displayTemplate.versions : []
       const stillExists = versions.some(v => String(v.id) === String(activeDesignVersionId))
-      if (!stillExists) setActiveDesignVersionId(null)
+      if (!stillExists) {
+        setActiveDesignVersionId(null)
+        if (STORAGE_KEY_VERSION) { try { localStorage.removeItem(STORAGE_KEY_VERSION) } catch {} }
+      }
     }
   }, [displayTemplate?.versions])
 
@@ -2925,7 +2950,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
       setFilterSection('')
       setFilterFlags({ required: false, authorEdit: false, reviewerEdit: false, visible: false, searchable: false })
     }
-  }, [currentVersion?.id])
+  }, [currentVersion?.id, currentVersion?.formFields?.length])
 
   useEffect(() => {
     if (dirty) setSaveStatus('dirty')
