@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import * as ReactDOM from 'react-dom'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
@@ -14,7 +14,9 @@ import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 const workflowStages = [
   { id: 'ndr', label: 'NDR' },
@@ -255,6 +257,8 @@ export default function MyDocumentsStatus() {
   const [remarksLoading, setRemarksLoading] = useState(false)
   const [remarksDocument, setRemarksDocument] = useState(null)
   const [remarks, setRemarks] = useState([])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   // Update page size when preference changes
   useEffect(() => {
@@ -362,11 +366,148 @@ export default function MyDocumentsStatus() {
   // Get unique statuses for filter
   const allStatuses = ['All', ...new Set(documents.map(doc => doc.status))]
 
-  // Pagination
-  const totalPages = Math.ceil(filteredDocuments.length / pageSize)
+  const myDocumentsColumns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      sortable: true,
+      required: true,
+      render: (_v, row) => (
+        <div className="flex items-center gap-2">
+          {selectedDocId === row.id && (
+            <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          )}
+          <span className={selectedDocId === row.id ? 'font-semibold text-brand' : 'font-medium text-ink'}>
+            {getDisplayFileCode(row)}
+          </span>
+        </div>
+      )
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('title'),
+      sortable: true,
+      required: true,
+      render: (value) => <span className="text-ink-secondary">{value}</span>
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: 'projectCategory',
+      label: t('project_category'),
+      sortable: true,
+      render: (value) => <span>{value || '-'}</span>
+    },
+    {
+      id: 'version',
+      key: 'version',
+      accessor: 'version',
+      label: t('version'),
+      sortable: true
+    },
+    {
+      id: 'lastUpdated',
+      key: 'lastUpdated',
+      accessor: 'lastUpdated',
+      label: t('last_updated'),
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (_v, row) => formatDate(row.updatedAt || row.lastUpdated)
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      sortable: true,
+      render: (_v, row) => <StatusBadge status={row.status} />
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: t('actions'),
+      required: true,
+      align: 'center',
+      stickyRight: true,
+      render: (_v, row) => (
+        <Button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleDocumentClick(row)
+          }}
+          variant="ghost"
+          size="sm"
+        >
+          {t('view_details')}
+        </Button>
+      )
+    }
+  ], [t, selectedDocId])
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'my-documents-status',
+    columns: myDocumentsColumns,
+    data: filteredDocuments,
+    defaultSortKey: 'lastUpdated',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
+  useEffect(() => { setCurrentPage(1) }, [sortedData.length])
+
+  // Pagination uses sorted + filtered data
+  const totalPages = Math.ceil(sortedData.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const currentDocuments = filteredDocuments.slice(startIndex, endIndex)
+  const currentDocuments = sortedData.slice(startIndex, endIndex)
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
@@ -711,7 +852,7 @@ export default function MyDocumentsStatus() {
             </Button>
           </div>
 
-          <div className="flex flex-col gap-3 md:flex-row">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <svg className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -736,15 +877,23 @@ export default function MyDocumentsStatus() {
               )}
             </div>
 
-            <SelectField
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="md:w-64"
-            >
-              {allStatuses.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </SelectField>
+            <div className="flex items-center gap-2">
+              <ColumnSettingsButton
+                orderedColumns={orderedColumns}
+                hiddenColumns={hiddenColumns}
+                onToggleColumn={toggleColumnVisibility}
+                onReset={resetTableSettings}
+              />
+              <SelectField
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="md:w-64"
+              >
+                {allStatuses.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </SelectField>
+            </div>
           </div>
 
           <div className="hidden md:block">
@@ -752,19 +901,38 @@ export default function MyDocumentsStatus() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>{t('file_code')}</Th>
-                    <Th>{t('title')}</Th>
-                    <Th>{t('project_category')}</Th>
-                    <Th>{t('version')}</Th>
-                    <Th>{t('last_updated')}</Th>
-                    <Th>{t('status')}</Th>
-                    <Th stickyRight align="center">{t('actions')}</Th>
+                    {visibleColumns.map((col, idx) => {
+                      const id = col.id || col.key
+                      const canDrag = !col.stickyRight
+                      const isDragOver = canDrag && dragOverColIndex === idx
+                      return (
+                        <Th
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          sortable={Boolean(col.sortable)}
+                          sortDirection={getSortDirectionFor(id)}
+                          sortKey={id}
+                          onSort={col.sortable ? toggleSort : undefined}
+                          draggable={canDrag}
+                          dragOver={isDragOver}
+                          onDragStart={(e) => handleColDragStart(idx, e)}
+                          onDragOver={(e) => handleColDragOver(idx, e)}
+                          onDragLeave={handleColDragLeave}
+                          onDrop={(e) => handleColDrop(idx, e)}
+                          onDragEnd={handleColDragEnd}
+                          title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                        >
+                          {col.label || col.header || id}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="px-4 py-10">
+                      <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-10">
                         <div className="flex items-center justify-center gap-2 text-sm text-ink-muted">
                           <InlineSpinner />
                           <span>{t('loading_docs')}</span>
@@ -773,7 +941,7 @@ export default function MyDocumentsStatus() {
                     </tr>
                   ) : currentDocuments.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-4 py-4">
+                      <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-4">
                         <EmptyState
                           message={t('no_docs_found')}
                           description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
@@ -789,36 +957,29 @@ export default function MyDocumentsStatus() {
                         onClick={() => handleDocumentClick(doc)}
                         className={selectedDocId === doc.id ? 'bg-brand/5' : 'cursor-pointer'}
                       >
-                        <Td>
-                          <div className="flex items-center gap-2">
-                            {selectedDocId === doc.id && (
-                              <svg className="h-4 w-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                            <span className={selectedDocId === doc.id ? 'font-semibold text-brand' : 'font-medium text-ink'}>
-                              {getDisplayFileCode(doc)}
-                            </span>
-                          </div>
-                        </Td>
-                        <Td className="text-ink-secondary">{doc.title}</Td>
-                        <Td>{doc.projectCategory || '-'}</Td>
-                        <Td>{doc.version}</Td>
-                        <Td>{formatDate(doc.updatedAt || doc.lastUpdated)}</Td>
-                        <Td><StatusBadge status={doc.status} /></Td>
-                        <Td stickyRight align="center">
-                          <Button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDocumentClick(doc)
-                            }}
-                            variant="ghost"
-                            size="sm"
-                          >
-                            {t('view_details')}
-                          </Button>
-                        </Td>
+                        {visibleColumns.map((col) => {
+                          const id = col.id || col.key || col.accessor
+                          const accessor = col.accessor || id
+                          let value
+                          if (typeof accessor === 'function') {
+                            value = accessor(doc, col)
+                          } else if (accessor === '__actions') {
+                            value = null
+                          } else {
+                            value = doc?.[accessor]
+                          }
+                          const content = typeof col.render === 'function' ? col.render(value, doc) : (value != null ? value : '')
+                          return (
+                            <Td
+                              key={id}
+                              align={col.align || 'left'}
+                              stickyRight={col.stickyRight || false}
+                              className={col.stickyRight ? 'py-3' : ''}
+                            >
+                              {content}
+                            </Td>
+                          )
+                        })}
                       </Tr>
                     ))
                   )}

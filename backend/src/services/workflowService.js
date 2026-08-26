@@ -204,10 +204,11 @@ class WorkflowService {
       const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
       if (latestVersion && latestVersion.smartTemplateVersionId) {
         const smartDocumentContentService = require('./smartDocumentContentService');
-        const ownerUser = await prisma.user.findUnique({ where: { id: document.ownerId }, select: { id: true, fullName: true } });
+        const ownerUser = await prisma.user.findUnique({ where: { id: document.ownerId }, select: { id: true, firstName: true, lastName: true, email: true } });
         const fileCode = updated.fileCode || null;
         const rev = latestVersion.versionNo || null;
-        await smartDocumentContentService.snapshotSystemFields({ documentVersionId: latestVersion.id, systemValues: { referenceCode: fileCode, version: rev, documentTypeName: document.documentType?.typeName, preparedByFullName: ownerUser?.fullName, preparedDate: new Date().toISOString().slice(0,10) } });
+        const ownerFullName = ownerUser ? [ownerUser.firstName, ownerUser.lastName].filter(Boolean).join(' ') || ownerUser.email : null;
+        await smartDocumentContentService.snapshotSystemFields({ documentVersionId: latestVersion.id, systemValues: { referenceCode: fileCode, version: rev, documentTypeName: document.documentType?.typeName, preparedByFullName: ownerFullName, preparedDate: new Date().toISOString().slice(0,10) } });
         await smartDocumentContentService.lockContentForDocumentVersion(latestVersion.id);
       }
     } catch (smartErr) {

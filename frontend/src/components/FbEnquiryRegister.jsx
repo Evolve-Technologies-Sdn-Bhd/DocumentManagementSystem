@@ -15,6 +15,9 @@ import ActionMenu from './ActionMenu'
 import FbEnquiryEntryModal from './FbEnquiryEntryModal'
 import FbEnquiryFollowUpModal from './FbEnquiryFollowUpModal'
 import CrmImportModal from './CrmImportModal'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 const statusOptions = [
   { value: 'all', label: 'All statuses' },
@@ -31,7 +34,6 @@ export default function FbEnquiryRegister() {
   const canDelete = hasPermission('crm.fbEnquiry', 'delete')
   const canImport = hasPermission('crm.fbEnquiry', 'import')
   const canExport = hasPermission('crm.fbEnquiry', 'export')
-  const tableColSpan = (canUpdate || canDelete) ? 14 : 13
 
   const [filters, setFilters] = useState({
     search: '',
@@ -66,8 +68,8 @@ export default function FbEnquiryRegister() {
   const [followUpModal, setFollowUpModal] = useState({ open: false, entry: null })
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
-
-  const totalPages = useMemo(() => Math.max(Math.ceil(total / limit), 1), [total, limit])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const loadRecords = async (nextFilters = filters, nextPage = page, nextLimit = limit) => {
     setLoading(true)
@@ -347,12 +349,218 @@ export default function FbEnquiryRegister() {
     filters.interestedProduct
   ])
 
-  const renderSummaryCard = (label, value) => (
-    <AppSurface padding="lg" variant="muted">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
-    </AppSurface>
-  )
+  const fbColumns = [
+    {
+      id: 'no',
+      key: 'no',
+      accessor: '__no',
+      label: 'No.',
+      className: 'w-16 whitespace-nowrap',
+      sortable: false,
+      required: true,
+      render: (_v, _row, index) => (page - 1) * limit + index + 1
+    },
+    {
+      id: 'month',
+      key: 'enquiryDate',
+      accessor: 'enquiryDate',
+      label: 'Month',
+      className: 'w-24 whitespace-nowrap',
+      sortable: true,
+      sortType: 'date',
+      render: (value) => value ? new Date(value).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'
+    },
+    {
+      id: 'contact',
+      key: 'contact',
+      accessor: 'contact',
+      label: 'Contact No.',
+      className: 'w-40 whitespace-nowrap',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-semibold text-ink">{value}</span>
+    },
+    {
+      id: 'name',
+      key: 'name',
+      accessor: 'name',
+      label: 'Name',
+      className: 'w-44 whitespace-nowrap',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-semibold text-ink">{value || '-'}</span>
+    },
+    {
+      id: 'company',
+      key: 'company',
+      accessor: 'company',
+      label: 'Company',
+      className: 'w-44 whitespace-nowrap',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'address',
+      key: 'address',
+      accessor: 'address',
+      label: 'Address',
+      className: 'min-w-[320px]',
+      sortable: true,
+      render: (value) => <span className="whitespace-normal">{value || '-'}</span>
+    },
+    {
+      id: 'state',
+      key: 'state',
+      accessor: 'state',
+      label: 'State',
+      className: 'w-36 whitespace-nowrap',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'channel',
+      key: 'channel',
+      accessor: 'channel',
+      label: 'Channel',
+      className: 'w-44 whitespace-nowrap',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'industryType',
+      key: 'industryType',
+      accessor: 'industryType',
+      label: 'Industry',
+      className: 'w-44 whitespace-nowrap',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'interestedProduct',
+      key: 'interestedProduct',
+      accessor: 'interestedProduct',
+      label: 'Interest',
+      className: 'min-w-[220px] whitespace-nowrap',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'painPoint',
+      key: 'painPoint',
+      accessor: 'painPoint',
+      label: 'Pain Point',
+      className: 'min-w-[260px]',
+      sortable: true,
+      render: (value) => <span className="whitespace-normal">{value || '-'}</span>
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: 'Status',
+      className: 'w-40 whitespace-nowrap',
+      sortable: true,
+      render: (_v, row) => <StatusBadge status={row.status} />
+    },
+    {
+      id: 'tender',
+      key: 'tender',
+      accessor: 'tenderEntry',
+      label: 'Tender',
+      className: 'w-40 whitespace-nowrap',
+      sortable: false,
+      render: (value) => value?.tenderRefNo || '-'
+    },
+    ...((canUpdate || canDelete) ? [{
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: '',
+      className: 'w-16',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+            ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
+            ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
+          ]}
+        />
+      )
+    }] : [])
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'fb-enquiry-register',
+    columns: fbColumns,
+    data: records,
+    defaultSortKey: 'enquiryDate',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const totalRows = sortedData.length
+  const totalPages = useMemo(() => Math.max(Math.ceil(totalRows / limit), 1), [totalRows, limit])
+  const startIndex = (page - 1) * limit
+  const endIndex = startIndex + limit
+  const currentRecords = sortedData.slice(startIndex, endIndex)
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
+  const renderSummaryCard = (label, value, colorIndex = 0) => {
+    const blueVariants = [
+      { bg: '!bg-blue-50', border: '!border-blue-200' },
+      { bg: '!bg-sky-50', border: '!border-sky-200' },
+      { bg: '!bg-indigo-50', border: '!border-indigo-200' },
+      { bg: '!bg-cyan-50', border: '!border-cyan-200' }
+    ]
+    const c = blueVariants[colorIndex % blueVariants.length]
+    return (
+      <AppSurface padding="lg" className={`border ${c.border} ${c.bg} transition-all duration-200 hover:shadow-md rounded-dms`}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
+        <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
+      </AppSurface>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -362,10 +570,10 @@ export default function FbEnquiryRegister() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries)}
-        {renderSummaryCard('In Pipeline', summaryLoading ? '...' : summary.inPipeline)}
-        {renderSummaryCard('Quotation Issued', summaryLoading ? '...' : summary.quotationIssued)}
-        {renderSummaryCard('No Response', summaryLoading ? '...' : summary.noResponse)}
+        {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries, 0)}
+        {renderSummaryCard('In Pipeline', summaryLoading ? '...' : summary.inPipeline, 1)}
+        {renderSummaryCard('Quotation Issued', summaryLoading ? '...' : summary.quotationIssued, 2)}
+        {renderSummaryCard('No Response', summaryLoading ? '...' : summary.noResponse, 3)}
       </div>
 
       {errorMessage && (
@@ -459,82 +667,103 @@ export default function FbEnquiryRegister() {
       </AppSurface>
 
       <AppSurface padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
+          <div className="text-sm text-ink-muted">
+            {!loading && sortedData.length > 0 && (
+              <span>Showing {startIndex + 1}-{Math.min(endIndex, sortedData.length)} of {sortedData.length}</span>
+            )}
+          </div>
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
+        </div>
+        <TableContainer>
+          <Table className="divide-y divide-border">
             <thead className="bg-surface-muted">
-              <tr>
-                <th className="w-16 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">No.</th>
-                <th className="w-24 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Month</th>
-                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Contact No.</th>
-                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Name</th>
-                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Company</th>
-                <th className="min-w-[320px] px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Address</th>
-                <th className="w-36 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">State</th>
-                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Channel</th>
-                <th className="w-44 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Industry</th>
-                <th className="min-w-[220px] whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Interest</th>
-                <th className="min-w-[260px] px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Pain Point</th>
-                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Status</th>
-                <th className="w-40 whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">Tender</th>
-                {(canUpdate || canDelete) && (
-                  <th className="w-16 sticky right-0 z-30 bg-surface-muted px-4 py-3 text-right text-xs font-medium text-ink-muted uppercase tracking-wider border-l border-border" />
-                )}
-              </tr>
+              <Tr className="!hover:bg-surface-muted">
+                {visibleColumns.map((col, idx) => {
+                  const id = col.id || col.key
+                  const canDrag = !col.stickyRight
+                  const isDragOver = canDrag && dragOverColIndex === idx
+                  return (
+                    <Th
+                      key={id}
+                      className={col.className || ''}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      sortable={Boolean(col.sortable)}
+                      sortDirection={getSortDirectionFor(id)}
+                      sortKey={id}
+                      onSort={col.sortable ? toggleSort : undefined}
+                      draggable={canDrag}
+                      dragOver={isDragOver}
+                      onDragStart={(e) => handleColDragStart(idx, e)}
+                      onDragOver={(e) => handleColDragOver(idx, e)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(idx, e)}
+                      onDragEnd={handleColDragEnd}
+                      title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                    >
+                      {col.label || col.header || id}
+                    </Th>
+                  )
+                })}
+              </Tr>
             </thead>
             <tbody className="bg-surface divide-y divide-border">
               {loading ? (
-                <tr>
-                  <td colSpan={tableColSpan} className="px-4 py-10 text-center">
+                <Tr className="!hover:bg-surface">
+                  <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-10 text-center">
                     <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
                   </td>
-                </tr>
-              ) : records.length === 0 ? (
-                <tr>
-                  <td colSpan={tableColSpan} className="px-4 py-8">
+                </Tr>
+              ) : sortedData.length === 0 ? (
+                <Tr className="!hover:bg-surface">
+                  <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-8">
                     <EmptyPanelState title="No entries yet" description='Log the first one with "Add New Enquiry".' />
                   </td>
-                </tr>
+                </Tr>
               ) : (
-                records.map((row, index) => (
-                  <tr key={row.id} className="group transition-colors hover:bg-surface-muted">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{(page - 1) * limit + index + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">
-                      {row.enquiryDate ? new Date(row.enquiryDate).toLocaleString('en-MY', { month: 'short', year: 'numeric' }) : '-'}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-ink">{row.contact}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-ink">{row.name || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.company || '-'}</td>
-                    <td className="whitespace-normal px-4 py-3 text-sm text-ink-secondary">{row.address || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.state || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.channel || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.industryType || '-'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.interestedProduct || '-'}</td>
-                    <td className="whitespace-normal px-4 py-3 text-sm text-ink-secondary">{row.painPoint || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-ink-secondary"><StatusBadge status={row.status} /></td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-secondary">{row.tenderEntry?.tenderRefNo || '-'}</td>
-                    {(canUpdate || canDelete) && (
-                      <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-3 text-right border-l border-border">
-                        <ActionMenu
-                          actions={[
-                            ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
-                            ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
-                            ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
-                          ]}
-                        />
-                      </td>
-                    )}
-                  </tr>
+                currentRecords.map((row, index) => (
+                  <Tr key={row.id}>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(row, col)
+                      } else if (accessor === '__actions' || accessor === '__no') {
+                        value = null
+                      } else {
+                        value = row?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, row, index) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          className={col.className || ''}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
+                  </Tr>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+          </Table>
+        </TableContainer>
 
-        {!loading && total > 0 && (
+        {!loading && sortedData.length > 0 && (
           <Pagination
             currentPage={page}
             totalPages={totalPages}
-            totalRecords={total}
+            totalRecords={sortedData.length}
             pageSize={limit}
             pageSizeOptions={[5, 10, 15, 20, 50]}
             onPageChange={setPage}

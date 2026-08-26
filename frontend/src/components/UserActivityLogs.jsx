@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import Pagination from './Pagination'
@@ -9,8 +9,10 @@ import EmptyPanelState from './ui/EmptyPanelState'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import SelectField from './ui/SelectField'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import TextInput from './ui/TextInput'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 function UserActivityDetailModal({ activity, onClose }) {
   const { t } = usePreferences()
@@ -111,7 +113,7 @@ function SummaryCard({ label, value, tone = 'text-brand' }) {
   return (
     <AppSurface padding="lg" variant="muted">
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
-      <p className={`mt-2 text-3xl font-semibold ${tone}`}>{value}</p>
+      <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
     </AppSurface>
   )
 }
@@ -141,6 +143,8 @@ export default function UserActivityLogs() {
   })
   const [users, setUsers] = useState([])
   const [departments, setDepartments] = useState([])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const isForbiddenError = (error) => error?.response?.status === 403
   const getServerMessage = (error, fallbackMessage) => (
@@ -263,6 +267,137 @@ export default function UserActivityLogs() {
     return <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-ink-secondary">{t('ual_completed')}</span>
   }
 
+  const activityTableColumns = useMemo(() => [
+    {
+      id: 'user',
+      key: 'user',
+      accessor: 'userName',
+      label: t('alv_user'),
+      sortable: true,
+      required: true,
+      render: (_v, row) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-subtle text-sm font-semibold text-brand">
+            {(row.userName || '').split(' ').map((n) => n[0]).join('')}
+          </div>
+          <div>
+            <div className="font-medium text-ink">{row.userName}</div>
+            <div className="text-xs text-ink-muted">{row.role}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'loginTime',
+      key: 'loginTime',
+      accessor: 'loginTime',
+      label: t('ual_login_time'),
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (value) => <span className="whitespace-nowrap text-ink">{formatDateTime(value)}</span>
+    },
+    {
+      id: 'duration',
+      key: 'duration',
+      accessor: 'duration',
+      label: t('ual_session_duration'),
+      sortable: true,
+      render: (value) => <span className="text-ink">{value}</span>
+    },
+    {
+      id: 'ipAddress',
+      key: 'ipAddress',
+      accessor: 'ipAddress',
+      label: t('alv_ip_address'),
+      sortable: true,
+      render: (value) => <span className="text-ink">{value}</span>
+    },
+    {
+      id: 'actionsPerformed',
+      key: 'actionsPerformed',
+      accessor: 'actionsPerformed',
+      label: t('actions'),
+      sortable: true,
+      align: 'center',
+      render: (value) => <span className="text-ink">{value}</span>
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      sortable: true,
+      render: (_v, row) => getStatusBadge(row.status)
+    },
+    {
+      id: 'viewDetails',
+      key: 'viewDetails',
+      accessor: '__actions',
+      label: t('view_details'),
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <Button
+          onClick={() => setSelectedActivity(row)}
+          variant="ghost"
+          size="sm"
+        >
+          {t('alv_view')}
+        </Button>
+      )
+    }
+  ], [t])
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'user-activity-logs',
+    columns: activityTableColumns,
+    data: activities,
+    defaultSortKey: 'loginTime',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   if (accessDenied) {
     return (
       <AppSurface padding="lg" variant="muted">
@@ -347,16 +482,23 @@ export default function UserActivityLogs() {
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
           </div>
-          <Button
-            onClick={handleExport}
-            data-tour-id="logs-export-users"
-            className="md:self-end"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span>{t('alv_export_csv')}</span>
-          </Button>
+          <div className="flex items-center gap-2 md:self-end">
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
+            <Button
+              onClick={handleExport}
+              data-tour-id="logs-export-users"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>{t('alv_export_csv')}</span>
+            </Button>
+          </div>
         </div>
       </AppSurface>
 
@@ -364,28 +506,47 @@ export default function UserActivityLogs() {
         <Table>
           <thead className="bg-surface-muted/80">
             <tr>
-              <Th>{t('alv_user')}</Th>
-              <Th>{t('ual_login_time')}</Th>
-              <Th>{t('ual_session_duration')}</Th>
-              <Th>{t('alv_ip_address')}</Th>
-              <Th>{t('actions')}</Th>
-              <Th>{t('status')}</Th>
-              <Th stickyRight>{t('view_details')}</Th>
+              {visibleColumns.map((col, idx) => {
+                const id = col.id || col.key
+                const canDrag = !col.stickyRight
+                const isDragOver = canDrag && dragOverColIndex === idx
+                return (
+                  <Th
+                    key={id}
+                    align={col.align || 'left'}
+                    stickyRight={col.stickyRight || false}
+                    sortable={Boolean(col.sortable)}
+                    sortDirection={getSortDirectionFor(id)}
+                    sortKey={id}
+                    onSort={col.sortable ? toggleSort : undefined}
+                    draggable={canDrag}
+                    dragOver={isDragOver}
+                    onDragStart={(e) => handleColDragStart(idx, e)}
+                    onDragOver={(e) => handleColDragOver(idx, e)}
+                    onDragLeave={handleColDragLeave}
+                    onDrop={(e) => handleColDrop(idx, e)}
+                    onDragEnd={handleColDragEnd}
+                    title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                  >
+                    {col.label || col.header || id}
+                  </Th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <Td colSpan="7" className="py-10 text-center">
+                <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-10 text-center">
                   <span className="inline-flex items-center gap-2 text-ink-muted">
                     <InlineSpinner />
                     {t('ual_loading')}
                   </span>
                 </Td>
               </tr>
-            ) : activities.length === 0 ? (
+            ) : sortedData.length === 0 ? (
               <tr>
-                <Td colSpan="7" className="py-8">
+                <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-8">
                   <EmptyPanelState
                     title={t('ual_no_activities')}
                     description={filters.search ? t('ual_no_activities_search_desc') : t('ual_no_activities_filter_desc')}
@@ -393,33 +554,31 @@ export default function UserActivityLogs() {
                 </Td>
               </tr>
             ) : (
-              activities.map((activity) => (
+              sortedData.map((activity) => (
                 <Tr key={activity.id}>
-                  <Td>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-subtle text-sm font-semibold text-brand">
-                        {activity.userName.split(' ').map((n) => n[0]).join('')}
-                      </div>
-                      <div>
-                        <div className="font-medium text-ink">{activity.userName}</div>
-                        <div className="text-xs text-ink-muted">{activity.role}</div>
-                      </div>
-                    </div>
-                  </Td>
-                  <Td className="whitespace-nowrap text-ink">{formatDateTime(activity.loginTime)}</Td>
-                  <Td className="text-ink">{activity.duration}</Td>
-                  <Td className="text-ink">{activity.ipAddress}</Td>
-                  <Td className="text-ink">{activity.actionsPerformed}</Td>
-                  <Td>{getStatusBadge(activity.status)}</Td>
-                  <Td stickyRight>
-                    <Button
-                      onClick={() => setSelectedActivity(activity)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      {t('alv_view')}
-                    </Button>
-                  </Td>
+                  {visibleColumns.map((col) => {
+                    const id = col.id || col.key || col.accessor
+                    const accessor = col.accessor || id
+                    let value
+                    if (typeof accessor === 'function') {
+                      value = accessor(activity, col)
+                    } else if (accessor === '__actions') {
+                      value = null
+                    } else {
+                      value = activity?.[accessor]
+                    }
+                    const content = typeof col.render === 'function' ? col.render(value, activity) : (value != null ? value : '')
+                    return (
+                      <Td
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        className={col.stickyRight ? 'py-3' : ''}
+                      >
+                        {content}
+                      </Td>
+                    )
+                  })}
                 </Tr>
               ))
             )}

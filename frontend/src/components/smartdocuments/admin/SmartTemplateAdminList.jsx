@@ -10,9 +10,11 @@ import EmptyPanelState from '../../ui/EmptyPanelState'
 import InlineSpinner from '../../ui/InlineSpinner'
 import PageContainer from '../../ui/PageContainer'
 import AppSurface from '../../ui/AppSurface'
+import ColumnSettingsButton from '../../ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from '../../ui/Table'
 import ActionMenu from '../../ActionMenu'
 import SmartTemplateDesigner from './SmartTemplateDesigner'
+import useTableFeatures from '../../../hooks/useTableFeatures'
 
 const Chip = ({ active, onClick, children }) => (
   <button
@@ -64,6 +66,8 @@ export default function SmartTemplateAdminList({ saveNotification }) {
   const [activeFilter, setActiveFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
@@ -165,29 +169,8 @@ export default function SmartTemplateAdminList({ saveNotification }) {
       const want = activeFilter === 'active'
       list = list.filter((t) => Boolean(t.isActive) === want)
     }
-    list.sort((a, b) => {
-      let av, bv
-      if (sortBy === 'createdAt') {
-        av = new Date(a.createdAt || 0).getTime()
-        bv = new Date(b.createdAt || 0).getTime()
-      } else {
-        av = String(a.templateName || '').toLowerCase()
-        bv = String(b.templateName || '').toLowerCase()
-      }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1
-      if (av > bv) return sortDir === 'asc' ? 1 : -1
-      return 0
-    })
     return list
-  }, [templates, search, docTypeFilter, activeFilter, sortBy, sortDir])
-
-  function toggleSort(by) {
-    if (sortBy === by) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else {
-      setSortBy(by)
-      setSortDir('asc')
-    }
-  }
+  }, [templates, search, docTypeFilter, activeFilter])
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -204,6 +187,142 @@ export default function SmartTemplateAdminList({ saveNotification }) {
       setDeleteSaving(false)
     }
   }
+
+  const templateColumns = [
+    {
+      id: 'templateName',
+      key: 'templateName',
+      accessor: 'templateName',
+      label: 'Template Name',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-medium text-gray-900">{value}</span>
+    },
+    {
+      id: 'templateCode',
+      key: 'templateCode',
+      accessor: 'templateCode',
+      label: 'Code',
+      sortable: true,
+      render: (value) => <span className="font-mono text-xs text-gray-500">{value}</span>
+    },
+    {
+      id: 'documentType',
+      key: 'documentType',
+      accessor: (row) => docTypeMap[row.documentTypeId] || '—',
+      label: 'Document Type',
+      sortable: true
+    },
+    {
+      id: 'styleProfile',
+      key: 'styleProfile',
+      accessor: (row) => styleProfileMap[row.styleProfileId] || '—',
+      label: 'Style Profile',
+      sortable: true
+    },
+    {
+      id: 'isDefault',
+      key: 'isDefault',
+      accessor: 'isDefault',
+      label: 'Default',
+      sortable: true,
+      align: 'center',
+      render: (value) => value ? <Pill variant="success">Default</Pill> : <span className="text-gray-400">—</span>
+    },
+    {
+      id: 'isActive',
+      key: 'isActive',
+      accessor: 'isActive',
+      label: 'Active',
+      sortable: true,
+      align: 'center',
+      render: (value) => value ? <Pill variant="success">Active</Pill> : <Pill variant="danger">Inactive</Pill>
+    },
+    {
+      id: 'versions',
+      key: 'versions',
+      accessor: (row) => row._count?.versions ?? (Array.isArray(row.versions) ? row.versions.length : 0),
+      label: 'Versions',
+      sortable: true,
+      align: 'center',
+      render: (value) => <span className="font-semibold text-gray-900">{value}</span>
+    },
+    {
+      id: 'createdAt',
+      key: 'createdAt',
+      accessor: 'createdAt',
+      label: 'Created At',
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (value) => <span className="text-xs text-gray-500">{formatDate(value)}</span>
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: 'Actions',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            { label: 'Design', onClick: () => openDesigner(row.id, 0) },
+            { label: 'Delete', onClick: () => { setDeleteTarget(row); setDeleteError('') }, variant: 'destructive' }
+          ]}
+        />
+      )
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'smart-template-admin-list',
+    columns: templateColumns,
+    data: filtered,
+    defaultSortKey: 'templateName',
+    defaultSortDirection: 'asc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
 
   return (
     <PageContainer className="space-y-5">
@@ -243,17 +362,23 @@ export default function SmartTemplateAdminList({ saveNotification }) {
             <Chip active={activeFilter === 'all'} onClick={() => setActiveFilter('all')}>All</Chip>
             <Chip active={activeFilter === 'active'} onClick={() => setActiveFilter('active')}>Active</Chip>
             <Chip active={activeFilter === 'inactive'} onClick={() => setActiveFilter('inactive')}>Inactive</Chip>
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
           </div>
         </div>
 
-        <SectionHeader title={`Templates (${filtered.length})`} />
+        <SectionHeader title={`Templates (${sortedData.length})`} />
 
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <InlineSpinner className="h-6 w-6 border-gray-200 border-t-blue-600" />
             <span className="ml-3 text-sm text-gray-500">Loading templates...</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sortedData.length === 0 ? (
           <EmptyPanelState
             title="No smart templates"
             description="Create your first smart template to begin designing document forms and mapping placeholders."
@@ -263,48 +388,60 @@ export default function SmartTemplateAdminList({ saveNotification }) {
             <Table>
               <thead>
                 <Tr>
-                  <Th style={{ cursor: 'pointer' }} onClick={() => toggleSort('name')}>
-                    Template Name {sortBy === 'name' && (sortDir === 'asc' ? '▲' : '▼')}
-                  </Th>
-                  <Th>Code</Th>
-                  <Th>Document Type</Th>
-                  <Th>Style Profile</Th>
-                  <Th align="center">Default</Th>
-                  <Th align="center">Active</Th>
-                  <Th align="center">Versions</Th>
-                  <Th style={{ cursor: 'pointer' }} onClick={() => toggleSort('createdAt')}>
-                    Created At {sortBy === 'createdAt' && (sortDir === 'asc' ? '▲' : '▼')}
-                  </Th>
-                  <Th align="right" stickyRight>Actions</Th>
+                  {visibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && dragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={getSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? toggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => handleColDragStart(idx, e)}
+                        onDragOver={(e) => handleColDragOver(idx, e)}
+                        onDragLeave={handleColDragLeave}
+                        onDrop={(e) => handleColDrop(idx, e)}
+                        onDragEnd={handleColDragEnd}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {col.label || col.header || id}
+                      </Th>
+                    )
+                  })}
                 </Tr>
               </thead>
               <tbody>
-                {filtered.map((t) => (
+                {sortedData.map((t) => (
                   <Tr key={t.id}>
-                    <Td className="font-medium text-gray-900">{t.templateName}</Td>
-                    <Td>
-                      <span className="font-mono text-xs text-gray-500">{t.templateCode}</span>
-                    </Td>
-                    <Td>{docTypeMap[t.documentTypeId] || '—'}</Td>
-                    <Td>{styleProfileMap[t.styleProfileId] || '—'}</Td>
-                    <Td align="center">
-                      {t.isDefault ? <Pill variant="success">Default</Pill> : <span className="text-gray-400">—</span>}
-                    </Td>
-                    <Td align="center">
-                      {t.isActive ? <Pill variant="success">Active</Pill> : <Pill variant="danger">Inactive</Pill>}
-                    </Td>
-                    <Td align="center">
-                      <span className="font-semibold text-gray-900">{t._count?.versions ?? (Array.isArray(t.versions) ? t.versions.length : 0)}</span>
-                    </Td>
-                    <Td className="text-xs text-gray-500">{formatDate(t.createdAt)}</Td>
-                    <Td align="right" stickyRight>
-                      <ActionMenu
-                        actions={[
-                          { label: 'Design', onClick: () => openDesigner(t.id, 0) },
-                          { label: 'Delete', onClick: () => { setDeleteTarget(t); setDeleteError('') }, variant: 'destructive' }
-                        ]}
-                      />
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(t, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = t?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, t) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>

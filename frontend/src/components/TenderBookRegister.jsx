@@ -12,10 +12,12 @@ import Pagination from './Pagination'
 import StatusBadge from './StatusBadge'
 import ConfirmModal from './ConfirmModal'
 import ActionMenu from './ActionMenu'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import TenderEntryModal from './TenderEntryModal'
 import TenderFollowUpModal from './TenderFollowUpModal'
 import CrmImportModal from './CrmImportModal'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 const statusOptions = [
   { value: 'all', label: 'All statuses' },
@@ -60,14 +62,15 @@ export default function TenderBookRegister() {
   const [loading, setLoading] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState('xlsx')
   const [errorMessage, setErrorMessage] = useState('')
 
   const [entryModal, setEntryModal] = useState({ open: false, entry: null })
   const [followUpModal, setFollowUpModal] = useState({ open: false, entry: null })
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
-
-  const totalPages = useMemo(() => Math.max(Math.ceil(total / limit), 1), [total, limit])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const formatMoney = (cents) => {
     const amount = Number(cents || 0) / 100
@@ -160,14 +163,18 @@ export default function TenderBookRegister() {
       const res = await api.get('/crm/tender-book/export', {
         params: {
           ...filters,
-          format: 'xlsx'
+          format: exportFormat
         },
         responseType: 'blob'
       })
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const isXlsx = exportFormat === 'xlsx'
+      const mime = isXlsx
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/csv'
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `tender_book_${new Date().toISOString().split('T')[0]}.xlsx`)
+      link.setAttribute('download', `tender_book_${new Date().toISOString().split('T')[0]}.${isXlsx ? 'xlsx' : 'csv'}`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -432,13 +439,199 @@ export default function TenderBookRegister() {
     filters.submissionDeadlineTo
   ])
 
-  const renderSummaryCard = (label, value, subLabel = null) => (
-    <AppSurface padding="md" className="border border-border">
-      <div className="text-[11px] font-semibold text-ink-soft">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-ink">{value}</div>
-      {subLabel && <div className="mt-1 text-xs text-ink-muted">{subLabel}</div>}
-    </AppSurface>
-  )
+  const renderSummaryCard = (label, value, colorIndex = 0) => {
+    const blueVariants = [
+      { bg: '!bg-blue-50', border: '!border-blue-200' },
+      { bg: '!bg-sky-50', border: '!border-sky-200' },
+      { bg: '!bg-indigo-50', border: '!border-indigo-200' },
+      { bg: '!bg-cyan-50', border: '!border-cyan-200' },
+      { bg: '!bg-blue-100', border: '!border-blue-300' }
+    ]
+    const c = blueVariants[colorIndex % blueVariants.length]
+    return (
+      <AppSurface padding="lg" className={`border ${c.border} ${c.bg} transition-all duration-200 hover:shadow-md rounded-dms`}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</p>
+        <p className="mt-2 text-3xl font-semibold text-ink">{value}</p>
+      </AppSurface>
+    )
+  }
+
+  const tenderTableColumns = useMemo(() => {
+    const cols = [
+      {
+        id: 'no',
+        key: 'no',
+        accessor: '__no',
+        label: 'No.',
+        className: 'w-16 whitespace-nowrap',
+        sortable: false,
+        required: true,
+        render: (_v, _row, index) => (page - 1) * limit + index + 1
+      },
+      {
+        id: 'tenderRefNo',
+        key: 'tenderRefNo',
+        accessor: 'tenderRefNo',
+        label: 'Ref',
+        className: 'w-28 whitespace-nowrap',
+        sortable: true,
+        render: (value) => <span>{value || '-'}</span>
+      },
+      {
+        id: 'clientName',
+        key: 'clientName',
+        accessor: 'clientName',
+        label: 'Client',
+        className: 'w-40 whitespace-nowrap',
+        sortable: true,
+        render: (value) => <span>{value || '-'}</span>
+      },
+      {
+        id: 'title',
+        key: 'title',
+        accessor: 'title',
+        label: 'Title',
+        className: 'min-w-[260px]',
+        sortable: true,
+        required: true,
+        render: (value) => <span className="font-semibold text-ink whitespace-normal">{value}</span>
+      },
+      {
+        id: 'contactPerson',
+        key: 'contactPerson',
+        accessor: 'contactPerson',
+        label: 'Contact',
+        className: 'w-40 whitespace-nowrap',
+        sortable: true,
+        render: (value) => <span>{value || '-'}</span>
+      },
+      {
+        id: 'submissionDeadline',
+        key: 'submissionDeadline',
+        accessor: 'submissionDeadline',
+        label: 'Deadline',
+        className: 'w-32 whitespace-nowrap',
+        sortable: true,
+        sortType: 'date',
+        sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+        render: (value) => <span>{value ? new Date(value).toLocaleDateString('en-GB') : '-'}</span>
+      },
+      {
+        id: 'status',
+        key: 'status',
+        accessor: 'status',
+        label: 'Status',
+        className: 'w-40 whitespace-nowrap',
+        sortable: true,
+        render: (_v, row) => <StatusBadge status={row.status} />
+      },
+      {
+        id: 'tenderValueCents',
+        key: 'tenderValueCents',
+        accessor: 'tenderValueCents',
+        label: 'Tender Value',
+        className: 'w-40 whitespace-nowrap',
+        sortable: true,
+        align: 'right',
+        render: (value) => <span>{formatMoney(value)}</span>
+      },
+      {
+        id: 'estimatedProfitCents',
+        key: 'estimatedProfitCents',
+        accessor: 'estimatedProfitCents',
+        label: 'Est. Profit',
+        className: 'w-40 whitespace-nowrap',
+        sortable: true,
+        align: 'right',
+        render: (value) => <span>{formatMoney(value)}</span>
+      },
+      {
+        id: 'followUpNotes',
+        key: 'followUpNotes',
+        accessor: 'followUpNotes',
+        label: 'Notes',
+        className: 'min-w-[260px]',
+        sortable: true,
+        render: (value) => <span className="whitespace-normal">{value || '-'}</span>
+      }
+    ]
+    if (canUpdate || canDelete) {
+      cols.push({
+        id: 'actions',
+        key: 'actions',
+        accessor: '__actions',
+        label: '',
+        className: 'w-16',
+        required: true,
+        align: 'right',
+        stickyRight: true,
+        render: (_v, row) => (
+          <ActionMenu
+            actions={[
+              ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
+              ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
+              ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
+            ]}
+          />
+        )
+      })
+    }
+    return cols
+  }, [canUpdate, canDelete, formatMoney, page, limit])
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'tender-book-register',
+    columns: tenderTableColumns,
+    data: records,
+    defaultSortKey: 'id',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const totalRows = sortedData.length
+  const totalPages = useMemo(() => Math.max(Math.ceil(total / limit), 1), [total, limit])
+  const startIndex = total > 0 ? (page - 1) * limit + 1 : 0
+  const endIndex = total > 0 ? Math.min(page * limit, total) : 0
+  const currentRecords = sortedData
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
 
   return (
     <div className="space-y-6">
@@ -447,12 +640,12 @@ export default function TenderBookRegister() {
         subtitle="Track tender submissions, status progress, and outcomes"
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries)}
-        {renderSummaryCard('In Progress', summaryLoading ? '...' : summary.inProgress)}
-        {renderSummaryCard('Won', summaryLoading ? '...' : summary.won)}
-        {renderSummaryCard('Total Tender Value', summaryLoading ? '...' : formatMoney(summary.totalTenderValueCents))}
-        {renderSummaryCard('Est. Total Profit', summaryLoading ? '...' : formatMoney(summary.totalEstimatedProfitCents))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+        {renderSummaryCard('Total Entries', summaryLoading ? '...' : summary.totalEntries, 0)}
+        {renderSummaryCard('In Progress', summaryLoading ? '...' : summary.inProgress, 1)}
+        {renderSummaryCard('Won', summaryLoading ? '...' : summary.won, 2)}
+        {renderSummaryCard('Total Tender Value', summaryLoading ? '...' : formatMoney(summary.totalTenderValueCents), 3)}
+        {renderSummaryCard('Est. Total Profit', summaryLoading ? '...' : formatMoney(summary.totalEstimatedProfitCents), 4)}
       </div>
 
       {errorMessage && (
@@ -462,39 +655,56 @@ export default function TenderBookRegister() {
       )}
 
       <AppSurface padding="lg" className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <TextInput
-            value={filters.tenderRefNo}
-            placeholder="Tender Ref"
-            onChange={(e) => setFilters((prev) => ({ ...prev, tenderRefNo: e.target.value }))}
-          />
-          <TextInput
-            value={filters.clientName}
-            placeholder="Client"
-            onChange={(e) => setFilters((prev) => ({ ...prev, clientName: e.target.value }))}
-          />
-          <TextInput
-            value={filters.title}
-            placeholder="Title"
-            onChange={(e) => setFilters((prev) => ({ ...prev, title: e.target.value }))}
-          />
-          <TextInput
-            value={filters.contactPerson}
-            placeholder="Contact"
-            onChange={(e) => setFilters((prev) => ({ ...prev, contactPerson: e.target.value }))}
-          />
-          <TextInput
-            value={filters.source}
-            placeholder="Source"
-            onChange={(e) => setFilters((prev) => ({ ...prev, source: e.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-3">
+        {/* Row 1: 4 equal columns — Tender Ref | Client | Title | Contact */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="min-w-0">
+            <TextInput
+              value={filters.tenderRefNo}
+              placeholder="Tender Ref"
+              onChange={(e) => setFilters((prev) => ({ ...prev, tenderRefNo: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0">
+            <TextInput
+              value={filters.clientName}
+              placeholder="Client"
+              onChange={(e) => setFilters((prev) => ({ ...prev, clientName: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0">
+            <TextInput
+              value={filters.title}
+              placeholder="Title"
+              onChange={(e) => setFilters((prev) => ({ ...prev, title: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0">
+            <TextInput
+              value={filters.contactPerson}
+              placeholder="Contact"
+              onChange={(e) => setFilters((prev) => ({ ...prev, contactPerson: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {/* Row 2: 4 equal columns — Source | Deadline From | Deadline To | Status */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="min-w-0">
+            <TextInput
+              value={filters.source}
+              placeholder="Source"
+              onChange={(e) => setFilters((prev) => ({ ...prev, source: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0">
             <TextInput
               type="date"
               value={filters.submissionDeadlineFrom}
               placeholder="Deadline From"
               onChange={(e) => setFilters((prev) => ({ ...prev, submissionDeadlineFrom: e.target.value }))}
             />
+          </div>
+          <div className="min-w-0">
             <TextInput
               type="date"
               value={filters.submissionDeadlineTo}
@@ -502,10 +712,7 @@ export default function TenderBookRegister() {
               onChange={(e) => setFilters((prev) => ({ ...prev, submissionDeadlineTo: e.target.value }))}
             />
           </div>
-        </div>
-
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="w-full lg:w-60">
+          <div className="min-w-0">
             <SelectField value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}>
               {statusOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -514,7 +721,10 @@ export default function TenderBookRegister() {
               ))}
             </SelectField>
           </div>
+        </div>
 
+        {/* Row 3: Action buttons aligned cleanly right, with Reset left-most */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-1">
           <div className="flex flex-wrap gap-2 lg:ml-auto">
             <Button variant="secondary" onClick={resetFilters}>
               Reset
@@ -524,101 +734,136 @@ export default function TenderBookRegister() {
                 Import Excel/CSV
               </Button>
             )}
+            {canExport && (
+              <div className="flex items-center gap-2">
+                <div className="w-28 shrink-0">
+                  <SelectField
+                    className="h-9 rounded-2xl"
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                  >
+                    <option value="xlsx">Excel</option>
+                    <option value="csv">CSV</option>
+                  </SelectField>
+                </div>
+                <Button variant="secondary" onClick={handleExport} loading={exporting} loadingText="Exporting...">
+                  Export
+                </Button>
+              </div>
+            )}
             {canCreate && <Button onClick={openCreate}>Add New Tender</Button>}
           </div>
         </div>
       </AppSurface>
 
-      <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <Th>No.</Th>
-              <Th>Ref</Th>
-              <Th>Client</Th>
-              <Th>Title</Th>
-              <Th>Contact</Th>
-              <Th>Deadline</Th>
-              <Th>Status</Th>
-              <Th align="right">Tender Value</Th>
-              <Th align="right">Est. Profit</Th>
-              <Th>Notes</Th>
-              {(canUpdate || canDelete) && <Th stickyRight align="right">Actions</Th>}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 11 : 10} className="py-10 text-center">
-                  <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
-                </Td>
-              </Tr>
-            ) : records.length === 0 ? (
-              <Tr>
-                <Td colSpan={(canUpdate || canDelete) ? 11 : 10} className="py-8">
-                  <EmptyPanelState
-                    title="No entries yet"
-                    description='Log the first one with "Add New Tender".'
-                  />
-                </Td>
-              </Tr>
-            ) : (
-              records.map((row) => (
-                <Tr key={row.id}>
-                  <Td>{row.id}</Td>
-                  <Td>{row.tenderRefNo || '-'}</Td>
-                  <Td>{row.clientName || '-'}</Td>
-                  <Td className="font-semibold text-ink">{row.title}</Td>
-                  <Td>{row.contactPerson || '-'}</Td>
-                  <Td>{row.submissionDeadline ? new Date(row.submissionDeadline).toLocaleDateString('en-GB') : '-'}</Td>
-                  <Td><StatusBadge status={row.status} /></Td>
-                  <Td align="right">{formatMoney(row.tenderValueCents)}</Td>
-                  <Td align="right">{formatMoney(row.estimatedProfitCents)}</Td>
-                  <Td>{row.followUpNotes || '-'}</Td>
-                  {(canUpdate || canDelete) && (
-                    <Td stickyRight align="right">
-                      <div className="flex justify-end">
-                        <ActionMenu
-                          actions={[
-                            ...(canUpdate ? [{ label: 'Edit', onClick: () => openEdit(row) }] : []),
-                            ...(canUpdate ? [{ label: 'Update', onClick: () => openFollowUp(row), dividerAfter: true }] : []),
-                            ...(canDelete ? [{ label: 'Delete', onClick: () => handleDelete(row), variant: 'destructive' }] : [])
-                          ]}
-                        />
-                      </div>
-                    </Td>
-                  )}
-                </Tr>
-              ))
+      <AppSurface padding="none" className="overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
+          <div className="text-sm text-ink-muted">
+            {!loading && total > 0 && (
+              <span>Showing {startIndex}-{endIndex} of {total}</span>
             )}
-          </tbody>
-        </Table>
-      </TableContainer>
+          </div>
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
+        </div>
+        <TableContainer>
+          <Table className="divide-y divide-border">
+            <thead className="bg-surface-muted">
+              <Tr className="!hover:bg-surface-muted">
+                {visibleColumns.map((col, idx) => {
+                  const id = col.id || col.key
+                  const canDrag = !col.stickyRight
+                  const isDragOver = canDrag && dragOverColIndex === idx
+                  return (
+                    <Th
+                      key={id}
+                      className={col.className || ''}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      sortable={Boolean(col.sortable)}
+                      sortDirection={getSortDirectionFor(id)}
+                      sortKey={id}
+                      onSort={col.sortable ? toggleSort : undefined}
+                      draggable={canDrag}
+                      dragOver={isDragOver}
+                      onDragStart={(e) => handleColDragStart(idx, e)}
+                      onDragOver={(e) => handleColDragOver(idx, e)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(idx, e)}
+                      onDragEnd={handleColDragEnd}
+                      title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                    >
+                      {col.label || col.header || id}
+                    </Th>
+                  )
+                })}
+              </Tr>
+            </thead>
+            <tbody className="bg-surface divide-y divide-border">
+              {loading ? (
+                <Tr className="!hover:bg-surface">
+                  <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-10 text-center">
+                    <InlineSpinner className="mx-auto h-5 w-5 border-border border-t-brand" />
+                  </td>
+                </Tr>
+              ) : sortedData.length === 0 ? (
+                <Tr className="!hover:bg-surface">
+                  <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-8">
+                    <EmptyPanelState title="No entries yet" description='Log the first one with "Add New Tender".' />
+                  </td>
+                </Tr>
+              ) : (
+                currentRecords.map((row, index) => (
+                  <Tr key={row.id}>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(row, col)
+                      } else if (accessor === '__actions' || accessor === '__no') {
+                        value = null
+                      } else {
+                        value = row?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, row, index) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          className={col.className || ''}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
+                  </Tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </TableContainer>
 
-      <div className="flex items-center justify-between">
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-ink-muted">Rows</span>
-          <SelectField
-            className="h-9 w-20 rounded-2xl"
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value))
+        {!loading && total > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalRecords={total}
+            pageSize={limit}
+            pageSizeOptions={[5, 10, 15, 20, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setLimit(next)
               setPage(1)
             }}
-          >
-            {[5, 10, 15, 20, 50].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </SelectField>
-        </div>
-      </div>
+          />
+        )}
+      </AppSurface>
 
       <TenderEntryModal
         open={entryModal.open}

@@ -103,11 +103,15 @@ export default function SmartDocumentEditor() {
         setIsEditable(Boolean(isEditableByCurrentUser))
       } catch (err) {
         if (!mounted) return
+        const status = err?.response?.status
         const msg =
           err?.response?.data?.message ||
           err?.message ||
           'Failed to load document. Please try again.'
-        setError(msg)
+        const extra = status
+          ? ` [HTTP ${status}]`
+          : ''
+        setError(msg + extra)
       } finally {
         if (mounted) setLoading(false)
       }
@@ -222,6 +226,24 @@ export default function SmartDocumentEditor() {
       setPreviewBlobUrl(url)
     } catch (err) {
       setPreviewBlobUrl(null)
+      const status = err?.response?.status
+      const rawMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Unknown preview error'
+      const statusHint = status ? ` [HTTP ${status}]` : ''
+      console.warn('[SmartDocumentEditor] Preview failed:', rawMessage, err)
+      setSaveMessage({
+        type: 'error',
+        text: `Preview generation failed${statusHint}: ${rawMessage}`,
+      })
+      setTimeout(() => {
+        setSaveMessage((curr) =>
+          curr && curr.type === 'error' && curr.text.startsWith('Preview generation failed')
+            ? null
+            : curr
+        )
+      }, 7000)
     } finally {
       setRefreshingPreview(false)
     }

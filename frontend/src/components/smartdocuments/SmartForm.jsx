@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import TextInput from '../ui/TextInput'
 import TextArea from '../ui/TextArea'
 import SelectField from '../ui/SelectField'
 import Button from '../ui/Button'
 import RichTextEditor from '../content/RichTextEditor'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from '../ui/Modal'
+import useAI from '../../hooks/useAI'
 
 const baseInputClasses =
   'block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-[#003366]/30 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-200 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300'
@@ -90,34 +92,45 @@ function evaluateSingleRule(rule, allValues) {
   const { fieldKey, operator = 'equals', value } = rule
   if (!fieldKey) return true
   const raw = allValues?.[fieldKey]
-  const actual = raw === null || raw === undefined ? '' : (typeof raw === 'object' ? valueString(raw) : raw)
-  const expected = value === null || value === undefined ? '' : String(value)
-  const actualL = String(actual).toLowerCase()
-  const expectedL = expected.toLowerCase()
+  const actualIsArray = Array.isArray(raw)
+  const nStr = (v) => v === null || v === undefined ? '' : String(v).trim().toLowerCase()
+  const nArr = (v) => {
+    if (Array.isArray(v)) return v.map((x) => nStr(x)).filter((x) => x !== '')
+    if (v === null || v === undefined || v === '') return []
+    return String(v).split(',').map((x) => nStr(x)).filter(Boolean)
+  }
+  const actualArr = actualIsArray
+    ? raw.map((x) => nStr(x)).filter((x) => x !== '')
+    : raw === null || raw === undefined || raw === '' ? [] : [nStr(raw)]
+  const actualSingle = actualIsArray ? (actualArr.length === 1 ? actualArr[0] : actualArr.join(',')) : nStr(raw)
+  const expectedSingle = nStr(value)
+  const expectedArr = nArr(value)
   switch (String(operator || 'equals')) {
     case 'equals':
-      return String(actual) === expected
+      return actualIsArray ? actualArr.includes(expectedSingle) : (String(raw ?? '') === String(value ?? ''))
     case 'notEquals':
-      return String(actual) !== expected
+      return actualIsArray ? !actualArr.includes(expectedSingle) : (String(raw ?? '') !== String(value ?? ''))
     case 'contains':
-      return expectedL.length === 0 ? false : actualL.includes(expectedL)
+      if (expectedSingle.length === 0) return false
+      if (actualIsArray) return actualArr.some((a) => a.includes(expectedSingle))
+      return actualSingle.includes(expectedSingle)
     case 'notContains':
-      return expectedL.length === 0 ? true : !actualL.includes(expectedL)
+      if (expectedSingle.length === 0) return true
+      if (actualIsArray) return !actualArr.some((a) => a.includes(expectedSingle))
+      return !actualSingle.includes(expectedSingle)
     case 'isEmpty':
-      return String(actual).trim().length === 0
+      return actualArr.length === 0
     case 'isNotEmpty':
-      return String(actual).trim().length > 0
+      return actualArr.length > 0
     case 'in': {
-      if (Array.isArray(value)) {
-        return value.map(String).includes(String(actual))
-      }
-      return String(actual) === expected
+      if (expectedArr.length === 0) return false
+      if (actualIsArray) return actualArr.some((a) => expectedArr.includes(a))
+      return expectedArr.includes(actualSingle)
     }
     case 'notIn': {
-      if (Array.isArray(value)) {
-        return !value.map(String).includes(String(actual))
-      }
-      return String(actual) !== expected
+      if (expectedArr.length === 0) return true
+      if (actualIsArray) return !actualArr.some((a) => expectedArr.includes(a))
+      return !expectedArr.includes(actualSingle)
     }
     default:
       return true
@@ -210,7 +223,11 @@ export default function SmartForm({
           case 'TEXTAREA':
           case 'RICH_TEXT':
           case 'DROPDOWN':
+          case 'SINGLE_SELECT':
             base[k] = String(def)
+            break
+          case 'MULTI_SELECT':
+            base[k] = Array.isArray(def) ? def : (def ? [String(def)] : [])
             break
           default:
             base[k] = def
@@ -221,6 +238,92 @@ export default function SmartForm({
     return base
   })
   const [saving, setSaving] = useState(false)
+
+  const ai = useAI()
+  const [aiAutofillOpen, setAiAutofillOpen] = useState(false)
+  const [aiContextText, setAiContextText] = useState('')
+  const [aiAutofillResult, setAiAutofillResult] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    // Hard reset on mount: ensure autofill modal NEVER opens automatically
+    if (!cancelled) {
+      setAiAutofillOpen(false)
+      setAiAutofillResult(null)
+      setAiContextText('')
+    }
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    // Reset whenever the active template changes — ensure autofill stays closed & AI config reloads silently.
+    // NOTE: do NOT include `ai` in deps — it returns a new object each render and will loop!
+    let cancelled = false
+    if (!cancelled) {
+      setAiAutofillOpen(false)
+      setAiAutofillResult(null)
+      setAiContextText('')
+      ai.fetchConfig()
+    }
+    return () => { cancelled = true }
+  }, [templateVersion?.id])
+
+  const runAiAutofill = async () => {
+    const ctx = aiContextText.trim()
+    if (!ctx || ctx.length < 10) {
+      alert('Please paste at least a few lines of context text first.')
+      return
+    }
+    const definitions = formFields
+      .filter((f) => f.isVisibleInForm !== false)
+      .map((f) => {
+        let options = null
+        try {
+          const optJson = typeof f.optionsJson === 'string' ? JSON.parse(f.optionsJson) : (f.optionsJson || null)
+          if (Array.isArray(optJson) && optJson.length > 0) {
+            options = optJson.map((o) => (typeof o === 'object' ? (o.value ?? o.label) : String(o)))
+          }
+        } catch { /* ignore */ }
+        return {
+          fieldKey: f.fieldKey,
+          label: f.fieldLabel || f.label,
+          type: f.inputType || f.fieldType || 'TEXT',
+          required: !!f.isMandatory,
+          description: f.helpText || '',
+          options,
+        }
+      })
+
+    try {
+      const result = await ai.autofill({
+        fields: definitions,
+        contextText: ctx,
+      })
+      setAiAutofillResult(result)
+    } catch (err) {
+      alert('AI Autofill failed: ' + err.message)
+    }
+  }
+
+  const applyAiAutofill = () => {
+    if (!aiAutofillResult?.filledFields) return
+    const nextValues = { ...values }
+    let applied = 0
+    Object.entries(aiAutofillResult.filledFields).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') return
+      nextValues[key] = value
+      applied += 1
+    })
+    if (applied === 0) {
+      alert('No values could be extracted from the context text.')
+      return
+    }
+    setValues(nextValues)
+    if (typeof onChange === 'function') onChange(nextValues)
+    setAiAutofillOpen(false)
+    setAiAutofillResult(null)
+    setAiContextText('')
+  }
 
   const formFields = useMemo(() => {
     const raw = templateVersion?.formFields || []
@@ -414,6 +517,94 @@ export default function SmartForm({
         )
       }
 
+      case 'SINGLE_SELECT': {
+        const opts = parseJsonField(field.optionsJson, { options: [] })
+        const options = opts?.options || []
+        return (
+          <div className="flex flex-col gap-2">
+            {options.length === 0 ? (
+              <p className="text-[11px] italic text-gray-400">No options configured</p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {options.map((o, i) => {
+                  const isChecked = String(value ?? '') === String(o.value)
+                  const radioId = `${key}_${i}`
+                  return (
+                    <label
+                      key={i}
+                      htmlFor={radioId}
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer select-none transition-colors ${
+                        isChecked
+                          ? 'border-[#003366] bg-[#003366]/5 text-[#003366]'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                      } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <input
+                        id={radioId}
+                        type="radio"
+                        name={`sf_${key}`}
+                        className="h-4 w-4 border-gray-300 text-[#003366] focus:ring-[#003366]/30"
+                        checked={isChecked}
+                        onChange={() => !disabled && setFieldValue(key, o.value)}
+                        disabled={disabled}
+                      />
+                      <span className="text-sm font-medium">{o.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      case 'MULTI_SELECT': {
+        const opts = parseJsonField(field.optionsJson, { options: [] })
+        const options = opts?.options || []
+        const currentArr = Array.isArray(value) ? value : []
+        function toggleMsValue(optValue) {
+          const next = currentArr.includes(optValue)
+            ? currentArr.filter(v => String(v) !== String(optValue))
+            : [...currentArr, optValue]
+          setFieldValue(key, next)
+        }
+        return (
+          <div className="flex flex-col gap-2">
+            {options.length === 0 ? (
+              <p className="text-[11px] italic text-gray-400">No options configured</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {options.map((o, i) => {
+                  const isChecked = currentArr.some(v => String(v) === String(o.value))
+                  const cbId = `${key}_${i}`
+                  return (
+                    <label
+                      key={i}
+                      htmlFor={cbId}
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer select-none transition-colors ${
+                        isChecked
+                          ? 'border-[#003366] bg-[#003366]/5 text-[#003366]'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                      } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <input
+                        id={cbId}
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-[#003366] focus:ring-[#003366]/30"
+                        checked={isChecked}
+                        onChange={() => !disabled && toggleMsValue(o.value)}
+                        disabled={disabled}
+                      />
+                      <span className="text-sm font-medium">{o.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      }
+
       case 'CHECKBOX':
         return (
           <label className="inline-flex items-center gap-2 cursor-pointer select-none">
@@ -509,6 +700,7 @@ export default function SmartForm({
           columns.forEach((c) => {
             if (c.type === 'CHECKBOX') empty[c.columnKey] = c.defaultValue === true
             else if (c.type === 'NUMBER') empty[c.columnKey] = c.defaultValue ?? null
+            else if (c.type === 'MULTI_SELECT') empty[c.columnKey] = Array.isArray(c.defaultValue) ? [...c.defaultValue] : []
             else empty[c.columnKey] = c.defaultValue ?? ''
           })
           nextRows.push(empty)
@@ -567,12 +759,19 @@ export default function SmartForm({
             <tr key={ri} className="border-b border-border last:border-b-0">
               <td className="px-3 py-2 text-ink-muted">{ri + 1}</td>
               {columns.map((c) => {
-                const cellVal = row?.[c.columnKey] ?? (c.type === 'NUMBER' ? null : c.type === 'CHECKBOX' ? false : '')
+                const cellVal = row?.[c.columnKey] ?? (c.type === 'NUMBER' ? null : c.type === 'CHECKBOX' ? false : (c.type === 'MULTI_SELECT' ? [] : ''))
                 const type = (c.type || 'TEXT').toUpperCase()
                 let options = []
                 try {
-                  if (typeof c.optionsJson === 'string') options = JSON.parse(c.optionsJson) || []
-                  else if (Array.isArray(c.optionsJson)) options = c.optionsJson
+                  if (typeof c.optionsJson === 'string') {
+                    const p = JSON.parse(c.optionsJson)
+                    if (p && Array.isArray(p.options)) options = p.options
+                    else if (Array.isArray(p)) options = p
+                  } else if (Array.isArray(c.optionsJson)) {
+                    options = c.optionsJson
+                  } else if (c.optionsJson && typeof c.optionsJson === 'object' && Array.isArray(c.optionsJson.options)) {
+                    options = c.optionsJson.options
+                  }
                 } catch { options = [] }
                 return (
                   <td key={c.columnKey} className="px-2 py-2">
@@ -611,6 +810,56 @@ export default function SmartForm({
                           return <option key={k} value={val}>{lbl}</option>
                         })}
                       </select>
+                    ) : type === 'SINGLE_SELECT' ? (
+                      <select className={baseTableClasses} value={String(cellVal ?? '')} disabled={disabled || readonly} onChange={(e) => updateCell(ri, c.columnKey, e.target.value || null)}>
+                        <option value="">— —</option>
+                        {options.map((o, k) => {
+                          const lbl = typeof o === 'string' ? o : (o.label ?? o.value ?? `O${k + 1}`)
+                          const val = typeof o === 'string' ? o : (o.value ?? o.label ?? lbl)
+                          return <option key={k} value={val}>{lbl}</option>
+                        })}
+                      </select>
+                    ) : type === 'MULTI_SELECT' ? (
+                      <div className="flex flex-wrap gap-1 py-1">
+                        {options.length === 0 ? (
+                          <input
+                            type="text"
+                            className={baseTableClasses}
+                            value={Array.isArray(cellVal) ? cellVal.join(', ') : String(cellVal ?? '')}
+                            disabled={disabled || readonly}
+                            onChange={(e) => {
+                              const parts = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                              updateCell(ri, c.columnKey, parts)
+                            }}
+                            placeholder="Comma-separated values"
+                          />
+                        ) : (
+                          options.map((o, k) => {
+                            const lbl = typeof o === 'string' ? o : (o.label ?? o.value ?? `O${k + 1}`)
+                            const val = typeof o === 'string' ? o : (o.value ?? o.label ?? lbl)
+                            const isChecked = Array.isArray(cellVal) ? cellVal.some(v => String(v) === String(val)) : false
+                            function toggle() {
+                              const cur = Array.isArray(cellVal) ? cellVal : []
+                              const next = cur.some(v => String(v) === String(val))
+                                ? cur.filter(v => String(v) !== String(val))
+                                : [...cur, val]
+                              updateCell(ri, c.columnKey, next)
+                            }
+                            return (
+                              <label key={k} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 bg-white text-[11px] cursor-pointer hover:bg-gray-50">
+                                <input
+                                  type="checkbox"
+                                  className="h-3 w-3 rounded border-gray-300 text-brand"
+                                  checked={isChecked}
+                                  disabled={disabled || readonly}
+                                  onChange={toggle}
+                                />
+                                <span>{lbl}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
                     ) : (
                       <input
                         type="text"
@@ -1156,10 +1405,166 @@ export default function SmartForm({
         </div>
       )}
 
+      {!readonly && ai.aiEnabled && formFields.length > 0 && (
+        <div className="mb-5">
+          <div className="rounded-xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50 via-white to-sky-50 p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <div className="shrink-0 w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900">
+                  &#10024; AI Autofill
+                </p>
+                <p className="text-xs mt-0.5 text-gray-600">
+                  Paste a reference letter / email / notes and Gemini will auto-fill as many of the {formFields.length} fields as possible.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setAiAutofillResult(null)
+                setAiAutofillOpen(true)
+              }}
+              className="shrink-0"
+            >
+              <span className="mr-1.5">&#9889;</span> AI Autofill
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div>
         {renderUnsectionedFields()}
         {topSections.map((s) => renderSection(s))}
       </div>
+
+      {aiAutofillOpen && (
+        <Modal
+          isOpen={aiAutofillOpen}
+          onClose={() => setAiAutofillOpen(false)}
+          size="lg"
+        >
+          <ModalHeader
+            title="&#10024; AI Autofill Form Fields"
+            subtitle={`Template has ${formFields.length} fields. Paste source text below.`}
+            onClose={() => setAiAutofillOpen(false)}
+          />
+          <ModalBody>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">
+                  Reference / Context Text
+                </label>
+                <TextArea
+                  value={aiContextText}
+                  onChange={(e) => setAiContextText(e.target.value)}
+                  placeholder={`Paste source material here...\n\nExample:\nFrom: john.doe@company.com\nSubject: New Employee Onboarding - Ahmad Bin Ismail\n\nHi HR,\nPlease on-board Ahmad Bin Ismail as Senior Engineer in the Technology division, effective 1st September 2026.\nHis reporting manager will be Siti binti Abdul Rahman.\nSalary: RM 8,500 per month.\nOffice location: KL Sentral Tower, Level 23.\n\nThanks,\nHR Operations`}
+                  rows={10}
+                  disabled={ai.loading.autofill}
+                />
+                <p className="mt-1.5 text-[11px] text-gray-500">
+                  Tip: Include names, dates, titles, and amounts clearly. Gemini will never invent values &mdash; if a field is missing, it stays empty.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={runAiAutofill}
+                  disabled={aiContextText.trim().length < 10}
+                  loading={ai.loading.autofill}
+                  loadingText="Analyzing and extracting values..."
+                >
+                  <span className="mr-1.5">&#128269;</span> Extract Field Values
+                </Button>
+                {aiAutofillResult && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setAiAutofillResult(null)
+                    }}
+                  >
+                    Clear Result
+                  </Button>
+                )}
+              </div>
+
+              {aiAutofillResult && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-emerald-800">
+                        &#9989; Extraction Complete
+                      </h4>
+                      <p className="text-xs text-emerald-700/90 mt-0.5">
+                        {Object.values(aiAutofillResult.filledFields || {}).filter((v) => v !== null && v !== '' && v !== undefined).length} of {formFields.length} fields extracted.
+                        {aiAutofillResult.notes && <span className="ml-1 italic">— {aiAutofillResult.notes}</span>}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={applyAiAutofill}
+                    >
+                      <span className="mr-1.5">&#10003;</span> Apply to Form
+                    </Button>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto rounded-lg bg-white border border-emerald-100 divide-y divide-emerald-50">
+                    {formFields.map((f) => {
+                      const key = f.fieldKey
+                      const extracted = aiAutofillResult.filledFields?.[key]
+                      const confidence = aiAutofillResult.confidenceScores?.[key]
+                      const hasValue = extracted !== null && extracted !== undefined && extracted !== ''
+                      return (
+                        <div key={key} className="px-3 py-2 grid grid-cols-[auto_1fr_auto] gap-3 items-start text-[12.5px]">
+                          <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${hasValue ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-800 truncate">
+                              {f.fieldLabel || f.label || key}
+                            </div>
+                            <div className="text-[10.5px] text-gray-400 font-mono truncate">{key}</div>
+                          </div>
+                          <div className="text-right shrink-0 max-w-[50%]">
+                            {hasValue ? (
+                              <>
+                                <div className="font-mono text-[11.5px] text-gray-900 bg-gray-50 rounded px-2 py-0.5 inline-block max-w-full overflow-hidden text-ellipsis whitespace-nowrap border border-gray-200">
+                                  {String(extracted)}
+                                </div>
+                                {typeof confidence === 'number' && (
+                                  <div className={`text-[10px] mt-0.5 ${confidence >= 0.8 ? 'text-emerald-600' : confidence >= 0.5 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    {Math.round(confidence * 100)}% confidence
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[11px] text-gray-400 italic">not found</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter className="flex-wrap justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setAiAutofillOpen(false)}
+            >
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
     </div>
   )
 }

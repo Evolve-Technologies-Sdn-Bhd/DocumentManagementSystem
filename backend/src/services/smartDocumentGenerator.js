@@ -179,8 +179,19 @@ class SmartDocumentGenerator {
       case 'TEXT': {
         return String(rawValue == null ? '' : rawValue);
       }
-      case 'DROPDOWN': {
+      case 'DROPDOWN':
+      case 'SINGLE_SELECT': {
         return String(universalLabeled);
+      }
+      case 'MULTI_SELECT': {
+        const values = Array.isArray(rawValue) ? rawValue : (rawValue ? [rawValue] : []);
+        const sep = outputFormat.joinSeparator != null ? String(outputFormat.joinSeparator) : ', ';
+        const labeled = values.map((v) => {
+          const label = resolveDropdownLabel(v, formField, fieldMapping);
+          if (label != null && String(label) !== '') return String(label);
+          return v == null ? '' : String(v);
+        }).filter((s) => s !== '');
+        return labeled.join(sep);
       }
       case 'NUMBER':
         return formatNumber(rawValue, outputFormat);
@@ -398,21 +409,45 @@ class SmartDocumentGenerator {
         const expected = rule.value
         const nStr = (v) => v == null ? '' : String(v).trim().toLowerCase()
         const nArr = (v) => {
-          if (Array.isArray(v)) return v.map(x => nStr(x))
+          if (Array.isArray(v)) return v.map(x => nStr(x)).filter(x => x !== '')
           if (v == null || v === '') return []
           return String(v).split(',').map(x => nStr(x)).filter(Boolean)
         }
+        const actualIsArray = Array.isArray(actual)
+        const actualArr = actualIsArray ? actual.map(x => nStr(x)).filter(x => x !== '') : (actual == null || actual === '' ? [] : [nStr(actual)])
+        const expectedStr = nStr(expected)
+        const expectedArr = nArr(expected)
         const op = String(rule.operator || 'equals').toLowerCase()
         switch (op) {
-          case 'equals': case 'equal': case 'eq': return nStr(actual) === nStr(expected)
-          case 'notequals': case 'notequal': case 'neq': case 'ne': return nStr(actual) !== nStr(expected)
-          case 'contains': return nStr(actual).length > 0 && nStr(expected).length > 0 && nStr(actual).indexOf(nStr(expected)) !== -1
-          case 'notcontains': case 'doesnotcontain': return !(nStr(actual).length > 0 && nStr(expected).length > 0 && nStr(actual).indexOf(nStr(expected)) !== -1)
-          case 'isempty': case 'empty': case 'blank': return nStr(actual).length === 0
-          case 'isnotempty': case 'notempty': case 'filled': case 'notblank': return nStr(actual).length > 0
-          case 'in': { const a = nArr(expected); return a.length === 0 ? false : a.indexOf(nStr(actual)) !== -1 }
-          case 'notin': case 'not_in': { const a = nArr(expected); return a.length === 0 ? true : a.indexOf(nStr(actual)) === -1 }
-          default: return nStr(actual) === nStr(expected)
+          case 'equals': case 'equal': case 'eq': {
+            if (actualIsArray) return actualArr.indexOf(expectedStr) !== -1
+            return nStr(actual) === expectedStr
+          }
+          case 'notequals': case 'notequal': case 'neq': case 'ne': {
+            if (actualIsArray) return actualArr.indexOf(expectedStr) === -1
+            return nStr(actual) !== expectedStr
+          }
+          case 'contains': {
+            if (actualIsArray) return actualArr.some(a => expectedStr.length > 0 && a.indexOf(expectedStr) !== -1)
+            return nStr(actual).length > 0 && expectedStr.length > 0 && nStr(actual).indexOf(expectedStr) !== -1
+          }
+          case 'notcontains': case 'doesnotcontain': {
+            if (actualIsArray) return !(actualArr.some(a => expectedStr.length > 0 && a.indexOf(expectedStr) !== -1))
+            return !(nStr(actual).length > 0 && expectedStr.length > 0 && nStr(actual).indexOf(expectedStr) !== -1)
+          }
+          case 'isempty': case 'empty': case 'blank': return actualArr.length === 0
+          case 'isnotempty': case 'notempty': case 'filled': case 'notblank': return actualArr.length > 0
+          case 'in': {
+            if (expectedArr.length === 0) return false
+            if (actualIsArray) return actualArr.some(a => expectedArr.indexOf(a) !== -1)
+            return expectedArr.indexOf(nStr(actual)) !== -1
+          }
+          case 'notin': case 'not_in': {
+            if (expectedArr.length === 0) return true
+            if (actualIsArray) return !actualArr.some(a => expectedArr.indexOf(a) !== -1)
+            return expectedArr.indexOf(nStr(actual)) === -1
+          }
+          default: return actualIsArray ? actualArr.indexOf(expectedStr) !== -1 : (nStr(actual) === expectedStr)
         }
       }
       function isFieldVisible(formField, values) {

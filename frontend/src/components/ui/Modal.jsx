@@ -38,12 +38,22 @@ export function ModalFooter({ children, className = '' }) {
 
 export default function Modal({
   children,
+  isOpen = true,
+  open,
   onClose,
   closeOnBackdrop = false,
   size = 'lg',
   className = '',
   ...props
 }) {
+  const show = isOpen && (open === undefined || open)
+
+  // Early return: do NOT render the modal (nor the portal) when it's not open.
+  // This fixes state-closed-but-UI-still-visible issues with nested modals and portals.
+  if (!show) return null
+
+  // Remove boolean-ish props that React warns about when spread onto raw DOM elements.
+  const domProps = props
   const modal = (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-overlay p-4">
       <div className="fixed inset-0" onClick={closeOnBackdrop ? onClose : undefined} />
@@ -55,7 +65,7 @@ export default function Modal({
           sizeMap[size] || sizeMap.lg,
           className
         ].filter(Boolean).join(' ')}
-        {...props}
+        {...domProps}
       >
         {children}
       </div>

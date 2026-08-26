@@ -105,6 +105,8 @@ function DashboardMetricsPanel({
                 tone={card.tone}
                 surfaceClassName={cardClassName}
                 surfaceStyle={card.surfaceStyle}
+                to={card.to}
+                onClick={card.onClick}
               />
             ))}
           </div>
@@ -428,7 +430,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_my_drafts_desc'),
       icon: DocumentTextIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' },
+      to: '/documents/drafts'
     },
     {
       key: 'needs-action',
@@ -437,7 +440,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_needs_action_desc'),
       icon: ClockIcon,
       tone: 'warning',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' },
+      to: '/documents/review-approval'
     },
     {
       key: 'waiting',
@@ -446,7 +450,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_waiting_desc'),
       icon: ClipboardListIcon,
       tone: 'success',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' },
+      to: '/documents/review-approval'
     },
     {
       key: 'published',
@@ -455,7 +460,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_published_desc'),
       icon: BadgeCheckIcon,
       tone: 'neutral',
-      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' }
+      surfaceStyle: { backgroundColor: 'var(--dms-color-info-soft)' },
+      to: '/documents/published'
     }
   ]
   const systemMetricCards = [
@@ -466,7 +472,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      to: '/documents/review-approval'
     },
     {
       key: 'published',
@@ -475,7 +482,8 @@ export default function Dashboard() {
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      to: '/documents/published'
     },
     {
       key: 'superseded',
@@ -484,7 +492,8 @@ export default function Dashboard() {
       description: t('archived_desc'),
       icon: ArchiveBoxIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
+      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      to: '/documents/archived'
     }
   ]
   const activeMetricCards = dashboardMode === 'admin' ? systemMetricCards : personalMetricCards
@@ -576,6 +585,8 @@ export default function Dashboard() {
                     icon={card.icon}
                     tone={card.tone}
                     surfaceStyle={card.surfaceStyle}
+                    to={card.to}
+                    onClick={card.onClick}
                   />
                 ))}
               </div>

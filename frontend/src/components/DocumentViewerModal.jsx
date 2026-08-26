@@ -28,6 +28,8 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
   const [docxBuffer, setDocxBuffer] = useState(null)
   const [contentType, setContentType] = useState(null)
   const [error, setError] = useState(null)
+  const [fallbackMode, setFallbackMode] = useState(null) // 'docx' | null
+  const [fallbackReason, setFallbackReason] = useState(null) // string | null
   const docxContainerRef = useRef(null)
   const docxViewportRef = useRef(null)
   const activeRequestRef = useRef(0)
@@ -80,6 +82,8 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
         setDocxBuffer(null)
         setContentType(null)
         setDocxZoomMode('fit')
+        setFallbackMode(null)
+        setFallbackReason(null)
         // #region debug-point C:preview-request-start
         if (canSendDebugRef.current) {
           fetch('http://127.0.0.1:7777/event', {
@@ -117,6 +121,21 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
 
         if (isStale()) {
           return
+        }
+
+        // Detect graceful server fallback when PDF conversion is unavailable (e.g. Chrome not installed).
+        // The backend returns DOCX directly with custom headers instead of a 500/400 error.
+        const fallbackModeHeader = res.headers['x-preview-fallback'] || res.headers['x-download-fallback']
+        const fallbackReasonHeader = res.headers['x-fallback-reason']
+        if (fallbackModeHeader) {
+          setFallbackMode(fallbackModeHeader)
+          if (fallbackReasonHeader) {
+            try {
+              setFallbackReason(decodeURIComponent(fallbackReasonHeader))
+            } catch {
+              setFallbackReason(String(fallbackReasonHeader))
+            }
+          }
         }
         
         // Get file extension from response headers or document title
@@ -415,6 +434,43 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
         </div>
 
         <ModalBody className="flex-1 overflow-hidden bg-surface-muted p-0">
+          {fallbackMode && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm leading-relaxed">
+                  <p className="font-semibold">
+                    {fallbackMode === 'docx'
+                      ? 'PDF preview is unavailable — showing DOCX content instead.'
+                      : 'Preview is unavailable in the requested format.'}
+                  </p>
+                  {fallbackReason && /Chrome|Edge|CHROME_BIN|msedge\.exe|chrome\.exe/i.test(fallbackReason) && (
+                    <p className="mt-1 text-amber-800/90">
+                      PDF conversion requires <strong>Google Chrome</strong> or{' '}
+                      <strong>Microsoft Edge</strong> on the DMS application server. Ask your server admin
+                      to install Chrome/Edge (Windows Server 2019/2022, or Linux) or set the{' '}
+                      <code className="px-1 py-0.5 rounded bg-amber-100 border border-amber-200">
+                        CHROME_BIN
+                      </code>{' '}
+                      environment variable pointing to the full path of the browser executable.
+                    </p>
+                  )}
+                  {fallbackReason && !/Chrome|Edge|CHROME_BIN/i.test(fallbackReason) && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer hover:underline text-amber-800/90">
+                        View reason
+                      </summary>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-amber-800/80">
+                        {fallbackReason}
+                      </p>
+                    </details>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full">
               <InlineSpinner className="h-10 w-10 border-2 mb-4" />

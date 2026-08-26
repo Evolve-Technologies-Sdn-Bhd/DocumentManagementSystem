@@ -9,7 +9,9 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import InlineSpinner from './ui/InlineSpinner'
 import EmptyPanelState from './ui/EmptyPanelState'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 function TrackingStatusBadge({ status }) {
   const config = {
@@ -43,6 +45,8 @@ export default function RfidEpcRegistry() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(15)
   const [total, setTotal] = useState(0)
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const totalPages = useMemo(() => {
     return Math.max(Math.ceil(total / limit), 1)
@@ -113,6 +117,132 @@ export default function RfidEpcRegistry() {
       setExporting(false)
     }
   }
+
+  const epcColumns = [
+    {
+      id: 'generatedAt',
+      key: 'generatedAt',
+      accessor: 'generatedAt',
+      label: 'Generated At',
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (value) => value ? new Date(value).toLocaleString('en-GB') : '-'
+    },
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: 'File Code',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-semibold text-ink break-words">{value}</span>
+    },
+    {
+      id: 'fileName',
+      key: 'fileName',
+      accessor: 'fileName',
+      label: 'File Name',
+      sortable: true,
+      render: (value) => <span className="break-words">{value}</span>
+    },
+    {
+      id: 'documentStatus',
+      key: 'documentStatus',
+      accessor: 'documentStatus',
+      label: 'Document Status',
+      sortable: true,
+      render: (value) => value ? <StatusBadge status={value} /> : '-'
+    },
+    {
+      id: 'trackingStatus',
+      key: 'trackingStatus',
+      accessor: 'trackingStatus',
+      label: 'Tracking Status',
+      sortable: true,
+      render: (value) => <TrackingStatusBadge status={value} />
+    },
+    {
+      id: 'epcHex',
+      key: 'epcHex',
+      accessor: 'epcHex',
+      label: 'EPC Hex',
+      sortable: true,
+      render: (value) => <span className="font-mono text-xs text-brand whitespace-nowrap">{value}</span>
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: (row) => row?.document?.title,
+      label: 'Title',
+      sortable: true,
+      render: (value) => <span className="break-words">{value || '-'}</span>
+    },
+    {
+      id: 'type',
+      key: 'type',
+      accessor: (row) => row?.document?.documentType?.name,
+      label: 'Type',
+      sortable: true,
+      render: (value) => <span className="break-words">{value || '-'}</span>
+    },
+    {
+      id: 'version',
+      key: 'version',
+      accessor: (row) => row?.document?.version,
+      label: 'Version',
+      sortable: true,
+      render: (value) => <span className="whitespace-nowrap">{value || '-'}</span>
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'rfid-epc-registry',
+    columns: epcColumns,
+    data: records,
+    defaultSortKey: 'generatedAt',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
 
   return (
     <div className="space-y-6" data-tour-id="epc-page">
@@ -187,12 +317,21 @@ export default function RfidEpcRegistry() {
       </AppSurface>
 
       <AppSurface padding="none" className="overflow-hidden" data-tour-id="epc-table-card">
+        <div className="px-5 py-3 flex items-center justify-between border-b border-border bg-surface-muted/50">
+          <div className="text-sm font-semibold text-ink">EPC Records ({total})</div>
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
+        </div>
         {loading ? (
           <div className="flex items-center justify-center gap-3 px-4 py-12 text-sm text-ink-muted">
             <InlineSpinner />
             Loading EPC registry...
           </div>
-        ) : records.length === 0 ? (
+        ) : sortedData.length === 0 ? (
           <div className="p-5">
             <EmptyPanelState
               title="No EPC records found"
@@ -202,48 +341,60 @@ export default function RfidEpcRegistry() {
         ) : (
           <TableContainer className="rounded-none border-0">
             <Table className="min-w-[1480px] table-fixed">
-              <colgroup>
-                <col className="w-[140px]" />
-                <col className="w-[170px]" />
-                <col className="w-[300px]" />
-                <col className="w-[140px]" />
-                <col className="w-[140px]" />
-                <col className="w-[200px]" />
-                <col className="w-[220px]" />
-                <col className="w-[130px]" />
-                <col className="w-[90px]" />
-              </colgroup>
               <thead>
                 <Tr className="hover:bg-transparent">
-                  <Th>Generated At</Th>
-                  <Th>File Code</Th>
-                  <Th>File Name</Th>
-                  <Th>Document Status</Th>
-                  <Th>Tracking Status</Th>
-                  <Th>EPC Hex</Th>
-                  <Th>Title</Th>
-                  <Th>Type</Th>
-                  <Th>Version</Th>
+                  {visibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && dragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={getSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? toggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => handleColDragStart(idx, e)}
+                        onDragOver={(e) => handleColDragOver(idx, e)}
+                        onDragLeave={handleColDragLeave}
+                        onDrop={(e) => handleColDrop(idx, e)}
+                        onDragEnd={handleColDragEnd}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {col.label || col.header || id}
+                      </Th>
+                    )
+                  })}
                 </Tr>
               </thead>
               <tbody>
-                {records.map((record) => (
+                {sortedData.map((record) => (
                   <Tr key={record.id}>
-                    <Td className="align-top">
-                      {record.generatedAt ? new Date(record.generatedAt).toLocaleString('en-GB') : '-'}
-                    </Td>
-                    <Td className="align-top font-semibold text-ink break-words">{record.fileCode}</Td>
-                    <Td className="align-top break-words">{record.fileName}</Td>
-                    <Td className="align-top">
-                      {record.documentStatus ? <StatusBadge status={record.documentStatus} /> : '-'}
-                    </Td>
-                    <Td className="align-top">
-                      <TrackingStatusBadge status={record.trackingStatus} />
-                    </Td>
-                    <Td className="align-top font-mono text-xs text-brand whitespace-nowrap">{record.epcHex}</Td>
-                    <Td className="align-top break-words">{record.document?.title || '-'}</Td>
-                    <Td className="align-top break-words">{record.document?.documentType?.name || '-'}</Td>
-                    <Td className="align-top whitespace-nowrap">{record.document?.version || '-'}</Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(record, col)
+                      } else {
+                        value = record?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, record) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : 'align-top'}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>

@@ -606,7 +606,7 @@ class DocxToPdfService {
 
     const chromePath = this._findChromeExecutable()
     if (!chromePath) {
-      throw new Error(
+      throw new BadRequestError(
         'PDF conversion requires Google Chrome or Microsoft Edge. Neither was found on this system. ' +
         'Please install Google Chrome or Microsoft Edge (Windows 10/11 includes Edge by default). ' +
         'You can also set CHROME_BIN environment variable to the full path of chrome.exe or msedge.exe.'
@@ -728,13 +728,13 @@ class DocxToPdfService {
     try {
       pdfBuffer = await fs.readFile(pdfPath)
     } catch {
-      throw new Error('PDF conversion failed: Chrome did not produce a PDF output file.')
+      throw new BadRequestError('PDF conversion failed: Chrome did not produce a PDF output file.')
     } finally {
       fs.unlink(pdfPath).catch(() => {})
     }
 
     if (!pdfBuffer || pdfBuffer.length === 0) {
-      throw new Error('PDF conversion failed: output PDF is empty.')
+      throw new BadRequestError('PDF conversion failed: output PDF is empty.')
     }
 
     return {

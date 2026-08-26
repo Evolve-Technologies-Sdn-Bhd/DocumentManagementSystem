@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import ReviewDocumentModal from './ReviewDocumentModal'
@@ -22,7 +22,10 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import DataTableToolbar from './ui/DataTableToolbar'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 function isPdfDocument(doc) {
   const name = String(doc?.fileName || '')
@@ -55,6 +58,8 @@ export default function ReviewAndApproval() {
   const [reviewSubmitError, setReviewSubmitError] = useState('')
   const [approveSubmitting, setApproveSubmitting] = useState(false)
   const [approveSubmitError, setApproveSubmitError] = useState('')
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
   const canSendDebugRef = useRef(null)
 
   const canSendDebug = () => {
@@ -569,6 +574,126 @@ export default function ReviewAndApproval() {
     }
   }
 
+  const raColumns = [
+    { id: 'fileCode', key: 'fileCode', accessor: 'fileCode', label: t('file_code'), sortable: true, required: true,
+      render: (value, row) => (
+        <a href="#" className="font-medium text-ink hover:text-brand" onClick={(e) => { e.preventDefault(); handleDownload(row); }}>
+          {value}
+        </a>
+      )
+    },
+    { id: 'title', key: 'title', accessor: 'title', label: t('doc_title'), sortable: true, required: true,
+      render: (value, row) => (
+        <a href="#" className="font-medium text-brand hover:text-brand-hover hover:underline" onClick={(e) => { e.preventDefault(); handleDownload(row); }}>
+          {value}
+        </a>
+      )
+    },
+    { id: 'projectCategory', key: 'projectCategory', accessor: 'projectCategory', label: t('project_category'), sortable: true,
+      render: (v) => v || '-'
+    },
+    { id: 'version', key: 'version', accessor: 'version', label: t('version'), sortable: true, align: 'center' },
+    { id: 'submittedBy', key: 'submittedBy', accessor: 'submittedBy', label: t('submitted_by'), sortable: true },
+    { id: 'reviewerName', key: 'reviewerName', accessor: 'reviewerName', label: t('reviewer'), sortable: true,
+      render: (v) => v || '-'
+    },
+    { id: 'firstApproverName', key: 'firstApproverName', accessor: 'firstApproverName', label: t('approver'), sortable: true,
+      render: (v) => v || '-'
+    },
+    { id: 'secondApproverName', key: 'secondApproverName', accessor: 'secondApproverName', label: t('second_approver'), sortable: true,
+      render: (v) => v || '-'
+    },
+    { id: 'lastUpdated', key: 'lastUpdated', accessor: 'lastUpdated', label: t('last_updated'), sortable: true, sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0)
+    },
+    { id: 'status', key: 'status', accessor: 'status', label: t('status'), sortable: true,
+      render: (v, row) => <StatusBadge status={row.status} />
+    },
+    { id: 'actions', key: 'actions', accessor: '__actions', label: t('action'), required: true, align: 'right', stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            ...(hasPermission('documents.review', 'read')
+              ? [
+                  ...(isPdfDocument(row) ? [{ label: t('view'), onClick: () => handleView(row) }] : []),
+                  { label: t('download'), onClick: () => handleDownload(row), dividerAfter: true }
+                ]
+              : []
+            ),
+            ...(row.stage === 'Review' && hasPermission('documents.review', 'review') && !isDocumentOwner(row) && isAssignedReviewer(row)
+              ? [{ label: t('review_action'), onClick: () => handleReview(row) }]
+              : []
+            ),
+            ...((row.stage === 'Approval' || row.stage === 'FIRST_APPROVAL' || row.stage === 'SECOND_APPROVAL') && hasPermission('documents.review', 'approve') && !isDocumentOwner(row) && isAssignedApprover(row)
+              ? [{ label: t('approve_action'), onClick: () => handleApprove(row) }]
+              : []
+            ),
+            ...(row.stage === 'Acknowledge' && hasPermission('documents.published', 'acknowledge')
+              ? [{ label: t('acknowledge_action'), onClick: () => handleAcknowledge(row) }]
+              : []
+            ),
+            ...(row.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish')
+              ? [{ label: t('publish_action'), onClick: () => handlePublish(row) }]
+              : []
+            )
+          ]}
+        />
+      )
+    }
+  ]
+
+  const raTableFeatures = useTableFeatures({
+    tableId: 'review-approval-list',
+    columns: raColumns,
+    data: filteredDocuments,
+    defaultSortKey: 'lastUpdated',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData: raSortedData,
+    visibleColumns: raVisibleColumns,
+    orderedColumns: raOrderedColumns,
+    getSortDirectionFor: raGetSortDirectionFor,
+    toggleSort: raToggleSort,
+    moveColumn: raMoveColumn,
+    hiddenColumns: raHiddenColumns,
+    toggleColumnVisibility: raToggleColumnVisibility,
+    resetTableSettings: raResetTableSettings
+  } = raTableFeatures
+
+  const raTotalPages = Math.ceil(raSortedData.length / pageSize)
+  const raStartIndex = (currentPage - 1) * pageSize
+  const raCurrentDocuments = raSortedData.slice(raStartIndex, raStartIndex + pageSize)
+
+  const raColDragStart = (idx, e) => {
+    const col = raVisibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const raColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = raVisibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const raColDragLeave = () => setDragOverColIndex(null)
+  const raColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = raVisibleColumns[fromIdx]?.id
+    const toId = raVisibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const gf = raOrderedColumns.findIndex((c) => c.id === fromId)
+    const gt = raOrderedColumns.findIndex((c) => c.id === toId)
+    if (gf >= 0 && gt >= 0) raMoveColumn(gf, gt)
+  }
+  const raColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   return (
     <>
       <AlertModal
@@ -611,43 +736,49 @@ export default function ReviewAndApproval() {
             </PermissionGate>
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <TextInput
-                type="text"
-                placeholder={t('search_docs_placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          <DataTableToolbar rightSlot={<>
+            <ColumnSettingsButton
+              orderedColumns={raOrderedColumns}
+              hiddenColumns={raHiddenColumns}
+              onToggleColumn={raToggleColumnVisibility}
+              onReset={raResetTableSettings}
+            />
+          </>}>
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex-1 min-w-0 relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <TextInput
+                  type="text"
+                  placeholder={t('search_docs_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="w-[280px] shrink-0">
+                <SelectField
+                  value={stageFilter}
+                  onChange={(e) => setStageFilter(e.target.value)}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+                  {allStages.map(stage => (
+                    <option key={stage} value={stage}>{stage}</option>
+                  ))}
+                </SelectField>
+              </div>
             </div>
-
-            {/* Stage Filter */}
-            <SelectField
-              value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value)}
-              className="min-w-[200px]"
-            >
-              {allStages.map(stage => (
-                <option key={stage} value={stage}>{stage}</option>
-              ))}
-            </SelectField>
-          </div>
+          </DataTableToolbar>
         </div>
 
         {/* Desktop Table */}
@@ -656,32 +787,47 @@ export default function ReviewAndApproval() {
             <Table>
               <thead>
                 <tr>
-                  <Th>{t('file_code')}</Th>
-                  <Th>{t('doc_title')}</Th>
-                  <Th>{t('project_category')}</Th>
-                  <Th>{t('version')}</Th>
-                  <Th>{t('submitted_by')}</Th>
-                  <Th>{t('reviewer')}</Th>
-                  <Th>{t('approver')}</Th>
-                  <Th>{t('second_approver')}</Th>
-                  <Th>{t('last_updated')}</Th>
-                  <Th>{t('status')}</Th>
-                  <Th stickyRight>{t('action')}</Th>
+                  {raVisibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && dragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={raGetSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? raToggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => raColDragStart(idx, e)}
+                        onDragOver={(e) => raColDragOver(idx, e)}
+                        onDragLeave={raColDragLeave}
+                        onDrop={(e) => raColDrop(idx, e)}
+                        onDragEnd={raColDragEnd}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {col.label || col.header || id}
+                      </Th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="py-10">
+                  <td colSpan={Math.max(raVisibleColumns.length, 1)} className="py-10">
                     <div className="flex flex-col items-center gap-2">
                       <InlineSpinner />
                       <span className="text-sm text-ink-muted">{t('loading_docs')}</span>
                     </div>
                   </td>
                 </tr>
-              ) : currentDocuments.length === 0 ? (
+              ) : raCurrentDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="11">
+                  <td colSpan={Math.max(raVisibleColumns.length, 1)}>
                     <EmptyState 
                       message={t('no_docs_found')} 
                       description={searchQuery || stageFilter !== 'All' ? t('try_adjusting') : t('no_pending_review')}
@@ -691,71 +837,27 @@ export default function ReviewAndApproval() {
                   </td>
                 </tr>
               ) : (
-                currentDocuments.map((doc) => (
+                raCurrentDocuments.map((doc) => (
                   <Tr key={doc.id}>
-                    <Td>
-                      <a
-                        href="#"
-                        className="font-medium text-ink hover:text-brand"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          handleDownload(doc)
-                        }}
-                      >
-                        {doc.fileCode}
-                      </a>
-                    </Td>
-                    <Td>
-                      <a
-                        href="#"
-                        className="font-medium text-brand hover:text-brand-hover hover:underline"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          handleDownload(doc)
-                        }}
-                      >
-                        {doc.title}
-                      </a>
-                    </Td>
-                    <Td>{doc.projectCategory || '-'}</Td>
-                    <Td>{doc.version}</Td>
-                    <Td>{doc.submittedBy}</Td>
-                    <Td>{doc.reviewerName || '-'}</Td>
-                    <Td>{doc.firstApproverName || '-'}</Td>
-                    <Td>{doc.secondApproverName || '-'}</Td>
-                    <Td>{doc.lastUpdated}</Td>
-                    <Td className="py-3">
-                      <StatusBadge status={doc.status} />
-                    </Td>
-                    <Td stickyRight className="py-3">
-                      <ActionMenu
-                        actions={[
-                          ...(hasPermission('documents.review', 'read')
-                            ? [
-                                ...(isPdfDocument(doc) ? [{ label: t('view'), onClick: () => handleView(doc) }] : []),
-                                { label: t('download'), onClick: () => handleDownload(doc), dividerAfter: true }
-                              ]
-                            : []
-                          ),
-                          ...(doc.stage === 'Review' && hasPermission('documents.review', 'review') && !isDocumentOwner(doc) && isAssignedReviewer(doc)
-                            ? [{ label: t('review_action'), onClick: () => handleReview(doc) }]
-                            : []
-                          ),
-                          ...((doc.stage === 'Approval' || doc.stage === 'FIRST_APPROVAL' || doc.stage === 'SECOND_APPROVAL') && hasPermission('documents.review', 'approve') && !isDocumentOwner(doc) && isAssignedApprover(doc)
-                            ? [{ label: t('approve_action'), onClick: () => handleApprove(doc) }]
-                            : []
-                          ),
-                          ...(doc.stage === 'Acknowledge' && hasPermission('documents.published', 'acknowledge')
-                            ? [{ label: t('acknowledge_action'), onClick: () => handleAcknowledge(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'READY_TO_PUBLISH' && hasPermission('documents.published', 'publish')
-                            ? [{ label: t('publish_action'), onClick: () => handlePublish(doc) }]
-                            : []
-                          )
-                        ]}
-                      />
-                    </Td>
+                    {raVisibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') value = accessor(doc, col)
+                      else if (accessor === '__actions') value = null
+                      else value = doc?.[accessor]
+                      const content = typeof col.render === 'function' ? col.render(value, doc) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={(col.stickyRight || id === 'status') ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))
               )}
@@ -773,7 +875,7 @@ export default function ReviewAndApproval() {
                 <span className="text-sm text-ink-muted">{t('loading_docs')}</span>
               </div>
             </div>
-          ) : currentDocuments.length === 0 ? (
+          ) : raCurrentDocuments.length === 0 ? (
             <EmptyState 
               message={t('no_docs_found')} 
               description={searchQuery || stageFilter !== 'All' ? t('try_adjusting') : t('no_pending_review')}
@@ -781,7 +883,7 @@ export default function ReviewAndApproval() {
               onAction={searchQuery ? () => setSearchQuery('') : null}
             />
           ) : (
-            currentDocuments.map((doc) => (
+            raCurrentDocuments.map((doc) => (
               <AppSurface key={doc.id} variant="muted" padding="md" className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -909,11 +1011,11 @@ export default function ReviewAndApproval() {
       </AppSurface>
 
       {/* Pagination */}
-      {!loading && filteredDocuments.length > 0 && (
+      {!loading && raSortedData.length > 0 && (
         <Pagination
           currentPage={currentPage}
-          totalPages={totalPages}
-          totalRecords={filteredDocuments.length}
+          totalPages={raTotalPages}
+          totalRecords={raSortedData.length}
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}

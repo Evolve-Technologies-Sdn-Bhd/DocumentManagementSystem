@@ -1,0 +1,11 @@
+=== E2E AI Test Results ===
+[OK] Health (3354ms) :: {"enabled":true,"configured":true,"model":"gemini-3.6-flash","status":"online","latencyMs":3353,"message":"Connection OK. Model responded in 3353ms"}
+[OK] Summarize (7876ms) :: {"summary":"Ahmad Bin Zainuddin from the Finance Department submitted an annual leave application on 15 April 2025. He is requesting five days of leave from 20 
+[OK] Summarize Bullet (16591ms) :: {"summary":"Ahmad Bin Zainuddin from the Finance Department has submitted an annual leave request for five days, from 20 April 2025 to 24 April 2025. Work dutie
+[OK] Classify (5322ms) :: {"category":"LETTER","confidence":0.92,"reason":"The document is an annual leave application structured as a formal request letter from an employee.","alternati
+[FAIL] Autofill :: fieldDefinitions.map is not a function
+[OK] Suggest Fields (15925ms) :: {"fields":[{"fieldKey":"EMPLOYEE_NAME","label":"Full Name","type":"TEXT","required":true,"placeholder":"e.g. John Doe","helpText":"Enter your full official name
+[OK] Chat (2770ms) :: {"role":"assistant","content":"2 + 2 = **4**.\n\nHow can I help you with your documents or workflows today, Test?","model":"gemini-3.6-flash","finishReason":"ST
+[FAIL] NL Search Parser (BM) :: AI generation failed: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent: [429 Too Many Reques
+
+SUMMARY: 6/8 passed

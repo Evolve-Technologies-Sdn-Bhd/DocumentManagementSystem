@@ -15,6 +15,9 @@ import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 import ActionMenu from './ActionMenu'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import DataTableToolbar from './ui/DataTableToolbar'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 const toDateInputValue = (value) => {
   if (!value) return ''
@@ -59,13 +62,7 @@ function RenewalStatusBadge({ status }) {
 }
 
 function StatCard({ label, value, tone = 'default' }) {
-  const toneClass = {
-    default: 'text-ink',
-    success: 'text-[var(--dms-color-success-ink)]',
-    warning: 'text-[var(--dms-color-warning-ink)]',
-    danger: 'text-[var(--dms-color-danger-ink)]',
-    info: 'text-[var(--dms-color-info-ink)]'
-  }[tone] || 'text-ink'
+  const toneClass = 'text-ink'
 
   return (
     <AppSurface padding="lg" variant="panel" className="space-y-2">
@@ -396,6 +393,68 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
 }
 
 function DetailModal({ open, profile, onClose }) {
+  const [rhDragColIndex, setRhDragColIndex] = useState(null)
+  const [rhDragOverColIndex, setRhDragOverColIndex] = useState(null)
+
+  const renewalHistoryData = useMemo(() => profile?.renewalHistory || [], [profile?.renewalHistory])
+
+  const renewalColumns = useMemo(() => [
+    { id: 'fromVersion', key: 'fromVersion', accessor: 'fromVersion', label: 'From Version', sortable: true, required: true, render: (v) => v || '-' },
+    { id: 'toVersion', key: 'toVersion', accessor: 'toVersion', label: 'To Version', sortable: true, required: true, render: (v) => v || '-' },
+    { id: 'previousExpiryDate', key: 'previousExpiryDate', accessor: 'previousExpiryDate', label: 'Previous Expiry', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
+    { id: 'newExpiryDate', key: 'newExpiryDate', accessor: 'newExpiryDate', label: 'New Expiry', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
+    { id: 'renewedAt', key: 'renewedAt', accessor: 'renewedAt', label: 'Renewed At', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
+    { id: 'remarks', key: 'remarks', accessor: 'remarks', label: 'Remarks', sortable: false, render: (v) => v || '-' }
+  ], [])
+
+  const rhTableFeatures = useTableFeatures({
+    tableId: 'expiry-profile-renewal-history',
+    columns: renewalColumns,
+    data: renewalHistoryData,
+    defaultSortKey: 'renewedAt',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData: rhSortedData,
+    visibleColumns: rhVisibleColumns,
+    orderedColumns: rhOrderedColumns,
+    getSortDirectionFor: rhGetSortDirectionFor,
+    toggleSort: rhToggleSort,
+    moveColumn: rhMoveColumn,
+    hiddenColumns: rhHiddenColumns,
+    toggleColumnVisibility: rhToggleColumnVisibility,
+    resetTableSettings: rhResetTableSettings
+  } = rhTableFeatures
+
+  const rhColDragStart = (idx, e) => {
+    const col = rhVisibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setRhDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const rhColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = rhVisibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setRhDragOverColIndex(idx)
+  }
+  const rhColDragLeave = () => setRhDragOverColIndex(null)
+  const rhColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = rhDragColIndex
+    setRhDragColIndex(null)
+    setRhDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = rhVisibleColumns[fromIdx]?.id
+    const toId = rhVisibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const gf = rhOrderedColumns.findIndex((c) => c.id === fromId)
+    const gt = rhOrderedColumns.findIndex((c) => c.id === toId)
+    if (gf >= 0 && gt >= 0) rhMoveColumn(gf, gt)
+  }
+  const rhColDragEnd = () => { setRhDragColIndex(null); setRhDragOverColIndex(null) }
+
   if (!open || !profile) return null
 
   return (
@@ -453,32 +512,73 @@ function DetailModal({ open, profile, onClose }) {
             <h3 className="text-sm font-semibold text-ink">Renewal History</h3>
             <span className="text-xs text-ink-soft">{profile.renewalHistory?.length || 0} record(s)</span>
           </div>
+          <div className="mb-3 flex justify-end">
+            <ColumnSettingsButton
+              orderedColumns={rhOrderedColumns}
+              hiddenColumns={rhHiddenColumns}
+              onToggleColumn={rhToggleColumnVisibility}
+              onReset={rhResetTableSettings}
+            />
+          </div>
           <TableContainer>
             <Table>
               <thead>
                 <tr>
-                  <Th>From Version</Th>
-                  <Th>To Version</Th>
-                  <Th>Previous Expiry</Th>
-                  <Th>New Expiry</Th>
-                  <Th>Renewed At</Th>
-                  <Th>Remarks</Th>
+                  {rhVisibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && rhDragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={rhGetSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? rhToggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => rhColDragStart(idx, e)}
+                        onDragOver={(e) => rhColDragOver(idx, e)}
+                        onDragLeave={rhColDragLeave}
+                        onDrop={(e) => rhColDrop(idx, e)}
+                        onDragEnd={rhColDragEnd}
+                        className={col.className || ''}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {typeof col.headerRender === 'function' ? col.headerRender() : (col.label || col.header || id)}
+                      </Th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {(profile.renewalHistory || []).length === 0 ? (
+                {rhSortedData.length === 0 ? (
                   <Tr>
-                    <Td colSpan={6} className="py-8 text-center text-sm text-ink-muted">No renewal history yet.</Td>
+                    <Td colSpan={Math.max(rhVisibleColumns.length, 1)} className="py-8 text-center text-sm text-ink-muted">No renewal history yet.</Td>
                   </Tr>
                 ) : (
-                  (profile.renewalHistory || []).map((entry) => (
+                  rhSortedData.map((entry) => (
                     <Tr key={entry.id}>
-                      <Td>{entry.fromVersion || '-'}</Td>
-                      <Td>{entry.toVersion || '-'}</Td>
-                      <Td>{formatDate(entry.previousExpiryDate)}</Td>
-                      <Td>{formatDate(entry.newExpiryDate)}</Td>
-                      <Td>{formatDate(entry.renewedAt)}</Td>
-                      <Td>{entry.remarks || '-'}</Td>
+                      {rhVisibleColumns.map((col) => {
+                        const id = col.id || col.key || col.accessor
+                        const accessor = col.accessor || id
+                        let value
+                        if (typeof accessor === 'function') value = accessor(entry, col)
+                        else value = entry?.[accessor]
+                        const content = typeof col.render === 'function' ? col.render(value, entry) : (value != null ? value : '')
+                        return (
+                          <Td
+                            key={id}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.className || ''}
+                          >
+                            {content}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                   ))
                 )}
@@ -534,6 +634,8 @@ export default function ExpiryTracking() {
   const [editOpen, setEditOpen] = useState(false)
   const [renewalOpen, setRenewalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [mainDragColIndex, setMainDragColIndex] = useState(null)
+  const [mainDragOverColIndex, setMainDragOverColIndex] = useState(null)
 
   const canEdit = hasPermission('expiryTracking', 'edit')
   const canRenew = hasPermission('expiryTracking', 'renew')
@@ -805,6 +907,166 @@ export default function ExpiryTracking() {
     }
   }
 
+  const mainColumns = useMemo(() => [
+    {
+      id: 'documentName',
+      key: 'documentName',
+      accessor: (row) => row.document?.title,
+      label: 'Document Name',
+      sortable: true,
+      required: true,
+      sortComparer: (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' }),
+      render: (_v, record) => (
+        <div className="space-y-1">
+          <p className="font-semibold text-ink">{record.document?.title || '-'}</p>
+          <p className="text-xs text-ink-soft">{record.document?.fileCode || '-'}</p>
+        </div>
+      )
+    },
+    {
+      id: 'type',
+      key: 'type',
+      accessor: (row) => row.document?.documentType,
+      label: 'Type',
+      sortable: true,
+      render: (v) => v || '-'
+    },
+    {
+      id: 'owner',
+      key: 'owner',
+      accessor: (row) => row.document?.ownerName,
+      label: 'Owner',
+      sortable: true,
+      render: (v) => v || '-'
+    },
+    {
+      id: 'startDate',
+      key: 'startDate',
+      accessor: 'startDate',
+      label: 'Start Date',
+      sortable: true,
+      sortType: 'date',
+      render: (v) => formatDate(v)
+    },
+    {
+      id: 'expiryDate',
+      key: 'expiryDate',
+      accessor: 'expiryDate',
+      label: 'Expiry Date',
+      sortable: true,
+      sortType: 'date',
+      render: (v) => formatDate(v)
+    },
+    {
+      id: 'daysLeft',
+      key: 'daysLeft',
+      accessor: 'daysLeft',
+      label: 'Days Left',
+      sortable: true,
+      sortType: 'number',
+      sortComparer: (a, b) => (Number(a ?? 0) - Number(b ?? 0)),
+      render: (v) => v ?? '-'
+    },
+    {
+      id: 'expiryStatus',
+      key: 'expiryStatus',
+      accessor: 'expiryStatus',
+      label: 'Expiry Status',
+      sortable: true,
+      render: (v) => <ExpiryStatusBadge status={v} />
+    },
+    {
+      id: 'renewalStatus',
+      key: 'renewalStatus',
+      accessor: 'renewalStatus',
+      label: 'Renewal Status',
+      sortable: true,
+      render: (v) => <RenewalStatusBadge status={v} />
+    },
+    {
+      id: 'action',
+      key: 'action',
+      accessor: '__action',
+      label: 'Action',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, record) => (
+        <div className="flex justify-end">
+          <ActionMenu
+            dataTourId="expiry-action-menu"
+            actions={[
+              { label: 'View', onClick: () => openProfileDetail(record) },
+              ...(canEdit ? [{ label: 'Update', onClick: () => openEdit(record) }] : []),
+              ...(canRenew && record.document?.allowRenewal
+                ? [
+                    { label: 'Renew', onClick: () => openRenewal(record) }
+                  ]
+                : []
+              ),
+              ...(canRenew && record.renewalStatus === 'IN_PROGRESS'
+                ? [{ label: 'Reject', onClick: () => handleRejectRenewal(record), variant: 'destructive', dividerAfter: true }]
+                : []
+              ),
+              ...(canEdit && record.trackingEnabled
+                ? [{ label: 'Disable', onClick: () => handleDisableTracking(record), variant: 'destructive' }]
+                : []
+              )
+            ]}
+          />
+        </div>
+      )
+    }
+  ], [canEdit, canRenew, openProfileDetail, openEdit, openRenewal, handleRejectRenewal, handleDisableTracking])
+
+  const mainTableFeatures = useTableFeatures({
+    tableId: 'expiry-tracking-main',
+    columns: mainColumns,
+    data: records,
+    defaultSortKey: 'daysLeft',
+    defaultSortDirection: 'asc'
+  })
+
+  const {
+    sortedData: mainSortedData,
+    visibleColumns: mainVisibleColumns,
+    orderedColumns: mainOrderedColumns,
+    getSortDirectionFor: mainGetSortDirectionFor,
+    toggleSort: mainToggleSort,
+    moveColumn: mainMoveColumn,
+    hiddenColumns: mainHiddenColumns,
+    toggleColumnVisibility: mainToggleColumnVisibility,
+    resetTableSettings: mainResetTableSettings
+  } = mainTableFeatures
+
+  const mainColDragStart = (idx, e) => {
+    const col = mainVisibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setMainDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const mainColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = mainVisibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setMainDragOverColIndex(idx)
+  }
+  const mainColDragLeave = () => setMainDragOverColIndex(null)
+  const mainColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = mainDragColIndex
+    setMainDragColIndex(null)
+    setMainDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = mainVisibleColumns[fromIdx]?.id
+    const toId = mainVisibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const gf = mainOrderedColumns.findIndex((c) => c.id === fromId)
+    const gt = mainOrderedColumns.findIndex((c) => c.id === toId)
+    if (gf >= 0 && gt >= 0) mainMoveColumn(gf, gt)
+  }
+  const mainColDragEnd = () => { setMainDragColIndex(null); setMainDragOverColIndex(null) }
+
   return (
     <div className="space-y-6" data-tour-id="expiry-page">
       <PageHeader
@@ -897,67 +1159,75 @@ export default function ExpiryTracking() {
           </div>
         ) : (
           <>
+            <DataTableToolbar paddingClassName="px-6 pt-4 pb-2" rightSlot={<>
+              <ColumnSettingsButton
+                orderedColumns={mainOrderedColumns}
+                hiddenColumns={mainHiddenColumns}
+                onToggleColumn={mainToggleColumnVisibility}
+                onReset={mainResetTableSettings}
+              />
+            </>} />
+
             <TableContainer>
               <Table>
                 <thead>
                   <tr>
-                    <Th>Document Name</Th>
-                    <Th>Type</Th>
-                    <Th>Owner</Th>
-                    <Th>Start Date</Th>
-                    <Th>Expiry Date</Th>
-                    <Th>Days Left</Th>
-                    <Th>Expiry Status</Th>
-                    <Th>Renewal Status</Th>
-                    <Th stickyRight>Action</Th>
+                    {mainVisibleColumns.map((col, idx) => {
+                      const id = col.id || col.key
+                      const canDrag = !col.stickyRight
+                      const isDragOver = canDrag && mainDragOverColIndex === idx
+                      return (
+                        <Th
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          sortable={Boolean(col.sortable)}
+                          sortDirection={mainGetSortDirectionFor(id)}
+                          sortKey={id}
+                          onSort={col.sortable ? mainToggleSort : undefined}
+                          draggable={canDrag}
+                          dragOver={isDragOver}
+                          onDragStart={(e) => mainColDragStart(idx, e)}
+                          onDragOver={(e) => mainColDragOver(idx, e)}
+                          onDragLeave={mainColDragLeave}
+                          onDrop={(e) => mainColDrop(idx, e)}
+                          onDragEnd={mainColDragEnd}
+                          className={col.className || ''}
+                          title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                        >
+                          {typeof col.headerRender === 'function' ? col.headerRender() : (col.label || col.header || id)}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length === 0 ? (
+                  {mainSortedData.length === 0 ? (
                     <Tr>
-                      <Td colSpan={9} className="py-10 text-center text-sm text-ink-muted">No tracked documents found for the selected filters.</Td>
+                      <Td colSpan={Math.max(mainVisibleColumns.length, 1)} className="py-10 text-center text-sm text-ink-muted">No tracked documents found for the selected filters.</Td>
                     </Tr>
                   ) : (
-                    records.map((record) => (
+                    mainSortedData.map((record) => (
                       <Tr key={record.id}>
-                        <Td>
-                          <div className="space-y-1">
-                            <p className="font-semibold text-ink">{record.document?.title || '-'}</p>
-                            <p className="text-xs text-ink-soft">{record.document?.fileCode || '-'}</p>
-                          </div>
-                        </Td>
-                        <Td>{record.document?.documentType || '-'}</Td>
-                        <Td>{record.document?.ownerName || '-'}</Td>
-                        <Td>{formatDate(record.startDate)}</Td>
-                        <Td>{formatDate(record.expiryDate)}</Td>
-                        <Td>{record.daysLeft ?? '-'}</Td>
-                        <Td><ExpiryStatusBadge status={record.expiryStatus} /></Td>
-                        <Td><RenewalStatusBadge status={record.renewalStatus} /></Td>
-                        <Td stickyRight>
-                          <div className="flex justify-end">
-                            <ActionMenu
-                              dataTourId="expiry-action-menu"
-                              actions={[
-                                { label: 'View', onClick: () => openProfileDetail(record) },
-                                ...(canEdit ? [{ label: 'Update', onClick: () => openEdit(record) }] : []),
-                                ...(canRenew && record.document?.allowRenewal
-                                  ? [
-                                      { label: 'Renew', onClick: () => openRenewal(record) }
-                                    ]
-                                  : []
-                                ),
-                                ...(canRenew && record.renewalStatus === 'IN_PROGRESS'
-                                  ? [{ label: 'Reject', onClick: () => handleRejectRenewal(record), variant: 'destructive', dividerAfter: true }]
-                                  : []
-                                ),
-                                ...(canEdit && record.trackingEnabled
-                                  ? [{ label: 'Disable', onClick: () => handleDisableTracking(record), variant: 'destructive' }]
-                                  : []
-                                )
-                              ]}
-                            />
-                          </div>
-                        </Td>
+                        {mainVisibleColumns.map((col) => {
+                          const id = col.id || col.key || col.accessor
+                          const accessor = col.accessor || id
+                          let value
+                          if (typeof accessor === 'function') value = accessor(record, col)
+                          else if (accessor === '__action') value = null
+                          else value = record?.[accessor]
+                          const content = typeof col.render === 'function' ? col.render(value, record) : (value != null ? value : '')
+                          return (
+                            <Td
+                              key={id}
+                              align={col.align || 'left'}
+                              stickyRight={col.stickyRight || false}
+                              className={col.className || ''}
+                            >
+                              {content}
+                            </Td>
+                          )
+                        })}
                       </Tr>
                     ))
                   )}

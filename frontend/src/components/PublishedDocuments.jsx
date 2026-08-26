@@ -21,8 +21,11 @@ import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
 import FolderTreePicker from './ui/FolderTreePicker'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import DataTableToolbar from './ui/DataTableToolbar'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 export default function PublishedDocuments() {
   const { itemsPerPage, formatDate, t } = usePreferences()
@@ -100,6 +103,8 @@ export default function PublishedDocuments() {
   const [moveError, setMoveError] = useState('')
   const [dragMovePayload, setDragMovePayload] = useState(null)
   const [dragTargetFolderId, setDragTargetFolderId] = useState(null)
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   // Helper function to flatten folder hierarchy for display
   const flattenFolders = (folderList, level = 0, parentPath = []) => {
@@ -1470,6 +1475,178 @@ export default function PublishedDocuments() {
     )
   }
 
+  const baseColumns = [
+    ...(canUpdatePublished
+      ? [
+          {
+            id: 'select', key: 'select', accessor: '__select', label: '', required: true, sortable: false, align: 'center',
+            render: (_v, doc) => (
+              <input
+                type="checkbox"
+                checked={doc.isFolder ? selectedFolderIds.includes(doc.folderId) : selectedDocumentIds.includes(doc.id)}
+                onChange={(e) => toggleSelectedItem(doc, e.target.checked)}
+                className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                aria-label={`Select ${getItemDisplayName(doc)}`}
+              />
+            ),
+            headerRender: () => (
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                aria-label="Select all visible items"
+              />
+            )
+          }
+        ]
+      : []
+    ),
+    {
+      id: 'fileCode', key: 'fileCode', accessor: 'fileCode', label: t('file_code'), sortable: true, required: true,
+      render: (v) => <span className="font-medium text-ink">{v || '-'}</span>
+    },
+    {
+      id: 'fileName', key: 'fileName', accessor: 'title', label: t('file_name'), sortable: true, required: true,
+      render: (_v, doc) => (
+        <div className="flex items-center">
+          <span className={doc.isFolder ? 'text-ink font-medium' : 'text-brand hover:text-brand-hover font-medium'}>
+            {getItemDisplayName(doc)}
+          </span>
+          {doc.isFolder &&
+          dragTargetFolderId === toFolderId(doc.folderId) &&
+          canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate }) ? (
+            <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">Drop here</span>
+          ) : null}
+        </div>
+      )
+    },
+    { id: 'type', key: 'type', accessor: 'type', label: t('type'), sortable: true },
+    {
+      id: 'size', key: 'size', accessor: 'size', label: t('size'), sortable: true,
+      className: 'hidden lg:table-cell'
+    },
+    {
+      id: 'lastModified', key: 'lastModified', accessor: 'lastModified', label: t('last_modified'), sortable: true, sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      className: 'hidden xl:table-cell text-sm'
+    },
+    {
+      id: 'status', key: 'status', accessor: 'status', label: t('status'), sortable: true,
+      className: 'hidden lg:table-cell py-3',
+      render: (v) => v !== '-' ? <StatusBadge status={v} /> : <span className="text-ink-muted">-</span>
+    },
+    {
+      id: 'actions', key: 'actions', accessor: '__actions', label: t('actions'), required: true, align: 'right', stickyRight: true, className: 'py-3',
+      render: (_v, doc) => (
+        !doc.isFolder ? (
+          <ActionMenu
+            actions={[
+              ...(hasPermission('documents.published', 'read')
+                ? [
+                    ...(doc.canDownload ? [{ label: t('download'), onClick: () => handleDownload(doc) }] : []),
+                    { label: t('view'), onClick: () => handleView(doc) },
+                    { label: 'Share', onClick: () => setShowShareDocument(doc) }
+                  ]
+                : []
+              ),
+              ...(hasPermission('documents.published', 'update')
+                ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, getItemDisplayName(doc)) }]
+                : []
+              ),
+              ...(canEditExpiryTracking
+                ? [{
+                    label: doc.trackingEnabled ? 'Update Expiry' : 'Set Expiry',
+                    onClick: () => openExpiryModal(doc)
+                  }]
+                : []
+              ),
+              ...(hasPermission('documents.published', 'update') && !['OBSOLETE', 'SUPERSEDED'].includes(doc.status)
+                ? [
+                    { label: t('obsolete_action'), onClick: () => handleObsolete(doc) },
+                    { label: t('supersede_action'), onClick: () => handleSupersede(doc) }
+                  ]
+                : []
+              ),
+              ...(hasPermission('documents.published', 'delete')
+                ? [
+                    ...(isAdmin ? [{ label: 'Delete as Admin', onClick: () => handleDelete(doc), variant: 'destructive' }] : [])
+                  ]
+                : []
+              )
+            ]}
+          />
+        ) : (
+          <ActionMenu
+            actions={[
+              ...(doc.canDownload ? [{ label: t('download_folder'), onClick: () => handleDownloadFolder({ id: doc.folderId, name: getItemDisplayName(doc) }) }] : []),
+              ...((doc.canEdit || doc.canManage || isAdmin)
+                ? [{ label: 'Rename', onClick: () => openRename('folder', doc.folderId, getItemDisplayName(doc)) }]
+                : []),
+              ...(doc.canManage
+                ? [{ label: 'Manage Access', onClick: () => openManageAccess({ id: doc.folderId, name: getItemDisplayName(doc) }) }]
+                : []),
+              ...(isAdmin
+                ? [{ label: 'Delete as Admin', onClick: () => handleDeleteFolder(doc.folderId, getItemDisplayName(doc)), variant: 'destructive' }]
+                : [])
+            ]}
+          />
+        )
+      )
+    }
+  ]
+
+  const pubTableFeatures = useTableFeatures({
+    tableId: 'published-documents-list',
+    columns: baseColumns,
+    data: currentDocuments || [],
+    defaultSortKey: 'lastModified',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData: pubSortedData,
+    visibleColumns: pubVisibleColumns,
+    orderedColumns: pubOrderedColumns,
+    getSortDirectionFor: pubGetSortDirectionFor,
+    toggleSort: pubToggleSort,
+    moveColumn: pubMoveColumn,
+    hiddenColumns: pubHiddenColumns,
+    toggleColumnVisibility: pubToggleColumnVisibility,
+    resetTableSettings: pubResetTableSettings
+  } = pubTableFeatures
+
+  const pubPaginatedData = pubSortedData
+  useEffect(() => { setCurrentPage(1) }, [pubSortedData.length])
+
+  const pubColDragStart = (idx, e) => {
+    const col = pubVisibleColumns[idx]
+    if (!col || col.stickyRight || col.id === 'select') { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const pubColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = pubVisibleColumns[idx]
+    if (!col || col.stickyRight || col.id === 'select') return
+    setDragOverColIndex(idx)
+  }
+  const pubColDragLeave = () => setDragOverColIndex(null)
+  const pubColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = pubVisibleColumns[fromIdx]?.id
+    const toId = pubVisibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const gf = pubOrderedColumns.findIndex((c) => c.id === fromId)
+    const gt = pubOrderedColumns.findIndex((c) => c.id === toId)
+    if (gf >= 0 && gt >= 0) pubMoveColumn(gf, gt)
+  }
+  const pubColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   return (
     <div className="flex h-full min-h-0 bg-surface-muted">
       {/* Modal Components */}
@@ -1793,8 +1970,17 @@ export default function PublishedDocuments() {
               </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="mt-4 relative">
+          </AppSurface>
+
+          <DataTableToolbar rightSlot={<>
+            <ColumnSettingsButton
+              orderedColumns={pubOrderedColumns}
+              hiddenColumns={pubHiddenColumns}
+              onToggleColumn={pubToggleColumnVisibility}
+              onReset={pubResetTableSettings}
+            />
+          </>}>
+            <div className="flex-1 relative">
               <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -1806,7 +1992,7 @@ export default function PublishedDocuments() {
                 className="pl-10 pr-10"
               />
             </div>
-          </AppSurface>
+          </DataTableToolbar>
 
           {canUpdatePublished && selectedCount > 0 && (
             <AppSurface padding="md" className="mb-4">
@@ -1832,39 +2018,48 @@ export default function PublishedDocuments() {
               <Table>
                 <thead className="bg-surface-muted">
                   <tr>
-                    {canUpdatePublished && (
-                      <Th className="w-12">
-                        <input
-                          type="checkbox"
-                          checked={allVisibleSelected}
-                          onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                          className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                          aria-label="Select all visible items"
-                        />
-                      </Th>
-                    )}
-                    <Th>{t('file_code')}</Th>
-                    <Th>{t('file_name')}</Th>
-                    <Th>{t('type')}</Th>
-                    <Th className="hidden lg:table-cell">{t('size')}</Th>
-                    <Th className="hidden xl:table-cell">{t('last_modified')}</Th>
-                    <Th className="hidden lg:table-cell">{t('status')}</Th>
-                    <Th stickyRight>{t('actions')}</Th>
+                    {pubVisibleColumns.map((col, idx) => {
+                      const id = col.id || col.key
+                      const canDrag = !col.stickyRight && id !== 'select'
+                      const isDragOver = canDrag && dragOverColIndex === idx
+                      return (
+                        <Th
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          sortable={Boolean(col.sortable)}
+                          sortDirection={pubGetSortDirectionFor(id)}
+                          sortKey={id}
+                          onSort={col.sortable ? pubToggleSort : undefined}
+                          draggable={canDrag}
+                          dragOver={isDragOver}
+                          onDragStart={(e) => pubColDragStart(idx, e)}
+                          onDragOver={(e) => pubColDragOver(idx, e)}
+                          onDragLeave={pubColDragLeave}
+                          onDrop={(e) => pubColDrop(idx, e)}
+                          onDragEnd={pubColDragEnd}
+                          className={col.className || ''}
+                          title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                        >
+                          {typeof col.headerRender === 'function' ? col.headerRender() : (col.label || col.header || id)}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={canUpdatePublished ? 8 : 7} className="py-10">
+                      <td colSpan={Math.max(pubVisibleColumns.length, 1)} className="py-10">
                         <div className="flex flex-col items-center gap-2">
                           <InlineSpinner className="h-8 w-8 border-2" />
                           <span className="text-sm text-ink-muted">{t('loading_documents')}</span>
                         </div>
                       </td>
                     </tr>
-                  ) : currentDocuments.length === 0 ? (
+                  ) : pubPaginatedData.length === 0 ? (
                     <tr>
-                      <td colSpan={canUpdatePublished ? 8 : 7}>
+                      <td colSpan={Math.max(pubVisibleColumns.length, 1)}>
                         <EmptyState
                           message={searchQuery ? t('no_documents') : selectedFolder ? t('no_documents') : t('select_folder_view')}
                           description={searchQuery ? t('adjust_search') : selectedFolder ? t('no_published_in_folder') : t('click_folder_view')}
@@ -1886,7 +2081,7 @@ export default function PublishedDocuments() {
                       </td>
                     </tr>
                   ) : (
-                    currentDocuments.map((doc) => (
+                    pubPaginatedData.map((doc) => (
                       <Tr
                         key={doc.id}
                         className={`cursor-pointer ${canUpdatePublished ? 'select-none' : ''} ${
@@ -1921,93 +2116,26 @@ export default function PublishedDocuments() {
                           }
                         }}
                       >
-                        {canUpdatePublished && (
-                          <Td onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={doc.isFolder ? selectedFolderIds.includes(doc.folderId) : selectedDocumentIds.includes(doc.id)}
-                              onChange={(e) => toggleSelectedItem(doc, e.target.checked)}
-                              className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                              aria-label={`Select ${getItemDisplayName(doc)}`}
-                            />
-                          </Td>
-                        )}
-                        <Td>
-                          <span className="font-medium text-ink">{doc.fileCode || '-'}</span>
-                        </Td>
-                        <Td>
-                          <div className="flex items-center">
-                            <span className={doc.isFolder ? 'text-ink font-medium' : 'text-brand hover:text-brand-hover font-medium'}>
-                              {getItemDisplayName(doc)}
-                            </span>
-                            {doc.isFolder && dragTargetFolderId === toFolderId(doc.folderId) && canDropPayloadIntoFolder(dragMovePayload, { id: doc.folderId, name: doc.fileName, canCreate: doc.canCreate }) ? (
-                              <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
-                                Drop here
-                              </span>
-                            ) : null}
-                          </div>
-                        </Td>
-                        <Td>{doc.type}</Td>
-                        <Td className="hidden lg:table-cell">{doc.size}</Td>
-                        <Td className="hidden xl:table-cell text-sm">{doc.lastModified}</Td>
-                        <Td className="hidden lg:table-cell py-3">
-                          {doc.status !== '-' ? <StatusBadge status={doc.status} /> : <span className="text-ink-muted">-</span>}
-                        </Td>
-                        <Td stickyRight className="py-3">
-                          {!doc.isFolder ? (
-                            <ActionMenu
-                              actions={[
-                                ...(hasPermission('documents.published', 'read')
-                                  ? [
-                                      ...(doc.canDownload ? [{ label: t('download'), onClick: () => handleDownload(doc) }] : []),
-                                      { label: t('view'), onClick: () => handleView(doc) },
-                                      { label: 'Share', onClick: () => setShowShareDocument(doc) }
-                                    ]
-                                  : []
-                                ),
-                                ...(hasPermission('documents.published', 'update')
-                                  ? [{ label: 'Rename', onClick: () => openRename('file', doc.id, getItemDisplayName(doc)) }]
-                                  : []
-                                ),
-                                ...(canEditExpiryTracking
-                                  ? [{
-                                      label: doc.trackingEnabled ? 'Update Expiry' : 'Set Expiry',
-                                      onClick: () => openExpiryModal(doc)
-                                    }]
-                                  : []
-                                ),
-                                ...(hasPermission('documents.published', 'update') && !['OBSOLETE', 'SUPERSEDED'].includes(doc.status)
-                                  ? [
-                                      { label: t('obsolete_action'), onClick: () => handleObsolete(doc) },
-                                      { label: t('supersede_action'), onClick: () => handleSupersede(doc) }
-                                    ]
-                                  : []
-                                ),
-                                ...(hasPermission('documents.published', 'delete')
-                                  ? [
-                                      ...(isAdmin ? [{ label: 'Delete as Admin', onClick: () => handleDelete(doc), variant: 'destructive' }] : [])
-                                    ]
-                                  : []
-                                )
-                              ]}
-                            />
-                          ) : (
-                            <ActionMenu
-                              actions={[
-                                ...(doc.canDownload ? [{ label: t('download_folder'), onClick: () => handleDownloadFolder({ id: doc.folderId, name: getItemDisplayName(doc) }) }] : []),
-                                ...((doc.canEdit || doc.canManage || isAdmin)
-                                  ? [{ label: 'Rename', onClick: () => openRename('folder', doc.folderId, getItemDisplayName(doc)) }]
-                                  : []),
-                                ...(doc.canManage
-                                  ? [{ label: 'Manage Access', onClick: () => openManageAccess({ id: doc.folderId, name: getItemDisplayName(doc) }) }]
-                                  : []),
-                                ...(isAdmin
-                                  ? [{ label: 'Delete as Admin', onClick: () => handleDeleteFolder(doc.folderId, getItemDisplayName(doc)), variant: 'destructive' }]
-                                  : [])
-                              ]}
-                            />
-                          )}
-                        </Td>
+                        {pubVisibleColumns.map((col) => {
+                          const id = col.id || col.key || col.accessor
+                          const accessor = col.accessor || id
+                          let value
+                          if (typeof accessor === 'function') value = accessor(doc, col)
+                          else if (accessor === '__actions' || accessor === '__select') value = null
+                          else value = doc?.[accessor]
+                          const content = typeof col.render === 'function' ? col.render(value, doc) : (value != null ? value : '')
+                          return (
+                            <Td
+                              key={id}
+                              align={col.align || 'left'}
+                              stickyRight={col.stickyRight || false}
+                              className={col.className || ''}
+                              onClick={id === 'select' ? (e) => e.stopPropagation() : undefined}
+                            >
+                              {content}
+                            </Td>
+                          )
+                        })}
                       </Tr>
                     ))
                   )}

@@ -21,6 +21,9 @@ import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import IconButton from './ui/IconButton'
 import ActionMenu from './ActionMenu'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import useTableFeatures from '../hooks/useTableFeatures'
+import DataTableToolbar from './ui/DataTableToolbar'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -773,6 +776,8 @@ function ActivityModal({ projectId, onClose }) {
   const [limit] = useState(20)
   const [total, setTotal] = useState(0)
   const [logs, setLogs] = useState([])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const load = async (p) => {
     setLoading(true)
@@ -796,6 +801,114 @@ function ActivityModal({ projectId, onClose }) {
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
 
+  const actColumns = useMemo(() => ([
+    {
+      id: 'timestamp',
+      accessor: (row) => row.timestamp ? new Date(row.timestamp).getTime() : 0,
+      label: 'Time',
+      sortable: true,
+      sortType: 'date',
+      render: (_value, row) => row.timestamp ? new Date(row.timestamp).toLocaleString() : '-'
+    },
+    {
+      id: 'user',
+      accessor: 'user',
+      label: 'User',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'scope',
+      accessor: (row) => row.entity === 'ProjectIteration' ? 'Phase' : 'Project',
+      label: 'Scope',
+      sortable: true
+    },
+    {
+      id: 'action',
+      accessor: 'action',
+      label: 'Action',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'description',
+      accessor: 'description',
+      label: 'Description',
+      sortable: true,
+      render: (value) => value || ''
+    }
+  ]), [])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn
+  } = useTableFeatures({
+    tableId: 'pt-activity-log',
+    columns: actColumns,
+    data: logs
+  })
+
+  const handleColDragStart = (e, visibleIdx) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) {
+      e.preventDefault()
+      return
+    }
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+
+  const handleColDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const col = visibleColumns[visibleIdx]
+    if (!col) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    if (dragOverColIndex !== globalIdx) setDragOverColIndex(globalIdx)
+  }
+
+  const handleColDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleColDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    const toCol = visibleColumns[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const toIdx = orderedColumns.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const fromCol = orderedColumns[fromIdx]
+    const toColMeta = orderedColumns[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(fromIdx, toIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleColDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
   return (
     <ModalShell title="Project Activity Logs" onClose={onClose}>
       {loading ? (
@@ -809,21 +922,51 @@ function ActivityModal({ projectId, onClose }) {
             <Table>
               <thead>
                 <Tr className="hover:bg-transparent">
-                  <Th>Time</Th>
-                  <Th>User</Th>
-                  <Th>Scope</Th>
-                  <Th>Action</Th>
-                  <Th>Description</Th>
+                  {visibleColumns.map((col, visibleIdx) => {
+                    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+                    return (
+                      <Th
+                        key={col.id}
+                        sortable={col.sortable !== false}
+                        sortDirection={getSortDirectionFor(col.id)}
+                        sortKey={col.id}
+                        onSort={toggleSort}
+                        draggable={!col.stickyRight && col.sortable !== false}
+                        onDragStart={(e) => handleColDragStart(e, visibleIdx)}
+                        onDragOver={(e) => handleColDragOver(e, visibleIdx)}
+                        onDragLeave={handleColDragLeave}
+                        onDrop={(e) => handleColDrop(e, visibleIdx)}
+                        onDragEnd={handleColDragEnd}
+                        dragOver={dragOverColIndex === globalIdx}
+                        className={col.className || ''}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        title={col.label}
+                      >
+                        {col.label}
+                      </Th>
+                    )
+                  })}
                 </Tr>
               </thead>
               <tbody>
-                {logs.map((l) => (
+                {sortedData.map((l) => (
                   <Tr key={l.id}>
-                    <Td className="whitespace-nowrap">{new Date(l.timestamp).toLocaleString()}</Td>
-                    <Td className="whitespace-nowrap">{l.user}</Td>
-                    <Td className="whitespace-nowrap">{l.entity === 'ProjectIteration' ? 'Phase' : 'Project'}</Td>
-                    <Td className="whitespace-nowrap">{l.action}</Td>
-                    <Td>{l.description}</Td>
+                    {visibleColumns.map((col) => {
+                      const value = typeof col.accessor === 'function'
+                        ? col.accessor(l)
+                        : l?.[col.accessor]
+                      return (
+                        <Td
+                          key={col.id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.cellClassName || ''}
+                        >
+                          {col.render ? col.render(value, l) : (value ?? '')}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>
@@ -1027,6 +1170,8 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
   const [rows, setRows] = useState([initialRow])
   const [loadingExisting, setLoadingExisting] = useState(false)
   const [loadingExistingError, setLoadingExistingError] = useState('')
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -1185,6 +1330,206 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
     }
   }
 
+  const crColumns = useMemo(() => ([
+    {
+      id: 'changeId',
+      accessor: 'changeId',
+      label: 'Change ID *',
+      sortable: true,
+      required: true,
+      className: 'sticky top-0 z-10 bg-surface w-[110px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => {
+        const changeIdTrim = String(row.changeId || '').trim()
+        const showRequired = Boolean(row.error) && /required/i.test(String(row.error))
+        return (
+          <TextInput
+            value={row.changeId}
+            onChange={(e) => updateRow(row.key, { changeId: e.target.value })}
+            placeholder="CR-01"
+            invalid={showRequired && !changeIdTrim}
+          />
+        )
+      }
+    },
+    {
+      id: 'phaseRef',
+      accessor: 'phaseRef',
+      label: 'Phase Ref',
+      sortable: true,
+      className: 'sticky top-0 z-10 bg-surface w-[120px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => (
+        <TextInput value={row.phaseRef} onChange={(e) => updateRow(row.key, { phaseRef: e.target.value })} placeholder="Phase 2" />
+      )
+    },
+    {
+      id: 'description',
+      accessor: 'description',
+      label: 'Description of Amendment *',
+      sortable: true,
+      required: true,
+      className: 'sticky top-0 z-10 bg-surface w-[260px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => {
+        const descriptionTrim = String(row.description || '').trim()
+        const showRequired = Boolean(row.error) && /required/i.test(String(row.error))
+        return (
+          <TextArea
+            value={row.description}
+            onChange={(e) => updateRow(row.key, { description: e.target.value })}
+            rows={3}
+            placeholder="Describe amendment..."
+            invalid={showRequired && !descriptionTrim}
+          />
+        )
+      }
+    },
+    {
+      id: 'impact',
+      accessor: 'impact',
+      label: 'Impact (Cost / Schedule / Scope)',
+      sortable: true,
+      className: 'sticky top-0 z-10 bg-surface w-[220px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => (
+        <TextArea value={row.impact} onChange={(e) => updateRow(row.key, { impact: e.target.value })} rows={3} placeholder="Impact..." />
+      )
+    },
+    {
+      id: 'authorizedBy',
+      accessor: 'authorizedBy',
+      label: 'Authorized By',
+      sortable: true,
+      className: 'sticky top-0 z-10 bg-surface w-[150px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => (
+        <TextInput value={row.authorizedBy} onChange={(e) => updateRow(row.key, { authorizedBy: e.target.value })} placeholder="Name" />
+      )
+    },
+    {
+      id: 'complianceSignOff',
+      accessor: 'complianceSignOff',
+      label: 'Compliance Sign-Off',
+      sortable: true,
+      className: 'sticky top-0 z-10 bg-surface w-[170px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => (
+        <TextInput value={row.complianceSignOff} onChange={(e) => updateRow(row.key, { complianceSignOff: e.target.value })} placeholder="Signature / Ref" />
+      )
+    },
+    {
+      id: 'dateApproved',
+      accessor: (row) => row.dateApproved || '',
+      label: 'Date Approved',
+      sortable: true,
+      sortType: 'date',
+      className: 'sticky top-0 z-10 bg-surface w-[150px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => (
+        <TextInput type="date" value={row.dateApproved} onChange={(e) => updateRow(row.key, { dateApproved: e.target.value })} />
+      )
+    },
+    {
+      id: 'actions',
+      accessor: () => '',
+      label: 'Actions',
+      sortable: false,
+      stickyRight: true,
+      required: true,
+      className: 'sticky top-0 z-30 bg-surface w-[140px] !px-3',
+      cellClassName: '!px-3',
+      render: (_value, row) => {
+        const changeIdTrim = String(row.changeId || '').trim()
+        const descriptionTrim = String(row.description || '').trim()
+        const canSave = Boolean(changeIdTrim && descriptionTrim)
+        return (
+          <div className="flex items-center gap-2">
+            <Button type="button" disabled={row.saving || !canSave} onClick={() => saveRow(row)}>
+              {row.saving && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {row.mode === 'edit' ? 'Update' : 'Save'}
+            </Button>
+            {row.mode === 'create' && (
+              <Button type="button" variant="secondary" onClick={() => removeRow(row.key)} disabled={row.saving}>
+                Remove
+              </Button>
+            )}
+          </div>
+        )
+      }
+    }
+  ]), [])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn
+  } = useTableFeatures({
+    tableId: 'pt-change-requests',
+    columns: crColumns,
+    data: rows
+  })
+
+  const handleColDragStart = (e, visibleIdx) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) {
+      e.preventDefault()
+      return
+    }
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+
+  const handleColDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const col = visibleColumns[visibleIdx]
+    if (!col) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    if (dragOverColIndex !== globalIdx) setDragOverColIndex(globalIdx)
+  }
+
+  const handleColDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleColDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    const toCol = visibleColumns[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const toIdx = orderedColumns.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const fromCol = orderedColumns[fromIdx]
+    const toColMeta = orderedColumns[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(fromIdx, toIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleColDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
   return (
     <ModalShell title="Key In Change Request" onClose={onClose} maxWidthClass="w-[98vw] max-w-[1700px]">
       <div className="space-y-4">
@@ -1200,20 +1545,37 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
           <Table className="table-fixed">
             <thead>
               <Tr>
-                <Th className="sticky top-0 z-10 bg-surface w-[110px] !px-3">Change ID *</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[120px] !px-3">Phase Ref</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[260px] !px-3">Description of Amendment *</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[220px] !px-3">Impact (Cost / Schedule / Scope)</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Authorized By</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[170px] !px-3">Compliance Sign-Off</Th>
-                <Th className="sticky top-0 z-10 bg-surface w-[150px] !px-3">Date Approved</Th>
-                <Th stickyRight className="sticky top-0 z-30 bg-surface w-[140px] !px-3">Actions</Th>
+                {visibleColumns.map((col, visibleIdx) => {
+                  const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+                  return (
+                    <Th
+                      key={col.id}
+                      sortable={col.sortable !== false}
+                      sortDirection={getSortDirectionFor(col.id)}
+                      sortKey={col.id}
+                      onSort={toggleSort}
+                      draggable={!col.stickyRight && col.sortable !== false}
+                      onDragStart={(e) => handleColDragStart(e, visibleIdx)}
+                      onDragOver={(e) => handleColDragOver(e, visibleIdx)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(e, visibleIdx)}
+                      onDragEnd={handleColDragEnd}
+                      dragOver={dragOverColIndex === globalIdx}
+                      className={col.className || ''}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      title={col.label}
+                    >
+                      {col.label}
+                    </Th>
+                  )
+                })}
               </Tr>
             </thead>
             <tbody>
               {loadingExisting ? (
                 <Tr>
-                  <Td colSpan={8} className="py-6">
+                  <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-6">
                     <div className="flex items-center gap-2 text-sm text-ink-muted">
                       <InlineSpinner className="h-4 w-4" />
                       <span>Loading change requests...</span>
@@ -1221,64 +1583,30 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
                   </Td>
                 </Tr>
               ) : null}
-              {rows.map((r) => {
-                const changeIdTrim = String(r.changeId || '').trim()
-                const descriptionTrim = String(r.description || '').trim()
+              {sortedData.map((r) => {
                 const showRequired = Boolean(r.error) && /required/i.test(String(r.error))
-                const canSave = Boolean(changeIdTrim && descriptionTrim)
-
                 return (
                   <React.Fragment key={r.key}>
                     <Tr>
-                      <Td className="!px-3">
-                        <TextInput
-                          value={r.changeId}
-                          onChange={(e) => updateRow(r.key, { changeId: e.target.value })}
-                          placeholder="CR-01"
-                          invalid={showRequired && !changeIdTrim}
-                        />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextInput value={r.phaseRef} onChange={(e) => updateRow(r.key, { phaseRef: e.target.value })} placeholder="Phase 2" />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextArea
-                          value={r.description}
-                          onChange={(e) => updateRow(r.key, { description: e.target.value })}
-                          rows={3}
-                          placeholder="Describe amendment..."
-                          invalid={showRequired && !descriptionTrim}
-                        />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextArea value={r.impact} onChange={(e) => updateRow(r.key, { impact: e.target.value })} rows={3} placeholder="Impact..." />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextInput value={r.authorizedBy} onChange={(e) => updateRow(r.key, { authorizedBy: e.target.value })} placeholder="Name" />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextInput value={r.complianceSignOff} onChange={(e) => updateRow(r.key, { complianceSignOff: e.target.value })} placeholder="Signature / Ref" />
-                      </Td>
-                      <Td className="!px-3">
-                        <TextInput type="date" value={r.dateApproved} onChange={(e) => updateRow(r.key, { dateApproved: e.target.value })} />
-                      </Td>
-                      <Td stickyRight className="!px-3">
-                        <div className="flex items-center gap-2">
-                          <Button type="button" disabled={r.saving || !canSave} onClick={() => saveRow(r)}>
-                            {r.saving && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-                            {r.mode === 'edit' ? 'Update' : 'Save'}
-                          </Button>
-                          {r.mode === 'create' && (
-                            <Button type="button" variant="secondary" onClick={() => removeRow(r.key)} disabled={r.saving}>
-                              Remove
-                            </Button>
-                          )}
-                        </div>
-                      </Td>
+                      {visibleColumns.map((col) => {
+                        const value = typeof col.accessor === 'function'
+                          ? col.accessor(r)
+                          : r?.[col.accessor]
+                        return (
+                          <Td
+                            key={col.id}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.cellClassName || ''}
+                          >
+                            {col.render ? col.render(value, r) : (value ?? '')}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                     {r.error && (
                       <Tr>
-                        <Td colSpan={8} className="text-sm text-[var(--dms-color-danger-ink)]">{r.error}</Td>
+                        <Td colSpan={Math.max(visibleColumns.length, 1)} className="text-sm text-[var(--dms-color-danger-ink)]">{r.error}</Td>
                       </Tr>
                     )}
                   </React.Fragment>
@@ -2373,6 +2701,8 @@ function ProjectsList({ onOpenProject }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
   const [showCreate, setShowCreate] = useState(false)
+  const [plDragColIdx, setPlDragColIdx] = useState(null)
+  const [plDragOverColIdx, setPlDragOverColIdx] = useState(null)
 
   const canCreate = hasPermission('projectTracking', 'create')
 
@@ -2401,27 +2731,159 @@ function ProjectsList({ onOpenProject }) {
     setCurrentPage(1)
   }, [projects, search])
 
-  const totalItems = filtered.length
+  const plColumns = useMemo(() => ([
+    {
+      id: 'code',
+      accessor: 'code',
+      label: 'Code',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-medium text-brand">{value || '-'}</span>
+    },
+    {
+      id: 'name',
+      accessor: 'name',
+      label: 'Name',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="text-ink">{value || '-'}</span>
+    },
+    {
+      id: 'status',
+      accessor: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (value) => <ProjectStatusBadge status={value} />
+    },
+    {
+      id: 'category',
+      accessor: (row) => row.projectCategory?.name || '',
+      label: 'Category',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'manager',
+      accessor: (row) => `${row.manager?.firstName || ''} ${row.manager?.lastName || ''}`.trim() || row.manager?.email || '',
+      label: 'Manager',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'latestPhase',
+      accessor: (row) => row.iterations?.[0] ? `Phase ${row.iterations[0].iterationNo} • ${row.iterations[0].currentStage?.name || ''}` : '',
+      label: 'Latest Phase',
+      sortable: true,
+      render: (value) => value || '-'
+    }
+  ]), [])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'pt-projects-list',
+    columns: plColumns,
+    data: filtered
+  })
+
+  const totalItems = sortedData.length
   const totalPages = Math.ceil(totalItems / pageSize)
-  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const paginated = sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const handlePlColDragStart = (e, visibleIdx) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) {
+      e.preventDefault()
+      return
+    }
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    setPlDragColIdx(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+
+  const handlePlColDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const col = visibleColumns[visibleIdx]
+    if (!col) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    if (plDragOverColIdx !== globalIdx) setPlDragOverColIdx(globalIdx)
+  }
+
+  const handlePlColDragLeave = () => {
+    setPlDragOverColIdx(null)
+  }
+
+  const handlePlColDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = plDragColIdx
+    const toCol = visibleColumns[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) {
+      setPlDragColIdx(null)
+      setPlDragOverColIdx(null)
+      return
+    }
+    const toIdx = orderedColumns.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) {
+      setPlDragColIdx(null)
+      setPlDragOverColIdx(null)
+      return
+    }
+    const fromCol = orderedColumns[fromIdx]
+    const toColMeta = orderedColumns[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) {
+      setPlDragColIdx(null)
+      setPlDragOverColIdx(null)
+      return
+    }
+    moveColumn(fromIdx, toIdx)
+    setPlDragColIdx(null)
+    setPlDragOverColIdx(null)
+  }
+
+  const handlePlColDragEnd = () => {
+    setPlDragColIdx(null)
+    setPlDragOverColIdx(null)
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex-1">
-          <TextInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t ? t('search') : 'Search...'}
-            className="w-full sm:max-w-md"
-          />
-        </div>
-        {canCreate && (
-          <Button onClick={() => setShowCreate(true)}>
-            Create Project
-          </Button>
-        )}
-      </div>
+      <DataTableToolbar
+        left={
+          <div className="flex-1">
+            <TextInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t ? t('search') : 'Search...'}
+              className="w-full sm:max-w-md"
+            />
+          </div>
+        }
+        right={
+          <div className="flex items-center gap-2">
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
+            {canCreate && (
+              <Button onClick={() => setShowCreate(true)}>
+                Create Project
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {loading ? (
         <AppSurface padding="lg">
@@ -2438,27 +2900,51 @@ function ProjectsList({ onOpenProject }) {
             <Table>
               <thead>
                 <tr>
-                  <Th>Code</Th>
-                  <Th>Name</Th>
-                  <Th>Status</Th>
-                  <Th>Category</Th>
-                  <Th>Manager</Th>
-                  <Th>Latest Phase</Th>
+                  {visibleColumns.map((col, visibleIdx) => {
+                    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+                    return (
+                      <Th
+                        key={col.id}
+                        sortable={col.sortable !== false}
+                        sortDirection={getSortDirectionFor(col.id)}
+                        sortKey={col.id}
+                        onSort={toggleSort}
+                        draggable={!col.stickyRight && col.sortable !== false}
+                        onDragStart={(e) => handlePlColDragStart(e, visibleIdx)}
+                        onDragOver={(e) => handlePlColDragOver(e, visibleIdx)}
+                        onDragLeave={handlePlColDragLeave}
+                        onDrop={(e) => handlePlColDrop(e, visibleIdx)}
+                        onDragEnd={handlePlColDragEnd}
+                        dragOver={plDragOverColIdx === globalIdx}
+                        className={col.className || ''}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        title={col.label}
+                      >
+                        {col.label}
+                      </Th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {paginated.map((p) => (
                   <Tr key={p.id} className="cursor-pointer" onClick={() => onOpenProject(p.id)}>
-                    <Td className="font-medium text-brand">{p.code}</Td>
-                    <Td className="text-ink">{p.name}</Td>
-                    <Td><ProjectStatusBadge status={p.status} /></Td>
-                    <Td>{p.projectCategory?.name || '-'}</Td>
-                    <Td>
-                      {`${p.manager?.firstName || ''} ${p.manager?.lastName || ''}`.trim() || p.manager?.email || '-'}
-                    </Td>
-                    <Td>
-                      {p.iterations?.[0] ? `Phase ${p.iterations[0].iterationNo} • ${p.iterations[0].currentStage?.name || '-'}` : '-'}
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const value = typeof col.accessor === 'function'
+                        ? col.accessor(p)
+                        : p?.[col.accessor]
+                      return (
+                        <Td
+                          key={col.id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.cellClassName || ''}
+                        >
+                          {col.render ? col.render(value, p) : (value ?? '')}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>
@@ -2771,6 +3257,8 @@ function ProjectDashboard({ onOpenProject }) {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [expandedPhaseIds, setExpandedPhaseIds] = useState([])
   const [phaseStageData, setPhaseStageData] = useState({})
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   useEffect(() => {
     setPageSize(itemsPerPage)
@@ -2815,10 +3303,6 @@ function ProjectDashboard({ onOpenProject }) {
   useEffect(() => {
     setCurrentPage(1)
   }, [projectQuery])
-
-  const totalItems = filteredProjects.length
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const paginated = filteredProjects.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   const dashboardMetrics = useMemo(() => {
     const totalProjects = projects.length
@@ -3006,6 +3490,136 @@ function ProjectDashboard({ onOpenProject }) {
     })
   }, [expandedPhaseIds])
 
+  const ptColumns = useMemo(() => ([
+    {
+      id: 'projectNo',
+      accessor: 'code',
+      label: 'Project No',
+      sortable: true,
+      required: true,
+      render: (value, row) => (
+        <span className="font-medium text-brand">{value || '-'}</span>
+      )
+    },
+    {
+      id: 'title',
+      accessor: 'name',
+      label: 'Title',
+      sortable: true,
+      required: true,
+      render: (value) => (
+        <span className="text-ink">{value || '-'}</span>
+      )
+    },
+    {
+      id: 'status',
+      accessor: 'status',
+      label: 'Stage',
+      sortable: true,
+      render: (value) => <ProjectStatusBadge status={value} />
+    },
+    {
+      id: 'category',
+      accessor: (row) => row.projectCategory?.name || '',
+      label: 'Category',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'owner',
+      accessor: (row) => `${row.manager?.firstName || ''} ${row.manager?.lastName || ''}`.trim() || row.manager?.email || '',
+      label: 'Owner',
+      sortable: true,
+      render: (value) => value || '-'
+    },
+    {
+      id: 'latestPhase',
+      accessor: (row) => row.iterations?.[0] ? `Phase ${row.iterations[0].iterationNo} • ${row.iterations[0].currentStage?.name || ''}` : '',
+      label: 'Latest Phase',
+      sortable: true,
+      render: (value) => value || '-'
+    }
+  ]), [])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'project-tracking-list',
+    columns: ptColumns,
+    data: filteredProjects,
+    defaultSortKey: 'title',
+    defaultSortDirection: 'desc'
+  })
+
+  const totalItems = sortedData.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const paginated = sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const handleColDragStart = (e, visibleIdx) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) {
+      e.preventDefault()
+      return
+    }
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+
+  const handleColDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const col = visibleColumns[visibleIdx]
+    if (!col) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+    if (dragOverColIndex !== globalIdx) setDragOverColIndex(globalIdx)
+  }
+
+  const handleColDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleColDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    const toCol = visibleColumns[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const toIdx = orderedColumns.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    const fromCol = orderedColumns[fromIdx]
+    const toColMeta = orderedColumns[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(fromIdx, toIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleColDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
   return (
     <div className="space-y-5">
       <AppSurface padding="none" className="overflow-hidden">
@@ -3050,12 +3664,20 @@ function ProjectDashboard({ onOpenProject }) {
         </div>
 
         <div className="border-t border-border px-6 py-4">
-          <TextInput
-            value={projectQuery}
-            onChange={(e) => setProjectQuery(e.target.value)}
-            placeholder="Search project code/name..."
-            className="w-full sm:max-w-md"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <TextInput
+              value={projectQuery}
+              onChange={(e) => setProjectQuery(e.target.value)}
+              placeholder="Search project code/name..."
+              className="w-full sm:max-w-md"
+            />
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
+          </div>
         </div>
 
         {loadingProjects ? (
@@ -3075,31 +3697,56 @@ function ProjectDashboard({ onOpenProject }) {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Code</Th>
-                    <Th>Name</Th>
-                    <Th>Status</Th>
-                    <Th>Category</Th>
-                    <Th>Manager</Th>
-                    <Th>Latest Phase</Th>
+                    {visibleColumns.map((col, visibleIdx) => {
+                      const globalIdx = orderedColumns.findIndex((c) => c.id === col.id)
+                      return (
+                        <Th
+                          key={col.id}
+                          sortable={col.sortable !== false}
+                          sortDirection={getSortDirectionFor(col.id)}
+                          sortKey={col.id}
+                          onSort={toggleSort}
+                          draggable={!col.stickyRight && col.sortable !== false}
+                          onDragStart={(e) => handleColDragStart(e, visibleIdx)}
+                          onDragOver={(e) => handleColDragOver(e, visibleIdx)}
+                          onDragLeave={handleColDragLeave}
+                          onDrop={(e) => handleColDrop(e, visibleIdx)}
+                          onDragEnd={handleColDragEnd}
+                          dragOver={dragOverColIndex === globalIdx}
+                          className={col.className || ''}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          title={col.label}
+                        >
+                          {col.label}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {paginated.map((p) => (
+                  {paginated.map((row) => (
                     <Tr
-                      key={p.id}
-                      className={`cursor-pointer ${String(selectedProjectId) === String(p.id) ? 'bg-[var(--dms-color-info-soft)]/60' : ''}`}
-                      onClick={() => openProject(p.id)}
+                      key={row.id}
+                      className={`cursor-pointer ${String(selectedProjectId) === String(row.id) ? 'bg-[var(--dms-color-info-soft)]/60' : ''}`}
+                      onClick={() => openProject(row.id)}
                     >
-                      <Td className="font-medium text-brand">{p.code}</Td>
-                      <Td className="text-ink">{p.name}</Td>
-                      <Td><ProjectStatusBadge status={p.status} /></Td>
-                      <Td>{p.projectCategory?.name || '-'}</Td>
-                      <Td>
-                        {`${p.manager?.firstName || ''} ${p.manager?.lastName || ''}`.trim() || p.manager?.email || '-'}
-                      </Td>
-                      <Td>
-                        {p.iterations?.[0] ? `Phase ${p.iterations[0].iterationNo} • ${p.iterations[0].currentStage?.name || '-'}` : '-'}
-                      </Td>
+                      {visibleColumns.map((col) => {
+                        const value = typeof col.accessor === 'function'
+                          ? col.accessor(row)
+                          : row?.[col.accessor]
+                        return (
+                          <Td
+                            key={col.id}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.cellClassName || ''}
+                            data-tour-id={col.tourId || undefined}
+                          >
+                            {col.render ? col.render(value, row) : (value ?? '')}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                   ))}
                 </tbody>
@@ -3293,6 +3940,14 @@ function ProjectDetail({ projectId }) {
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false)
   const [editChangeRequest, setEditChangeRequest] = useState(null)
   const [showPhasePickerModal, setShowPhasePickerModal] = useState(false)
+  const [histDrag, setHistDrag] = useState(null)
+  const [histOver, setHistOver] = useState(null)
+  const [delivDrag, setDelivDrag] = useState(null)
+  const [delivOver, setDelivOver] = useState(null)
+  const [reqDrag, setReqDrag] = useState(null)
+  const [reqOver, setReqOver] = useState(null)
+  const [progDrag, setProgDrag] = useState(null)
+  const [progOver, setProgOver] = useState(null)
 
   const loadProject = async (preferredIterationId = null) => {
     setLoading(true)
@@ -3942,6 +4597,733 @@ function ProjectDetail({ projectId }) {
     setConfirmModal(config)
   }
 
+  const historyCols = useMemo(() => ([
+    {
+      id: 'changeId',
+      accessor: 'changeId',
+      label: 'Change ID',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="whitespace-nowrap font-semibold">{value || '-'}</span>
+    },
+    {
+      id: 'phaseRef',
+      accessor: (row) => row.phaseRef || (row.iteration?.iterationNo ? `Phase ${row.iteration.iterationNo}` : ''),
+      label: 'Phase Ref',
+      sortable: true,
+      render: (value) => <span className="whitespace-nowrap">{value || '-'}</span>
+    },
+    {
+      id: 'description',
+      accessor: 'description',
+      label: 'Description of Amendment',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="min-w-[260px]">{value || '-'}</span>
+    },
+    {
+      id: 'impact',
+      accessor: 'impact',
+      label: 'Impact',
+      sortable: true,
+      render: (value) => <span className="min-w-[200px]">{value || '-'}</span>
+    },
+    {
+      id: 'authorizedBy',
+      accessor: 'authorizedBy',
+      label: 'Authorized By',
+      sortable: true,
+      render: (value) => <span className="whitespace-nowrap">{value || '-'}</span>
+    },
+    {
+      id: 'complianceSignOff',
+      accessor: 'complianceSignOff',
+      label: 'Compliance Sign-Off',
+      sortable: true,
+      render: (value) => <span className="whitespace-nowrap">{value || '-'}</span>
+    },
+    {
+      id: 'dateApproved',
+      accessor: (row) => row.dateApproved || '',
+      label: 'Date Approved',
+      sortable: true,
+      sortType: 'date',
+      render: (value) => <span className="whitespace-nowrap">{formatDateLabel(value)}</span>
+    },
+    {
+      id: 'actions',
+      accessor: () => '',
+      label: 'Actions',
+      sortable: false,
+      stickyRight: true,
+      required: true,
+      render: (_value, row) => (
+        canEdit ? (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setEditChangeRequest(row)
+                setShowChangeRequestModal(true)
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() =>
+                setConfirmModal({
+                  show: true,
+                  title: 'Delete Change Request',
+                  message: `Delete ${row.changeId}?`,
+                  onConfirm: async () => {
+                    await api.delete(`/project-tracking/change-requests/${row.id}`)
+                    await loadChangeRequests(selectedIterationId)
+                  }
+                })
+              }
+            >
+              Delete
+            </Button>
+          </div>
+        ) : null
+      )
+    }
+  ]), [canEdit, selectedIterationId])
+
+  const {
+    sortedData: sortedHistory,
+    visibleColumns: histVisible,
+    orderedColumns: histOrdered,
+    getSortDirectionFor: getHistSortDir,
+    toggleSort: toggleHistSort,
+    moveColumn: moveHistCol,
+    hiddenColumns: histHidden,
+    toggleColumnVisibility: toggleHistCol,
+    resetTableSettings: resetHistSettings
+  } = useTableFeatures({
+    tableId: 'pt-detail-change-history',
+    columns: historyCols,
+    data: changeRequests,
+    condition: canEdit
+  })
+
+  const handleHistDragStart = (e, visibleIdx) => {
+    const col = histVisible[visibleIdx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    const globalIdx = histOrdered.findIndex((c) => c.id === col.id)
+    setHistDrag(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+  const handleHistDragOver = (e, visibleIdx) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'
+    const col = histVisible[visibleIdx]; if (!col) return
+    const globalIdx = histOrdered.findIndex((c) => c.id === col.id)
+    if (histOver !== globalIdx) setHistOver(globalIdx)
+  }
+  const handleHistDragLeave = () => setHistOver(null)
+  const handleHistDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = histDrag; const toCol = histVisible[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) { setHistDrag(null); setHistOver(null); return }
+    const toIdx = histOrdered.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) { setHistDrag(null); setHistOver(null); return }
+    const fromCol = histOrdered[fromIdx]; const toColMeta = histOrdered[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) { setHistDrag(null); setHistOver(null); return }
+    moveHistCol(fromIdx, toIdx); setHistDrag(null); setHistOver(null)
+  }
+  const handleHistDragEnd = () => { setHistDrag(null); setHistOver(null) }
+
+  const deliverablesCols = useMemo(() => ([
+    {
+      id: 'document',
+      accessor: (entry) => entry,
+      label: 'Document',
+      sortable: true,
+      required: true,
+      render: (_value, entry) => (
+        <div>
+          {canInteractWithDocument(entry.document) ? (
+            <button
+              type="button"
+              onClick={() => openDocumentWorkspace(entry.document)}
+              className="font-medium text-brand hover:underline"
+            >
+              {getDocumentCodeLabel(entry.document)}
+            </button>
+          ) : (
+            <span className="font-medium text-ink">{getDocumentCodeLabel(entry.document)}</span>
+          )}
+          <div className="mt-1">
+            {canInteractWithDocument(entry.document) ? (
+              <button
+                type="button"
+                onClick={() => openDocumentWorkspace(entry.document)}
+                className="text-left text-ink-secondary hover:underline"
+              >
+                {getDocumentTitleLabel(entry.document)}
+              </button>
+            ) : (
+              <span className="text-left text-ink-secondary">{getDocumentTitleLabel(entry.document)}</span>
+            )}
+          </div>
+          <div className="mt-2 inline-flex items-center gap-2">
+            <ConfidentialBadge isConfidential={entry.document.isConfidential} />
+            <DocumentStatusBadge status={entry.document.status} />
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'stage',
+      accessor: 'stageName',
+      label: 'Stage',
+      sortable: true,
+      render: (value) => <span className="text-ink-secondary">{value || '-'}</span>
+    },
+    {
+      id: 'context',
+      accessor: (entry) => ({ source: entry.source, documentTypeName: entry.documentTypeName, itemStatus: entry.itemStatus }),
+      label: 'Context',
+      sortable: true,
+      render: (value) => (
+        <div className="text-ink-secondary">
+          <div>{value.source}</div>
+          <div className="mt-1 text-xs text-ink-muted">{value.documentTypeName}</div>
+          {value.itemStatus ? <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${value.itemStatus}`}</div> : null}
+        </div>
+      )
+    },
+    {
+      id: 'status',
+      accessor: (entry) => entry.document.status,
+      label: 'Status',
+      sortable: true,
+      render: (value) => <DocumentStatusBadge status={value} />
+    },
+    {
+      id: 'action',
+      accessor: (entry) => entry,
+      label: 'Action',
+      sortable: false,
+      stickyRight: true,
+      required: true,
+      align: 'right',
+      render: (_value, entry) => (
+        canInteractWithDocument(entry.document) ? (
+          <div className="inline-flex items-center justify-end gap-3">
+            <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
+              {getDocumentWorkspaceLabel(entry.document)}
+            </button>
+            <button type="button" onClick={() => downloadDocument(entry.document)} className="text-ink-secondary hover:text-ink hover:underline">
+              Download
+            </button>
+            <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
+              {getDocumentDirectoryLabel(entry.document)}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowShareDocument(entry.document)}
+              className="text-ink-secondary hover:text-ink hover:underline"
+            >
+              Share
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+        )
+      )
+    }
+  ]), [])
+
+  const {
+    sortedData: sortedDeliverables,
+    visibleColumns: delivVisible,
+    orderedColumns: delivOrdered,
+    getSortDirectionFor: getDelivSortDir,
+    toggleSort: toggleDelivSort,
+    moveColumn: moveDelivCol,
+    hiddenColumns: delivHidden,
+    toggleColumnVisibility: toggleDelivCol,
+    resetTableSettings: resetDelivSettings
+  } = useTableFeatures({
+    tableId: 'pt-detail-deliverables',
+    columns: deliverablesCols,
+    data: overallDocsPaginated
+  })
+
+  const handleDelivDragStart = (e, visibleIdx) => {
+    const col = delivVisible[visibleIdx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    const globalIdx = delivOrdered.findIndex((c) => c.id === col.id)
+    setDelivDrag(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+  const handleDelivDragOver = (e, visibleIdx) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'
+    const col = delivVisible[visibleIdx]; if (!col) return
+    const globalIdx = delivOrdered.findIndex((c) => c.id === col.id)
+    if (delivOver !== globalIdx) setDelivOver(globalIdx)
+  }
+  const handleDelivDragLeave = () => setDelivOver(null)
+  const handleDelivDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = delivDrag; const toCol = delivVisible[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) { setDelivDrag(null); setDelivOver(null); return }
+    const toIdx = delivOrdered.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) { setDelivDrag(null); setDelivOver(null); return }
+    const fromCol = delivOrdered[fromIdx]; const toColMeta = delivOrdered[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) { setDelivDrag(null); setDelivOver(null); return }
+    moveDelivCol(fromIdx, toIdx); setDelivDrag(null); setDelivOver(null)
+  }
+  const handleDelivDragEnd = () => { setDelivDrag(null); setDelivOver(null) }
+
+  const requiredCols = useMemo(() => ([
+    {
+      id: 'documentType',
+      accessor: (it) => it.documentType?.name || '',
+      label: 'Document Type',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="whitespace-nowrap text-sm font-medium text-ink">{value || '-'}</span>
+    },
+    {
+      id: 'status',
+      accessor: (it) => it,
+      label: 'Status',
+      sortable: true,
+      render: (_value, it) => {
+        const statusValue = it.status
+        return (
+          <div className="flex flex-col items-start gap-2">
+            <ItemStatusBadge status={statusValue} />
+            {it.isManualOverride ? (
+              <span className="text-[11px] font-medium text-ink-muted">Manual override</span>
+            ) : null}
+            {canEdit && isProjectActive ? (
+              String(statusValue || '').toUpperCase() === 'PENDING' ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmModal({
+                      show: true,
+                      title: 'Waive Required Document',
+                      message: 'Waive this checklist item for this phase? It will no longer block stage progression.',
+                      onConfirm: () => updateChecklistItemStatus(it.id, 'WAIVED')
+                    })
+                  }
+                  className="text-xs font-medium text-red-600 hover:underline"
+                >
+                  Waive
+                </button>
+              ) : String(statusValue || '').toUpperCase() === 'WAIVED' ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmModal({
+                      show: true,
+                      title: 'Make Required Again',
+                      message: 'Make this checklist item required again for this phase?',
+                      onConfirm: () => updateChecklistItemStatus(it.id, 'PENDING')
+                    })
+                  }
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  Make Required
+                </button>
+              ) : null
+            ) : null}
+          </div>
+        )
+      }
+    },
+    {
+      id: 'completedDocuments',
+      accessor: (it) => it,
+      label: 'Completed Documents',
+      sortable: false,
+      required: true,
+      render: (_value, it) => (
+        <div className="space-y-3">
+          {it.links?.length ? (
+            it.links.map((l) => (
+              <div key={l.id} className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {canInteractWithDocument(l.document) ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openDocumentWorkspace(l.document)}
+                        className="font-medium text-brand hover:underline"
+                      >
+                        {getDocumentCodeLabel(l.document)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDocumentWorkspace(l.document)}
+                        className="text-left text-ink-muted hover:underline"
+                      >
+                        {getDocumentTitleLabel(l.document)}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
+                      <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+                    </>
+                  )}
+                </div>
+                <div className="inline-flex flex-wrap items-center gap-2">
+                  <ConfidentialBadge isConfidential={l.document.isConfidential} />
+                  <DocumentStatusBadge status={l.document.status} />
+                  {!canInteractWithDocument(l.document) ? (
+                    <span className="text-xs font-medium text-ink-muted">Visible only</span>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <span className="text-ink-soft">-</span>
+          )}
+          {canLink && isProjectActive ? (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-sm">
+              <button type="button" onClick={() => setShowLink(it)} className="font-medium text-brand hover:underline">
+                Attach Existing
+              </button>
+              {canCreate ? (
+                <button type="button" onClick={() => setShowCreateDoc(it)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                  Add New File
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )
+    },
+    {
+      id: 'assignedPic',
+      accessor: (it) => it,
+      label: 'Assigned PIC',
+      sortable: true,
+      render: (_value, it) => {
+        const assignment = getRequiredDocumentAssignment(it.stageId, it.documentTypeId)
+        return (
+          <div className="space-y-2">
+            <div className="font-medium text-ink">{formatPersonLabel(assignment?.picUser)}</div>
+            <div className="text-xs text-ink-muted">
+              {assignment?.assignedAt ? `Assigned ${new Date(assignment.assignedAt).toLocaleDateString()}` : 'Not assigned'}
+            </div>
+            {canAssignRequiredDocumentPic ? (
+              <button
+                type="button"
+                onClick={() => openAssignRequiredDocumentPic(it)}
+                className="text-xs font-medium text-brand hover:underline"
+              >
+                {assignment?.picUser ? 'Reassign PIC' : 'Assign PIC'}
+              </button>
+            ) : null}
+          </div>
+        )
+      }
+    },
+    {
+      id: 'action',
+      accessor: (it) => it,
+      label: 'Action',
+      sortable: false,
+      stickyRight: true,
+      required: true,
+      render: (_value, it) => (
+        <div className="space-y-3">
+          {it.links?.length ? (
+            <div className="space-y-3">
+              {it.links.map((l) => (
+                <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmModal({
+                          show: true,
+                          title: 'Remove Linked Document',
+                          message: 'Remove this linked document from the required item? If no published document remains, the checklist item will become pending again.',
+                          onConfirm: () => unlinkItemDocument(it.id, l.id)
+                        })
+                      }
+                      className="font-medium text-red-600 hover:underline"
+                    >
+                      Unlink
+                    </button>
+                  ) : null}
+                  {canInteractWithDocument(l.document) ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openDocumentWorkspace(l.document)}
+                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                      >
+                        {getDocumentWorkspaceLabel(l.document)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadDocument(l.document)}
+                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                      >
+                        Download
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDocumentDirectory(l.document)}
+                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
+                      >
+                        {getDocumentDirectoryLabel(l.document)}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+                  )}
+                  {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowDocumentAccess(l.document)}
+                      className="font-medium text-brand hover:underline"
+                    >
+                      Access
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <span className="text-ink-soft">-</span>
+          )}
+        </div>
+      )
+    }
+  ]), [canEdit, isProjectActive, canLink, canCreate, canAssignRequiredDocumentPic, canManageLinkedDocumentAccess])
+
+  const {
+    sortedData: sortedRequired,
+    visibleColumns: reqVisible,
+    orderedColumns: reqOrdered,
+    getSortDirectionFor: getReqSortDir,
+    toggleSort: toggleReqSort,
+    moveColumn: moveReqCol,
+    hiddenColumns: reqHidden,
+    toggleColumnVisibility: toggleReqCol,
+    resetTableSettings: resetReqSettings
+  } = useTableFeatures({
+    tableId: 'pt-detail-required-docs',
+    columns: requiredCols,
+    data: []
+  })
+
+  const handleReqDragStart = (e, visibleIdx) => {
+    const col = reqVisible[visibleIdx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    const globalIdx = reqOrdered.findIndex((c) => c.id === col.id)
+    setReqDrag(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+  const handleReqDragOver = (e, visibleIdx) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'
+    const col = reqVisible[visibleIdx]; if (!col) return
+    const globalIdx = reqOrdered.findIndex((c) => c.id === col.id)
+    if (reqOver !== globalIdx) setReqOver(globalIdx)
+  }
+  const handleReqDragLeave = () => setReqOver(null)
+  const handleReqDrop = (e, visibleIdx, stageItems) => {
+    e.preventDefault()
+    const fromIdx = reqDrag; const toCol = reqVisible[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) { setReqDrag(null); setReqOver(null); return }
+    const toIdx = reqOrdered.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) { setReqDrag(null); setReqOver(null); return }
+    const fromCol = reqOrdered[fromIdx]; const toColMeta = reqOrdered[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) { setReqDrag(null); setReqOver(null); return }
+    moveReqCol(fromIdx, toIdx); setReqDrag(null); setReqOver(null)
+  }
+  const handleReqDragEnd = () => { setReqDrag(null); setReqOver(null) }
+
+  const progressCols = useMemo(() => ([
+    {
+      id: 'documentType',
+      accessor: (l) => getLinkedDocumentTypeLabel(l),
+      label: 'Document Type',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="whitespace-nowrap text-sm font-medium text-ink">{value || '-'}</span>
+    },
+    {
+      id: 'status',
+      accessor: (l) => l.document?.status,
+      label: 'Status',
+      sortable: true,
+      render: (value) => <DocumentStatusBadge status={value} />
+    },
+    {
+      id: 'completedDocuments',
+      accessor: (l) => l,
+      label: 'Completed Documents',
+      sortable: false,
+      required: true,
+      render: (_value, l) => (
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {canInteractWithDocument(l.document) ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openDocumentWorkspace(l.document)}
+                  className="font-medium text-brand hover:underline"
+                >
+                  {getDocumentCodeLabel(l.document)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDocumentWorkspace(l.document)}
+                  className="text-left text-ink-muted hover:underline"
+                >
+                  {getDocumentTitleLabel(l.document)}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
+                <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
+              </>
+            )}
+          </div>
+          <div className="inline-flex flex-wrap items-center gap-2">
+            <ConfidentialBadge isConfidential={l.document.isConfidential} />
+            <DocumentStatusBadge status={l.document.status} />
+            {!canInteractWithDocument(l.document) ? (
+              <span className="text-xs font-medium text-ink-muted">Visible only</span>
+            ) : null}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'action',
+      accessor: (l) => l,
+      label: 'Action',
+      sortable: false,
+      stickyRight: true,
+      required: true,
+      render: (_value, l) => (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
+            <button
+              type="button"
+              onClick={(st) =>
+                setConfirmModal({
+                  show: true,
+                  title: 'Remove Linked Document',
+                  message: 'Remove this linked document from the stage? The document record will stay in the system.',
+                  onConfirm: () => unlinkStageDocument(l.stageId || activeStage?.id, l.id)
+                })
+              }
+              className="font-medium text-red-600 hover:underline"
+            >
+              Unlink
+            </button>
+          ) : null}
+          {canInteractWithDocument(l.document) ? (
+            <>
+              <button
+                type="button"
+                onClick={() => openDocumentWorkspace(l.document)}
+                className="font-medium text-ink-secondary hover:text-ink hover:underline"
+              >
+                {getDocumentWorkspaceLabel(l.document)}
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadDocument(l.document)}
+                className="font-medium text-ink-secondary hover:text-ink hover:underline"
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={() => openDocumentDirectory(l.document)}
+                className="font-medium text-ink-secondary hover:text-ink hover:underline"
+              >
+                {getDocumentDirectoryLabel(l.document)}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowShareDocument(l.document)}
+                className="font-medium text-ink-secondary hover:text-ink hover:underline"
+              >
+                Share
+              </button>
+            </>
+          ) : (
+            <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
+          )}
+          {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
+            <button
+              type="button"
+              onClick={() => setShowDocumentAccess(l.document)}
+              className="font-medium text-brand hover:underline"
+            >
+              Access
+            </button>
+          ) : null}
+        </div>
+      )
+    }
+  ]), [canLink, isProjectActive, canManageLinkedDocumentAccess, activeStage?.id])
+
+  const {
+    sortedData: sortedProgress,
+    visibleColumns: progVisible,
+    orderedColumns: progOrdered,
+    getSortDirectionFor: getProgSortDir,
+    toggleSort: toggleProgSort,
+    moveColumn: moveProgCol,
+    hiddenColumns: progHidden,
+    toggleColumnVisibility: toggleProgCol,
+    resetTableSettings: resetProgSettings
+  } = useTableFeatures({
+    tableId: 'pt-detail-stage-progress',
+    columns: progressCols,
+    data: []
+  })
+
+  const handleProgDragStart = (e, visibleIdx) => {
+    const col = progVisible[visibleIdx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    const globalIdx = progOrdered.findIndex((c) => c.id === col.id)
+    setProgDrag(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(globalIdx))
+  }
+  const handleProgDragOver = (e, visibleIdx) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move'
+    const col = progVisible[visibleIdx]; if (!col) return
+    const globalIdx = progOrdered.findIndex((c) => c.id === col.id)
+    if (progOver !== globalIdx) setProgOver(globalIdx)
+  }
+  const handleProgDragLeave = () => setProgOver(null)
+  const handleProgDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const fromIdx = progDrag; const toCol = progVisible[visibleIdx]
+    if (!toCol || fromIdx === null || fromIdx === undefined) { setProgDrag(null); setProgOver(null); return }
+    const toIdx = progOrdered.findIndex((c) => c.id === toCol.id)
+    if (toIdx === -1 || fromIdx === toIdx) { setProgDrag(null); setProgOver(null); return }
+    const fromCol = progOrdered[fromIdx]; const toColMeta = progOrdered[toIdx]
+    if (fromCol?.stickyRight || toColMeta?.stickyRight) { setProgDrag(null); setProgOver(null); return }
+    moveProgCol(fromIdx, toIdx); setProgDrag(null); setProgOver(null)
+  }
+  const handleProgDragEnd = () => { setProgDrag(null); setProgOver(null) }
+
   if (loading) {
     return (
       <AppSurface padding="lg" className="flex items-center gap-3">
@@ -4276,6 +5658,12 @@ function ProjectDetail({ projectId }) {
             <div className="mt-1 text-sm text-ink-muted">Approved changes recorded for the selected phase.</div>
           </div>
           <div className="flex items-center gap-2">
+            <ColumnSettingsButton
+              orderedColumns={histOrdered}
+              hiddenColumns={histHidden}
+              onToggleColumn={toggleHistCol}
+              onReset={resetHistSettings}
+            />
             <div className="rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-medium text-ink-secondary">
               {selectedPhase ? getPhaseTitle(selectedPhase, '') : ''}
             </div>
@@ -4303,7 +5691,7 @@ function ProjectDetail({ projectId }) {
               <InlineSpinner className="h-4 w-4" />
               Loading change requests...
             </div>
-          ) : changeRequests.length === 0 ? (
+          ) : sortedHistory.length === 0 ? (
             <EmptyPanelState
               title="No change requests yet"
               description="Use the “Key In Change Request” button to add the first record."
@@ -4313,59 +5701,51 @@ function ProjectDetail({ projectId }) {
               <Table>
                 <thead>
                   <Tr>
-                    <Th>Change ID</Th>
-                    <Th>Phase Ref</Th>
-                    <Th>Description of Amendment</Th>
-                    <Th>Impact</Th>
-                    <Th>Authorized By</Th>
-                    <Th>Compliance Sign-Off</Th>
-                    <Th>Date Approved</Th>
-                    {canEdit && <Th stickyRight className="w-[140px]">Actions</Th>}
+                    {histVisible.map((col, visibleIdx) => {
+                      const globalIdx = histOrdered.findIndex((c) => c.id === col.id)
+                      return (
+                        <Th
+                          key={col.id}
+                          sortable={col.sortable !== false}
+                          sortDirection={getHistSortDir(col.id)}
+                          sortKey={col.id}
+                          onSort={toggleHistSort}
+                          draggable={!col.stickyRight && col.sortable !== false}
+                          onDragStart={(e) => handleHistDragStart(e, visibleIdx)}
+                          onDragOver={(e) => handleHistDragOver(e, visibleIdx)}
+                          onDragLeave={handleHistDragLeave}
+                          onDrop={(e) => handleHistDrop(e, visibleIdx)}
+                          onDragEnd={handleHistDragEnd}
+                          dragOver={histOver === globalIdx}
+                          className={col.className || ''}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          title={col.label}
+                        >
+                          {col.label}
+                        </Th>
+                      )
+                    })}
                   </Tr>
                 </thead>
                 <tbody>
-                  {changeRequests.map((cr) => (
+                  {sortedHistory.map((cr) => (
                     <Tr key={cr.id}>
-                      <Td className="whitespace-nowrap font-semibold">{cr.changeId}</Td>
-                      <Td className="whitespace-nowrap">{cr.phaseRef || (cr.iteration?.iterationNo ? `Phase ${cr.iteration.iterationNo}` : '-')}</Td>
-                      <Td className="min-w-[260px]">{cr.description}</Td>
-                      <Td className="min-w-[200px]">{cr.impact || '-'}</Td>
-                      <Td className="whitespace-nowrap">{cr.authorizedBy || '-'}</Td>
-                      <Td className="whitespace-nowrap">{cr.complianceSignOff || '-'}</Td>
-                      <Td className="whitespace-nowrap">{formatDateLabel(cr.dateApproved)}</Td>
-                      {canEdit && (
-                        <Td stickyRight>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              onClick={() => {
-                                setEditChangeRequest(cr)
-                                setShowChangeRequestModal(true)
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="danger"
-                              onClick={() =>
-                                setConfirmModal({
-                                  show: true,
-                                  title: 'Delete Change Request',
-                                  message: `Delete ${cr.changeId}?`,
-                                  onConfirm: async () => {
-                                    await api.delete(`/project-tracking/change-requests/${cr.id}`)
-                                    await loadChangeRequests(selectedIterationId)
-                                  }
-                                })
-                              }
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </Td>
-                      )}
+                      {histVisible.map((col) => {
+                        const value = typeof col.accessor === 'function'
+                          ? col.accessor(cr)
+                          : cr?.[col.accessor]
+                        return (
+                          <Td
+                            key={col.id}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.cellClassName || ''}
+                          >
+                            {col.render ? col.render(value, cr) : (value ?? '')}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                   ))}
                 </tbody>
@@ -4454,8 +5834,18 @@ function ProjectDetail({ projectId }) {
       ) : activeStageTab === consolidatedTabId ? (
         <AppSurface padding="none">
           <div className="border-b border-border px-6 py-5">
-            <div className="text-lg font-semibold text-ink">Overall Project Documents</div>
-            <div className="mt-1 text-sm text-ink-muted">All linked documents for this project phase, grouped in one list with stage and checklist context.</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-lg font-semibold text-ink">Overall Project Documents</div>
+                <div className="mt-1 text-sm text-ink-muted">All linked documents for this project phase, grouped in one list with stage and checklist context.</div>
+              </div>
+              <ColumnSettingsButton
+                orderedColumns={delivOrdered}
+                hiddenColumns={delivHidden}
+                onToggleColumn={toggleDelivCol}
+                onReset={resetDelivSettings}
+              />
+            </div>
           </div>
           {consolidatedDocuments.length === 0 ? (
             <div className="px-6 py-8 text-sm text-ink-muted">No linked documents found for this project phase yet.</div>
@@ -4465,79 +5855,51 @@ function ProjectDetail({ projectId }) {
                 <Table>
                   <thead>
                     <Tr>
-                      <Th>Document</Th>
-                      <Th>Stage</Th>
-                      <Th>Context</Th>
-                      <Th>Status</Th>
-                      <Th stickyRight align="right">Action</Th>
+                      {delivVisible.map((col, visibleIdx) => {
+                        const globalIdx = delivOrdered.findIndex((c) => c.id === col.id)
+                        return (
+                          <Th
+                            key={col.id}
+                            sortable={col.sortable !== false}
+                            sortDirection={getDelivSortDir(col.id)}
+                            sortKey={col.id}
+                            onSort={toggleDelivSort}
+                            draggable={!col.stickyRight && col.sortable !== false}
+                            onDragStart={(e) => handleDelivDragStart(e, visibleIdx)}
+                            onDragOver={(e) => handleDelivDragOver(e, visibleIdx)}
+                            onDragLeave={handleDelivDragLeave}
+                            onDrop={(e) => handleDelivDrop(e, visibleIdx)}
+                            onDragEnd={handleDelivDragEnd}
+                            dragOver={delivOver === globalIdx}
+                            className={col.className || ''}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            title={col.label}
+                          >
+                            {col.label}
+                          </Th>
+                        )
+                      })}
                     </Tr>
                   </thead>
                   <tbody>
-                    {overallDocsPaginated.map((entry) => (
+                    {sortedDeliverables.map((entry) => (
                       <Tr key={entry.id} className="hover:bg-surface-muted">
-                        <Td>
-                          {canInteractWithDocument(entry.document) ? (
-                            <button
-                              type="button"
-                              onClick={() => openDocumentWorkspace(entry.document)}
-                              className="font-medium text-brand hover:underline"
+                        {delivVisible.map((col) => {
+                          const value = typeof col.accessor === 'function'
+                            ? col.accessor(entry)
+                            : entry?.[col.accessor]
+                          return (
+                            <Td
+                              key={col.id}
+                              align={col.align || 'left'}
+                              stickyRight={col.stickyRight || false}
+                              className={col.cellClassName || ''}
                             >
-                              {getDocumentCodeLabel(entry.document)}
-                            </button>
-                          ) : (
-                            <span className="font-medium text-ink">{getDocumentCodeLabel(entry.document)}</span>
-                          )}
-                          <div className="mt-1">
-                            {canInteractWithDocument(entry.document) ? (
-                              <button
-                                type="button"
-                                onClick={() => openDocumentWorkspace(entry.document)}
-                                className="text-left text-ink-secondary hover:underline"
-                              >
-                                {getDocumentTitleLabel(entry.document)}
-                              </button>
-                            ) : (
-                              <span className="text-left text-ink-secondary">{getDocumentTitleLabel(entry.document)}</span>
-                            )}
-                          </div>
-                          <div className="mt-2 inline-flex items-center gap-2">
-                            <ConfidentialBadge isConfidential={entry.document.isConfidential} />
-                            <DocumentStatusBadge status={entry.document.status} />
-                          </div>
-                        </Td>
-                        <Td className="text-ink-secondary">{entry.stageName}</Td>
-                        <Td className="text-ink-secondary">
-                          <div>{entry.source}</div>
-                          <div className="mt-1 text-xs text-ink-muted">{entry.documentTypeName}</div>
-                          {entry.itemStatus ? <div className="mt-1 text-xs text-ink-muted">{`Checklist status: ${entry.itemStatus}`}</div> : null}
-                        </Td>
-                        <Td>
-                          <DocumentStatusBadge status={entry.document.status} />
-                        </Td>
-                        <Td stickyRight align="right">
-                          {canInteractWithDocument(entry.document) ? (
-                            <div className="inline-flex items-center justify-end gap-3">
-                              <button type="button" onClick={() => openDocumentWorkspace(entry.document)} className="text-brand hover:underline">
-                                {getDocumentWorkspaceLabel(entry.document)}
-                              </button>
-                              <button type="button" onClick={() => downloadDocument(entry.document)} className="text-ink-secondary hover:text-ink hover:underline">
-                                Download
-                              </button>
-                              <button type="button" onClick={() => openDocumentDirectory(entry.document)} className="text-brand hover:underline">
-                                {getDocumentDirectoryLabel(entry.document)}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setShowShareDocument(entry.document)}
-                                className="text-ink-secondary hover:text-ink hover:underline"
-                              >
-                                Share
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
-                          )}
-                        </Td>
+                              {col.render ? col.render(value, entry) : (value ?? '')}
+                            </Td>
+                          )
+                        })}
                       </Tr>
                     ))}
                   </tbody>
@@ -4597,213 +5959,100 @@ function ProjectDetail({ projectId }) {
                   </div>
                 </div>
                 <div className="border-b border-border bg-surface px-6 py-5">
-                  <div className="text-sm font-semibold text-ink">Required Documents</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-ink">Required Documents</div>
+                    <ColumnSettingsButton
+                      orderedColumns={reqOrdered}
+                      hiddenColumns={reqHidden}
+                      onToggleColumn={toggleReqCol}
+                      onReset={resetReqSettings}
+                    />
+                  </div>
                 </div>
                 <TableContainer className="rounded-none border-0 border-b border-border">
                   <Table>
                     <thead>
                       <Tr>
-                        <Th>Document Type</Th>
-                        <Th>Status</Th>
-                        <Th>Completed Documents</Th>
-                        <Th>Assigned PIC</Th>
-                        <Th stickyRight>Action</Th>
+                        {reqVisible.map((col, vIdx) => {
+                          const globalIdx = reqOrdered.findIndex((c) => c.id === col.id)
+                          return (
+                            <Th
+                              key={col.id}
+                              sortable={col.sortable !== false}
+                              sortDirection={getReqSortDir(col.id)}
+                              onSort={() => toggleReqSort(col.id)}
+                              stickyRight={col.stickyRight || false}
+                              draggable={col.stickyRight ? false : col.sortable !== false}
+                              dragOver={reqOver === globalIdx}
+                              onDragStart={(e) => {
+                                if (col.stickyRight) return
+                                setReqDragIdx(vIdx)
+                                e.dataTransfer.effectAllowed = 'move'
+                              }}
+                              onDragOver={(e) => {
+                                if (col.stickyRight) return
+                                e.preventDefault()
+                                e.dataTransfer.dropEffect = 'move'
+                                setReqOverIdx(globalIdx)
+                              }}
+                              onDragLeave={() => {
+                                if (col.stickyRight) return
+                                if (reqOver === globalIdx) setReqOverIdx(null)
+                              }}
+                              onDrop={(e) => {
+                                if (col.stickyRight) return
+                                e.preventDefault()
+                                const fromCol = reqVisible[reqDragIdx]
+                                if (!fromCol || fromCol.stickyRight) {
+                                  setReqDragIdx(null)
+                                  setReqOverIdx(null)
+                                  return
+                                }
+                                const fromIdx = reqOrdered.findIndex((c) => c.id === fromCol.id)
+                                const toIdx = globalIdx
+                                if (fromIdx > -1 && toIdx > -1 && fromIdx !== toIdx) {
+                                  moveReqColumn(fromIdx, toIdx)
+                                }
+                                setReqDragIdx(null)
+                                setReqOverIdx(null)
+                              }}
+                              onDragEnd={() => {
+                                setReqDragIdx(null)
+                                setReqOverIdx(null)
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {col.stickyRight ? null : (
+                                  <svg className="h-3 w-3 shrink-0 cursor-grab text-ink-soft opacity-60 hover:opacity-100" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <circle cx="7" cy="4" r="1.2"/><circle cx="7" cy="10" r="1.2"/><circle cx="7" cy="16" r="1.2"/>
+                                    <circle cx="13" cy="4" r="1.2"/><circle cx="13" cy="10" r="1.2"/><circle cx="13" cy="16" r="1.2"/>
+                                  </svg>
+                                )}
+                                <span>{col.label}</span>
+                              </div>
+                            </Th>
+                          )
+                        })}
                       </Tr>
                     </thead>
                     <tbody>
                       {stageItems.length === 0 ? (
                         <Tr>
-                          <Td colSpan={5} className="px-6 py-8 text-sm text-ink-muted">
+                          <Td colSpan={Math.max(reqVisible.length, 1)} className="px-6 py-8 text-sm text-ink-muted">
                             No required checklist items for this stage yet. Add requirements in Project Setup, or attach extra documents using the buttons below.
                           </Td>
                         </Tr>
                       ) : null}
                       {stageItems.map((it) => (
                         <Tr key={it.id} className="align-top hover:bg-surface-muted">
-                          <Td className="whitespace-nowrap text-sm font-medium text-ink">{it.documentType?.name || '-'}</Td>
-                          <Td className="whitespace-nowrap text-sm">
-                            <div className="flex flex-col items-start gap-2">
-                              <ItemStatusBadge status={it.status} />
-                              {it.isManualOverride ? (
-                                <span className="text-[11px] font-medium text-ink-muted">Manual override</span>
-                              ) : null}
-                              {canEdit && isProjectActive ? (
-                                String(it.status || '').toUpperCase() === 'PENDING' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setConfirmModal({
-                                        show: true,
-                                        title: 'Waive Required Document',
-                                        message: 'Waive this checklist item for this phase? It will no longer block stage progression.',
-                                        onConfirm: () => updateChecklistItemStatus(it.id, 'WAIVED')
-                                      })
-                                    }
-                                    className="text-xs font-medium text-red-600 hover:underline"
-                                  >
-                                    Waive
-                                  </button>
-                                ) : String(it.status || '').toUpperCase() === 'WAIVED' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setConfirmModal({
-                                        show: true,
-                                        title: 'Make Required Again',
-                                        message: 'Make this checklist item required again for this phase?',
-                                        onConfirm: () => updateChecklistItemStatus(it.id, 'PENDING')
-                                      })
-                                    }
-                                    className="text-xs font-medium text-brand hover:underline"
-                                  >
-                                    Make Required
-                                  </button>
-                                ) : null
-                              ) : null}
-                            </div>
-                          </Td>
-                          <Td className="min-w-[260px] text-sm text-ink-secondary">
-                            <div className="space-y-3">
-                              {it.links?.length ? (
-                                it.links.map((l) => (
-                                  <div key={l.id} className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      {canInteractWithDocument(l.document) ? (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => openDocumentWorkspace(l.document)}
-                                            className="font-medium text-brand hover:underline"
-                                          >
-                                            {getDocumentCodeLabel(l.document)}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => openDocumentWorkspace(l.document)}
-                                            className="text-left text-ink-muted hover:underline"
-                                          >
-                                            {getDocumentTitleLabel(l.document)}
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
-                                          <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                    <div className="inline-flex flex-wrap items-center gap-2">
-                                      <ConfidentialBadge isConfidential={l.document.isConfidential} />
-                                      <DocumentStatusBadge status={l.document.status} />
-                                      {!canInteractWithDocument(l.document) ? (
-                                        <span className="text-xs font-medium text-ink-muted">Visible only</span>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                ))
-                              ) : (
-                                <span className="text-ink-soft">-</span>
-                              )}
-                              {canLink && isProjectActive ? (
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1 text-sm">
-                                  <button type="button" onClick={() => setShowLink(it)} className="font-medium text-brand hover:underline">
-                                    Attach Existing
-                                  </button>
-                                  {canCreate ? (
-                                    <button type="button" onClick={() => setShowCreateDoc(it)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
-                                      Add New File
-                                    </button>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </div>
-                          </Td>
-                          <Td className="min-w-[180px] text-sm text-ink-secondary">
-                            {(() => {
-                              const assignment = getRequiredDocumentAssignment(it.stageId, it.documentTypeId)
-                              return (
-                                <div className="space-y-2">
-                                  <div className="font-medium text-ink">{formatPersonLabel(assignment?.picUser)}</div>
-                                  <div className="text-xs text-ink-muted">
-                                    {assignment?.assignedAt ? `Assigned ${new Date(assignment.assignedAt).toLocaleDateString()}` : 'Not assigned'}
-                                  </div>
-                                  {canAssignRequiredDocumentPic ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openAssignRequiredDocumentPic(it)}
-                                      className="text-xs font-medium text-brand hover:underline"
-                                    >
-                                      {assignment?.picUser ? 'Reassign PIC' : 'Assign PIC'}
-                                    </button>
-                                  ) : null}
-                                </div>
-                              )
-                            })()}
-                          </Td>
-                          <Td stickyRight className="min-w-[220px] text-sm">
-                            {it.links?.length ? (
-                              <div className="space-y-3">
-                                {it.links.map((l) => (
-                                  <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                    {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setConfirmModal({
-                                            show: true,
-                                            title: 'Remove Linked Document',
-                                            message: 'Remove this linked document from the required item? If no published document remains, the checklist item will become pending again.',
-                                            onConfirm: () => unlinkItemDocument(it.id, l.id)
-                                          })
-                                        }
-                                        className="font-medium text-red-600 hover:underline"
-                                      >
-                                        Unlink
-                                      </button>
-                                    ) : null}
-                                    {canInteractWithDocument(l.document) ? (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => openDocumentWorkspace(l.document)}
-                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                        >
-                                          {getDocumentWorkspaceLabel(l.document)}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => downloadDocument(l.document)}
-                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                        >
-                                          Download
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openDocumentDirectory(l.document)}
-                                          className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                        >
-                                          {getDocumentDirectoryLabel(l.document)}
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
-                                    )}
-                                    {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => setShowDocumentAccess(l.document)}
-                                        className="font-medium text-brand hover:underline"
-                                      >
-                                        Access
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-ink-soft">-</span>
-                            )}
-                          </Td>
+                          {reqVisible.map((col) => {
+                            const value = typeof col.accessor === 'function' ? col.accessor(it) : it[col.accessor]
+                            return (
+                              <Td key={col.id} align={col.align || 'left'} stickyRight={col.stickyRight || false} className={col.cellClassName || ''}>
+                                {col.render ? col.render(value, it) : (value ?? '')}
+                              </Td>
+                            )
+                          })}
                         </Tr>
                       ))}
                     </tbody>
@@ -4811,8 +6060,18 @@ function ProjectDetail({ projectId }) {
                 </TableContainer>
                 <div className="flex flex-col gap-4 bg-surface px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-ink">Other Documents Under This Stage</div>
-                    <div className="mt-1 max-w-3xl text-sm text-ink-muted">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-ink">Other Documents Under This Stage</div>
+                        <div className="mt-1 max-w-3xl text-sm text-ink-muted">Add extra stage documents here even if they are not listed in the required checklist. Matching document types still route into checklist rows automatically.</div>
+                      </div>
+                      <ColumnSettingsButton
+                        orderedColumns={progOrdered}
+                        hiddenColumns={progHidden}
+                        onToggleColumn={toggleProgCol}
+                        onReset={resetProgSettings}
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {canLink && isProjectActive ? (
@@ -4835,118 +6094,79 @@ function ProjectDetail({ projectId }) {
                       <Table>
                         <thead>
                           <Tr>
-                            <Th>Document Type</Th>
-                            <Th>Status</Th>
-                            <Th>Completed Documents</Th>
-                            <Th stickyRight>Action</Th>
+                            {progVisible.map((col, vIdx) => {
+                              const globalIdx = progOrdered.findIndex((c) => c.id === col.id)
+                              return (
+                                <Th
+                                  key={col.id}
+                                  sortable={col.sortable !== false}
+                                  sortDirection={getProgSortDir(col.id)}
+                                  onSort={() => toggleProgSort(col.id)}
+                                  stickyRight={col.stickyRight || false}
+                                  draggable={col.stickyRight ? false : col.sortable !== false}
+                                  dragOver={progOver === globalIdx}
+                                  onDragStart={(e) => {
+                                    if (col.stickyRight) return
+                                    setProgDragIdx(vIdx)
+                                    e.dataTransfer.effectAllowed = 'move'
+                                  }}
+                                  onDragOver={(e) => {
+                                    if (col.stickyRight) return
+                                    e.preventDefault()
+                                    e.dataTransfer.dropEffect = 'move'
+                                    setProgOverIdx(globalIdx)
+                                  }}
+                                  onDragLeave={() => {
+                                    if (col.stickyRight) return
+                                    if (progOver === globalIdx) setProgOverIdx(null)
+                                  }}
+                                  onDrop={(e) => {
+                                    if (col.stickyRight) return
+                                    e.preventDefault()
+                                    const fromCol = progVisible[progDragIdx]
+                                    if (!fromCol || fromCol.stickyRight) {
+                                      setProgDragIdx(null)
+                                      setProgOverIdx(null)
+                                      return
+                                    }
+                                    const fromIdx = progOrdered.findIndex((c) => c.id === fromCol.id)
+                                    const toIdx = globalIdx
+                                    if (fromIdx > -1 && toIdx > -1 && fromIdx !== toIdx) {
+                                      moveProgColumn(fromIdx, toIdx)
+                                    }
+                                    setProgDragIdx(null)
+                                    setProgOverIdx(null)
+                                  }}
+                                  onDragEnd={() => {
+                                    setProgDragIdx(null)
+                                    setProgOverIdx(null)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {col.stickyRight ? null : (
+                                      <svg className="h-3 w-3 shrink-0 cursor-grab text-ink-soft opacity-60 hover:opacity-100" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <circle cx="7" cy="4" r="1.2"/><circle cx="7" cy="10" r="1.2"/><circle cx="7" cy="16" r="1.2"/>
+                                        <circle cx="13" cy="4" r="1.2"/><circle cx="13" cy="10" r="1.2"/><circle cx="13" cy="16" r="1.2"/>
+                                      </svg>
+                                    )}
+                                    <span>{col.label}</span>
+                                  </div>
+                                </Th>
+                              )
+                            })}
                           </Tr>
                         </thead>
                         <tbody>
                           {links.map((l) => (
                             <Tr key={l.id} className="align-top hover:bg-surface-muted">
-                              <Td className="whitespace-nowrap text-sm font-medium text-ink">{getLinkedDocumentTypeLabel(l)}</Td>
-                              <Td className="whitespace-nowrap text-sm">
-                                <DocumentStatusBadge status={l.document?.status} />
-                              </Td>
-                              <Td className="min-w-[260px] text-sm text-ink-secondary">
-                                <div className="space-y-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {canInteractWithDocument(l.document) ? (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => openDocumentWorkspace(l.document)}
-                                          className="font-medium text-brand hover:underline"
-                                        >
-                                          {getDocumentCodeLabel(l.document)}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openDocumentWorkspace(l.document)}
-                                          className="text-left text-ink-muted hover:underline"
-                                        >
-                                          {getDocumentTitleLabel(l.document)}
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="font-medium text-ink">{getDocumentCodeLabel(l.document)}</span>
-                                        <span className="text-left text-ink-muted">{getDocumentTitleLabel(l.document)}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <div className="inline-flex flex-wrap items-center gap-2">
-                                    <ConfidentialBadge isConfidential={l.document.isConfidential} />
-                                    <DocumentStatusBadge status={l.document.status} />
-                                    {!canInteractWithDocument(l.document) ? (
-                                      <span className="text-xs font-medium text-ink-muted">Visible only</span>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </Td>
-                              <Td stickyRight className="min-w-[220px] text-sm">
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                  {canLink && isProjectActive && canInteractWithDocument(l.document) ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setConfirmModal({
-                                          show: true,
-                                          title: 'Remove Linked Document',
-                                          message: 'Remove this linked document from the stage? The document record will stay in the system.',
-                                          onConfirm: () => unlinkStageDocument(st.id, l.id)
-                                        })
-                                      }
-                                      className="font-medium text-red-600 hover:underline"
-                                    >
-                                      Unlink
-                                    </button>
-                                  ) : null}
-                                  {canInteractWithDocument(l.document) ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => openDocumentWorkspace(l.document)}
-                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                      >
-                                        {getDocumentWorkspaceLabel(l.document)}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadDocument(l.document)}
-                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                      >
-                                        Download
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => openDocumentDirectory(l.document)}
-                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                      >
-                                        {getDocumentDirectoryLabel(l.document)}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setShowShareDocument(l.document)}
-                                        className="font-medium text-ink-secondary hover:text-ink hover:underline"
-                                      >
-                                        Share
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-xs font-medium text-ink-muted">Confidential access required</span>
-                                  )}
-                                  {canManageLinkedDocumentAccess && String(l.document.stage || '').toUpperCase() === 'DRAFT' ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowDocumentAccess(l.document)}
-                                      className="font-medium text-brand hover:underline"
-                                    >
-                                      Access
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </Td>
+                              {progVisible.map((col) => {
+                                const value = typeof col.accessor === 'function' ? col.accessor(l) : l[col.accessor]
+                                return (
+                                  <Td key={col.id} align={col.align || 'left'} stickyRight={col.stickyRight || false} className={col.cellClassName || ''}>
+                                    {col.render ? col.render(value, l) : (value ?? '')}
+                                  </Td>
+                                )
+                              })}
                             </Tr>
                           ))}
                         </tbody>
@@ -5527,6 +6747,8 @@ function DocumentsSearch() {
   const [hasSearched, setHasSearched] = useState(false)
   const [results, setResults] = useState([])
   const [notice, setNotice] = useState(null)
+  const [dsDragIdx, setDsDragIdx] = useState(null)
+  const [dsDragOverIdx, setDsDragOverIdx] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -5607,29 +6829,184 @@ function DocumentsSearch() {
     }
   }
 
+  const dsColumns = useMemo(() => ([
+    {
+      id: 'document',
+      accessor: (r) => r.document?.fileCode || '',
+      label: 'Document',
+      sortable: true,
+      render: (_, r) => (
+        <div>
+          <button type="button" onClick={() => openSearchDocument(r.document)} className="text-brand hover:underline">
+            {r.document.fileCode}
+          </button>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-ink-muted">
+            <span>{r.document.title}</span>
+            <ConfidentialBadge isConfidential={r.document.isConfidential} />
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'project',
+      accessor: (r) => r.iteration?.project?.code || '',
+      label: 'Project',
+      sortable: true,
+      render: (_, r) => (
+        <span className="text-ink-secondary">
+          {r.iteration?.project ? `${r.iteration.project.code} • ${r.iteration.project.name}` : '-'}
+        </span>
+      )
+    },
+    {
+      id: 'iteration',
+      accessor: (r) => r.iteration?.iterationNo || 0,
+      label: 'Iteration',
+      sortable: true,
+      render: (_, r) => (
+        <span className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</span>
+      )
+    },
+    {
+      id: 'stage',
+      accessor: (r) => r.stage?.name || '',
+      label: 'Stage',
+      sortable: true,
+      render: (_, r) => (
+        <span className="text-ink-secondary">{r.stage?.name || '-'}</span>
+      )
+    },
+    {
+      id: 'action',
+      accessor: 'id',
+      label: 'Action',
+      sortable: false,
+      required: true,
+      stickyRight: true,
+      render: (_, r) => (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          {r.document?.canAccess === false ? (
+            <span className="font-medium text-[var(--dms-color-warning-ink)]">Access Restricted</span>
+          ) : (
+            <>
+              <button type="button" onClick={() => openSearchDocument(r.document)} className="font-medium text-brand hover:underline">
+                Open Document
+              </button>
+              <button type="button" onClick={() => downloadSearchDocument(r.document)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                Download
+              </button>
+            </>
+          )}
+        </div>
+      )
+    }
+  ]), [])
+
+  const {
+    sortedData: sortedResults,
+    visibleColumns: dsVisible,
+    orderedColumns: dsOrdered,
+    getSortDirectionFor: getDsSortDir,
+    toggleSort: toggleDsSort,
+    moveColumn: moveDsColumn,
+    hiddenColumns: dsHidden,
+    toggleColumnVisibility: toggleDsCol,
+    resetTableSettings: resetDsSettings
+  } = useTableFeatures({
+    tableId: 'pt-documents-search',
+    columns: dsColumns,
+    data: results
+  })
+
+  const handleDsColDragStart = useCallback((e, vIdx) => {
+    const col = dsVisible[vIdx]
+    if (!col || col.stickyRight) return
+    setDsDragIdx(vIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }, [dsVisible])
+
+  const handleDsColDragOver = useCallback((e, vIdx) => {
+    const col = dsVisible[vIdx]
+    if (!col || col.stickyRight) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const globalIdx = dsOrdered.findIndex((c) => c.id === col.id)
+    setDsDragOverIdx(globalIdx)
+  }, [dsVisible, dsOrdered])
+
+  const handleDsColDragLeave = useCallback((vIdx) => {
+    const col = dsVisible[vIdx]
+    if (!col || col.stickyRight) return
+    const globalIdx = dsOrdered.findIndex((c) => c.id === col.id)
+    if (dsDragOverIdx === globalIdx) setDsDragOverIdx(null)
+  }, [dsVisible, dsOrdered, dsDragOverIdx])
+
+  const handleDsColDrop = useCallback((e, vIdx) => {
+    const toCol = dsVisible[vIdx]
+    if (!toCol || toCol.stickyRight) {
+      setDsDragIdx(null)
+      setDsDragOverIdx(null)
+      return
+    }
+    e.preventDefault()
+    const fromCol = dsVisible[dsDragIdx]
+    if (!fromCol || fromCol.stickyRight) {
+      setDsDragIdx(null)
+      setDsDragOverIdx(null)
+      return
+    }
+    const fromIdx = dsOrdered.findIndex((c) => c.id === fromCol.id)
+    const toIdx = dsOrdered.findIndex((c) => c.id === toCol.id)
+    if (fromIdx > -1 && toIdx > -1 && fromIdx !== toIdx) {
+      moveDsColumn(fromIdx, toIdx)
+    }
+    setDsDragIdx(null)
+    setDsDragOverIdx(null)
+  }, [dsVisible, dsOrdered, dsDragIdx, moveDsColumn])
+
+  const handleDsColDragEnd = useCallback(() => {
+    setDsDragIdx(null)
+    setDsDragOverIdx(null)
+  }, [])
+
   return (
     <div className="space-y-4">
-      <AppSurface padding="md" className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SelectField
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className="sm:w-64"
-        >
-          <option value="">All Projects</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
-          ))}
-        </SelectField>
-        <TextInput
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search documents attached to projects (or by selected project)..."
-          className="flex-1"
-        />
-        <Button onClick={search}>
-          Search
-        </Button>
-      </AppSurface>
+      <DataTableToolbar
+        left={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SelectField
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="sm:w-64"
+            >
+              <option value="">All Projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{`${p.code} • ${p.name}`}</option>
+              ))}
+            </SelectField>
+            <TextInput
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search documents attached to projects (or by selected project)..."
+              className="flex-1 min-w-[240px]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') search()
+              }}
+            />
+            <Button onClick={search}>
+              Search
+            </Button>
+          </div>
+        }
+        right={
+          <ColumnSettingsButton
+            orderedColumns={dsOrdered}
+            hiddenColumns={dsHidden}
+            onToggleColumn={toggleDsCol}
+            onReset={resetDsSettings}
+          />
+        }
+      />
 
       {notice ? (
         <AppSurface
@@ -5657,46 +7034,48 @@ function DocumentsSearch() {
             <Table>
               <thead>
                 <Tr>
-                  <Th>Document</Th>
-                  <Th>Project</Th>
-                  <Th>Iteration</Th>
-                  <Th>Stage</Th>
-                  <Th stickyRight>Action</Th>
+                  {dsVisible.map((col, vIdx) => {
+                    const globalIdx = dsOrdered.findIndex((c) => c.id === col.id)
+                    return (
+                      <Th
+                        key={col.id}
+                        sortable={col.sortable !== false}
+                        sortDirection={getDsSortDir(col.id)}
+                        onSort={() => toggleDsSort(col.id)}
+                        stickyRight={col.stickyRight || false}
+                        draggable={col.stickyRight ? false : col.sortable !== false}
+                        dragOver={dsDragOverIdx === globalIdx}
+                        onDragStart={(e) => handleDsColDragStart(e, vIdx)}
+                        onDragOver={(e) => handleDsColDragOver(e, vIdx)}
+                        onDragLeave={() => handleDsColDragLeave(vIdx)}
+                        onDrop={(e) => handleDsColDrop(e, vIdx)}
+                        onDragEnd={handleDsColDragEnd}
+                      >
+                        <div className="flex items-center gap-2">
+                          {col.stickyRight ? null : (
+                            <svg className="h-3 w-3 shrink-0 cursor-grab text-ink-soft opacity-60 hover:opacity-100" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                              <circle cx="7" cy="4" r="1.2"/><circle cx="7" cy="10" r="1.2"/><circle cx="7" cy="16" r="1.2"/>
+                              <circle cx="13" cy="4" r="1.2"/><circle cx="13" cy="10" r="1.2"/><circle cx="13" cy="16" r="1.2"/>
+                            </svg>
+                          )}
+                          <span>{col.label}</span>
+                        </div>
+                      </Th>
+                    )
+                  })}
                 </Tr>
               </thead>
               <tbody>
-                {results.map((r) => (
+                {sortedResults.map((r) => (
                   <Tr key={r.id} className="hover:bg-surface-muted">
-                    <Td>
-                      <button type="button" onClick={() => openSearchDocument(r.document)} className="text-brand hover:underline">
-                        {r.document.fileCode}
-                      </button>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-ink-muted">
-                        <span>{r.document.title}</span>
-                        <ConfidentialBadge isConfidential={r.document.isConfidential} />
-                      </div>
-                    </Td>
-                    <Td className="text-ink-secondary">
-                      {r.iteration?.project ? `${r.iteration.project.code} • ${r.iteration.project.name}` : '-'}
-                    </Td>
-                    <Td className="text-ink-secondary">{`#${r.iteration?.iterationNo || '-'}`}</Td>
-                    <Td className="text-ink-secondary">{r.stage?.name || '-'}</Td>
-                    <Td stickyRight>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                        {r.document?.canAccess === false ? (
-                          <span className="font-medium text-[var(--dms-color-warning-ink)]">Access Restricted</span>
-                        ) : (
-                          <>
-                            <button type="button" onClick={() => openSearchDocument(r.document)} className="font-medium text-brand hover:underline">
-                              Open Document
-                            </button>
-                            <button type="button" onClick={() => downloadSearchDocument(r.document)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
-                              Download
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </Td>
+                    {dsVisible.map((col) => {
+                      const value = typeof col.accessor === 'function' ? col.accessor(r) : r[col.accessor]
+                      return (
+                        <Td key={col.id} align={col.align || 'left'} stickyRight={col.stickyRight || false} className={col.cellClassName || ''}>
+                          {col.render ? col.render(value, r) : (value ?? '')}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>

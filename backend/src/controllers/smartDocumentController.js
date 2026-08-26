@@ -90,8 +90,8 @@ exports.getSmartDocumentContent = asyncHandler(async (req, res) => {
       document: {
         include: {
           documentType: true,
-          owner: { select: { id: true, firstName: true, lastName: true, email: true, employeeId: true, fullName: true, displayFullName: true, displayName: true } },
-          createdBy: { select: { id: true, firstName: true, lastName: true, email: true, employeeId: true, fullName: true, displayFullName: true, displayName: true } }
+          owner: { select: { id: true, firstName: true, lastName: true, email: true, employeeId: true } },
+          createdBy: { select: { id: true, firstName: true, lastName: true, email: true, employeeId: true } }
         }
       }
     }
@@ -101,105 +101,118 @@ exports.getSmartDocumentContent = asyncHandler(async (req, res) => {
     return ResponseFormatter.notFound(res, 'Document Version');
   }
 
-  if (!documentVersion.smartTemplateVersionId && documentVersion.document) {
-    const docType = await prisma.documentType.findUnique({
-      where: { id: documentVersion.document.documentTypeId },
-      select: { smartDefaultTemplate: { select: { id: true } } }
-    });
-    if (docType && docType.smartDefaultTemplate) {
-      return ResponseFormatter.error(
-        res,
-        'Smart template version not assigned to document version',
-        400
-      );
+  try {
+    if (!documentVersion.smartTemplateVersionId && documentVersion.document) {
+      const docType = await prisma.documentType.findUnique({
+        where: { id: documentVersion.document.documentTypeId },
+        select: { smartDefaultTemplate: { select: { id: true } } }
+      });
+      if (docType && docType.smartDefaultTemplate) {
+        return ResponseFormatter.error(
+          res,
+          'Smart template version not assigned to document version',
+          400
+        );
+      }
     }
-  }
 
-  let smartDocumentContent = documentVersion.smartDocumentContent;
-  if (
-    !smartDocumentContent &&
-    (documentVersion.smartTemplateVersionId ||
-      (documentVersion.smartTemplateVersion && documentVersion.smartTemplateVersion.id))
-  ) {
-    const stvId =
-      documentVersion.smartTemplateVersionId ||
-      (documentVersion.smartTemplateVersion && documentVersion.smartTemplateVersion.id);
-    try {
-      smartDocumentContent =
-        await smartDocumentContentService.getOrCreateContentForDocumentVersion({
-          documentVersionId: Number(documentVersionId),
-          smartTemplateVersionId: Number(stvId),
-          createdById: Number(
-            documentVersion.document?.ownerId ||
-              documentVersion.document?.createdById ||
-              req.user.id
-          ),
-        });
-    } catch (createErr) {
-      console.warn(
-        '[getSmartDocumentContent] Could not auto-create smartDocumentContent (continuing):',
-        createErr?.message || createErr
-      );
-      smartDocumentContent = null;
+    let smartDocumentContent = documentVersion.smartDocumentContent;
+    if (
+      !smartDocumentContent &&
+      (documentVersion.smartTemplateVersionId ||
+        (documentVersion.smartTemplateVersion && documentVersion.smartTemplateVersion.id))
+    ) {
+      const stvId =
+        documentVersion.smartTemplateVersionId ||
+        (documentVersion.smartTemplateVersion && documentVersion.smartTemplateVersion.id);
+      try {
+        smartDocumentContent =
+          await smartDocumentContentService.getOrCreateContentForDocumentVersion({
+            documentVersionId: Number(documentVersionId),
+            smartTemplateVersionId: Number(stvId),
+            createdById: Number(
+              documentVersion.document?.ownerId ||
+                documentVersion.document?.createdById ||
+                req.user.id
+            ),
+          });
+      } catch (createErr) {
+        console.warn(
+          '[getSmartDocumentContent] Could not auto-create smartDocumentContent (continuing):',
+          createErr?.message || createErr
+        );
+        smartDocumentContent = null;
+      }
     }
+    const templateVersion = documentVersion.smartTemplateVersion;
+    const styleProfile =
+      (templateVersion &&
+        templateVersion.smartTemplate &&
+        templateVersion.smartTemplate.styleProfile) ||
+      (templateVersion && templateVersion.formattingSnapshot) ||
+      null;
+    const sections = (templateVersion && templateVersion.sections) || [];
+    const formFields = (templateVersion && templateVersion.formFields) || [];
+    const fieldMappings = (templateVersion && templateVersion.fieldMappings) || [];
+    const owner = documentVersion.document
+      ? (documentVersion.document.owner || (documentVersion.document.ownerId
+        ? { id: documentVersion.document.ownerId }
+        : null))
+      : null;
+    const createdByUser = documentVersion.document
+      ? (documentVersion.document.createdBy || (documentVersion.document.createdById
+        ? { id: documentVersion.document.createdById }
+        : null))
+      : null;
+
+    const resolvedDocumentTypeName =
+      (documentVersion.document && documentVersion.document.documentType && documentVersion.document.documentType.name) ||
+      (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.documentType && templateVersion.smartTemplate.documentType.name) ||
+      (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.name) ||
+      (documentVersion.document && documentVersion.document.documentTypeName) ||
+      '';
+
+    const resolvedPreparedByFullName =
+      (owner && (owner.fullName || owner.displayFullName || owner.displayName || [owner.firstName, owner.lastName].filter(Boolean).join(' '))) ||
+      (createdByUser && (createdByUser.fullName || createdByUser.displayFullName || createdByUser.displayName || [createdByUser.firstName, createdByUser.lastName].filter(Boolean).join(' '))) ||
+      '';
+
+    const isEditableByCurrentUser = computeIsEditable(
+      req.user,
+      documentVersion.document,
+      documentVersion
+    );
+
+    return ResponseFormatter.success(
+      res,
+      {
+        documentVersion,
+        smartDocumentContent,
+        templateVersion,
+        styleProfile,
+        sections,
+        formFields,
+        fieldMappings,
+        owner,
+        createdBy: createdByUser,
+        documentTypeName: resolvedDocumentTypeName,
+        preparedByFullName: resolvedPreparedByFullName,
+        isEditableByCurrentUser
+      },
+      'Smart document content retrieved successfully'
+    );
+  } catch (unexpectedErr) {
+    if (unexpectedErr instanceof BadRequestError ||
+        unexpectedErr instanceof NotFoundError ||
+        unexpectedErr instanceof ForbiddenError ||
+        unexpectedErr?.isOperational === true) {
+      throw unexpectedErr;
+    }
+    console.error('[getSmartDocumentContent] Processing error:', unexpectedErr);
+    throw new BadRequestError(
+      `Unable to load smart document content: ${unexpectedErr.message || unexpectedErr.code || String(unexpectedErr).slice(0, 200)}`
+    );
   }
-  const templateVersion = documentVersion.smartTemplateVersion;
-  const styleProfile =
-    (templateVersion &&
-      templateVersion.smartTemplate &&
-      templateVersion.smartTemplate.styleProfile) ||
-    (templateVersion && templateVersion.formattingSnapshot) ||
-    null;
-  const sections = (templateVersion && templateVersion.sections) || [];
-  const formFields = (templateVersion && templateVersion.formFields) || [];
-  const fieldMappings = (templateVersion && templateVersion.fieldMappings) || [];
-  const owner = documentVersion.document
-    ? (documentVersion.document.owner || (documentVersion.document.ownerId
-      ? { id: documentVersion.document.ownerId }
-      : null))
-    : null;
-  const createdByUser = documentVersion.document
-    ? (documentVersion.document.createdBy || (documentVersion.document.createdById
-      ? { id: documentVersion.document.createdById }
-      : null))
-    : null;
-
-  const resolvedDocumentTypeName =
-    (documentVersion.document && documentVersion.document.documentType && documentVersion.document.documentType.name) ||
-    (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.documentType && templateVersion.smartTemplate.documentType.name) ||
-    (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.name) ||
-    (documentVersion.document && documentVersion.document.documentTypeName) ||
-    '';
-
-  const resolvedPreparedByFullName =
-    (owner && (owner.fullName || owner.displayFullName || owner.displayName || [owner.firstName, owner.lastName].filter(Boolean).join(' '))) ||
-    (createdByUser && (createdByUser.fullName || createdByUser.displayFullName || createdByUser.displayName || [createdByUser.firstName, createdByUser.lastName].filter(Boolean).join(' '))) ||
-    '';
-
-  const isEditableByCurrentUser = computeIsEditable(
-    req.user,
-    documentVersion.document,
-    documentVersion
-  );
-
-  return ResponseFormatter.success(
-    res,
-    {
-      documentVersion,
-      smartDocumentContent,
-      templateVersion,
-      styleProfile,
-      sections,
-      formFields,
-      fieldMappings,
-      owner,
-      createdBy: createdByUser,
-      documentTypeName: resolvedDocumentTypeName,
-      preparedByFullName: resolvedPreparedByFullName,
-      isEditableByCurrentUser
-    },
-    'Smart document content retrieved successfully'
-  );
 });
 
 exports.saveSmartDocumentFieldValues = asyncHandler(async (req, res) => {
@@ -244,54 +257,67 @@ exports.snapshotSystemValues = asyncHandler(async (req, res) => {
     return ResponseFormatter.notFound(res, 'Document Version');
   }
 
-  const { systemValues } = req.body || {};
-  if (!systemValues || typeof systemValues !== 'object') {
-    return ResponseFormatter.error(res, 'systemValues object is required', 400);
-  }
+  try {
+    const { systemValues } = req.body || {};
+    if (!systemValues || typeof systemValues !== 'object') {
+      return ResponseFormatter.error(res, 'systemValues object is required', 400);
+    }
 
-  const dv = await prisma.documentVersion.findUnique({
-    where: { id: documentVersionId },
-    include: { document: true }
-  });
-  if (!dv) {
-    return ResponseFormatter.notFound(res, 'Document Version');
-  }
+    const dv = await prisma.documentVersion.findUnique({
+      where: { id: documentVersionId },
+      include: { document: true }
+    });
+    if (!dv) {
+      return ResponseFormatter.notFound(res, 'Document Version');
+    }
 
-  const userId = Number(req.user.id);
-  const ownerId = dv.document ? Number(dv.document.ownerId) : null;
-  const createdById = dv.document ? Number(dv.document.createdById) : null;
+    const userId = Number(req.user.id);
+    const ownerId = dv.document ? Number(dv.document.ownerId) : null;
+    const createdById = dv.document ? Number(dv.document.createdById) : null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { roles: { include: { role: true } } }
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } }
+    });
 
-  const isAllowed =
-    userId === ownerId ||
-    userId === createdById ||
-    isUserAdmin({ roles: (user && user.roles) || [] });
+    const isAllowed =
+      userId === ownerId ||
+      userId === createdById ||
+      isUserAdmin({ roles: (user && user.roles) || [] });
 
-  if (!isAllowed) {
-    return ResponseFormatter.forbidden(
+    if (!isAllowed) {
+      return ResponseFormatter.forbidden(
+        res,
+        'Only document owner/creator or admin can snapshot system values'
+      );
+    }
+
+    const updated = await smartDocumentContentService.snapshotSystemFields({
+      documentVersionId,
+      systemValues
+    });
+
+    return ResponseFormatter.success(
       res,
-      'Only document owner/creator or admin can snapshot system values'
+      {
+        id: updated.id,
+        contentChecksum: updated.contentChecksum,
+        autoFieldSnapshotJson: updated.autoFieldSnapshotJson
+      },
+      'System values snapshotted successfully'
+    );
+  } catch (unexpectedErr) {
+    if (unexpectedErr instanceof BadRequestError ||
+        unexpectedErr instanceof NotFoundError ||
+        unexpectedErr instanceof ForbiddenError ||
+        unexpectedErr?.isOperational === true) {
+      throw unexpectedErr;
+    }
+    console.error('[snapshotSystemValues] Processing error:', unexpectedErr);
+    throw new BadRequestError(
+      `Snapshot failed: ${unexpectedErr.message || unexpectedErr.code || String(unexpectedErr).slice(0, 200)}`
     );
   }
-
-  const updated = await smartDocumentContentService.snapshotSystemFields({
-    documentVersionId,
-    systemValues
-  });
-
-  return ResponseFormatter.success(
-    res,
-    {
-      id: updated.id,
-      contentChecksum: updated.contentChecksum,
-      autoFieldSnapshotJson: updated.autoFieldSnapshotJson
-    },
-    'System values snapshotted successfully'
-  );
 });
 
 exports.getSmartDocumentFieldChanges = asyncHandler(async (req, res) => {
@@ -491,140 +517,160 @@ exports.previewCurrentSmartDocumentAsPdf = asyncHandler(async (req, res) => {
     return ResponseFormatter.notFound(res, 'Document Version');
   }
 
-  let smartDocumentContent = dv.smartDocumentContent;
-  if (!smartDocumentContent && dv.smartTemplateVersionId) {
-    try {
-      smartDocumentContent =
-        await smartDocumentContentService.getOrCreateContentForDocumentVersion({
-          documentVersionId: Number(documentVersionId),
-          smartTemplateVersionId: Number(dv.smartTemplateVersionId),
-          createdById: Number(
-            dv.document?.ownerId || dv.document?.createdById || req.user.id
-          ),
-        });
-    } catch (createErr) {
-      console.warn(
-        '[previewCurrentSmartDocumentAsPdf] Could not auto-create content:',
-        createErr?.message || createErr
-      );
-      smartDocumentContent = null;
+  try {
+    let smartDocumentContent = dv.smartDocumentContent;
+    if (!smartDocumentContent && dv.smartTemplateVersionId) {
+      try {
+        smartDocumentContent =
+          await smartDocumentContentService.getOrCreateContentForDocumentVersion({
+            documentVersionId: Number(documentVersionId),
+            smartTemplateVersionId: Number(dv.smartTemplateVersionId),
+            createdById: Number(
+              dv.document?.ownerId || dv.document?.createdById || req.user.id
+            ),
+          });
+      } catch (createErr) {
+        console.warn(
+          '[previewCurrentSmartDocumentAsPdf] Could not auto-create content:',
+          createErr?.message || createErr
+        );
+        smartDocumentContent = null;
+      }
     }
-  }
-  if (!smartDocumentContent) {
-    return ResponseFormatter.error(
-      res,
-      'Smart document content not initialized for this document version',
-      400
-    );
-  }
+    if (!smartDocumentContent) {
+      return ResponseFormatter.error(
+        res,
+        'Smart document content not initialized for this document version',
+        400
+      );
+    }
 
-  const templateVersion = dv.smartTemplateVersion;
-  if (!templateVersion || !templateVersion.templateFilePath) {
-    return ResponseFormatter.error(
-      res,
-      'Smart template version or template file missing',
-      400
-    );
-  }
+    const templateVersion = dv.smartTemplateVersion;
+    if (!templateVersion || !templateVersion.templateFilePath) {
+      return ResponseFormatter.error(
+        res,
+        'Smart template version or template file missing',
+        400
+      );
+    }
 
-  const styleProfile =
-    (dv.document &&
-      dv.document.smartDocumentStyleProfile &&
-      dv.document.smartDocumentStyleProfile.isActive !== false &&
-      dv.document.smartDocumentStyleProfile) ||
-    (templateVersion.smartTemplate && templateVersion.smartTemplate.styleProfile) ||
-    templateVersion.formattingSnapshot ||
-    {};
+    const styleProfile =
+      (dv.document &&
+        dv.document.smartDocumentStyleProfile &&
+        dv.document.smartDocumentStyleProfile.isActive !== false &&
+        dv.document.smartDocumentStyleProfile) ||
+      (templateVersion.smartTemplate && templateVersion.smartTemplate.styleProfile) ||
+      templateVersion.formattingSnapshot ||
+      {};
 
-  const absTpl = path.isAbsolute(templateVersion.templateFilePath)
-    ? templateVersion.templateFilePath
-    : path.join(config.uploadDir, templateVersion.templateFilePath);
+    const absTpl = path.isAbsolute(templateVersion.templateFilePath)
+      ? templateVersion.templateFilePath
+      : path.join(config.uploadDir, templateVersion.templateFilePath);
 
-  if (!fsSync.existsSync(absTpl)) {
-    return ResponseFormatter.notFound(res, 'Template file on disk');
-  }
+    if (!fsSync.existsSync(absTpl)) {
+      return ResponseFormatter.notFound(res, 'Template file on disk');
+    }
 
-  const templateBuffer = await fs.readFile(absTpl);
+    let templateBuffer;
+    try {
+      templateBuffer = await fs.readFile(absTpl);
+    } catch (fsErr) {
+      throw new BadRequestError(
+        `Failed to read template file from disk (${path.basename(absTpl)}): ${fsErr.message || fsErr.code || 'read error'}`
+      );
+    }
 
-  const smartDocumentGenerator = require('../services/smartDocumentGenerator');
-  const smartDocumentFormatter = require('../services/smartDocumentFormatter');
-  const smartDocumentPdfServiceLocal = require('../services/smartDocumentPdfService');
+    const smartDocumentGenerator = require('../services/smartDocumentGenerator');
+    const smartDocumentFormatter = require('../services/smartDocumentFormatter');
+    const smartDocumentPdfServiceLocal = require('../services/smartDocumentPdfService');
 
-  const fieldValuesMap =
-    smartDocumentContent.fieldValuesJson &&
-    typeof smartDocumentContent.fieldValuesJson === 'object'
-      ? smartDocumentContent.fieldValuesJson
-      : {};
+    const fieldValuesMap =
+      smartDocumentContent.fieldValuesJson &&
+      typeof smartDocumentContent.fieldValuesJson === 'object'
+        ? smartDocumentContent.fieldValuesJson
+        : {};
 
-  const systemValues =
-    smartDocumentContent.autoFieldSnapshotJson &&
-    typeof smartDocumentContent.autoFieldSnapshotJson === 'object'
-      ? smartDocumentContent.autoFieldSnapshotJson
-      : {};
+    const systemValues =
+      smartDocumentContent.autoFieldSnapshotJson &&
+      typeof smartDocumentContent.autoFieldSnapshotJson === 'object'
+        ? smartDocumentContent.autoFieldSnapshotJson
+        : {};
 
-  const formFields = templateVersion.formFields || [];
-  const fieldMappings = templateVersion.fieldMappings || [];
+    const formFields = templateVersion.formFields || [];
+    const fieldMappings = templateVersion.fieldMappings || [];
 
-  let docxBuf = await smartDocumentGenerator.generateDocx({
-    templateBuffer,
-    fieldValuesMap,
-    formFields,
-    fieldMappings,
-    styleProfile,
-    systemValues
-  });
+    let docxBuf = await smartDocumentGenerator.generateDocx({
+      templateBuffer,
+      fieldValuesMap,
+      formFields,
+      fieldMappings,
+      styleProfile,
+      systemValues
+    });
 
-  docxBuf = await smartDocumentFormatter.applyStyleProfileToDocxBuffer({
-    docxBuffer: docxBuf,
-    styleProfile,
-    headerValues: systemValues,
-    footerValues: systemValues
-  });
+    docxBuf = await smartDocumentFormatter.applyStyleProfileToDocxBuffer({
+      docxBuffer: docxBuf,
+      styleProfile,
+      headerValues: systemValues,
+      footerValues: systemValues
+    });
 
-  const ts = Date.now();
-  const fileCode = (dv.document && dv.document.fileCode) || `doc-v${dv.id}`;
+    const ts = Date.now();
+    const fileCode = (dv.document && dv.document.fileCode) || `doc-v${dv.id}`;
 
-  if (asDocx) {
-    const fileName = `${fileCode}_v${dv.version}_preview_${ts}.docx`;
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    );
+    if (asDocx) {
+      const fileName = `${fileCode}_v${dv.version}_preview_${ts}.docx`;
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      res.setHeader('Content-Length', docxBuf.length);
+      return res.send(docxBuf);
+    }
+
+    const resolvedDocumentTypeNameForPreview =
+      (dv.document && dv.document.documentType && dv.document.documentType.name) ||
+      (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.documentType && templateVersion.smartTemplate.documentType.name) ||
+      (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.name) ||
+      (dv.document && dv.document.documentTypeName) ||
+      (systemValues && systemValues.documentTypeName) ||
+      '';
+
+    const normalizedSystemValues = {
+      ...(systemValues || {}),
+      documentTypeName: resolvedDocumentTypeNameForPreview || (systemValues && systemValues.documentTypeName) || '',
+      documentType: resolvedDocumentTypeNameForPreview || (systemValues && systemValues.documentTypeName) || '',
+      referenceCode: (systemValues && systemValues.referenceCode) || (dv.document && dv.document.fileCode) || '',
+      version: (systemValues && systemValues.version) || dv.version || '',
+      revision: (systemValues && systemValues.version) || dv.version || '',
+      docCode: (systemValues && systemValues.referenceCode) || (dv.document && dv.document.fileCode) || '',
+      fileCode: (dv.document && dv.document.fileCode) || (systemValues && systemValues.referenceCode) || ''
+    };
+
+    const { pdfBuffer } = await smartDocumentPdfServiceLocal.convertDocxBufferToPdf(docxBuf, {
+      workDirSuffix: 'smart-doc-preview',
+      styleProfile,
+      systemValues: normalizedSystemValues,
+      headerValues: normalizedSystemValues,
+      footerValues: normalizedSystemValues
+    });
+
+    const fileName = `${fileCode}_v${dv.version}_preview_${ts}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-    res.setHeader('Content-Length', docxBuf.length);
-    return res.send(docxBuf);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (unexpectedErr) {
+    if (unexpectedErr instanceof BadRequestError ||
+        unexpectedErr instanceof NotFoundError ||
+        unexpectedErr instanceof ForbiddenError ||
+        unexpectedErr?.isOperational === true) {
+      throw unexpectedErr;
+    }
+    console.error('[previewCurrentSmartDocumentAsPdf] Unhandled pipeline error:', unexpectedErr);
+    throw new BadRequestError(
+      `Preview generation failed: ${unexpectedErr.message || unexpectedErr.code || String(unexpectedErr).slice(0, 200)}`
+    );
   }
-
-  const resolvedDocumentTypeNameForPreview =
-    (dv.document && dv.document.documentType && dv.document.documentType.name) ||
-    (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.documentType && templateVersion.smartTemplate.documentType.name) ||
-    (templateVersion && templateVersion.smartTemplate && templateVersion.smartTemplate.name) ||
-    (dv.document && dv.document.documentTypeName) ||
-    (systemValues && systemValues.documentTypeName) ||
-    '';
-
-  const normalizedSystemValues = {
-    ...(systemValues || {}),
-    documentTypeName: resolvedDocumentTypeNameForPreview || (systemValues && systemValues.documentTypeName) || '',
-    documentType: resolvedDocumentTypeNameForPreview || (systemValues && systemValues.documentTypeName) || '',
-    referenceCode: (systemValues && systemValues.referenceCode) || (dv.document && dv.document.fileCode) || '',
-    version: (systemValues && systemValues.version) || dv.version || '',
-    revision: (systemValues && systemValues.version) || dv.version || '',
-    docCode: (systemValues && systemValues.referenceCode) || (dv.document && dv.document.fileCode) || '',
-    fileCode: (dv.document && dv.document.fileCode) || (systemValues && systemValues.referenceCode) || ''
-  };
-
-  const { pdfBuffer } = await smartDocumentPdfServiceLocal.convertDocxBufferToPdf(docxBuf, {
-    workDirSuffix: 'smart-doc-preview',
-    styleProfile,
-    systemValues: normalizedSystemValues,
-    headerValues: normalizedSystemValues,
-    footerValues: normalizedSystemValues
-  });
-
-  const fileName = `${fileCode}_v${dv.version}_preview_${ts}.pdf`;
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-  res.setHeader('Content-Length', pdfBuffer.length);
-  return res.send(pdfBuffer);
 });

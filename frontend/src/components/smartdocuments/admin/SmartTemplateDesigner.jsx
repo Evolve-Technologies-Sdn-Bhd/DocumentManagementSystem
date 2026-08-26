@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react'
 import api from '../../../api/axios'
+import aiApi from '../../../api/ai'
+import useAI from '../../../hooks/useAI'
+import useTableFeatures from '../../../hooks/useTableFeatures'
 import Button from '../../ui/Button'
 import TextInput from '../../ui/TextInput'
 import TextArea from '../../ui/TextArea'
@@ -11,7 +14,11 @@ import EmptyPanelState from '../../ui/EmptyPanelState'
 import InlineSpinner from '../../ui/InlineSpinner'
 import PageContainer from '../../ui/PageContainer'
 import AppSurface from '../../ui/AppSurface'
+import ColumnSettingsButton from '../../ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from '../../ui/Table'
+import ActionMenu from '../../ActionMenu'
+import Pagination from '../../Pagination'
+import { usePreferences } from '../../../contexts/PreferencesContext'
 import SmartForm from '../SmartForm'
 
 const SUBTABS = [
@@ -25,7 +32,8 @@ const SUBTABS = [
 
 const INPUT_TYPES = [
   'TEXT', 'TEXTAREA', 'RICH_TEXT', 'NUMBER', 'DATE', 'DATETIME',
-  'DROPDOWN', 'CHECKBOX', 'USER_LOOKUP', 'TABLE', 'IMAGE', 'ATTACHMENT',
+  'DROPDOWN', 'SINGLE_SELECT', 'MULTI_SELECT',
+  'CHECKBOX', 'USER_LOOKUP', 'TABLE', 'IMAGE', 'ATTACHMENT',
   'REPEATER', 'SYSTEM_GENERATED'
 ]
 
@@ -40,6 +48,8 @@ const INPUT_TYPE_TO_PLACEHOLDER_TYPE = {
   TEXT: 'SIMPLE_VALUE',
   NUMBER: 'SIMPLE_VALUE',
   DROPDOWN: 'SIMPLE_VALUE',
+  SINGLE_SELECT: 'SIMPLE_VALUE',
+  MULTI_SELECT: 'SIMPLE_VALUE',
   CHECKBOX: 'SIMPLE_VALUE',
   USER_LOOKUP: 'SIMPLE_VALUE',
   ATTACHMENT: 'SIMPLE_VALUE',
@@ -61,6 +71,8 @@ const OUTPUT_FORMAT_PRESETS = {
     CHECKBOX: { trueLabel: 'Yes', falseLabel: 'No' },
     USER_LOOKUP: { displayFormat: 'fullName', fallback: 'email' },
     DROPDOWN: { useLabel: true },
+    SINGLE_SELECT: { useLabel: true },
+    MULTI_SELECT: { useLabel: true, joinSeparator: ', ' },
     SYSTEM_GENERATED: { dateFormat: 'DD/MM/YYYY' }
   },
   RICH_TEXT_CONTENT: {
@@ -217,9 +229,15 @@ function buildOptionsJsonFromArray(arr) {
 
 function readDefaultValueScalar(defaultValueJsonRaw, inputType) {
   const v = tryParseJson(defaultValueJsonRaw, undefined)
-  if (v === undefined || v === null) return inputType === 'CHECKBOX' ? false : ''
+  if (v === undefined || v === null) {
+    if (inputType === 'CHECKBOX') return false
+    if (inputType === 'MULTI_SELECT') return []
+    return ''
+  }
   if (inputType === 'CHECKBOX') return Boolean(v)
   if (inputType === 'NUMBER') return (v === null || v === undefined) ? '' : String(v)
+  if (inputType === 'MULTI_SELECT') return Array.isArray(v) ? v : (v ? [String(v)] : [])
+  if (inputType === 'SINGLE_SELECT') return String(v)
   return String(v)
 }
 
@@ -229,6 +247,10 @@ function writeDefaultValueScalar(scalar, inputType) {
     if (scalar === '' || scalar === null || scalar === undefined) return ''
     const n = Number(scalar)
     return safeJsonStringify(Number.isFinite(n) ? n : String(scalar))
+  }
+  if (inputType === 'MULTI_SELECT') {
+    if (!scalar || (Array.isArray(scalar) && scalar.length === 0)) return ''
+    return safeJsonStringify(Array.isArray(scalar) ? scalar : [scalar])
   }
   if (scalar === '' || scalar === null || scalar === undefined) return ''
   return safeJsonStringify(scalar)
@@ -258,7 +280,8 @@ function DropdownOptionsEditor({
   ownerFieldKey = '',
   allFields = [],
   onAddDependent = null,
-  onEditExistingDependent = null
+  onEditExistingDependent = null,
+  isMultiDefault = false
 }) {
   const options = parseDropdownOptions(optionsJson)
   const ownerKey = (ownerFieldKey || '').trim()
@@ -287,7 +310,14 @@ function DropdownOptionsEditor({
   function removeRow(i) {
     const next = options.filter((_, idx) => idx !== i)
     persist(next)
-    if (onDefaultChange && defaultValue && options[i] && options[i].value === defaultValue) onDefaultChange('')
+    const removedValue = options[i]?.value
+    if (onDefaultChange && defaultValue && removedValue) {
+      if (isMultiDefault && Array.isArray(defaultValue)) {
+        onDefaultChange(defaultValue.filter(v => v !== removedValue))
+      } else if (!isMultiDefault && String(defaultValue) === String(removedValue)) {
+        onDefaultChange('')
+      }
+    }
   }
   function move(i, delta) {
     const j = i + delta
@@ -295,6 +325,14 @@ function DropdownOptionsEditor({
     const next = options.slice()
     const tmp = next[i]; next[i] = next[j]; next[j] = tmp
     persist(next)
+  }
+  function toggleMultiDefault(optValue) {
+    if (!onDefaultChange) return
+    const current = Array.isArray(defaultValue) ? defaultValue : []
+    const next = current.includes(optValue)
+      ? current.filter(v => v !== optValue)
+      : [...current, optValue]
+    onDefaultChange(next)
   }
   return (
     <div className="space-y-3">
@@ -305,11 +343,34 @@ function DropdownOptionsEditor({
         <div className="flex items-center gap-2 flex-wrap">
           {onDefaultChange && (
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-medium text-gray-700">Default value</label>
-              <SelectField value={defaultValue ?? ''} onChange={(e) => onDefaultChange(e.target.value)}>
-                <option value="">— No default —</option>
-                {options.map((o, i) => <option key={i} value={o.value}>{o.label} ({o.value})</option>)}
-              </SelectField>
+              <label className="text-[11px] font-medium text-gray-700">Default value{isMultiDefault ? 's' : ''}</label>
+              {isMultiDefault ? (
+                <div className="flex flex-wrap items-center gap-2 max-w-[320px] px-2 py-1.5 border border-gray-300 bg-white rounded-md max-h-[80px] overflow-y-auto">
+                  {options.length === 0 ? (
+                    <span className="text-[11px] text-gray-400 italic">Add options first</span>
+                  ) : (
+                    options.map((o, i) => {
+                      const isChecked = Array.isArray(defaultValue) && defaultValue.includes(o.value)
+                      return (
+                        <label key={i} className="inline-flex items-center gap-1 cursor-pointer text-[11px] text-gray-700">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-brand"
+                            checked={isChecked}
+                            onChange={() => toggleMultiDefault(o.value)}
+                          />
+                          <span className="whitespace-nowrap">{o.label}</span>
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
+              ) : (
+                <SelectField value={defaultValue ?? ''} onChange={(e) => onDefaultChange(e.target.value)}>
+                  <option value="">— No default —</option>
+                  {options.map((o, i) => <option key={i} value={o.value}>{o.label} ({o.value})</option>)}
+                </SelectField>
+              )}
             </div>
           )}
           <Button type="button" size="sm" variant="secondary" onClick={addOption}>
@@ -543,13 +604,13 @@ function ConditionalVisibilityEditor({ visibilityRulesJson, onChange, controller
   function isValueFreeText(operator, fieldKey) {
     if (['isEmpty', 'isNotEmpty'].includes(String(operator))) return false
     const f = fieldsForSelect.find(x => x.fieldKey === fieldKey)
-    return !(f && (f.inputType === 'DROPDOWN' || f.inputType === 'CHECKBOX'))
+    return !(f && (f.inputType === 'DROPDOWN' || f.inputType === 'SINGLE_SELECT' || f.inputType === 'MULTI_SELECT' || f.inputType === 'CHECKBOX'))
   }
 
   function isValueDropdownOptions(operator, fieldKey) {
     if (['isEmpty', 'isNotEmpty'].includes(String(operator))) return false
     const f = fieldsForSelect.find(x => x.fieldKey === fieldKey)
-    return !!(f && f.inputType === 'DROPDOWN')
+    return !!(f && (f.inputType === 'DROPDOWN' || f.inputType === 'SINGLE_SELECT' || f.inputType === 'MULTI_SELECT'))
   }
 
   return (
@@ -1888,6 +1949,153 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
   const [viewPhList, setViewPhList] = useState([])
   const [viewPhLoading, setViewPhLoading] = useState(false)
 
+  const { itemsPerPage } = usePreferences()
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(itemsPerPage || 10)
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  useEffect(() => {
+    setPageSize(itemsPerPage || 10)
+  }, [itemsPerPage])
+
+  const versionColumns = [
+    {
+      id: 'versionNo',
+      key: 'versionNo',
+      accessor: 'versionNo',
+      label: 'Version',
+      sortable: true,
+      required: true,
+      render: (value, row) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-base font-semibold text-gray-900">v{value}</span>
+          {row.isCurrent && <Pill variant="success">Current</Pill>}
+          {activeId === String(row.id) && <Pill variant="primary">Designing now</Pill>}
+        </div>
+      )
+    },
+    {
+      id: 'versionLabel',
+      key: 'versionLabel',
+      accessor: (row) => row.versionLabel || row.changeNotes || '',
+      label: 'Label',
+      sortable: true,
+      render: (value, row) => (
+        <div className="space-y-1">
+          {row.versionLabel && <span className="text-sm font-medium text-gray-700">{row.versionLabel}</span>}
+          {row.changeNotes && <p className="text-xs text-gray-500 whitespace-pre-wrap line-clamp-2">{row.changeNotes}</p>}
+          {!row.versionLabel && !row.changeNotes && <span className="text-gray-400">—</span>}
+        </div>
+      )
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: (row) => (row.isLocked ? 'published' : 'draft'),
+      label: 'Status',
+      sortable: true,
+      render: (_v, row) => (
+        row.isLocked
+          ? <Pill variant="info">Published / Locked</Pill>
+          : <Pill variant="warning">Draft</Pill>
+      )
+    },
+    {
+      id: 'createdBy',
+      key: 'createdBy',
+      accessor: (row) => row.createdById || row.publishedById || '',
+      label: 'Created By',
+      sortable: true,
+      render: (value) => value ? <span className="text-sm text-gray-700">ID: {value}</span> : <span className="text-gray-400">—</span>
+    },
+    {
+      id: 'createdAt',
+      key: 'createdAt',
+      accessor: 'createdAt',
+      label: 'Created At',
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (value) => <span className="text-xs text-gray-500">{formatDate(value)}</span>
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: 'Actions',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            { label: activeId === String(row.id) ? 'Designing' : 'Design', onClick: () => onDesignVersion && onDesignVersion(row.id, 3), disabled: !!row.isLocked || !onDesignVersion },
+            { label: 'View Placeholders', onClick: () => openViewPlaceholders(row) },
+            { label: 'Upload DOCX', onClick: () => openUpload(row), disabled: !!row.isLocked },
+            { label: 'Publish', onClick: () => setPublishTarget(row), disabled: !!row.isLocked }
+          ]}
+        />
+      )
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'smart-template-designer-versions',
+    columns: versionColumns,
+    data: versions,
+    defaultSortKey: 'versionNo',
+    defaultSortDirection: 'asc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [template.versions])
+
+  const totalRecords = sortedData.length
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize))
+  const pageItems = sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   async function openUpload(v) {
     setUploadModal(v)
     setUploadResult(null)
@@ -1997,56 +2205,94 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
         }
       />
 
-      {versions.length === 0 ? (
+      <div className="flex items-center justify-end gap-3">
+        <ColumnSettingsButton
+          orderedColumns={orderedColumns}
+          hiddenColumns={hiddenColumns}
+          onToggleColumn={toggleColumnVisibility}
+          onReset={resetTableSettings}
+        />
+      </div>
+
+      {sortedData.length === 0 ? (
         <EmptyPanelState
           title="No versions yet"
           description="Create your first template version, then upload a DOCX file to extract placeholders for mapping."
         />
       ) : (
-        <div className="space-y-3">
-          {versions.map((v) => (
-            <AppSurface key={v.id} className="!p-4 md:!p-5">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-gray-900">v{v.versionNo}</span>
-                    {v.versionLabel && <span className="text-sm text-gray-500">· {v.versionLabel}</span>}
-                    {v.isCurrent && <Pill variant="success">Current</Pill>}
-                    {activeId === String(v.id) && <Pill variant="primary">Designing now</Pill>}
-                    {v.isLocked ? <Pill variant="info">Published / Locked</Pill> : <Pill variant="warning">Draft</Pill>}
-                  </div>
-                  {v.changeNotes && <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{v.changeNotes}</p>}
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                    <span>Uploaded: {formatDate(v.uploadedAt)}</span>
-                    <span>Published: {formatDate(v.publishedAt)}</span>
-                    {v.publishedById && <span>Published by ID: {v.publishedById}</span>}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant={activeId === String(v.id) ? 'primary' : 'success'}
-                    onClick={() => onDesignVersion && onDesignVersion(v.id, 3)}
-                    disabled={!!v.isLocked || !onDesignVersion}
-                    title={v.isLocked ? `Cannot edit locked/published version` : `Open Step 4 Form Fields for version v${v.versionNo}`}
-                  >
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    {activeId === String(v.id) ? 'Designing' : 'Design'}
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => openViewPlaceholders(v)}>
-                    View Placeholders
-                  </Button>
-                  <Button size="sm" variant="secondary" disabled={!!v.isLocked} onClick={() => openUpload(v)}>
-                    Upload DOCX
-                  </Button>
-                  <Button size="sm" variant="primary" disabled={!!v.isLocked} onClick={() => setPublishTarget(v)}>
-                    Publish
-                  </Button>
-                </div>
-              </div>
-            </AppSurface>
-          ))}
-        </div>
+        <>
+          <TableContainer>
+            <Table>
+              <thead>
+                <Tr>
+                  {visibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && dragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={getSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? toggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => handleColDragStart(idx, e)}
+                        onDragOver={(e) => handleColDragOver(idx, e)}
+                        onDragLeave={handleColDragLeave}
+                        onDrop={(e) => handleColDrop(idx, e)}
+                        onDragEnd={handleColDragEnd}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {col.label || col.header || id}
+                      </Th>
+                    )
+                  })}
+                </Tr>
+              </thead>
+              <tbody>
+                {pageItems.map((v) => (
+                  <Tr key={v.id}>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(v, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = v?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, v) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalRecords={totalRecords}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1) }}
+          />
+        </>
       )}
 
       {uploadModal && (
@@ -2561,6 +2807,102 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
   const [bulkModalType, setBulkModalType] = useState(/** @type {'type'|'section'|'flags'|'delete'|null} */ (null))
   const [bulkFlagForm, setBulkFlagForm] = useState({ isMandatory: null, isEditableAuthor: null, isEditableReviewer: null, isVisibleInForm: null, isSearchable: null, isSupportingField: null })
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null, confirmLabel: 'Confirm', cancelLabel: 'Cancel', variant: 'default' })
+
+  const ai = useAI()
+  const [aiSuggestOpen, setAiSuggestOpen] = useState(false)
+  const [aiDocType, setAiDocType] = useState('')
+  const [aiDocDesc, setAiDocDesc] = useState('')
+  const [aiSuggestResult, setAiSuggestResult] = useState(null)
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false)
+
+  useEffect(() => {
+    ai.fetchConfig()
+  }, [template?.id])
+
+  const runAiSuggest = async () => {
+    if (!aiDocType.trim() && !aiDocDesc.trim()) {
+      alert('Please enter at least a Document Type or Description.')
+      return
+    }
+    setAiSuggestLoading(true)
+    setAiSuggestResult(null)
+    try {
+      const existingKeys = new Set(fields.map((f) => f.fieldKey))
+      const existing = fields.map((f) => ({ fieldKey: f.fieldKey, name: f.fieldKey, type: f.inputType, label: f.fieldLabel }))
+      const result = await ai.suggestFields({
+        documentType: aiDocType.trim() || (template?.name ? String(template.name).replace(/[^A-Za-z0-9 ]/g, ' ') : 'General Document'),
+        templateDescription: aiDocDesc.trim() || (template?.description ?? ''),
+        existingFields: existing,
+        fieldCount: 18,
+      })
+      if (result?.fields?.length) {
+        result.fields = result.fields.filter((f) => !existingKeys.has(String(f.fieldKey || '').toUpperCase()))
+      }
+      setAiSuggestResult(result)
+    } catch (err) {
+      alert('AI Suggest failed: ' + err.message)
+    } finally {
+      setAiSuggestLoading(false)
+    }
+  }
+
+  const applyAiSuggestFields = () => {
+    if (!aiSuggestResult?.fields?.length) return
+    const sectionsById = new Map()
+    sections.forEach((s) => sectionsById.set(s.sectionName || s.name, s))
+    const newFields = []
+    let baseOrder = fields.length
+    aiSuggestResult.fields.forEach((f) => {
+      const fieldKey = String(f.fieldKey || '').toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/__+/g, '_')
+      if (!fieldKey) return
+      if (fields.some((ex) => String(ex.fieldKey).toUpperCase() === fieldKey)) return
+      const inputType = f.type || 'TEXT'
+      let sectionId = null
+      if (f.group) {
+        const match = sections.get(f.group) || sections.get(String(f.group).toLowerCase())
+        if (match) sectionId = match.id
+      }
+      let defaultVal = null
+      if (inputType === 'CHECKBOX') defaultVal = false
+      const optionsJson = Array.isArray(f.options) && f.options.length
+        ? JSON.stringify(f.options.map((v) => ({ label: String(v), value: String(v) })))
+        : null
+
+      newFields.push({
+        _cid: 'ai_' + Math.random().toString(36).slice(2, 10),
+        _dirty: true,
+        _expanded: false,
+        fieldKey,
+        fieldLabel: f.label || fieldKey.replace(/_/g, ' '),
+        inputType,
+        isMandatory: !!f.required,
+        placeholder: f.placeholder || '',
+        helpText: f.helpText || '',
+        sortOrder: ++baseOrder,
+        defaultValueJson: defaultVal,
+        optionsJson,
+        isEditableAuthor: true,
+        isEditableReviewer: false,
+        isVisibleInForm: true,
+        isSearchable: false,
+        isSupportingField: !!f.isSupportingField,
+        smartTemplateSectionId: sectionId,
+        sectionId,
+      })
+    })
+    if (newFields.length === 0) {
+      alert('No new unique fields to add. All suggested fields already exist.')
+      return
+    }
+    setFields((prev) => [...prev, ...newFields])
+    setDirty(true)
+    setSaveStatus('dirty')
+    notify(`Added ${newFields.length} AI-suggested field${newFields.length === 1 ? '' : 's'}. Remember to click Next or Save to persist.`, 'success')
+    setAiSuggestOpen(false)
+    setAiSuggestResult(null)
+    setAiDocType('')
+    setAiDocDesc('')
+  }
 
   async function handleAutoGenerateClick() {
     if (!onAutoGenerateFields) return
@@ -3150,6 +3492,23 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                 <span className="whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>Auto-Generate Fields + Map</span>
               </Button>
             )}
+            {ai.aiEnabled && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setAiDocType(template?.name ? String(template.name).replace(/[^A-Za-z0-9 ]/g, ' ') : '')
+                  setAiDocDesc(template?.description || '')
+                  setAiSuggestResult(null)
+                  setAiSuggestOpen(true)
+                }}
+                disabled={!currentVersion || generating || saving}
+                className="flex-shrink-0"
+                title="Ask Gemini AI to suggest an initial field schema (keys, types, labels) based on document type and description."
+              >
+                <span className="mr-1.5">&#129302;</span> AI Suggest Fields
+              </Button>
+            )}
             <Button variant="secondary" onClick={openAdd} disabled={!currentVersion || generating} className="flex-shrink-0">
               <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add Field
@@ -3516,27 +3875,30 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                   </label>
                 ))}
               </div>
-              {(addForm.inputType === 'DROPDOWN' || addForm.inputType === 'CHECKBOX' || addForm.inputType === 'TEXT' || addForm.inputType === 'NUMBER' || addForm.inputType === 'TEXTAREA' || addForm.inputType === 'RICH_TEXT') && (
+              {(addForm.inputType === 'DROPDOWN' || addForm.inputType === 'SINGLE_SELECT' || addForm.inputType === 'MULTI_SELECT' || addForm.inputType === 'CHECKBOX' || addForm.inputType === 'TEXT' || addForm.inputType === 'NUMBER' || addForm.inputType === 'TEXTAREA' || addForm.inputType === 'RICH_TEXT') && (
                 <div className="rounded-lg border border-sky-200 bg-sky-50/50 px-4 py-4">
                   <div className="flex items-center gap-2 mb-3">
                     <svg className="h-4 w-4 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     <h4 className="text-sm font-semibold text-sky-900">
                       {addForm.inputType === 'DROPDOWN' && 'Dropdown Options & Default Value'}
+                      {addForm.inputType === 'SINGLE_SELECT' && 'Single Select Options & Default Value'}
+                      {addForm.inputType === 'MULTI_SELECT' && 'Multi Select Options & Default Values'}
                       {addForm.inputType === 'CHECKBOX' && 'Checkbox Behaviour'}
                       {(addForm.inputType === 'TEXT' || addForm.inputType === 'TEXTAREA' || addForm.inputType === 'RICH_TEXT' || addForm.inputType === 'NUMBER') && 'Default Value'}
                     </h4>
                     <span className="ml-auto text-[10px] text-sky-700 bg-white px-2 py-0.5 rounded-full border border-sky-200 font-medium">No JSON required</span>
                   </div>
-                  {addForm.inputType === 'DROPDOWN' && (
+                  {(addForm.inputType === 'DROPDOWN' || addForm.inputType === 'SINGLE_SELECT' || addForm.inputType === 'MULTI_SELECT') && (
                     <DropdownOptionsEditor
                       optionsJson={addForm.optionsJson}
                       onChange={(v) => setAddForm({ ...addForm, optionsJson: v })}
-                      defaultValue={readDefaultValueScalar(addForm.defaultValueJson, 'DROPDOWN')}
-                      onDefaultChange={(v) => setAddForm({ ...addForm, defaultValueJson: writeDefaultValueScalar(v, 'DROPDOWN') })}
+                      defaultValue={readDefaultValueScalar(addForm.defaultValueJson, addForm.inputType)}
+                      onDefaultChange={(v) => setAddForm({ ...addForm, defaultValueJson: writeDefaultValueScalar(v, addForm.inputType) })}
                       ownerFieldKey={addForm.fieldKey}
                       allFields={fields}
                       onAddDependent={(optVal, optLabel) => addDependentForOption(addForm.fieldKey, optVal, optLabel)}
                       onEditExistingDependent={(dep) => { setAddOpen(false); openEdit(dep); }}
+                      isMultiDefault={addForm.inputType === 'MULTI_SELECT'}
                     />
                   )}
                   {addForm.inputType === 'CHECKBOX' && (
@@ -3729,27 +4091,30 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                   </label>
                 ))}
               </div>
-              {(editForm.inputType === 'DROPDOWN' || editForm.inputType === 'CHECKBOX' || editForm.inputType === 'TEXT' || editForm.inputType === 'NUMBER' || editForm.inputType === 'TEXTAREA' || editForm.inputType === 'RICH_TEXT') && (
+              {(editForm.inputType === 'DROPDOWN' || editForm.inputType === 'SINGLE_SELECT' || editForm.inputType === 'MULTI_SELECT' || editForm.inputType === 'CHECKBOX' || editForm.inputType === 'TEXT' || editForm.inputType === 'NUMBER' || editForm.inputType === 'TEXTAREA' || editForm.inputType === 'RICH_TEXT') && (
                 <div className="rounded-lg border border-sky-200 bg-sky-50/50 px-4 py-4">
                   <div className="flex items-center gap-2 mb-3">
                     <svg className="h-4 w-4 text-sky-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     <h4 className="text-sm font-semibold text-sky-900">
                       {editForm.inputType === 'DROPDOWN' && 'Dropdown Options & Default Value'}
+                      {editForm.inputType === 'SINGLE_SELECT' && 'Single Select Options & Default Value'}
+                      {editForm.inputType === 'MULTI_SELECT' && 'Multi Select Options & Default Values'}
                       {editForm.inputType === 'CHECKBOX' && 'Checkbox Behaviour'}
                       {(editForm.inputType === 'TEXT' || editForm.inputType === 'TEXTAREA' || editForm.inputType === 'RICH_TEXT' || editForm.inputType === 'NUMBER') && 'Default Value'}
                     </h4>
                     <span className="ml-auto text-[10px] text-sky-700 bg-white px-2 py-0.5 rounded-full border border-sky-200 font-medium">No JSON required</span>
                   </div>
-                  {editForm.inputType === 'DROPDOWN' && (
+                  {(editForm.inputType === 'DROPDOWN' || editForm.inputType === 'SINGLE_SELECT' || editForm.inputType === 'MULTI_SELECT') && (
                     <DropdownOptionsEditor
                       optionsJson={editForm.optionsJson}
                       onChange={(v) => setEditForm({ ...editForm, optionsJson: v })}
-                      defaultValue={readDefaultValueScalar(editForm.defaultValueJson, 'DROPDOWN')}
-                      onDefaultChange={(v) => setEditForm({ ...editForm, defaultValueJson: writeDefaultValueScalar(v, 'DROPDOWN') })}
+                      defaultValue={readDefaultValueScalar(editForm.defaultValueJson, editForm.inputType)}
+                      onDefaultChange={(v) => setEditForm({ ...editForm, defaultValueJson: writeDefaultValueScalar(v, editForm.inputType) })}
                       ownerFieldKey={editForm.fieldKey}
                       allFields={fields}
                       onAddDependent={(optVal, optLabel) => addDependentForOption(editForm.fieldKey, optVal, optLabel)}
                       onEditExistingDependent={(dep) => { setEditOpen(false); openEdit(dep); }}
+                      isMultiDefault={editForm.inputType === 'MULTI_SELECT'}
                     />
                   )}
                   {editForm.inputType === 'CHECKBOX' && (
@@ -4217,6 +4582,178 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
           </ModalFooter>
         </Modal>
       )}
+
+      {/* AI Suggest Fields Modal */}
+      <Modal
+        isOpen={aiSuggestOpen}
+        onClose={() => !aiSuggestLoading && setAiSuggestOpen(false)}
+        size="lg"
+      >
+        <ModalHeader
+          title="&#129302; AI Suggest Template Fields"
+          subtitle="Describe the document type and Gemini will suggest a complete Smart Form field schema."
+          onClose={() => !aiSuggestLoading && setAiSuggestOpen(false)}
+        />
+        <ModalBody>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">
+                  Document Type
+                </label>
+                <TextInput
+                  value={aiDocType}
+                  onChange={(e) => setAiDocType(e.target.value)}
+                  placeholder="e.g. Employee Onboarding Letter, Purchase Order, MC Claim Form"
+                  disabled={aiSuggestLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">
+                  Target Fields Count
+                </label>
+                <div className="px-3 py-2.5 rounded-lg border border-gray-300 bg-gray-50 text-sm text-gray-600">
+                  Approx. 15 &ndash; 18 fields (auto-balanced across sections)
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600 mb-1.5">
+                Description / Purpose
+              </label>
+              <TextArea
+                value={aiDocDesc}
+                onChange={(e) => setAiDocDesc(e.target.value)}
+                rows={4}
+                placeholder="Describe what this document is used for, what information it typically captures, and the workflow around it. The more detail, the better the suggestions.\n\nExample:\nAn internal HR document issued when a new employee joins the company. Captures employee personal info, position, salary details, reporting line, equipment requested, and onboarding checklist items. Sections: Employee Details, Position Info, Compensation, IT Setup, HR Checklist."
+                disabled={aiSuggestLoading}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={runAiSuggest}
+                disabled={aiSuggestLoading || (!aiDocType.trim() && !aiDocDesc.trim())}
+                loading={aiSuggestLoading}
+                loadingText="Asking Gemini to suggest fields..."
+              >
+                <span className="mr-1.5">&#128161;</span> Generate Suggestions
+              </Button>
+              {aiSuggestResult && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setAiSuggestResult(null)}
+                  disabled={aiSuggestLoading}
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
+
+            {aiSuggestResult && (
+              <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-emerald-800">
+                      &#9989; {aiSuggestResult.fields?.length || 0} Fields Suggested
+                    </h4>
+                    {aiSuggestResult.templateTips?.length > 0 && (
+                      <p className="text-[11px] text-emerald-700/90 mt-0.5">
+                        {aiSuggestResult.templateTips.length} design tip{aiSuggestResult.templateTips.length === 1 ? '' : 's'} included
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={applyAiSuggestFields}
+                    disabled={!aiSuggestResult.fields?.length}
+                  >
+                    <span className="mr-1.5">&#10133;</span> Add All ({aiSuggestResult.fields?.length || 0} Fields)
+                  </Button>
+                </div>
+
+                {aiSuggestResult.suggestedSections?.length > 0 && (
+                  <div className="rounded-lg bg-white border border-emerald-100 p-3 space-y-1">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 mb-1">Suggested Sections</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {aiSuggestResult.suggestedSections.map((s, i) => (
+                        <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {s.order ? `${s.order}. ` : ''}{s.sectionName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="max-h-80 overflow-y-auto rounded-lg bg-white border border-emerald-100 divide-y divide-emerald-50">
+                  {(aiSuggestResult.fields || []).map((f, i) => {
+                    const typeColor = (() => {
+                      switch ((f.type || 'TEXT').toUpperCase()) {
+                        case 'DATE': return 'bg-sky-100 text-sky-700 border-sky-200'
+                        case 'DROPDOWN': return 'bg-purple-100 text-purple-700 border-purple-200'
+                        case 'NUMBER': case 'CURRENCY': return 'bg-amber-100 text-amber-700 border-amber-200'
+                        case 'TEXTAREA': case 'RICH_TEXT': return 'bg-pink-100 text-pink-700 border-pink-200'
+                        case 'CHECKBOX': return 'bg-lime-100 text-lime-700 border-lime-200'
+                        case 'EMAIL': case 'PHONE': return 'bg-teal-100 text-teal-700 border-teal-200'
+                        default: return 'bg-gray-100 text-gray-700 border-gray-200'
+                      }
+                    })()
+                    return (
+                      <div key={i} className="px-3 py-2 grid grid-cols-[1fr_auto_auto] gap-3 items-start text-[12.5px]">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-800">
+                            {f.label || f.fieldKey}
+                            {f.isSupportingField && (
+                              <span className="ml-1.5 text-[9.5px] uppercase tracking-wider bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 align-middle">
+                                Supporting
+                              </span>
+                            )}
+                            {f.required && (
+                              <span className="ml-1 text-red-500">*</span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-gray-400 font-mono truncate">{f.fieldKey}</div>
+                          {f.helpText && <div className="text-[11px] text-gray-500 mt-0.5">{f.helpText}</div>}
+                          {f.group && <div className="text-[10.5px] mt-0.5 text-indigo-600/90 font-medium">Group: {f.group}</div>}
+                        </div>
+                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border font-semibold shrink-0 mt-0.5 ${typeColor}`}>
+                          {f.type || 'TEXT'}
+                        </span>
+                        {Array.isArray(f.options) && f.options.length > 0 && (
+                          <div className="text-[10px] text-gray-500 italic shrink-0 mt-1 max-w-[120px] truncate">
+                            {f.options.length} options
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {aiSuggestResult.templateTips?.length > 0 && (
+                  <div className="rounded-lg bg-white border border-amber-100 p-3 space-y-1.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 mb-1">&#128161; Designer Tips</div>
+                    <ul className="space-y-1 text-[12px] text-gray-700 list-disc list-inside">
+                      {aiSuggestResult.templateTips.map((t, i) => <li key={i}>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </ModalBody>
+        <ModalFooter className="flex-wrap justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setAiSuggestOpen(false)}
+            disabled={aiSuggestLoading}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   )
 })

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Doughnut } from 'react-chartjs-2'
 import { ArcElement, Chart as ChartJS, Tooltip } from 'chart.js'
 import AppSurface from '../ui/AppSurface'
@@ -6,6 +7,14 @@ import SectionHeader from '../ui/SectionHeader'
 import EmptyPanelState from '../ui/EmptyPanelState'
 
 ChartJS.register(ArcElement, Tooltip)
+
+const statusRouteMap = {
+  draft: '/documents/drafts',
+  review: '/documents/review-approval',
+  approval: '/documents/review-approval',
+  published: '/documents/published',
+  obsolete: '/documents/archived'
+}
 
 export default function DashboardStatusChart({
   title,
@@ -15,6 +24,7 @@ export default function DashboardStatusChart({
   emptyTitle,
   emptyDescription
 }) {
+  const navigate = useNavigate()
   const total = items.reduce((sum, item) => sum + item.value, 0)
 
   const chartData = {
@@ -60,17 +70,40 @@ export default function DashboardStatusChart({
           <div className="space-y-3">
             {items.map((item) => {
               const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0
+              const route = statusRouteMap[item.key]
 
               return (
-                <div key={item.key} className="rounded-2xl border border-border bg-surface-muted p-3">
+                <div
+                  key={item.key}
+                  className={[
+                    'rounded-2xl border border-border bg-surface-muted p-3',
+                    route ? 'cursor-pointer transition-all duration-200 hover:border-brand/40 hover:bg-brand/5 hover:shadow-sm active:scale-[0.99]' : ''
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => route && navigate(route)}
+                  role={route ? 'link' : undefined}
+                  tabIndex={route ? 0 : undefined}
+                  onKeyDown={(e) => {
+                    if (route && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      navigate(route)
+                    }
+                  }}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
                       <span className="truncate text-sm font-medium text-ink-secondary">{item.label}</span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-ink">{item.value}</div>
-                      <div className="text-[11px] text-ink-muted">{percentage}%</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-ink">{item.value}</div>
+                        <div className="text-[11px] text-ink-muted">{percentage}%</div>
+                      </div>
+                      {route && (
+                        <span className="text-xs font-medium text-brand opacity-70 transition-opacity group-hover:opacity-100">
+                          →
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

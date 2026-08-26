@@ -17,6 +17,8 @@ import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
 import ActionMenu from './ActionMenu'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 // Calendar icon
 const CalendarIcon = () => (
@@ -242,6 +244,8 @@ export default function NewDocumentRequest() {
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' })
   const [templatePicker, setTemplatePicker] = useState({ show: false, templates: [], selectedId: '', documentTypeName: '' })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
   
   // Master data states
   const [documentTypes, setDocumentTypes] = useState([])
@@ -897,6 +901,286 @@ export default function NewDocumentRequest() {
     [projectCategories]
   )
 
+  const ndrTableColumns = useMemo(() => {
+    const warning = 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-warning-ink)]/20'
+    const info = 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-info-ink)]/20'
+    const cols = [
+      {
+        id: 'requestType',
+        key: 'requestType',
+        accessor: 'requestType',
+        label: t('request_type'),
+        sortable: true,
+        required: true,
+        align: 'center',
+        sortType: 'string',
+        render: (value) => (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${value === 'NVR' ? warning : info}`}>
+            {value || 'NDR'}
+          </span>
+        )
+      },
+      {
+        id: 'title',
+        key: 'title',
+        accessor: 'title',
+        label: t('document_title_label'),
+        sortable: true,
+        required: true,
+        sortType: 'string',
+        render: (value) => <span className="text-ink font-medium">{value}</span>
+      },
+      {
+        id: 'documentType',
+        key: 'documentType',
+        accessor: 'documentType',
+        label: t('document_type'),
+        sortable: true,
+        sortType: 'string',
+        render: (value, row) => (
+          <button
+            onClick={() => handleDownloadTemplate(row)}
+            disabled={row.status !== 'Acknowledged' && row.status !== 'ACKNOWLEDGED'}
+            data-tour-id="ndr-btn-download-template"
+            className={`text-left font-medium ${
+              row.status === 'Acknowledged' || row.status === 'ACKNOWLEDGED'
+                ? 'text-brand hover:text-brand-hover hover:underline cursor-pointer'
+                : 'text-ink-secondary cursor-default'
+            }`}
+            title={row.status === 'Acknowledged' || row.status === 'ACKNOWLEDGED' ? 'Click to download template for this document type' : 'Template download available after acknowledgment'}
+          >
+            {value}
+          </button>
+        )
+      },
+      {
+        id: 'projectCategory',
+        key: 'projectCategory',
+        accessor: 'projectCategory',
+        label: t('project_category'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => (
+          <span className="px-2.5 py-1 bg-surface-muted text-ink-secondary rounded-full text-xs font-medium border border-border">
+            {value}
+          </span>
+        )
+      },
+      {
+        id: 'dateOfDocument',
+        key: 'dateOfDocument',
+        accessor: 'dateOfDocument',
+        label: t('date_of_document'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => value
+      },
+      {
+        id: 'requestDate',
+        key: 'requestDate',
+        accessor: 'requestDate',
+        label: t('request_date'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => value
+      },
+      {
+        id: 'requestedBy',
+        key: 'requestedBy',
+        accessor: 'requestedBy',
+        label: t('requested_by'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => <span className="font-medium text-ink-secondary">{value}</span>
+      },
+      {
+        id: 'remarks',
+        key: 'remarks',
+        accessor: 'remarks',
+        label: t('remarks'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => (
+          <span className="text-xs text-ink-muted max-w-xs truncate" title={value}>{value}</span>
+        )
+      },
+      {
+        id: 'fileCode',
+        key: 'fileCode',
+        accessor: 'fileCode',
+        label: t('file_code'),
+        sortable: true,
+        sortType: 'string',
+        render: (value, row) => {
+          if (isAdmin() && value && value !== '-' && row.status !== 'Pending Acknowledgment') {
+            return (
+              <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setAdminPurgeMenuRequestId((prev) => (prev === row.id ? null : row.id))}
+                  className="font-mono text-xs text-ink-secondary hover:text-ink"
+                  title="Click for options"
+                >
+                  {value}
+                </button>
+                {adminPurgeMenuRequestId === row.id && (
+                  <div className="absolute z-20 mt-2 w-44 bg-surface border border-border rounded-2xl shadow-dms-lg p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminPurgeMenuRequestId(null)
+                        setConfirmModal({
+                          show: true,
+                          title: 'Delete document records?',
+                          message: `This will permanently delete ALL records for "${value}" (document, versions, registers, and stored files). This action cannot be undone.`,
+                          type: 'danger',
+                          onConfirm: () => handleAdminPurgeByFileCode(value)
+                        })
+                      }}
+                      disabled={purgingFileCode === value}
+                      className="w-full text-left px-3 py-2 text-xs text-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)] rounded-md disabled:opacity-50"
+                    >
+                      {purgingFileCode === value ? 'Deleting...' : 'Delete record'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return (
+            <span className={`font-mono text-xs ${value === '-' ? 'text-ink-soft' : 'text-ink-secondary'}`}>
+              {value}
+            </span>
+          )
+        }
+      },
+      {
+        id: 'status',
+        key: 'status',
+        accessor: 'status',
+        label: t('status'),
+        sortable: true,
+        required: true,
+        sortType: 'string',
+        render: (_v, row) => renderRequestStatus(row)
+      }
+    ]
+    if (canAcknowledge) {
+      cols.push({
+        id: 'actions',
+        key: 'actions',
+        accessor: '__actions',
+        label: t('actions'),
+        sortable: false,
+        required: true,
+        stickyRight: true,
+        align: 'right',
+        render: (_v, row) => {
+          if (canAcknowledgeRequest(row) && row.requestType !== 'NVR') {
+            return (
+              <ActionMenu
+                actions={[
+                  { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(row), disabled: acknowledgingId === row.id },
+                  { label: t('reject_btn'), onClick: () => openRejectModal(row), variant: 'destructive', disabled: acknowledgingId === row.id }
+                ]}
+              />
+            )
+          }
+          if (canAcknowledgeRequest(row) && row.requestType === 'NVR') {
+            return (
+              <div className="flex justify-end">
+                <ActionMenu
+                  actions={[
+                    { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(row), disabled: acknowledgingId === row.id }
+                  ]}
+                />
+              </div>
+            )
+          }
+          if (row.status === 'Pending Acknowledgment' && !canAcknowledgeRequest(row)) {
+            return (
+              <div className="flex justify-end">
+                <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
+              </div>
+            )
+          }
+          return <span className="text-gray-400 text-xs">-</span>
+        }
+      })
+    }
+    return cols
+  }, [t, canAcknowledge, acknowledgingId, adminPurgeMenuRequestId, purgingFileCode])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'new-document-requests',
+    data: requests,
+    columns: ndrTableColumns
+  })
+
+  const handleColDragStart = (visibleIdx, e) => {
+    const colId = visibleColumns[visibleIdx]?.id
+    if (!colId) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === colId)
+    if (globalIdx === -1) return
+    setDragColIndex(visibleIdx)
+    try {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', String(globalIdx))
+    } catch {}
+  }
+  const handleColDragEnter = (visibleIdx, e) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(visibleIdx)
+    if (typeof e.preventDefault === 'function') e.preventDefault()
+  }
+  const handleColDragOver = (visibleIdx, e) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(visibleIdx)
+    if (typeof e.preventDefault === 'function') e.preventDefault()
+  }
+  const handleColDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+  const handleColDrop = (visibleIdx, e) => {
+    try { if (typeof e.preventDefault === 'function') e.preventDefault() } catch {}
+    const targetColId = visibleColumns[visibleIdx]?.id
+    if (!targetColId) { setDragColIndex(null); setDragOverColIndex(null); return }
+    const targetGlobalIdx = orderedColumns.findIndex((c) => c.id === targetColId)
+    let sourceGlobalIdx = -1
+    try {
+      const raw = e.dataTransfer.getData('text/plain')
+      if (raw !== '' && raw != null) sourceGlobalIdx = parseInt(raw, 10)
+    } catch {}
+    if (Number.isNaN(sourceGlobalIdx) || sourceGlobalIdx === -1) {
+      const srcVisible = dragColIndex
+      if (srcVisible != null && srcVisible !== -1) {
+        const srcColId = visibleColumns[srcVisible]?.id
+        if (srcColId) sourceGlobalIdx = orderedColumns.findIndex((c) => c.id === srcColId)
+      }
+    }
+    if (sourceGlobalIdx !== -1 && targetGlobalIdx !== -1 && sourceGlobalIdx !== targetGlobalIdx) {
+      moveColumn(sourceGlobalIdx, targetGlobalIdx)
+    }
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+  const handleColDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
   return (
     <div className="space-y-6" data-tour-id="ndr-page">
       {/* Confirmation Modal */}
@@ -1163,12 +1447,18 @@ export default function NewDocumentRequest() {
             <h2 className="text-lg font-semibold text-ink">{t('document_request_list')}</h2>
             <p className="text-sm text-ink-secondary mt-1">{t('document_request_list_desc')}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             {requests.length > 0 && (
               <div className="text-sm text-ink-secondary flex items-center">
                 {t('showing_results')} <span className="font-medium text-ink mx-1">{requests.length}</span> {t('requests')}
               </div>
             )}
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
             <PermissionGate module="newDocumentRequest" action="create">
               <Button
                 onClick={() => setShowVersionModal(true)}
@@ -1208,147 +1498,62 @@ export default function NewDocumentRequest() {
               <Table>
                 <thead>
                   <tr className="bg-surface-muted">
-                    <Th>{t('request_type')}</Th>
-                    <Th>{t('document_title_label')}</Th>
-                    <Th>
-                      <span className="inline-flex items-center gap-2">
-                        <span>{t('document_type')}</span>
-                        <span className="relative inline-flex group">
-                          <svg
-                            className="w-4 h-4 text-ink-soft hover:text-ink-secondary"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
-                          </svg>
-                          <span
-                            className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-96 -translate-x-1/2 rounded-md bg-surface-strong border border-border px-3 py-2 text-xs normal-case text-ink opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
-                            role="tooltip"
-                          >
-                            If a template does not exist, please request a template in Configuration &gt; Template Management &gt; Template Request.
-                          </span>
-                        </span>
-                      </span>
-                    </Th>
-                    <Th>{t('project_category')}</Th>
-                    <Th>{t('date_of_document')}</Th>
-                    <Th>{t('request_date')}</Th>
-                    <Th>{t('requested_by')}</Th>
-                    <Th>{t('remarks')}</Th>
-                    <Th>{t('file_code')}</Th>
-                    <Th>{t('status')}</Th>
-                    {canAcknowledge && (
-                      <Th className="whitespace-nowrap">{t('actions')}</Th>
-                    )}
+                    {visibleColumns.map((col, idx) => {
+                      const colId = col.id || col.key
+                      const canDrag = !col.stickyRight
+                      const isDragOver = canDrag && dragOverColIndex === idx
+                      return (
+                        <Th
+                          key={colId}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          sortable={Boolean(col.sortable)}
+                          sortDirection={getSortDirectionFor(colId)}
+                          sortKey={colId}
+                          onSort={col.sortable ? toggleSort : undefined}
+                          draggable={canDrag}
+                          dragOver={isDragOver}
+                          onDragStart={(e) => handleColDragStart(idx, e)}
+                          onDragEnter={(e) => handleColDragEnter(idx, e)}
+                          onDragOver={(e) => handleColDragOver(idx, e)}
+                          onDragLeave={handleColDragLeave}
+                          onDrop={(e) => handleColDrop(idx, e)}
+                          onDragEnd={handleColDragEnd}
+                          title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                          className={colId === 'documentType' || colId === 'actions' ? 'whitespace-nowrap' : ''}
+                        >
+                          {col.label || col.header || colId}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((req) => (
+                  {sortedData.map((req) => (
                     <Tr key={req.id}>
-                      <Td>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          req.requestType === 'NVR'
-                            ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-warning-ink)]/20'
-                            : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-info-ink)]/20'
-                        }`}>
-                          {req.requestType || 'NDR'}
-                        </span>
-                      </Td>
-                      <Td className="text-ink font-medium">{req.title}</Td>
-                      <Td>
-                        <button
-                          onClick={() => handleDownloadTemplate(req)}
-                          disabled={req.status !== 'Acknowledged' && req.status !== 'ACKNOWLEDGED'}
-                          data-tour-id="ndr-btn-download-template"
-                          className={`text-left font-medium ${
-                            req.status === 'Acknowledged' || req.status === 'ACKNOWLEDGED'
-                              ? 'text-brand hover:text-brand-hover hover:underline cursor-pointer'
-                              : 'text-ink-secondary cursor-default'
-                          }`}
-                          title={req.status === 'Acknowledged' || req.status === 'ACKNOWLEDGED' ? 'Click to download template for this document type' : 'Template download available after acknowledgment'}
-                        >
-                          {req.documentType}
-                        </button>
-                      </Td>
-                      <Td>
-                        <span className="px-2.5 py-1 bg-surface-muted text-ink-secondary rounded-full text-xs font-medium border border-border">
-                          {req.projectCategory}
-                        </span>
-                      </Td>
-                      <Td>{req.dateOfDocument}</Td>
-                      <Td>{req.requestDate}</Td>
-                      <Td className="font-medium text-ink-secondary">{req.requestedBy}</Td>
-                      <Td className="text-xs text-ink-muted max-w-xs truncate" title={req.remarks}>{req.remarks}</Td>
-                      <Td>
-                        {isAdmin() && req.fileCode && req.fileCode !== '-' && req.status !== 'Pending Acknowledgment' ? (
-                          <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => setAdminPurgeMenuRequestId((prev) => (prev === req.id ? null : req.id))}
-                              className="font-mono text-xs text-ink-secondary hover:text-ink"
-                              title="Click for options"
-                            >
-                              {req.fileCode}
-                            </button>
-                            {adminPurgeMenuRequestId === req.id && (
-                              <div className="absolute z-20 mt-2 w-44 bg-surface border border-border rounded-2xl shadow-dms-lg p-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAdminPurgeMenuRequestId(null)
-                                    setConfirmModal({
-                                      show: true,
-                                      title: 'Delete document records?',
-                                      message: `This will permanently delete ALL records for "${req.fileCode}" (document, versions, registers, and stored files). This action cannot be undone.`,
-                                      type: 'danger',
-                                      onConfirm: () => handleAdminPurgeByFileCode(req.fileCode)
-                                    })
-                                  }}
-                                  disabled={purgingFileCode === req.fileCode}
-                                  className="w-full text-left px-3 py-2 text-xs text-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)] rounded-md disabled:opacity-50"
-                                >
-                                  {purgingFileCode === req.fileCode ? 'Deleting...' : 'Delete record'}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className={`font-mono text-xs ${req.fileCode === '-' ? 'text-ink-soft' : 'text-ink-secondary'}`}>
-                            {req.fileCode}
-                          </span>
-                        )}
-                      </Td>
-                      <Td className="py-3">
-                        {renderRequestStatus(req)}
-                      </Td>
-                      {canAcknowledge && (
-                        <Td className="py-3 whitespace-nowrap" align="right" stickyRight>
-                          {canAcknowledgeRequest(req) && req.requestType !== 'NVR' ? (
-                            <ActionMenu
-                              actions={[
-                                { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(req), disabled: acknowledgingId === req.id },
-                                { label: t('reject_btn'), onClick: () => openRejectModal(req), variant: 'destructive', disabled: acknowledgingId === req.id }
-                              ]}
-                            />
-                          ) : canAcknowledgeRequest(req) && req.requestType === 'NVR' ? (
-                            <div className="flex justify-end">
-                              <ActionMenu
-                                actions={[
-                                  { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(req), disabled: acknowledgingId === req.id }
-                                ]}
-                              />
-                            </div>
-                          ) : req.status === 'Pending Acknowledgment' && !canAcknowledgeRequest(req) ? (
-                            <div className="flex justify-end">
-                              <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-xs">-</span>
-                          )}
-                        </Td>
-                      )}
+                      {visibleColumns.map((col) => {
+                        const cId = col.id || col.key || col.accessor
+                        const accessor = col.accessor || cId
+                        let cVal
+                        if (typeof accessor === 'function') {
+                          cVal = accessor(req, col)
+                        } else if (accessor === '__actions') {
+                          cVal = null
+                        } else {
+                          cVal = req?.[accessor]
+                        }
+                        const cContent = typeof col.render === 'function' ? col.render(cVal, req) : (cVal != null ? cVal : '')
+                        return (
+                          <Td
+                            key={cId}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.stickyRight || cId === 'status' || cId === 'actions' ? 'py-3 whitespace-nowrap' : ''}
+                          >
+                            {cContent}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                   ))}
                 </tbody>

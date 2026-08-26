@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.1",
+    "@babel/types": "^7.26.0",
     "@playwright/test": "^1.62.1",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.0.0",

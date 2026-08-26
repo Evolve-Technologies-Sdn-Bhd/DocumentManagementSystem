@@ -2030,10 +2030,11 @@ class DocumentController {
         try {
           templateBuffer = await fs.promises.readFile(absTpl);
         } catch (e) {
-          return ResponseFormatter.error(res, 'Failed to read template DOCX file: ' + e.message, 500);
+          const msg = 'Failed to read template DOCX file: ' + (e.message || e.code || String(e).slice(0, 160));
+          return ResponseFormatter.error(res, msg, (e && e.statusCode) || 400);
         }
       } else {
-        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 500);
+        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 400);
       }
 
       let docxBuf;
@@ -2048,7 +2049,10 @@ class DocumentController {
         });
       } catch (e) {
         console.error('[downloadDocument] DOCX generation failed:', e);
-        return ResponseFormatter.error(res, 'DOCX generation failed: ' + e.message, 500);
+        const isOp = !!(e && (e.isOperational || e instanceof BadRequestError || e instanceof ForbiddenError || e instanceof ConflictError || e instanceof UnauthorizedError));
+        const statusCode = isOp ? (e.statusCode || 400) : 400;
+        const msg = isOp ? (e.message || 'DOCX generation failed') : 'DOCX generation failed: ' + (e.message || String(e).slice(0, 160));
+        return ResponseFormatter.error(res, msg, statusCode);
       }
 
       try {
@@ -2062,7 +2066,12 @@ class DocumentController {
         console.warn('[downloadDocument] Style formatting step failed, falling back to raw docx:', e.message);
       }
 
-      let pdfBuffer;
+      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
+      const verLabel = version.version || dv.version || '1.0';
+      let pdfBuffer = null;
+      let pdfFellBackToDocx = false;
+      let pdfFailureReason = null;
+
       try {
         const conversionResult = await smartDocumentPdfService.convertDocxBufferToPdf(docxBuf, {
           workDirSuffix: 'smart-doc-download',
@@ -2073,28 +2082,44 @@ class DocumentController {
         });
         pdfBuffer = conversionResult.pdfBuffer;
       } catch (e) {
-        console.error('[downloadDocument] PDF conversion failed:', e);
-        return ResponseFormatter.error(res, 'PDF conversion failed: ' + e.message, 500);
+        pdfFellBackToDocx = true;
+        pdfFailureReason = e.message || String(e).slice(0, 200);
+        console.warn('[downloadDocument] PDF conversion failed, falling back to DOCX download:', pdfFailureReason);
       }
 
       await auditLogService.logDocument(req.user.id, 'DOWNLOAD', document, req, {
         fileName: version.fileName,
         versionId: version.id,
         smartDocument: true,
-        pdfSource: 'generated'
+        pdfSource: pdfBuffer ? 'generated' : 'fallback-docx',
+        pdfFallbackReason: pdfFailureReason
       });
 
-      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
-      const verLabel = version.version || dv.version || '1.0';
-      const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
-      const rawPdfName = pdfBaseName;
-      const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
-      const encodedPdfName = encodeURIComponent(rawPdfName);
+      if (pdfBuffer) {
+        const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+        const rawPdfName = pdfBaseName;
+        const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+        const encodedPdfName = encodeURIComponent(rawPdfName);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        return res.send(pdfBuffer);
+      }
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-      return res.send(pdfBuffer);
+      // FALLBACK: PDF conversion not available (e.g. Chrome/Edge not installed on server)
+      // → serve DOCX directly so user still gets a valid downloadable file.
+      const docxBaseName = `${fileCode}_v${verLabel}.docx`;
+      const rawDocxName = docxBaseName;
+      const asciiDocxName = rawDocxName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.docx';
+      const encodedDocxName = encodeURIComponent(rawDocxName);
+      res.setHeader('X-Download-Fallback', 'docx');
+      if (pdfFailureReason) {
+        res.setHeader('X-Fallback-Reason', encodeURIComponent(pdfFailureReason));
+      }
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${asciiDocxName}"; filename*=UTF-8''${encodedDocxName}`);
+      res.setHeader('Content-Length', docxBuf.length);
+      return res.send(docxBuf);
     }
 
     // --- Normal document flow (unchanged) ---
@@ -2323,10 +2348,11 @@ class DocumentController {
         try {
           templateBuffer = await fs.promises.readFile(absTpl);
         } catch (e) {
-          return ResponseFormatter.error(res, 'Failed to read template DOCX file: ' + e.message, 500);
+          const msg = 'Failed to read template DOCX file: ' + (e.message || e.code || String(e).slice(0, 160));
+          return ResponseFormatter.error(res, msg, (e && e.statusCode) || 400);
         }
       } else {
-        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 500);
+        return ResponseFormatter.error(res, 'SmartTemplateVersion has no template file path', 400);
       }
 
       let docxBuf;
@@ -2341,7 +2367,10 @@ class DocumentController {
         });
       } catch (e) {
         console.error('[previewDocument] DOCX generation failed:', e);
-        return ResponseFormatter.error(res, 'DOCX generation failed: ' + e.message, 500);
+        const isOp = !!(e && (e.isOperational || e instanceof BadRequestError || e instanceof ForbiddenError || e instanceof ConflictError || e instanceof UnauthorizedError));
+        const statusCode = isOp ? (e.statusCode || 400) : 400;
+        const msg = isOp ? (e.message || 'DOCX generation failed') : 'DOCX generation failed: ' + (e.message || String(e).slice(0, 160));
+        return ResponseFormatter.error(res, msg, statusCode);
       }
 
       try {
@@ -2355,7 +2384,11 @@ class DocumentController {
         console.warn('[previewDocument] Style formatting step failed, falling back to raw docx:', e.message);
       }
 
-      let pdfBuffer;
+      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
+      const verLabel = version.version || dv.version || '1.0';
+      let pdfBuffer = null;
+      let pdfFailureReason = null;
+
       try {
         const conversionResult = await smartDocumentPdfService.convertDocxBufferToPdf(docxBuf, {
           workDirSuffix: 'smart-doc-preview',
@@ -2366,21 +2399,37 @@ class DocumentController {
         });
         pdfBuffer = conversionResult.pdfBuffer;
       } catch (e) {
-        console.error('[previewDocument] PDF conversion failed:', e);
-        return ResponseFormatter.error(res, 'PDF conversion failed: ' + e.message, 500);
+        pdfFailureReason = e.message || String(e).slice(0, 200);
+        console.warn('[previewDocument] PDF conversion failed, falling back to DOCX inline preview:', pdfFailureReason);
       }
 
-      const fileCode = (dv.document && dv.document.fileCode) || `doc-v${version.id}`;
-      const verLabel = version.version || dv.version || '1.0';
-      const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
-      const rawPdfName = pdfBaseName;
-      const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
-      const encodedPdfName = encodeURIComponent(rawPdfName);
+      if (pdfBuffer) {
+        const pdfBaseName = `${fileCode}_v${verLabel}.pdf`;
+        const rawPdfName = pdfBaseName;
+        const asciiPdfName = rawPdfName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.pdf';
+        const encodedPdfName = encodeURIComponent(rawPdfName);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        return res.send(pdfBuffer);
+      }
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${asciiPdfName}"; filename*=UTF-8''${encodedPdfName}`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-      return res.send(pdfBuffer);
+      // FALLBACK: PDF conversion not available on server (Chrome/Edge not installed)
+      // → serve DOCX buffer directly with .docx extension so DocumentViewerModal renders
+      //    it via docx-preview / mammoth instead of showing a blocking error.
+      const docxBaseName = `${fileCode}_v${verLabel}.docx`;
+      const rawDocxName = docxBaseName;
+      const asciiDocxName = rawDocxName.replace(/[^A-Za-z0-9._-]/g, '_') || 'smart-document.docx';
+      const encodedDocxName = encodeURIComponent(rawDocxName);
+      res.setHeader('X-Preview-Fallback', 'docx');
+      if (pdfFailureReason) {
+        res.setHeader('X-Fallback-Reason', encodeURIComponent(pdfFailureReason));
+      }
+      const docxMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      res.setHeader('Content-Type', docxMimeType);
+      res.setHeader('Content-Disposition', `inline; filename="${asciiDocxName}"; filename*=UTF-8''${encodedDocxName}`);
+      res.setHeader('Content-Length', docxBuf.length);
+      return res.send(docxBuf);
     }
 
     // --- Normal document flow (unchanged) ---

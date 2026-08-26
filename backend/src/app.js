@@ -26,6 +26,7 @@ const crmRoutes = require('./routes/crm');
 const smartTemplatesRoutes = require('./routes/smartTemplates');
 const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
 const smartDocumentsRoutes = require('./routes/smartDocuments');
+const aiRoutes = require('./routes/ai');
 const notificationService = require('./services/notificationService');
 
 const app = express();
@@ -160,6 +161,7 @@ app.use('/api/crm', crmRoutes);
 app.use('/api/smart-templates', smartTemplatesRoutes);
 app.use('/api/smart-document-style', smartDocumentStyleRoutes);
 app.use('/api/smart-documents', smartDocumentsRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import api from '../api/axios'
 import NewDraftModal from './NewDraftModal'
 import ReuploadFileModal from './ReuploadFileModal'
@@ -20,7 +20,10 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import DataTableToolbar from './ui/DataTableToolbar'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 
 export default function DraftDocuments() {
@@ -56,6 +59,8 @@ export default function DraftDocuments() {
     passwordError: '',
     loading: false
   })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const isDraftStatus = (doc) => String(doc?.status || '').toUpperCase() === 'DRAFT'
 
@@ -223,11 +228,7 @@ export default function DraftDocuments() {
   // Get unique statuses for filter
   const allStatuses = ['All', ...new Set(documents.map(doc => doc.status))]
 
-  // Pagination
-  const totalPages = Math.ceil(filteredDocuments.length / pageSize)
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const currentDocuments = filteredDocuments.slice(startIndex, endIndex)
+  useEffect(() => { setCurrentPage(1) }, [filteredDocuments.length])
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
@@ -535,6 +536,209 @@ export default function DraftDocuments() {
     })
   }
 
+  const draftTableColumns = [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      sortable: true,
+      required: true,
+      render: (value, row) => (
+        <a href="#" onClick={(e) => { e.preventDefault(); handleViewDraftDocument(row); }} className="font-medium text-ink hover:text-brand">
+          {value}
+        </a>
+      )
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('document_title_col'),
+      sortable: true,
+      required: true,
+      render: (value) => <span className="text-ink">{value}</span>
+    },
+    {
+      id: 'version',
+      key: 'version',
+      accessor: 'version',
+      label: t('version'),
+      sortable: true,
+      align: 'center'
+    },
+    {
+      id: 'createdBy',
+      key: 'createdBy',
+      accessor: 'createdBy',
+      label: t('created_by'),
+      sortable: true
+    },
+    {
+      id: 'lastUpdated',
+      key: 'lastUpdated',
+      accessor: 'lastUpdated',
+      label: t('last_updated'),
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0)
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      sortable: true,
+      render: (_v, row) => (
+        <div className="space-y-1">
+          <StatusBadge status={row.status} />
+          {row.isSmartDocument ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Smart Draft
+            </span>
+          ) : null}
+          {row.smartTemplateName ? (
+            <p className="text-[11px] text-ink-muted truncate max-w-[220px]" title={`Template: ${row.smartTemplateName}`}>
+              Template: {row.smartTemplateName}
+            </p>
+          ) : null}
+          {row.latestReturnRemark && row.status === 'Return for Amendments' ? (
+            <div className="space-y-1">
+              <button
+                onClick={() => handleViewRemarks(row)}
+                className="block max-w-[240px] text-left text-xs text-brand hover:text-brand-hover underline underline-offset-2 truncate"
+                title={`${t('latest_remark')}${formatLatestRemarkMeta(row)}: ${row.latestReturnRemark}`}
+              >
+                {t('latest_remark')}
+                {formatLatestRemarkMeta(row)}: {normalizeRemarkSnippet(row.latestReturnRemark)}
+              </button>
+              {hasReturnFile(row) ? (
+                <div className="flex flex-wrap gap-2">
+                  {isPreviewableReturnFile(row) ? (
+                    <button
+                      onClick={() => handleViewReturnFile(row)}
+                      className="text-xs text-brand hover:text-brand-hover underline underline-offset-2"
+                    >
+                      {t('view_reviewed_file')}
+                    </button>
+                  ) : null}
+                  <button
+                    onClick={() => handleDownloadReturnFile(row)}
+                    className="text-xs text-brand hover:text-brand-hover underline underline-offset-2"
+                  >
+                    {t('download_reviewed_file')}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: t('actions'),
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            ...(hasAnyFileVersion(row)
+              ? [{ label: 'View', onClick: () => handleViewDraftDocument(row) }]
+              : []
+            ),
+            ...(isDraftStatus(row) && hasPermission('documents.draft', 'update') && !row.isSmartDocument
+              ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(row) }]
+              : []
+            ),
+            ...(row.status === 'Return for Amendments'
+              ? [
+                  ...(hasReturnFile(row) && isPreviewableReturnFile(row)
+                    ? [{ label: t('view_reviewed_file'), onClick: () => handleViewReturnFile(row) }]
+                    : []
+                  ),
+                  ...(hasReturnFile(row)
+                    ? [{ label: t('download_reviewed_file'), onClick: () => handleDownloadReturnFile(row) }]
+                    : []
+                  ),
+                ]
+              : []
+            ),
+            ...(row.status === 'Return for Amendments'
+              ? [{ label: t('view_remarks'), onClick: () => handleViewRemarks(row) }]
+              : []
+            ),
+            ...(row.status === 'Return for Amendments' && hasPermission('documents.draft', 'update')
+              ? [{ label: t('reupload_file'), onClick: () => handleReupload(row) }]
+              : []
+            ),
+            ...(canDeleteDraft(row)
+              ? [{ label: 'Delete', onClick: () => askDeleteDraft(row), destructive: true }]
+              : []
+            )
+          ]}
+        />
+      )
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'draft-documents-list',
+    columns: draftTableColumns,
+    data: filteredDocuments,
+    defaultSortKey: 'lastUpdated',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  // Pagination uses sorted + filtered data
+  const totalPages = Math.ceil(sortedData.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const currentDocuments = sortedData.slice(startIndex, endIndex)
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
 
   return (
     <>
@@ -732,51 +936,20 @@ export default function DraftDocuments() {
             </div>
           </div>
 
-          {/* Search and Filter */}
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <TextInput
-                type="text"
-                placeholder={t('search_docs_placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {/* Status Filter */}
-            <SelectField
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="min-w-[200px]"
-            >
-              {allStatuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </SelectField>
-
-            {/* View Toggle */}
-            <div className="flex items-center gap-2">
+          <DataTableToolbar rightSlot={<>
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
+            <div className="flex items-center gap-1.5 border border-gray-200 rounded-md p-0.5 bg-gray-50">
               <Button
                 type="button"
                 size="sm"
                 variant={viewMode === 'list' ? 'primary' : 'secondary'}
                 onClick={() => setViewMode('list')}
-                className="px-3"
+                className="px-2"
                 title="List View"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -788,7 +961,7 @@ export default function DraftDocuments() {
                 size="sm"
                 variant={viewMode === 'grid' ? 'primary' : 'secondary'}
                 onClick={() => setViewMode('grid')}
-                className="px-3"
+                className="px-2"
                 title="Grid View"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -796,7 +969,42 @@ export default function DraftDocuments() {
                 </svg>
               </Button>
             </div>
-          </div>
+          </>}>
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex-1 min-w-0 relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <TextInput
+                  type="text"
+                  placeholder={t('search_docs_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div className="w-[280px] shrink-0">
+                <SelectField
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  {allStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </SelectField>
+              </div>
+            </div>
+          </DataTableToolbar>
         </div>
 
         {/* Desktop Table (List View) */}
@@ -806,19 +1014,38 @@ export default function DraftDocuments() {
           <Table>
             <thead>
               <tr>
-                <Th>{t('file_code')}</Th>
-                <Th>{t('document_title_col')}</Th>
-                <Th>{t('version')}</Th>
-                <Th>{t('created_by')}</Th>
-                <Th>{t('last_updated')}</Th>
-                <Th>{t('status')}</Th>
-                <Th stickyRight>{t('actions')}</Th>
+                {visibleColumns.map((col, idx) => {
+                  const id = col.id || col.key
+                  const canDrag = !col.stickyRight
+                  const isDragOver = canDrag && dragOverColIndex === idx
+                  return (
+                    <Th
+                      key={id}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      sortable={Boolean(col.sortable)}
+                      sortDirection={getSortDirectionFor(id)}
+                      sortKey={id}
+                      onSort={col.sortable ? toggleSort : undefined}
+                      draggable={canDrag}
+                      dragOver={isDragOver}
+                      onDragStart={(e) => handleColDragStart(idx, e)}
+                      onDragOver={(e) => handleColDragOver(idx, e)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(idx, e)}
+                      onDragEnd={handleColDragEnd}
+                      title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                    >
+                      {col.label || col.header || id}
+                    </Th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="py-10">
+                  <td colSpan={Math.max(visibleColumns.length, 1)} className="py-10">
                     <div className="flex flex-col items-center gap-2">
                       <InlineSpinner />
                       <span className="text-sm text-ink-muted">{t('loading_documents')}</span>
@@ -827,7 +1054,7 @@ export default function DraftDocuments() {
                 </tr>
               ) : currentDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="7">
+                  <td colSpan={Math.max(visibleColumns.length, 1)}>
                     <EmptyState 
                       message={t('no_draft_docs')} 
                       description={searchQuery || statusFilter !== 'All' ? t('adjust_filters') : t('start_creating_draft')}
@@ -839,110 +1066,29 @@ export default function DraftDocuments() {
               ) : (
                 currentDocuments.map((doc) => (
                   <Tr key={doc.id}>
-                    <Td>
-                      <a href="#" onClick={(e) => { e.preventDefault(); handleViewDraftDocument(doc); }} className="font-medium text-ink hover:text-brand">
-                        {doc.fileCode}
-                      </a>
-                    </Td>
-                    <Td>
-                      <span className="text-ink">{doc.title}</span>
-                    </Td>
-                    <Td>{doc.version}</Td>
-                    <Td>{doc.createdBy}</Td>
-                    <Td>{doc.lastUpdated}</Td>
-                    <Td>
-                      <div className="space-y-1">
-                        <StatusBadge status={doc.status} />
-                        {doc.isSmartDocument ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            Smart Draft
-                          </span>
-                        ) : null}
-                        {doc.smartTemplateName ? (
-                          <p className="text-[11px] text-ink-muted truncate max-w-[220px]" title={`Template: ${doc.smartTemplateName}`}>
-                            Template: {doc.smartTemplateName}
-                          </p>
-                        ) : null}
-                        {doc.latestReturnRemark && doc.status === 'Return for Amendments' ? (
-                          <div className="space-y-1">
-                            <button
-                              onClick={() => handleViewRemarks(doc)}
-                              className="block max-w-[240px] text-left text-xs text-brand hover:text-brand-hover underline underline-offset-2 truncate"
-                              title={`${t('latest_remark')}${formatLatestRemarkMeta(doc)}: ${doc.latestReturnRemark}`}
-                            >
-                              {t('latest_remark')}
-                              {formatLatestRemarkMeta(doc)}: {normalizeRemarkSnippet(doc.latestReturnRemark)}
-                            </button>
-                            {hasReturnFile(doc) ? (
-                              <div className="flex flex-wrap gap-2">
-                                {isPreviewableReturnFile(doc) ? (
-                                  <button
-                                    onClick={() => handleViewReturnFile(doc)}
-                                    className="text-xs text-brand hover:text-brand-hover underline underline-offset-2"
-                                  >
-                                    {t('view_reviewed_file')}
-                                  </button>
-                                ) : null}
-                                <button
-                                  onClick={() => handleDownloadReturnFile(doc)}
-                                  className="text-xs text-brand hover:text-brand-hover underline underline-offset-2"
-                                >
-                                  {t('download_reviewed_file')}
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Td>
-                    <Td stickyRight className="py-3">
-                      <ActionMenu
-                        actions={[
-                          ...(hasAnyFileVersion(doc)
-                            ? [{ label: 'View', onClick: () => handleViewDraftDocument(doc) }]
-                            : []
-                          ),
-                          ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update') && !doc.isSmartDocument
-                            ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'Return for Amendments'
-                            ? [
-                                ...(hasReturnFile(doc) && isPreviewableReturnFile(doc)
-                                  ? [{ label: t('view_reviewed_file'), onClick: () => handleViewReturnFile(doc) }]
-                                  : []
-                                ),
-                                ...(hasReturnFile(doc)
-                                  ? [{ label: t('download_reviewed_file'), onClick: () => handleDownloadReturnFile(doc) }]
-                                  : []
-                                ),
-                              ]
-                            : []
-                          ),
-                          ...(doc.status === 'Return for Amendments'
-                            ? [{ label: t('view_remarks'), onClick: () => handleViewRemarks(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'Return for Amendments' && hasPermission('documents.draft', 'update')
-                            ? [
-                          { label: t('reupload_file'), onClick: () => handleReupload(doc) }
-                              ]
-                            : []
-                          ),
-                          ...(canDeleteDraft(doc)
-                            ? [
-                                {
-                                  label: 'Delete',
-                                  onClick: () => askDeleteDraft(doc),
-                                  destructive: true,
-                                }
-                              ]
-                            : []
-                          )
-                        ]}
-                      />
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(doc, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = doc?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, doc) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))
               )}

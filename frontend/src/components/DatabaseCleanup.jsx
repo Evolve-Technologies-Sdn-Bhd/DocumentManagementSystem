@@ -607,10 +607,10 @@ function StatCard({ label, value, icon, highlight }) {
   return (
     <div className={`p-4 rounded-lg border ${highlight ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
       <div className="text-2xl mb-2">{icon}</div>
-      <div className={`text-2xl font-bold ${highlight ? 'text-blue-700' : 'text-gray-900'}`}>
+      <div className="text-2xl font-bold text-gray-900">
         {value.toLocaleString()}
       </div>
-      <div className={`text-xs ${highlight ? 'text-blue-600' : 'text-gray-600'} mt-1`}>
+      <div className="text-xs text-gray-600 mt-1">
         {label}
       </div>
     </div>

@@ -5,8 +5,18 @@ const ResponseFormatter = require('../utils/responseFormatter');
  * Global error handling middleware
  */
 const errorHandler = (err, req, res, next) => {
-  // Log error for debugging
-  console.error('Error:', err);
+  // Log full error detail including stack for debugging
+  const errorLabel =
+    (err && err.isOperational ? 'OPERATIONAL' :
+      (err && err.code && err.code.startsWith('P') ? 'PRISMA' :
+        (err && err.name ? err.name : 'UNKNOWN'))) +
+    ' ERROR';
+  console.error(`[${errorLabel}] ${req.method} ${req.originalUrl}`);
+  if (err && err.stack) {
+    console.error(err.stack);
+  } else {
+    console.error('Error:', err);
+  }
 
   // Handle operational errors
   if (err.isOperational) {
@@ -41,10 +51,17 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Handle unknown errors
+  const rawMessage = (err && err.message) ? String(err.message) : '';
+  const shortHint = rawMessage.length > 80
+    ? rawMessage.slice(0, 80) + '...'
+    : rawMessage;
+
   return ResponseFormatter.error(
     res,
     process.env.NODE_ENV === 'production'
-      ? 'An unexpected error occurred'
+      ? (shortHint
+          ? `An unexpected error occurred (${shortHint})`
+          : 'An unexpected error occurred')
       : err.message,
     500
   );

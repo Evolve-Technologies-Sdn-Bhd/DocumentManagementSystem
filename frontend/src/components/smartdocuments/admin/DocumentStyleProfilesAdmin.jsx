@@ -12,8 +12,10 @@ import { generateHybridPageSeries, formatHybridPageNumberLabel } from '../../../
 import InlineSpinner from '../../ui/InlineSpinner'
 import PageContainer from '../../ui/PageContainer'
 import AppSurface from '../../ui/AppSurface'
+import ColumnSettingsButton from '../../ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from '../../ui/Table'
 import ActionMenu from '../../ActionMenu'
+import useTableFeatures from '../../../hooks/useTableFeatures'
 
 const Pill = ({ variant = 'default', children }) => {
   const variants = {
@@ -493,6 +495,8 @@ export default function DocumentStyleProfilesAdmin() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filterActive, setFilterActive] = useState('all')
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   const [editTarget, setEditTarget] = useState(null)
   const [form, setForm] = useState(emptyProfile())
@@ -688,6 +692,139 @@ export default function DocumentStyleProfilesAdmin() {
     }
   }
 
+  const styleProfileColumns = [
+    {
+      id: 'profileName',
+      key: 'profileName',
+      accessor: 'profileName',
+      label: 'Profile Name',
+      sortable: true,
+      required: true,
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          {value}
+          {row.isDefault && <Pill variant="info">DEFAULT</Pill>}
+        </div>
+      )
+    },
+    {
+      id: 'description',
+      key: 'description',
+      accessor: 'description',
+      label: 'Description',
+      sortable: true,
+      render: (value) => <span className="text-gray-500 text-xs">{value || '—'}</span>
+    },
+    {
+      id: 'page',
+      key: 'page',
+      accessor: (row) => `${row.pageSize || '—'} · ${(row.orientation || row.pageOrientation || 'PORTRAIT').toLowerCase()}`,
+      label: 'Page',
+      sortable: true,
+      render: (value, row) => (
+        <span className="text-xs text-gray-700">
+          <span className="font-semibold">{row.pageSize || '—'}</span>
+          <span className="mx-1 text-gray-400">·</span>
+          <span>{(row.orientation || row.pageOrientation || 'PORTRAIT').toLowerCase()}</span>
+        </span>
+      )
+    },
+    {
+      id: 'isActive',
+      key: 'isActive',
+      accessor: 'isActive',
+      label: 'Active',
+      sortable: true,
+      align: 'center',
+      render: (value) => value ? <Pill variant="success">Active</Pill> : <Pill variant="danger">Inactive</Pill>
+    },
+    {
+      id: 'isDefault',
+      key: 'isDefault',
+      accessor: 'isDefault',
+      label: 'Default',
+      sortable: true,
+      align: 'center',
+      render: (value) => value ? <Pill variant="success">Yes</Pill> : <span className="text-gray-400">—</span>
+    },
+    {
+      id: 'createdAt',
+      key: 'createdAt',
+      accessor: 'createdAt',
+      label: 'Created At',
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
+      render: (value) => <span className="text-xs text-gray-500">{formatDate(value)}</span>
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: 'Actions',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            { label: 'Edit', onClick: () => openEdit(row) },
+            { label: 'Set as Default', onClick: () => { setDefaultTarget(row); setDefaultError('') }, dividerAfter: true, disabled: !!row.isDefault || !row.isActive },
+            { label: 'Delete', onClick: () => { setDeleteTarget(row); setDeleteError('') }, variant: 'destructive', disabled: !!row.isDefault }
+          ]}
+        />
+      )
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'document-style-profiles-admin',
+    columns: styleProfileColumns,
+    data: filtered,
+    defaultSortKey: 'profileName',
+    defaultSortDirection: 'asc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   const stepIndicator = (
     <div className="w-full">
       <div className="flex items-start justify-between relative">
@@ -768,16 +905,22 @@ export default function DocumentStyleProfilesAdmin() {
           <span className={['inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors', filterActive === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'].join(' ')} onClick={() => setFilterActive('all')}>All</span>
           <span className={['inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors', filterActive === 'active' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'].join(' ')} onClick={() => setFilterActive('active')}>Active</span>
           <span className={['inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors', filterActive === 'inactive' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'].join(' ')} onClick={() => setFilterActive('inactive')}>Inactive</span>
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
         </div>
 
-        <SectionHeader title={`Profiles (${filtered.length})`} />
+        <SectionHeader title={`Profiles (${sortedData.length})`} />
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <InlineSpinner className="h-6 w-6 border-gray-200 border-t-blue-600" />
             <span className="ml-3 text-sm text-gray-500">Loading style profiles...</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sortedData.length === 0 ? (
           <EmptyPanelState
             title="No style profiles"
             description="Create a profile to control page dimensions, fonts, headers/footers, and table formatting for Smart Documents."
@@ -787,42 +930,60 @@ export default function DocumentStyleProfilesAdmin() {
             <Table>
               <thead>
                 <Tr>
-                  <Th>Profile Name</Th>
-                  <Th>Description</Th>
-                  <Th>Page</Th>
-                  <Th align="center">Active</Th>
-                  <Th align="center">Default</Th>
-                  <Th>Created At</Th>
-                  <Th align="right" stickyRight>Actions</Th>
+                  {visibleColumns.map((col, idx) => {
+                    const id = col.id || col.key
+                    const canDrag = !col.stickyRight
+                    const isDragOver = canDrag && dragOverColIndex === idx
+                    return (
+                      <Th
+                        key={id}
+                        align={col.align || 'left'}
+                        stickyRight={col.stickyRight || false}
+                        sortable={Boolean(col.sortable)}
+                        sortDirection={getSortDirectionFor(id)}
+                        sortKey={id}
+                        onSort={col.sortable ? toggleSort : undefined}
+                        draggable={canDrag}
+                        dragOver={isDragOver}
+                        onDragStart={(e) => handleColDragStart(idx, e)}
+                        onDragOver={(e) => handleColDragOver(idx, e)}
+                        onDragLeave={handleColDragLeave}
+                        onDrop={(e) => handleColDrop(idx, e)}
+                        onDragEnd={handleColDragEnd}
+                        title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                      >
+                        {col.label || col.header || id}
+                      </Th>
+                    )
+                  })}
                 </Tr>
               </thead>
               <tbody>
-                {filtered.map((p) => (
+                {sortedData.map((p) => (
                   <Tr key={p.id}>
-                    <Td className="font-medium text-gray-900">
-                      <div className="flex items-center gap-2">
-                        {p.profileName}
-                        {p.isDefault && <Pill variant="info">DEFAULT</Pill>}
-                      </div>
-                    </Td>
-                    <Td className="text-gray-500 text-xs">{p.description || '—'}</Td>
-                    <Td className="text-xs text-gray-700">
-                      <span className="font-semibold">{p.pageSize || '—'}</span>
-                      <span className="mx-1 text-gray-400">·</span>
-                      <span>{(p.orientation || p.pageOrientation || 'PORTRAIT').toLowerCase()}</span>
-                    </Td>
-                    <Td align="center">{p.isActive ? <Pill variant="success">Active</Pill> : <Pill variant="danger">Inactive</Pill>}</Td>
-                    <Td align="center">{p.isDefault ? <Pill variant="success">Yes</Pill> : <span className="text-gray-400">—</span>}</Td>
-                    <Td className="text-xs text-gray-500">{formatDate(p.createdAt)}</Td>
-                    <Td align="right" stickyRight>
-                      <ActionMenu
-                        actions={[
-                          { label: 'Edit', onClick: () => openEdit(p) },
-                          { label: 'Set as Default', onClick: () => { setDefaultTarget(p); setDefaultError('') }, dividerAfter: true, disabled: !!p.isDefault || !p.isActive },
-                          { label: 'Delete', onClick: () => { setDeleteTarget(p); setDeleteError('') }, variant: 'destructive', disabled: !!p.isDefault }
-                        ]}
-                      />
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(p, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = p?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, p) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))}
               </tbody>
