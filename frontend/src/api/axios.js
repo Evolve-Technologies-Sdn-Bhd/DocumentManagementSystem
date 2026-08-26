@@ -15,7 +15,42 @@ const _envUrl = String(import.meta.env.VITE_API_URL || '').trim()
 const _DEFAULT_FALLBACK_ABSOLUTE = 'http://localhost:4001/api'
 const baseURL = _envUrl ? _envUrl : _DEFAULT_FALLBACK_ABSOLUTE
 
-const api = axios.create({ baseURL })
+const MAX_CONCURRENT = 3
+let _pendingCount = 0
+const _pendingQueue = []
+const _flushQueue = () => {
+  while (_pendingQueue.length > 0 && _pendingCount < MAX_CONCURRENT) {
+    const next = _pendingQueue.shift()
+    next()
+  }
+}
+const _acquire = () => new Promise((resolve) => {
+  const go = () => {
+    if (_pendingCount < MAX_CONCURRENT) {
+      _pendingCount++
+      resolve()
+      return true
+    }
+    return false
+  }
+  if (!go()) _pendingQueue.push(() => go() && resolve())
+})
+const _release = () => {
+  _pendingCount = Math.max(0, _pendingCount - 1)
+  queueMicrotask(_flushQueue)
+}
+
+const shouldRetryOnStatus = (status) => {
+  if (!status) return true
+  return status === 0 || status === 502 || status === 503 || status === 504 || status === 429 || status >= 500
+}
+
+const retryDelay = (attempt) => {
+  const base = 600 + Math.random() * 400
+  return base * Math.pow(1.55, attempt - 1)
+}
+
+const api = axios.create({ baseURL, timeout: 20000 })
 
 let refreshing = null
 
@@ -46,7 +81,9 @@ const getActionLabel = (cfg) => {
   return 'Loading...'
 }
 
-api.interceptors.request.use((cfg) => {
+api.interceptors.request.use(async (cfg) => {
+  await _acquire()
+
   const token = localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
 
@@ -81,13 +118,14 @@ api.interceptors.request.use((cfg) => {
 
 api.interceptors.response.use(
   (res) => {
+    _release()
     if (res?.config?._isUpload) finishUploadProgress()
     if (res?.config?._globalLoadingStarted) finishGlobalLoading()
     return res
   },
   async (error) => {
     const status = error?.response?.status
-    const original = error?.config
+    const original = error?.config || {}
 
     if (original?.responseType === 'blob' && error?.response?.data instanceof Blob) {
       try {
@@ -131,6 +169,7 @@ api.interceptors.response.use(
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
+      _release()
       if (window.location.pathname !== '/maintenance') {
         window.location.href = '/maintenance'
       }
@@ -148,11 +187,37 @@ api.interceptors.response.use(
       url.includes('/auth/resend-2fa')
 
     const shouldHandle401Refresh = Boolean(original && status === 401 && !isAuthEndpoint && !original._retry)
-    if (original?._globalLoadingStarted && !shouldHandle401Refresh) {
+    const method = String(original?.method || 'get').toLowerCase()
+    const maxRetries = method === 'get' ? 2 : 0
+    const attempt = Number(original._retryAttempt || 0) + 1
+    const shouldRetry =
+      !shouldHandle401Refresh &&
+      !isAuthEndpoint &&
+      attempt <= maxRetries &&
+      shouldRetryOnStatus(status)
+
+    if (original?._globalLoadingStarted && !shouldHandle401Refresh && !shouldRetry) {
       finishGlobalOnce()
     }
 
+    if (shouldRetry) {
+      original._retryAttempt = attempt
+      const delay = retryDelay(attempt)
+      await new Promise((r) => setTimeout(r, delay))
+      try {
+        const retryRes = await api.request(original)
+        return retryRes
+      } catch (retryErr) {
+        if (!retryErr.__semaphoreReleased) {
+          _release()
+          retryErr.__semaphoreReleased = true
+        }
+        return Promise.reject(retryErr)
+      }
+    }
+
     if (!original || status !== 401) {
+      _release()
       return Promise.reject(error)
     }
 
@@ -161,6 +226,7 @@ api.interceptors.response.use(
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
+      _release()
       return Promise.reject(error)
     }
 
@@ -169,6 +235,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       finishGlobalOnce()
+      _release()
       return Promise.reject(error)
     }
 
@@ -180,7 +247,7 @@ api.interceptors.response.use(
           .post(
             `${baseURL}/auth/refresh-token`,
             { refreshToken },
-            { headers: { 'Content-Type': 'application/json' } }
+            { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
           )
           .then((r) => {
             const data = r?.data?.data || r?.data || {}
@@ -205,12 +272,17 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${nextAccess}`
       }
 
-      return api.request(original)
+      const retryRes = await api.request(original)
+      return retryRes
     } catch (refreshErr) {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
+      if (!refreshErr.__semaphoreReleased) {
+        _release()
+        refreshErr.__semaphoreReleased = true
+      }
       return Promise.reject(refreshErr)
     }
   }

@@ -204,11 +204,11 @@ export default function Dashboard() {
 
       if (nextMode === 'admin') {
         const [dashboardRes, statsRes, expiryRes, myDocsRes, assignedRes] = await Promise.allSettled([
-          api.get('/reports/dashboard'),
-          api.get('/reports/dashboard-stats'),
-          api.get('/expiry-tracking/dashboard'),
-          api.get('/documents/my-status'),
-          api.get('/documents/review-approval')
+          api.get('/reports/dashboard', { skipGlobalLoading: true }),
+          api.get('/reports/dashboard-stats', { skipGlobalLoading: true }),
+          api.get('/expiry-tracking/dashboard', { skipGlobalLoading: true }),
+          api.get('/documents/my-status', { skipGlobalLoading: true }),
+          api.get('/documents/review-approval', { skipGlobalLoading: true })
         ])
 
         if (mountedRef && !mountedRef.current) return
@@ -258,12 +258,12 @@ export default function Dashboard() {
       }
 
       const expiryRequest = currentUser?.id
-        ? api.get('/expiry-tracking/dashboard', { params: { ownerId: currentUser.id } })
+        ? api.get('/expiry-tracking/dashboard', { params: { ownerId: currentUser.id }, skipGlobalLoading: true })
         : Promise.resolve({ data: { data: { dashboard: null } } })
 
       const [myDocsRes, assignedRes, expiryRes] = await Promise.allSettled([
-        api.get('/documents/my-status'),
-        api.get('/documents/review-approval'),
+        api.get('/documents/my-status', { skipGlobalLoading: true }),
+        api.get('/documents/review-approval', { skipGlobalLoading: true }),
         expiryRequest
       ])
 
