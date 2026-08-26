@@ -96,8 +96,8 @@ function AssignRequiredDocumentPicModal({
                     type="button"
                     onClick={() => onSelectUser(user)}
                     className={[
-                      'w-full px-3 py-2 text-left text-sm transition-colors',
-                      isSelected ? 'bg-brand/10 text-brand' : 'hover:bg-surface-muted'
+                      'w-full px-3 py-2 text-left text-sm transition-colors rounded-lg',
+                      isSelected ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
                     ].join(' ')}
                   >
                     {formatPersonLabel(user)}
@@ -1999,8 +1999,8 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
-                        isSelected ? 'bg-brand/5 ring-1 ring-inset ring-brand/20' : ''
+                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
+                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -2555,8 +2555,8 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
-                        isSelected ? 'bg-brand/5 ring-1 ring-inset ring-brand/20' : ''
+                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
+                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">

@@ -50,6 +50,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
   const [approversList, setApproversList] = useState([])
   const [loadingApprovers, setLoadingApprovers] = useState(true)
   const [formError, setFormError] = useState('')
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
   const submitProgress = useLoadingProgress(isSubmitting)
 
   const latestVersion = (() => {
@@ -276,11 +277,26 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
   const handleOpenPreview = async () => {
     if (!document?.id) return
     try {
-      const previewUrl = `${api.defaults.baseURL}/documents/${document.id}/preview`
-      window.open(previewUrl, '_blank', 'noopener,noreferrer')
+      setIsPreviewLoading(true)
+      setFormError('')
+      const response = await api.get(`/documents/${document.id}/preview`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/pdf'
+      })
+      const blobUrl = URL.createObjectURL(blob)
+      const newWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+      if (!newWindow) {
+        setFormError('Pop-up was blocked. Please allow pop-ups for this site.')
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
     } catch (e) {
       console.error('Failed to open preview:', e)
-      setFormError('Could not open the preview. Try downloading from My Documents.')
+      const msg = e?.response?.data?.message || 'Could not open the preview. Try downloading from My Documents.'
+      setFormError(msg)
+    } finally {
+      setIsPreviewLoading(false)
     }
   }
 
@@ -772,10 +788,14 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
               type="button"
               variant="secondary"
               onClick={handleOpenPreview}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isPreviewLoading}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              Preview PDF (New Tab)
+              {isPreviewLoading ? (
+                <InlineSpinner className="h-4 w-4 border-2" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              )}
+              {isPreviewLoading ? 'Loading PDF...' : 'Preview PDF (New Tab)'}
             </Button>
             <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
               {t('cancel')}

@@ -145,11 +145,11 @@ function FolderTreePickerItem({
   return (
     <div key={node.key}>
       <div
-        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors ${
+        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
           isSelected
-            ? 'bg-brand/10 text-brand ring-1 ring-brand/20'
+            ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-200'
             : node.selectable
-              ? 'cursor-pointer text-ink hover:bg-surface-muted'
+              ? 'cursor-pointer text-ink hover:bg-gray-50'
               : 'text-ink-soft'
         }`}
         style={{ paddingLeft: `${12 + level * 18}px` }}

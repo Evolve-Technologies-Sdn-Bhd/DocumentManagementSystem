@@ -27,7 +27,7 @@ import useTableFeatures from '../hooks/useTableFeatures'
 
 
 export default function DraftDocuments() {
-  const { itemsPerPage, formatDate, formatDateTime, defaultView, t } = usePreferences()
+  const { itemsPerPage, formatDate, formatDateTime, defaultView, t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [documents, setDocuments] = useState([])
@@ -252,6 +252,15 @@ export default function DraftDocuments() {
 
   const handleOpenSmartEditor = (doc) => {
     if (!doc) return
+    if (!smartDocumentEnabled) {
+      setAlertModal({
+        show: true,
+        title: 'Smart Document Disabled',
+        message: 'Smart Document feature is currently disabled by the system administrator.',
+        type: 'warning'
+      })
+      return
+    }
     if (!doc.isSmartDocument && !doc.smartTemplateVersionId) {
       setAlertModal({
         show: true,
@@ -278,7 +287,7 @@ export default function DraftDocuments() {
   }
 
   const handleViewDraftDocument = (doc) => {
-    if (doc?.isSmartDocument && doc?.smartTemplateVersionId) {
+    if (smartDocumentEnabled && doc?.isSmartDocument && doc?.smartTemplateVersionId) {
       const latest = doc.latestVersion || (Array.isArray(doc.versions) && doc.versions[0]) || null
       let verId = latest?.id || null
       if (!verId && doc.publishedVersionId) verId = doc.publishedVersionId
@@ -651,7 +660,7 @@ export default function DraftDocuments() {
               ? [{ label: 'View', onClick: () => handleViewDraftDocument(row) }]
               : []
             ),
-            ...(isDraftStatus(row) && hasPermission('documents.draft', 'update') && !row.isSmartDocument
+            ...(isDraftStatus(row) && hasPermission('documents.draft', 'update') && (!row.isSmartDocument || !smartDocumentEnabled)
               ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(row) }]
               : []
             ),
@@ -1132,7 +1141,7 @@ export default function DraftDocuments() {
                         ? [{ label: 'View', onClick: () => handleViewDraftDocument(doc) }]
                         : []
                       ),
-                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update') && !doc.isSmartDocument
+                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update') && (!doc.isSmartDocument || !smartDocumentEnabled)
                         ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
                         : []
                       ),
@@ -1267,7 +1276,7 @@ export default function DraftDocuments() {
                         ? [{ label: 'View', onClick: () => handleViewDraftDocument(doc) }]
                         : []
                       ),
-                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update') && !doc.isSmartDocument
+                      ...(isDraftStatus(doc) && hasPermission('documents.draft', 'update') && (!doc.isSmartDocument || !smartDocumentEnabled)
                         ? [{ label: 'Upload File', onClick: () => handleUploadDraftFile(doc) }]
                         : []
                       ),

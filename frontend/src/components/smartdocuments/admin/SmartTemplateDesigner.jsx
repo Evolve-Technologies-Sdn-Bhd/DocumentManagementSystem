@@ -1986,6 +1986,26 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
 
   const versionColumns = [
     {
+      id: 'select',
+      key: 'select',
+      accessor: '__select',
+      label: '',
+      width: 48,
+      required: true,
+      sortable: false,
+      render: (_v, row) => (
+        <div className="flex items-center justify-center">
+          <input
+            type="radio"
+            aria-label={`Select v${row.versionNo}`}
+            checked={activeId === String(row.id)}
+            onChange={() => handleSelectRow(row)}
+            className="h-4 w-4 cursor-pointer accent-[#003366]"
+          />
+        </div>
+      )
+    },
+    {
       id: 'versionNo',
       key: 'versionNo',
       accessor: 'versionNo',
@@ -1996,7 +2016,7 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-base font-semibold text-gray-900">v{value}</span>
           {row.isCurrent && <Pill variant="success">Current</Pill>}
-          {activeId === String(row.id) && <Pill variant="primary">Designing now</Pill>}
+          {activeId === String(row.id) && <Pill variant="primary">Selected</Pill>}
         </div>
       )
     },
@@ -2052,16 +2072,46 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
       required: true,
       align: 'right',
       stickyRight: true,
-      render: (_v, row) => (
-        <ActionMenu
-          actions={[
-            { label: activeId === String(row.id) ? 'Designing' : 'Design', onClick: () => onDesignVersion && onDesignVersion(row.id, 3), disabled: !!row.isLocked || !onDesignVersion },
-            { label: 'View Placeholders', onClick: () => openViewPlaceholders(row) },
-            { label: 'Upload DOCX', onClick: () => openUpload(row), disabled: !!row.isLocked },
-            { label: 'Publish', onClick: () => setPublishTarget(row), disabled: !!row.isLocked }
-          ]}
-        />
-      )
+      width: 80,
+      render: (_v, row) => {
+        const actions = []
+        if (!row.isLocked) {
+          actions.push({
+            label: 'Edit / Design',
+            onClick: () => onDesignVersion && onDesignVersion(row.id, 3),
+            disabled: !onDesignVersion
+          })
+          actions.push({
+            label: 'Upload DOCX',
+            onClick: () => openUpload(row)
+          })
+          actions.push({
+            label: 'View Placeholders',
+            onClick: () => openViewPlaceholders(row),
+            dividerAfter: true
+          })
+          actions.push({
+            label: 'Clone as New Draft',
+            onClick: () => handleCloneFrom(row)
+          })
+          actions.push({
+            label: 'Publish & Lock',
+            onClick: () => setPublishTarget(row),
+            variant: 'default'
+          })
+        } else {
+          actions.push({
+            label: 'View Placeholders',
+            onClick: () => openViewPlaceholders(row),
+            dividerAfter: true
+          })
+          actions.push({
+            label: 'Clone as New Draft (Edit)',
+            onClick: () => handleCloneFrom(row)
+          })
+        }
+        return <ActionMenu actions={actions} />
+      }
     }
   ]
 
@@ -2212,6 +2262,46 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
     }
   }
 
+  async function handleCloneFrom(v) {
+    const ok = window.confirm(
+      `Create editable DRAFT copy from v${v.versionNo}?\n\nExisting data (sections, fields, mappings, DOCX) will be copied to the NEW version.\nHistory of the original v${v.versionNo} is preserved.`
+    )
+    if (!ok) return
+    const versionsList = [...(template.versions || [])].sort((a, b) => (Number(a.versionNo || 0) - Number(b.versionNo || 0)))
+    const nextNo = versionsList.length ? Number(versionsList[versionsList.length - 1].versionNo || 0) + 1 : 1
+    try {
+      const payload = {
+        versionNo: String(nextNo),
+        versionLabel: '',
+        changeNotes: v.versionLabel
+          ? `Cloned from v${v.versionNo} (${v.versionLabel}).`
+          : `Cloned from v${v.versionNo}.`,
+        copyFromVersionId: v.id
+      }
+      const res = await api.post(`/smart-templates/${template.id}/versions`, payload)
+      const newVerId = res?.data?.data?.id || res?.data?.id || null
+      notify(`Editable draft v${nextNo} created from v${v.versionNo}`, 'success')
+      await onReload()
+      if (newVerId) {
+        if (onDesignVersion) onDesignVersion(newVerId, 3)
+        else if (typeof setActiveDesignVersionId === 'function') setActiveDesignVersionId(newVerId)
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Clone failed'
+      notify('Clone to draft failed: ' + msg, 'danger')
+    }
+  }
+
+  function handleSelectRow(v) {
+    if (onDesignVersion && !v.isLocked) {
+      onDesignVersion(v.id, null)
+    } else {
+      if (typeof setActiveDesignVersionId === 'function') {
+        setActiveDesignVersionId(v.id)
+      }
+    }
+  }
+
   return (
     <div className="space-y-5">
       <SectionHeader
@@ -2279,33 +2369,56 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
                 </Tr>
               </thead>
               <tbody>
-                {pageItems.map((v) => (
-                  <Tr key={v.id}>
-                    {visibleColumns.map((col) => {
-                      const id = col.id || col.key || col.accessor
-                      const accessor = col.accessor || id
-                      let value
-                      if (typeof accessor === 'function') {
-                        value = accessor(v, col)
-                      } else if (accessor === '__actions') {
-                        value = null
-                      } else {
-                        value = v?.[accessor]
-                      }
-                      const content = typeof col.render === 'function' ? col.render(value, v) : (value != null ? value : '')
-                      return (
-                        <Td
-                          key={id}
-                          align={col.align || 'left'}
-                          stickyRight={col.stickyRight || false}
-                          className={col.stickyRight ? 'py-3' : ''}
-                        >
-                          {content}
-                        </Td>
-                      )
-                    })}
-                  </Tr>
-                ))}
+                {pageItems.map((v) => {
+                  const isSelected = activeId === String(v.id)
+                  return (
+                    <Tr
+                      key={v.id}
+                      className={[
+                        'cursor-pointer transition-all',
+                        isSelected
+                          ? '!bg-[#003366]/10 hover:!bg-[#003366]/15 ring-1 ring-inset ring-[#003366]/20'
+                          : ''
+                      ].filter(Boolean).join(' ')}
+                      onClick={(e) => {
+                        const target = e?.target
+                        if (target && (
+                          target.closest && (target.closest('button') || target.closest('input') || target.closest('[data-action-ignore]'))
+                        )) {
+                          return
+                        }
+                        handleSelectRow(v)
+                      }}
+                    >
+                      {visibleColumns.map((col) => {
+                        const id = col.id || col.key || col.accessor
+                        const accessor = col.accessor || id
+                        let value
+                        if (typeof accessor === 'function') {
+                          value = accessor(v, col)
+                        } else if (accessor === '__actions') {
+                          value = null
+                        } else {
+                          value = v?.[accessor]
+                        }
+                        const content = typeof col.render === 'function' ? col.render(value, v) : (value != null ? value : '')
+                        return (
+                          <Td
+                            key={id}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={[
+                              col.stickyRight ? 'py-3' : '',
+                              isSelected ? '!bg-transparent' : ''
+                            ].filter(Boolean).join(' ') || undefined}
+                          >
+                            {content}
+                          </Td>
+                        )
+                      })}
+                    </Tr>
+                  )
+                })}
               </tbody>
             </Table>
           </TableContainer>

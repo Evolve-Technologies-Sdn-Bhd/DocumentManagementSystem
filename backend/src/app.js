@@ -28,6 +28,7 @@ const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
 const smartDocumentsRoutes = require('./routes/smartDocuments');
 const aiRoutes = require('./routes/ai');
 const notificationService = require('./services/notificationService');
+const configService = require('./services/configService');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -158,14 +159,33 @@ app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
-app.use('/api/smart-templates', smartTemplatesRoutes);
-app.use('/api/smart-document-style', smartDocumentStyleRoutes);
-app.use('/api/smart-documents', smartDocumentsRoutes);
+
+// Smart Document feature gating middleware
+const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
+  try {
+    const settings = await configService.getSmartDocumentSettings()
+    if (!settings.enabled) {
+      return ResponseFormatter.error(
+        res,
+        'Smart Document feature is currently disabled. Please contact your administrator.',
+        403,
+        { code: 'SMART_DOCUMENT_DISABLED' }
+      )
+    }
+    next()
+  } catch (error) {
+    console.error('Smart Document gating error:', error)
+    next()
+  }
+})
+
+app.use('/api/smart-templates', requireSmartDocumentEnabled, smartTemplatesRoutes);
+app.use('/api/smart-document-style', requireSmartDocumentEnabled, smartDocumentStyleRoutes);
+app.use('/api/smart-documents', requireSmartDocumentEnabled, smartDocumentsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access
-const configService = require('./services/configService');
 const { authenticate, authorizePermission } = require('./middleware/auth');
 const asyncHandler = require('./utils/asyncHandler');
 const documentController = require('./controllers/documentController');

@@ -59,7 +59,7 @@ function TabNavigation({ activeTab, onTabChange, tabs }) {
 
 // Template Management Tab Component
 function TemplateManagement() {
-  const { t, itemsPerPage } = usePreferences()
+  const { t, itemsPerPage, smartDocumentEnabled } = usePreferences()
   const [activeSubTab, setActiveSubTab] = useState('templates')
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [templates, setTemplates] = useState([])
@@ -527,7 +527,7 @@ function TemplateManagement() {
               Template Requests
             </button>
           )}
-          {hasAnyPermission('configuration.templates') && (
+          {hasAnyPermission('configuration.templates') && smartDocumentEnabled && (
             <button
               type="button"
               onClick={() => { setActiveSubTab('smartTemplates') }}
@@ -541,7 +541,7 @@ function TemplateManagement() {
               Smart Templates
             </button>
           )}
-          {hasAnyPermission('configuration.settings') && (
+          {hasAnyPermission('configuration.settings') && smartDocumentEnabled && (
             <button
               type="button"
               onClick={() => { setActiveSubTab('documentStyles') }}
@@ -1001,13 +1001,13 @@ function TemplateManagement() {
           </div>
         )}
 
-        {activeSubTab === 'smartTemplates' && hasAnyPermission('configuration.templates') && (
+        {activeSubTab === 'smartTemplates' && hasAnyPermission('configuration.templates') && smartDocumentEnabled && (
           <SmartTemplateAdminList
             saveNotification={(msg, type='success') => setAlertModal({ show: true, title: msg, type })}
           />
         )}
 
-        {activeSubTab === 'documentStyles' && hasAnyPermission('configuration.settings') && (
+        {activeSubTab === 'documentStyles' && hasAnyPermission('configuration.settings') && smartDocumentEnabled && (
           <DocumentStyleProfilesAdmin />
         )}
     </div>

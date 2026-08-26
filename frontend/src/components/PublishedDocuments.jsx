@@ -1250,9 +1250,9 @@ export default function PublishedDocuments() {
         <div
           className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer group relative ${
             isDragTarget
-              ? 'bg-brand/10 ring-2 ring-brand/30'
+              ? 'bg-amber-50 ring-2 ring-amber-300'
               : isSelected
-                ? 'bg-blue-50 border-l-4 border-blue-600'
+                ? 'bg-gray-100 text-gray-900 ring-1 ring-gray-200'
                 : ''
           }`}
           onClick={handleClick}
@@ -1269,7 +1269,7 @@ export default function PublishedDocuments() {
           <span className="text-gray-500">{level === 0 ? '📁' : '📂'}</span>
           <span className="flex-1">{folder.name}</span>
           {isDragTarget && (
-            <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-white">
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-medium text-white">
               Drop here
             </span>
           )}

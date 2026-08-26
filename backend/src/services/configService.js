@@ -1126,6 +1126,51 @@ class ConfigService {
     maintenanceSettingsCacheAt = Date.now();
     return maintenanceSettingsCache;
   }
+
+  // ============================================
+  // SMART DOCUMENT FEATURE TOGGLE
+  // ============================================
+
+  getDefaultSmartDocumentSettings() {
+    return {
+      enabled: true
+    }
+  }
+
+  normalizeSmartDocumentSettings(input) {
+    const defaults = this.getDefaultSmartDocumentSettings()
+    const source = (input && typeof input === 'object') ? input : {}
+    return {
+      enabled: Boolean(source.enabled ?? defaults.enabled)
+    }
+  }
+
+  async getSmartDocumentSettings() {
+    const config = await prisma.configuration.findUnique({
+      where: { key: 'smart_document_settings' }
+    })
+
+    if (config?.value) {
+      try {
+        return this.normalizeSmartDocumentSettings(JSON.parse(config.value))
+      } catch (error) {
+        console.error('Failed to parse smart document settings:', error)
+      }
+    }
+
+    return this.getDefaultSmartDocumentSettings()
+  }
+
+  async updateSmartDocumentSettings(settings) {
+    const normalized = this.normalizeSmartDocumentSettings(settings || null)
+    const value = JSON.stringify(normalized)
+    const config = await prisma.configuration.upsert({
+      where: { key: 'smart_document_settings' },
+      update: { value, description: 'Smart Document feature enable/disable flag' },
+      create: { key: 'smart_document_settings', value, description: 'Smart Document feature enable/disable flag' }
+    })
+    return this.normalizeSmartDocumentSettings(JSON.parse(config.value))
+  }
 }
 
 module.exports = new ConfigService();

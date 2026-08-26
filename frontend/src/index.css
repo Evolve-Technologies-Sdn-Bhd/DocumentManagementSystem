@@ -448,13 +448,13 @@ button:focus-visible,
   font-weight: 500;    /* font-medium */
   line-height: 1.25rem;
 }
-.modal-uniform [class*="bg-brand"],
-.modal-uniform [class*="bg-blue-600"],
-.modal-uniform [class*="bg-brand-primary"] {
+.modal-uniform [class~="bg-brand"],
+.modal-uniform [class~="bg-blue-600"],
+.modal-uniform [class~="bg-brand-primary"] {
   background-color: #003366 !important;
 }
-.modal-uniform [class*="bg-brand"]:hover,
-.modal-uniform [class*="bg-blue-600"]:hover {
+.modal-uniform [class~="bg-brand"]:hover,
+.modal-uniform [class~="bg-blue-600"]:hover {
   background-color: #002244 !important;
 }
 .modal-uniform [class*="bg-gray-200"]:hover {

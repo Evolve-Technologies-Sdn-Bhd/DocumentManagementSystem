@@ -331,3 +331,31 @@ exports.getMaintenanceStatus = asyncHandler(async (req, res) => {
 
   return ResponseFormatter.success(res, { enabled, message }, 'Maintenance status retrieved successfully')
 })
+
+exports.getSmartDocumentStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.set('Pragma', 'no-cache')
+  res.set('Expires', '0')
+
+  let config = null
+  try {
+    config = await prisma.configuration.findUnique({
+      where: { key: 'smart_document_settings' }
+    })
+  } catch {
+    config = null
+  }
+
+  let parsed = null
+  if (config?.value) {
+    try {
+      parsed = JSON.parse(config.value)
+    } catch {
+      parsed = null
+    }
+  }
+
+  const enabled = parsed?.enabled === undefined ? true : Boolean(parsed.enabled)
+
+  return ResponseFormatter.success(res, { enabled }, 'Smart Document status retrieved successfully')
+})

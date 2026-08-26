@@ -749,3 +749,17 @@ exports.updateMaintenanceSettings = asyncHandler(async (req, res) => {
   const updatedSettings = await configService.updateMaintenanceSettings(settings);
   return ResponseFormatter.success(res, { settings: updatedSettings }, 'Maintenance settings updated successfully');
 });
+
+exports.getSmartDocumentSettings = asyncHandler(async (_req, res) => {
+  const settings = await configService.getSmartDocumentSettings()
+  return ResponseFormatter.success(res, { settings }, 'Smart Document settings retrieved successfully')
+})
+
+exports.updateSmartDocumentSettings = asyncHandler(async (req, res) => {
+  const settings = req.body
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid settings data')
+  }
+  const updatedSettings = await configService.updateSmartDocumentSettings(settings)
+  return ResponseFormatter.success(res, { settings: updatedSettings }, 'Smart Document settings updated successfully')
+})

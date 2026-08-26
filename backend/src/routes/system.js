@@ -206,6 +206,10 @@ router.put('/config/version-control', authenticate, configController.updateVersi
 router.get('/config/rfid-epc-registry', authenticate, configController.getRfidEpcRegistrySettings);
 router.put('/config/rfid-epc-registry', authenticate, configController.updateRfidEpcRegistrySettings);
 
+// Smart Document Feature Toggle
+router.get('/config/smart-document', authenticate, configController.getSmartDocumentSettings);
+router.put('/config/smart-document', authenticate, configController.updateSmartDocumentSettings);
+
 // Retention Policy Settings
 router.get('/config/retention-policy', authenticate, configController.getRetentionPolicySettings);
 router.put('/config/retention-policy', authenticate, configController.updateRetentionPolicySettings);

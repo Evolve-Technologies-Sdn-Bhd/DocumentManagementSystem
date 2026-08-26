@@ -11,7 +11,8 @@ const DEFAULT_PREFERENCES = {
   timeFormat: '24h',
   itemsPerPage: 15,
   defaultView: 'list',
-  themeMode: 'light'
+  themeMode: 'light',
+  smartDocumentEnabled: true
 }
 
 const translations = {
@@ -3877,6 +3878,34 @@ export function PreferencesProvider({ children }) {
   })
   const [loading, setLoading] = useState(true)
 
+  const [systemFeatureFlags, setSystemFeatureFlags] = useState(() => {
+    const saved = localStorage.getItem('systemFeatureFlags')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return {
+          smartDocumentEnabled: parsed.smartDocumentEnabled === undefined ? true : Boolean(parsed.smartDocumentEnabled)
+        }
+      } catch {}
+    }
+    return { smartDocumentEnabled: true }
+  })
+
+  const refreshSystemFeatureFlags = useCallback(async () => {
+    try {
+      const res = await api.get('/public/smart-document-status', { timeout: 4000 })
+      const enabled = res?.data?.data?.enabled === undefined ? true : Boolean(res.data.data.enabled)
+      setSystemFeatureFlags({ smartDocumentEnabled: enabled })
+      try {
+        localStorage.setItem('systemFeatureFlags', JSON.stringify({ smartDocumentEnabled: enabled }))
+      } catch {}
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    refreshSystemFeatureFlags()
+  }, [refreshSystemFeatureFlags])
+
   // Load preferences from API on mount
   useEffect(() => {
     const loadPreferences = async () => {
@@ -4047,7 +4076,10 @@ export function PreferencesProvider({ children }) {
     timeFormat: preferences.timeFormat,
     language: preferences.language,
     timezone: preferences.timezone,
-    themeMode: preferences.themeMode
+    themeMode: preferences.themeMode,
+    // System-wide feature flags
+    smartDocumentEnabled: systemFeatureFlags.smartDocumentEnabled,
+    refreshSystemFeatureFlags
   }
 
   return (
@@ -4090,7 +4122,9 @@ export function usePreferences() {
       timeFormat: '24h',
       language: 'en',
       timezone: 'Asia/Kuala_Lumpur',
-      themeMode: 'light'
+      themeMode: 'light',
+      smartDocumentEnabled: true,
+      refreshSystemFeatureFlags: async () => {}
     }
   }
   return context

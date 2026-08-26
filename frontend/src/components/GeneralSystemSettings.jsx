@@ -3516,7 +3516,7 @@ const ThemeBranding = () => {
 
 // Tab 4: Document Settings
 function DocumentSettings() {
-  const { t } = usePreferences()
+  const { t, refreshSystemFeatureFlags } = usePreferences()
   const [settings, setSettings] = useState({
     maxFileSize: 50,
     allowedTypes: {
@@ -3585,7 +3585,8 @@ function DocumentSettings() {
     reminder2Days: 60,
     reminder3Days: 30,
     reminder4Days: 7,
-    rfidEpcRegistryEnabled: false
+    rfidEpcRegistryEnabled: false,
+    smartDocumentEnabled: true
   })
   const [saving, setSaving] = useState(false)
   const [applyingExpirySettings, setApplyingExpirySettings] = useState(false)
@@ -3605,13 +3606,14 @@ function DocumentSettings() {
   const loadSettings = async () => {
     try {
       // Load all settings from backend
-      const [numberingRes, fileUploadRes, versionRes, retentionRes, expiryRes, rfidRes] = await Promise.all([
+      const [numberingRes, fileUploadRes, versionRes, retentionRes, expiryRes, rfidRes, smartDocRes] = await Promise.all([
         api.get('/system/config/document-numbering').catch(err => ({ data: { success: false } })),
         api.get('/system/config/file-upload').catch(err => ({ data: { success: false } })),
         api.get('/system/config/version-control').catch(err => ({ data: { success: false } })),
         api.get('/system/config/retention-policy').catch(err => ({ data: { success: false } })),
         api.get('/system/config/expiry-tracking').catch(err => ({ data: { success: false } })),
-        api.get('/system/config/rfid-epc-registry').catch(err => ({ data: { success: false } }))
+        api.get('/system/config/rfid-epc-registry').catch(err => ({ data: { success: false } })),
+        api.get('/system/config/smart-document').catch(err => ({ data: { success: false } }))
       ])
 
       const loadedSettings = { ...settings }
@@ -3665,6 +3667,11 @@ function DocumentSettings() {
       if (rfidRes.data.success && rfidRes.data.data.settings) {
         const rfidSettings = rfidRes.data.data.settings
         loadedSettings.rfidEpcRegistryEnabled = Boolean(rfidSettings.enabled)
+      }
+
+      if (smartDocRes.data.success && smartDocRes.data.data.settings) {
+        const smartDocSettings = smartDocRes.data.data.settings
+        loadedSettings.smartDocumentEnabled = smartDocSettings.enabled === undefined ? true : Boolean(smartDocSettings.enabled)
       }
 
       setSettings(loadedSettings)
@@ -3809,10 +3816,24 @@ function DocumentSettings() {
         console.error('Failed to save RFID EPC registry settings:', error)
         saveErrors.push('rfid epc registry')
       }
+
+      try {
+        const payload = {
+          enabled: settings.smartDocumentEnabled === undefined ? true : Boolean(settings.smartDocumentEnabled)
+        }
+        await api.put('/system/config/smart-document', payload)
+      } catch (error) {
+        console.error('Failed to save Smart Document settings:', error)
+        saveErrors.push('smart document')
+      }
       
       // Always save to localStorage for backward compatibility and NDR preview
       localStorage.setItem('dms_document_settings', JSON.stringify(settings))
       window.dispatchEvent(new Event('documentSettingsChanged'))
+
+      try {
+        await refreshSystemFeatureFlags()
+      } catch (_) { /* ignore refresh error */ }
       
       if (saveErrors.length > 0) {
         alert(`Warning: Failed to save ${saveErrors.join(', ')} settings to server. Other settings were saved successfully.`)
@@ -4284,6 +4305,38 @@ function DocumentSettings() {
             <p className="mt-2 text-xs text-[var(--dms-color-info-ink)]">
               No GS1, SGTIN-96, company prefix, or item reference setup is required for this simplified flow. The EPC output is capped at 24 hex characters for better tag compatibility.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-border rounded-lg overflow-hidden bg-surface">
+        <div className="bg-surface border-b border-border px-6 py-4">
+          <h4 className="font-semibold text-ink text-base">Smart Documents</h4>
+          <p className="text-sm text-ink-secondary mt-1">Enable Smart Document editor with dynamic forms, field mapping, and PDF generation</p>
+        </div>
+        <div className="p-6 space-y-6">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.smartDocumentEnabled}
+              onChange={(e) => setSettings((prev) => ({ ...prev, smartDocumentEnabled: e.target.checked }))}
+              className="mt-1 w-4 h-4 text-brand rounded focus:ring-2 focus:ring-brand/20"
+            />
+            <div>
+              <span className="text-sm font-medium text-ink">Enable Smart Document Feature</span>
+              <p className="text-sm text-ink-secondary mt-0.5">
+                When enabled, users can design Smart Templates with custom form sections, map fields to Word placeholders, and use the Smart Document editor for data-driven PDF generation.
+              </p>
+            </div>
+          </label>
+          <div className="rounded-lg border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)] p-4">
+            <p className="text-sm font-medium text-[var(--dms-color-warning-ink)]">Impact</p>
+            <ul className="mt-2 space-y-1 text-sm text-[var(--dms-color-warning-ink)]">
+              <li>• When disabled: Smart Templates tab, Document Style Profiles, and the Smart Document editor are hidden.</li>
+              <li>• Existing documents created with Smart Templates remain accessible for download as normal PDFs.</li>
+              <li>• The "Edit Smart Document" action in Draft Documents will redirect to standard file upload instead.</li>
+              <li>• Toggle takes effect immediately across all active user sessions.</li>
+            </ul>
           </div>
         </div>
       </div>

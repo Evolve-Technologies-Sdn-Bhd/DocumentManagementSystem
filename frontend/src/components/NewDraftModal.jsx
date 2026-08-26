@@ -171,7 +171,7 @@ const getReviewerDisplayName = (reviewer) => {
 }
 
 export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
-  const { t } = usePreferences()
+  const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     fileCode: '',
@@ -207,7 +207,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const [loadedTemplateVersion, setLoadedTemplateVersion] = useState(null)
   const [loadingTemplateFields, setLoadingTemplateFields] = useState(false)
   const [smartFieldValues, setSmartFieldValues] = useState({})
-  const [creationMode, setCreationMode] = useState('SMART_DOCUMENT')
+  const [creationMode, setCreationMode] = useState(smartDocumentEnabled ? 'SMART_DOCUMENT' : 'FILE_BASED')
   const [uploadedFile, setUploadedFile] = useState(null)
 
   const documentTypeOptions = useMemo(
@@ -250,18 +250,24 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   )
 
   useEffect(() => {
+    if (!smartDocumentEnabled) {
+      setCreationMode('FILE_BASED')
+    }
+  }, [smartDocumentEnabled, isOpen])
+
+  useEffect(() => {
     if (isOpen) {
       (async () => {
         try {
           loadDocumentTypes()
           loadDivisions()
-          await loadSmartOptions()
+          if (smartDocumentEnabled) await loadSmartOptions()
         } catch (e) {
           console.error('Init error:', e)
         }
       })()
     }
-  }, [isOpen])
+  }, [isOpen, smartDocumentEnabled])
 
   const loadSmartOptions = async () => {
     setSmartTemplatesLoading(true)
@@ -664,7 +670,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         return
       }
 
-      if (isSmartMode) {
+      if (isSmartMode && smartDocumentEnabled) {
         await persistSmartFieldValues(verId, 'DRAFT_EDIT')
         try {
           navigate(`/smart-documents/edit/${docId}/${verId}`)
@@ -725,7 +731,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         return
       }
 
-      if (isSmartMode) {
+      if (isSmartMode && smartDocumentEnabled) {
         await persistSmartFieldValues(verId, 'SUBMIT_FOR_REVIEW_AUTOSAVE')
         try {
           navigate(`/smart-documents/edit/${docId}/${verId}`)
@@ -802,7 +808,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setCurrentStep(1)
     setLoadedTemplateVersion(null)
     setSmartFieldValues({})
-    setCreationMode('SMART_DOCUMENT')
+    setCreationMode(smartDocumentEnabled ? 'SMART_DOCUMENT' : 'FILE_BASED')
     setUploadedFile(null)
     onClose()
   }
@@ -813,34 +819,36 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
           <label className="block text-sm font-medium text-gray-900 mb-1">
             How would you like to create this draft? <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setCreationMode('SMART_DOCUMENT')}
-              className={`text-left rounded-lg border-2 p-4 transition-all ${
-                isSmartMode
-                  ? 'border-[#003366] bg-[#003366]/5 ring-2 ring-[#003366]/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-base font-semibold ${
-                  isSmartMode ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  ✦
-                </div>
-                <div className="space-y-0.5">
-                  <div className={`text-sm font-semibold ${
-                    isSmartMode ? 'text-[#003366]' : 'text-gray-900'
+          <div className={`grid gap-3 ${smartDocumentEnabled ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+            {smartDocumentEnabled && (
+              <button
+                type="button"
+                onClick={() => setCreationMode('SMART_DOCUMENT')}
+                className={`text-left rounded-lg border-2 p-4 transition-all ${
+                  isSmartMode
+                    ? 'border-[#003366] bg-[#003366]/5 ring-2 ring-[#003366]/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-base font-semibold ${
+                    isSmartMode ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500'
                   }`}>
-                    Use Smart Template
+                    ✦
                   </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Auto-generate document from a pre-defined template with sections, form fields, and placeholders.
+                  <div className="space-y-0.5">
+                    <div className={`text-sm font-semibold ${
+                      isSmartMode ? 'text-[#003366]' : 'text-gray-900'
+                    }`}>
+                      Use Smart Template
+                    </div>
+                    <div className="text-xs text-gray-500 leading-relaxed">
+                      Auto-generate document from a pre-defined template with sections, form fields, and placeholders.
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            )}
 
             <button
               type="button"

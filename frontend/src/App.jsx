@@ -27,12 +27,37 @@ import RfidEpcRegistry from './components/RfidEpcRegistry'
 import ExpiryTracking from './components/ExpiryTracking'
 import TenderBookRegister from './components/TenderBookRegister'
 import FbEnquiryRegister from './components/FbEnquiryRegister'
-import { PreferencesProvider } from './contexts/PreferencesContext'
+import { PreferencesProvider, usePreferences } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
 import { getUserPermissions } from './utils/permissions'
 
 const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
+
+function SmartDocGate({ children }) {
+  const { smartDocumentEnabled } = usePreferences()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!smartDocumentEnabled) {
+      navigate('/draft-documents', { replace: true })
+    }
+  }, [smartDocumentEnabled, navigate])
+
+  if (!smartDocumentEnabled) return null
+  return children
+}
+
+function SystemFeatureRefresher({ children }) {
+  const { refreshSystemFeatureFlags } = usePreferences()
+  const location = useLocation()
+
+  useEffect(() => {
+    refreshSystemFeatureFlags()
+  }, [location.pathname, refreshSystemFeatureFlags])
+
+  return children
+}
 
 export default function App() {
   const navigate = useNavigate()
@@ -100,7 +125,8 @@ export default function App() {
     <PreferencesProvider>
     <SessionProvider>
       <div className="min-h-screen">
-        <Routes>
+        <SystemFeatureRefresher>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/diagnostic" element={<DiagnosticPage />} />
@@ -393,12 +419,15 @@ export default function App() {
           element={
             <ProtectedRoute module="documents.draft" requireAny>
               <Layout>
-                <SmartDocumentEditor />
+                <SmartDocGate>
+                  <SmartDocumentEditor />
+                </SmartDocGate>
               </Layout>
             </ProtectedRoute>
           }
         />
         </Routes>
+        </SystemFeatureRefresher>
       </div>
     </SessionProvider>
     </PreferencesProvider>

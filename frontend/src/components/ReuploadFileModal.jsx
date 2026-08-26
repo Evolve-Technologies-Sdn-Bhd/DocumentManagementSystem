@@ -167,7 +167,7 @@ const getReviewerDisplayName = (reviewer) => {
 }
 
 export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess }) {
-  const { t } = usePreferences()
+  const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
   const { validateFile, getAcceptString, getAllowedTypesDisplay } = useFileUploadSettings()
 
@@ -394,7 +394,7 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
         await Promise.all([
           loadDivisions(),
           loadDocumentTypes(),
-          loadSmartOptions()
+          ...(smartDocumentEnabled ? [loadSmartOptions()] : [])
         ])
 
         if (document?.id) {
@@ -405,9 +405,11 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
           const presetTplVerId = resolveSmartTemplateVersionId(doc)
           const presetStyleId = resolveSmartStyleProfileId(doc)
 
-          const isSmart = doc?.isSmartDocument === true
+          const isSmart = smartDocumentEnabled && (
+            doc?.isSmartDocument === true
             || String(doc?.creationMode || '').toUpperCase() === 'SMART_DOCUMENT'
             || Boolean(presetTplVerId)
+          )
 
           const mode = isSmart ? 'SMART_DOCUMENT' : 'FILE_BASED'
           setCreationMode(mode)
@@ -789,7 +791,7 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
         type: 'success'
       })
 
-      if (isSmartMode) {
+      if (isSmartMode && smartDocumentEnabled) {
         const verId = resolveVersionId(loadedDoc) || smartVersionId
         if (verId) {
           setTimeout(() => {
