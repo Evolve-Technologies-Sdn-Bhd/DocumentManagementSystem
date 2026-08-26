@@ -1,51 +1,72 @@
 const path = require('path');
+const url = require('url');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { PrismaClient } = require('@prisma/client');
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Initialize Prisma Client with logging
+function buildDatabaseUrlWithPoolLimits(rawUrl) {
+  if (!rawUrl) return rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    const desiredConnLimit = isProd
+      ? parseInt(process.env.PRISMA_CONNECTION_LIMIT || '10', 10)
+      : parseInt(process.env.PRISMA_CONNECTION_LIMIT || '20', 10);
+    const desiredPoolTimeout = parseInt(process.env.PRISMA_POOL_TIMEOUT || '15', 10);
+    const existingConn = parsed.searchParams.get('connection_limit');
+    const existingPool = parsed.searchParams.get('pool_timeout');
+    if (!existingConn) {
+      parsed.searchParams.set('connection_limit', String(desiredConnLimit));
+    }
+    if (!existingPool) {
+      parsed.searchParams.set('pool_timeout', String(desiredPoolTimeout));
+    }
+    return parsed.toString();
+  } catch (err) {
+    console.warn('⚠️  Failed to parse DATABASE_URL for pool tuning, using raw value');
+    return rawUrl;
+  }
+}
+
+const dbUrl = buildDatabaseUrlWithPoolLimits(process.env.DATABASE_URL);
+
 const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: dbUrl
+    }
+  },
   log: isProd ? ['error'] : ['error', 'warn'],
   errorFormat: 'minimal',
   transactionOptions: {
     maxWait: 10000,
     timeout: 20000
-  },
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL
-    }
-  },
-  // Limit connection pool for low-RAM servers (3GB-5GB RAM)
-  // Formula: 3-core server with 5.5GB RAM → avoid pool exhaustion
-  __internal: {
-    params: {
-      connection_limit: process.env.PRISMA_CONNECTION_LIMIT ? parseInt(process.env.PRISMA_CONNECTION_LIMIT, 10) : (isProd ? 10 : 20),
-      pool_timeout: process.env.PRISMA_POOL_TIMEOUT ? parseInt(process.env.PRISMA_POOL_TIMEOUT, 10) : 15
-    }
   }
 });
 
-// Handle connection errors - don't exit immediately
 prisma.$connect()
   .then(() => {
-    console.log('✅ Database connected successfully');
+    try {
+      const parsed = new URL(dbUrl);
+      const pool = parsed.searchParams.get('connection_limit') || 'default';
+      console.log(`✅ Database connected successfully (pool=${pool})`);
+    } catch {
+      console.log('✅ Database connected successfully');
+    }
   })
   .catch((err) => {
     console.error('❌ Database connection failed:', err.message);
   });
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   try { await prisma.$disconnect(); } catch {}
-  console.log('Database connection closed');
+  console.log('Database connection closed (SIGTERM)');
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   try { await prisma.$disconnect(); } catch {}
-  console.log('Database connection closed');
+  console.log('Database connection closed (SIGINT)');
   process.exit(0);
 });
 

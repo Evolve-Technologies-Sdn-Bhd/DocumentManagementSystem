@@ -5,6 +5,9 @@ const config = require('./config/app');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const ResponseFormatter = require('./utils/responseFormatter');
 
+const isProd = process.env.NODE_ENV === 'production';
+const MEM_GUARD_THRESHOLD_MB = isProd ? 820 : 4000;
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const docRoutes = require('./routes/documents');
@@ -104,16 +107,44 @@ if (config.nodeEnv === 'development') {
 app.use(express.json({ limit: config.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
+// Memory usage guard: reject incoming requests with 503 when Node heap is dangerously high
+// Prevents OOM kill on low-RAM servers (3-5GB instances)
+app.use((req, res, next) => {
+  try {
+    const mem = process.memoryUsage();
+    const heapMB = Math.round(mem.heapUsed / 1048576);
+    if (heapMB > MEM_GUARD_THRESHOLD_MB) {
+      const url = String(req.originalUrl || req.url || '');
+      if (url.includes('/api/system/health') || url === '/healthz' || url === '/readyz') return next();
+      console.warn(`[MEM_GUARD] Heap=${heapMB}MB > threshold=${MEM_GUARD_THRESHOLD_MB}MB, rejecting ${req.method} ${url}`);
+      res.setHeader('Retry-After', '3');
+      return res.status(503).json({
+        success: false,
+        message: 'Server is currently under high load, please retry in a moment.',
+        code: 'HIGH_MEMORY_LOAD'
+      });
+    }
+  } catch (_err) {}
+  next();
+});
+
 app.use('/uploads/branding', express.static(path.join(config.uploadDir, 'branding'), { maxAge: '30d', immutable: true }));
 app.use('/uploads/landing', express.static(path.join(config.uploadDir, 'landing'), { maxAge: '30d' }));
 app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '1d' }));
 
 // Health check
+app.get(['/healthz', '/readyz'], (req, res) => { res.status(200).type('text/plain').send('ok'); });
 app.get('/', (req, res) => {
+  const mem = process.memoryUsage();
   ResponseFormatter.success(res, {
     service: 'DMS Backend API',
     version: '1.0.0',
-    status: 'running'
+    status: 'running',
+    memory: {
+      heapUsedMB: Math.round(mem.heapUsed / 1048576),
+      heapTotalMB: Math.round(mem.heapTotal / 1048576),
+      rssMB: Math.round(mem.rss / 1048576)
+    }
   }, 'Service is healthy');
 });
 
@@ -182,7 +213,56 @@ const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
 app.use('/api/smart-templates', requireSmartDocumentEnabled, smartTemplatesRoutes);
 app.use('/api/smart-document-style', requireSmartDocumentEnabled, smartDocumentStyleRoutes);
 app.use('/api/smart-documents', requireSmartDocumentEnabled, smartDocumentsRoutes);
-app.use('/api/ai', aiRoutes);
+
+// AI routes: mount SAFELY. If aiRoutes is invalid or has undefined handlers, expose stubs instead of crashing the server.
+(function mountAIRoutesSafely() {
+  try {
+    const routerType = typeof aiRoutes;
+    if (routerType !== 'function') {
+      throw new Error(`aiRoutes is ${routerType}, expected Express router function`);
+    }
+    // Verify known public endpoints exist so "undefined callback" error cannot happen
+    const testStack = aiRoutes.stack || [];
+    let hasHealth = false;
+    let hasConfig = false;
+    for (const layer of testStack) {
+      const route = layer && layer.route;
+      if (!route || !route.path || !Array.isArray(route.methods)) continue;
+      if (route.path === '/health' && route.methods.get) hasHealth = true;
+      if (route.path === '/config' && route.methods.get) hasConfig = true;
+    }
+    if (!hasHealth || !hasConfig) {
+      throw new Error('aiRoutes missing /health or /config public endpoint (undefined callback risk)');
+    }
+    app.use('/api/ai', aiRoutes);
+    console.log('✅ AI routes mounted safely');
+  } catch (mountErr) {
+    console.warn('⚠️  [AI_ROUTES] Skipping AI mount:', mountErr.message);
+    // Stubs: MUST match expected frontend endpoints
+    app.get('/api/ai/health', (req, res) => {
+      res.status(200).json({
+        success: true,
+        data: {
+          enabled: false,
+          status: 'unavailable',
+          model: 'none',
+          message: 'AI module is unavailable on this server instance'
+        }
+      });
+    });
+    app.get('/api/ai/config', (req, res) => {
+      res.status(200).json({ success: true, data: { enabled: false, model: null } });
+    });
+    app.use('/api/ai/*', (req, res) => {
+      return res.status(501).json({
+        success: false,
+        message: 'AI endpoints are currently unavailable.',
+        code: 'AI_MODULE_DISABLED'
+      });
+    });
+  }
+})();
+
 app.use('/api/public', require('./routes/public'));
 
 // Alias routes for easier frontend access
@@ -350,5 +430,17 @@ app.use(notFoundHandler);
 
 // Global error handler (must be last)
 app.use(errorHandler);
+
+// PM2 ready signal + periodic manual GC hint (when --expose-gc enabled)
+if (typeof process.send === 'function') {
+  try {
+    process.nextTick(() => {
+      try { process.send('ready'); } catch (_e) {}
+    });
+  } catch (_e) {}
+}
+setInterval(() => {
+  try { if (global.gc) global.gc(); } catch (_e) {}
+}, 20000);
 
 module.exports = app;
