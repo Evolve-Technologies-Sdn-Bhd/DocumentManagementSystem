@@ -1008,7 +1008,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
                 onChange={(val) => setSelectedSmartStyleProfileId(val)}
                 placeholder="Choose Style Profile (fonts, header, footer)"
                 searchPlaceholder="Filter style profiles…"
-                noResultsLabel="No style profiles found. Create one in Configuration > Template Management > Document Style Profiles first."
+                noResultsLabel="No style profiles found. Create one in Configuration &gt; Template Management &gt; Document Style Profiles first."
                 disabled={false}
                 loading={smartStyleProfilesLoading}
                 clearLabel="Clear style"

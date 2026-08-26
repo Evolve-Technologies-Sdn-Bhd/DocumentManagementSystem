@@ -1,0 +1,15 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 1628 modules transformed.
+rendering chunks...
+[2mdist/[22m[32mindex.html                          [39m[1m[2m    5.48 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-Dmk5G7vc.css           [39m[1m[2m  128.21 kB[22m[1m[22m
+[2mdist/[22m[36massets/charts-BmIiXTN9.js           [39m[1m[2m  137.94 kB[22m[1m[22m
+[2mdist/[22m[36massets/index.es-Nd59S9MQ.js         [39m[1m[2m  150.85 kB[22m[1m[22m
+[2mdist/[22m[36massets/vendor-react-DRslsJQT.js     [39m[1m[2m  163.60 kB[22m[1m[22m
+[2mdist/[22m[36massets/ProjectTracking-B46cqqr8.js  [39m[1m[2m  202.72 kB[22m[1m[22m
+[2mdist/[22m[36massets/vendor-utils-cljEcY4S.js     [39m[1m[2m  236.00 kB[22m[1m[22m
+[2mdist/[22m[36massets/office-D-fEn8K3.js           [39m[1m[2m  572.27 kB[22m[1m[22m
+[2mdist/[22m[36massets/pdf-CmAT1PmI.js              [39m[1m[2m  624.38 kB[22m[1m[22m
+[2mdist/[22m[36massets/index-zbMheAF3.js            [39m[1m[33m1,980.33 kB[39m[22m
+[32m✓ built in 27.97s[39m

@@ -10,6 +10,7 @@ import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
 import AsyncActionStatus from './ui/AsyncActionStatus'
 import useLoadingProgress from '../hooks/useLoadingProgress'
+import SmartForm from './smartdocuments/SmartForm'
 
 const FallbackReadOnlyGrid = ({ initialValues, readonly }) => (
   <div className="grid grid-cols-2 gap-2">
@@ -21,9 +22,7 @@ const FallbackReadOnlyGrid = ({ initialValues, readonly }) => (
   </div>
 )
 
-const SmartFormLazy = React.lazy(() =>
-  import('./smartdocuments/SmartForm').catch(() => ({ default: FallbackReadOnlyGrid }))
-)
+const SmartFormLazy = SmartForm
 
 function valueString(v) {
   if (v === null || v === undefined) return ''
