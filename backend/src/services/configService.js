@@ -319,7 +319,7 @@ class ConfigService {
    * Create new document type
    */
   async createDocumentType(data) {
-    const { name, prefix, description, requiresExpiryTracking, allowRenewal, defaultRenewalChecklist } = data;
+    const { name, prefix, description, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = data;
     return await prisma.documentType.create({
       data: {
         name,
@@ -327,6 +327,7 @@ class ConfigService {
         description,
         requiresExpiryTracking: Boolean(requiresExpiryTracking),
         allowRenewal: allowRenewal !== undefined ? Boolean(allowRenewal) : true,
+        renewalUrl: renewalUrl || null,
         defaultRenewalChecklist: defaultRenewalChecklist || null,
         isActive: true
       }
@@ -337,7 +338,7 @@ class ConfigService {
    * Update document type
    */
   async updateDocumentType(id, data) {
-    const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal, defaultRenewalChecklist } = data;
+    const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = data;
     return await prisma.documentType.update({
       where: { id: parseInt(id) },
       data: {
@@ -347,6 +348,7 @@ class ConfigService {
         isActive,
         requiresExpiryTracking,
         allowRenewal,
+        renewalUrl: renewalUrl !== undefined ? renewalUrl : undefined,
         defaultRenewalChecklist: defaultRenewalChecklist !== undefined ? defaultRenewalChecklist : undefined
       }
     });

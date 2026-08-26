@@ -378,8 +378,12 @@ class ExpiryTrackingService {
       reminder3Days: settings.reminder3Days,
       reminder4Days: settings.reminder4Days,
       remarks: input.remarks !== undefined ? input.remarks : (existingProfile?.remarks || null),
-      renewalUrl: input.renewalUrl !== undefined ? (input.renewalUrl || null) : (existingProfile?.renewalUrl || null),
-      defaultChecklistItems: input.defaultChecklistItems !== undefined ? input.defaultChecklistItems : (existingProfile?.defaultChecklistItems || null),
+      renewalUrl: input.renewalUrl !== undefined
+        ? (input.renewalUrl || null)
+        : (existingProfile?.renewalUrl || document.documentType?.renewalUrl || null),
+      defaultChecklistItems: input.defaultChecklistItems !== undefined
+        ? input.defaultChecklistItems
+        : (existingProfile?.defaultChecklistItems || document.documentType?.defaultRenewalChecklist || null),
       companySnapshot,
       departmentSnapshot: document.owner?.department || null,
       folderSnapshotName: document.folder?.name || null,
@@ -502,6 +506,7 @@ class ExpiryTrackingService {
       remarks: profile.remarks,
       renewalUrl: profile.renewalUrl,
       defaultChecklistItems: profile.defaultChecklistItems,
+      documentTypeRenewalUrl: profile.document?.documentType?.renewalUrl || null,
       documentTypeDefaultChecklist: profile.document?.documentType?.defaultRenewalChecklist || null,
       expiringSoonDays: profile.expiringSoonDays,
       reminderRule: {

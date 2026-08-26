@@ -124,13 +124,18 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
           id: 'profile-default-' + idx + '-' + Date.now(),
           name: typeof it === 'string' ? it : (it?.name || ('Document ' + (idx + 1)))
         }))
-      : []
+      : (Array.isArray(profile.documentTypeDefaultChecklist)
+          ? profile.documentTypeDefaultChecklist.map((name, idx) => ({
+              id: 'doctype-default-' + idx + '-' + Date.now(),
+              name: typeof name === 'string' ? name : (name?.name || ('Document ' + (idx + 1)))
+            }))
+          : [])
     setDefaultChecklist(profileChecklist)
     setForm({
       startDate: toDateInputValue(profile.startDate),
       expiryDate: toDateInputValue(profile.expiryDate),
       remarks: profile.remarks || '',
-      renewalUrl: profile.renewalUrl || '',
+      renewalUrl: profile.renewalUrl || profile.documentTypeRenewalUrl || '',
       expiringSoonDays: profile.expiringSoonDays ?? 60,
       reminder1Days: profile.reminderRule?.reminder1Days ?? 90,
       reminder2Days: profile.reminderRule?.reminder2Days ?? 60,

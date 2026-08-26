@@ -28,7 +28,7 @@ exports.getDocumentTypes = asyncHandler(async (req, res) => {
  * @access  Private (Admin only)
  */
 exports.createDocumentType = asyncHandler(async (req, res) => {
-  const { name, prefix, description, requiresExpiryTracking, allowRenewal } = req.body;
+  const { name, prefix, description, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = req.body;
 
   // Validation
   if (!name || !prefix) {
@@ -37,6 +37,11 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
 
   const normalizedName = String(name).trim();
   const normalizedPrefix = String(prefix).trim();
+  const normalizedRenewalUrl = renewalUrl !== undefined ? (String(renewalUrl).trim() || null) : null;
+  const parsedChecklist = Array.isArray(defaultRenewalChecklist)
+    ? defaultRenewalChecklist.map((x) => String(typeof x === 'object' ? (x?.name || '') : x).trim()).filter(Boolean)
+    : (defaultRenewalChecklist || null);
+
   if (!normalizedName || !normalizedPrefix) {
     throw new ValidationError('Name and prefix are required');
   }
@@ -63,7 +68,9 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
     prefix: normalizedPrefix,
     description,
     requiresExpiryTracking,
-    allowRenewal
+    allowRenewal,
+    renewalUrl: normalizedRenewalUrl,
+    defaultRenewalChecklist: parsedChecklist
   });
 
   return ResponseFormatter.success(
@@ -81,7 +88,14 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
  */
 exports.updateDocumentType = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal } = req.body;
+  const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = req.body;
+
+  const normalizedRenewalUrl = renewalUrl !== undefined ? (String(renewalUrl).trim() || null) : undefined;
+  const parsedChecklist = defaultRenewalChecklist !== undefined
+    ? (Array.isArray(defaultRenewalChecklist)
+        ? defaultRenewalChecklist.map((x) => String(typeof x === 'object' ? (x?.name || '') : x).trim()).filter(Boolean)
+        : (defaultRenewalChecklist || null))
+    : undefined;
 
   const documentType = await configService.updateDocumentType(id, {
     name: typeof name === 'string' ? name.trim() : name,
@@ -89,7 +103,9 @@ exports.updateDocumentType = asyncHandler(async (req, res) => {
     description,
     isActive,
     requiresExpiryTracking,
-    allowRenewal
+    allowRenewal,
+    renewalUrl: normalizedRenewalUrl,
+    defaultRenewalChecklist: parsedChecklist
   });
 
   return ResponseFormatter.success(

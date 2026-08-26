@@ -252,6 +252,7 @@ model DocumentType {
   isActive    Boolean  @default(true)
   requiresExpiryTracking Boolean @default(false)
   allowRenewal Boolean @default(true)
+  renewalUrl  String?
   defaultRenewalChecklist Json?
   // Smart Document — ADDITIVE fields
   creationMode CreationMode @default(FILE_BASED) // FILE_BASED or SMART_DOCUMENT
