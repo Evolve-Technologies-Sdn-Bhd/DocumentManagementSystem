@@ -73,29 +73,39 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let mounted = true
+    let cancelled = false
+    let timer = null
     const load = async () => {
+      const alreadyCached = Boolean(readCompanyInfo() && readThemeSettings())
+      const delayMs = alreadyCached ? 3500 : 800
+      await new Promise((r) => { timer = setTimeout(r, delayMs) })
+      if (cancelled) return
       try {
-        const res = await api.get('/public/branding')
+        const res = await api.get('/public/branding', { timeout: 6000, skipGlobalLoading: true, _retryAttempt: 0 })
+        if (cancelled) return
         const companyInfo = res.data?.data?.companyInfo || null
         const theme = res.data?.data?.theme || null
-        if (!mounted) return
         persistBranding({ companyInfo, theme })
-        applyTheme(theme)
-        applyCompanyInfo(companyInfo)
+        if (theme) applyTheme(theme)
+        if (companyInfo) applyCompanyInfo(companyInfo)
       } catch {}
     }
     load()
     return () => {
-      mounted = false
+      cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [])
 
   useEffect(() => {
-    let mounted = true
+    let cancelled = false
+    let timer = null
     const checkMaintenance = async () => {
+      await new Promise((r) => { timer = setTimeout(r, 1200) })
+      if (cancelled) return
       try {
-        const res = await api.get('/public/maintenance-status', { timeout: 4000 })
+        const res = await api.get('/public/maintenance-status', { timeout: 5000, skipGlobalLoading: true, _retryAttempt: 0 })
+        if (cancelled) return
         const enabled = Boolean(res?.data?.data?.enabled)
         const message =
           res?.data?.data?.message || res?.data?.message || 'System is under maintenance'
@@ -103,8 +113,6 @@ export default function App() {
         try {
           localStorage.setItem('maintenanceStatus', JSON.stringify({ enabled, message }))
         } catch {}
-
-        if (!mounted) return
 
         const permissions = getUserPermissions()
         const isSystemAdmin = permissions?.all === true
@@ -117,7 +125,8 @@ export default function App() {
     }
     checkMaintenance()
     return () => {
-      mounted = false
+      cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [location.pathname, navigate])
 

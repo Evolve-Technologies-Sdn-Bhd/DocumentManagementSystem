@@ -3892,12 +3892,26 @@ export function PreferencesProvider({ children }) {
   })
 
   const refreshSystemFeatureFlags = useCallback(async () => {
+    const cached = localStorage.getItem('systemFeatureFlags')
+    const ageKey = 'systemFeatureFlags_age'
+    const now = Date.now()
+    const storedAge = parseInt(localStorage.getItem(ageKey) || '0', 10)
+    if (cached && storedAge && now - storedAge < 2 * 60 * 1000) {
+      try {
+        const parsed = JSON.parse(cached)
+        setSystemFeatureFlags({
+          smartDocumentEnabled: parsed.smartDocumentEnabled === undefined ? true : Boolean(parsed.smartDocumentEnabled)
+        })
+        return
+      } catch {}
+    }
     try {
-      const res = await api.get('/public/smart-document-status', { timeout: 4000 })
+      const res = await api.get('/public/smart-document-status', { timeout: 5000, skipGlobalLoading: true, _retryAttempt: 0 })
       const enabled = res?.data?.data?.enabled === undefined ? true : Boolean(res.data.data.enabled)
       setSystemFeatureFlags({ smartDocumentEnabled: enabled })
       try {
         localStorage.setItem('systemFeatureFlags', JSON.stringify({ smartDocumentEnabled: enabled }))
+        localStorage.setItem(ageKey, String(now))
       } catch {}
     } catch {}
   }, [])

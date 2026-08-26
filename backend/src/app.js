@@ -191,6 +191,12 @@ app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
 
+// Alias routes helpers (require BEFORE first use to avoid TDZ)
+const { authenticate, authorizePermission } = require('./middleware/auth');
+const asyncHandler = require('./utils/asyncHandler');
+const documentController = require('./controllers/documentController');
+const { uploadDocument } = require('./middleware/upload');
+
 // Smart Document feature gating middleware
 const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
   try {
@@ -264,12 +270,6 @@ app.use('/api/smart-documents', requireSmartDocumentEnabled, smartDocumentsRoute
 })();
 
 app.use('/api/public', require('./routes/public'));
-
-// Alias routes for easier frontend access
-const { authenticate, authorizePermission } = require('./middleware/auth');
-const asyncHandler = require('./utils/asyncHandler');
-const documentController = require('./controllers/documentController');
-const { uploadDocument } = require('./middleware/upload');
 
 app.post(
   '/api/files/upload',

@@ -94,6 +94,7 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
     startDate: '',
     expiryDate: '',
     remarks: '',
+    renewalUrl: '',
     expiringSoonDays: 60,
     reminder1Days: 90,
     reminder2Days: 60,
@@ -106,6 +107,8 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
       reminder4: []
     }
   })
+  const [defaultChecklist, setDefaultChecklist] = useState([])
+  const [newDefaultChecklistName, setNewDefaultChecklistName] = useState('')
 
   useEffect(() => {
     if (!profile || !open) return
@@ -116,10 +119,18 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
       reminder3: '',
       reminder4: ''
     })
+    const profileChecklist = Array.isArray(profile.defaultChecklistItems)
+      ? profile.defaultChecklistItems.map((it, idx) => ({
+          id: 'profile-default-' + idx + '-' + Date.now(),
+          name: typeof it === 'string' ? it : (it?.name || ('Document ' + (idx + 1)))
+        }))
+      : []
+    setDefaultChecklist(profileChecklist)
     setForm({
       startDate: toDateInputValue(profile.startDate),
       expiryDate: toDateInputValue(profile.expiryDate),
       remarks: profile.remarks || '',
+      renewalUrl: profile.renewalUrl || '',
       expiringSoonDays: profile.expiringSoonDays ?? 60,
       reminder1Days: profile.reminderRule?.reminder1Days ?? 90,
       reminder2Days: profile.reminderRule?.reminder2Days ?? 60,
@@ -132,6 +143,7 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
         reminder4: Array.isArray(profile.reminderRule?.reminder4Recipients) ? profile.reminderRule.reminder4Recipients.map((u) => u.id) : []
       }
     })
+    setNewDefaultChecklistName('')
   }, [profile, open])
 
   const ownerId = profile?.document?.ownerId || null
@@ -160,8 +172,19 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
     })
   }
 
+  const addDefaultChecklistItem = () => {
+    const name = newDefaultChecklistName.trim()
+    if (!name) return
+    setDefaultChecklist((prev) => [...prev, { id: 'edit-checklist-' + Date.now(), name }])
+    setNewDefaultChecklistName('')
+  }
+
+  const removeDefaultChecklistItem = (id) => {
+    setDefaultChecklist((prev) => prev.filter((item) => item.id !== id))
+  }
+
   return (
-    <Modal onClose={onClose} closeOnBackdrop size="md">
+    <Modal onClose={onClose} closeOnBackdrop size="xl">
       <ModalHeader
         title="Update Expiry Profile"
         subtitle={profile.document ? `${profile.document.fileCode} - ${profile.document.title}` : ''}
@@ -169,30 +192,121 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
       />
       <form onSubmit={(e) => {
         e.preventDefault()
-        onSubmit({ ...form, useGlobalRule })
+        const checklistPayload = defaultChecklist.map((item) => item.name)
+        onSubmit({ ...form, useGlobalRule, defaultChecklistItems: checklistPayload })
       }}>
-        <ModalBody>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Document Name">
-              <TextInput value={profile.document?.title || ''} readOnly className="bg-surface-muted text-ink-muted" />
-            </Field>
-            <Field label="Document Type">
-              <TextInput value={profile.document?.documentType || ''} readOnly className="bg-surface-muted text-ink-muted" />
-            </Field>
-            <Field label="Owner">
-              <TextInput value={profile.document?.ownerName || '-'} readOnly className="bg-surface-muted text-ink-muted" />
-            </Field>
-            <Field label="Department">
-              <TextInput value={profile.department || '-'} readOnly className="bg-surface-muted text-ink-muted" />
-            </Field>
-            <Field label="Start Date">
-              <TextInput type="date" value={form.startDate} onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))} required />
-            </Field>
-            <Field label="Expiry Date">
-              <TextInput type="date" value={form.expiryDate} onChange={(e) => setForm((prev) => ({ ...prev, expiryDate: e.target.value }))} required />
-            </Field>
-            <div className="md:col-span-2">
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+        <ModalBody className="space-y-6">
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Document Information</h3>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Field label="Document Name">
+                  <TextInput value={profile.document?.title || ''} readOnly className="bg-white text-gray-600" />
+                </Field>
+                <Field label="Document Type">
+                  <TextInput value={profile.document?.documentType || ''} readOnly className="bg-white text-gray-600" />
+                </Field>
+                <Field label="Owner">
+                  <TextInput value={profile.document?.ownerName || '-'} readOnly className="bg-white text-gray-600" />
+                </Field>
+                <Field label="Department">
+                  <TextInput value={profile.department || '-'} readOnly className="bg-white text-gray-600" />
+                </Field>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Expiry Dates &amp; Portal</h3>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Start Date" required>
+                  <TextInput type="date" value={form.startDate} onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))} required />
+                </Field>
+                <Field label="Expiry Date" required>
+                  <TextInput type="date" value={form.expiryDate} onChange={(e) => setForm((prev) => ({ ...prev, expiryDate: e.target.value }))} required />
+                </Field>
+              </div>
+              <Field label="Renewal Portal URL" hint="Default URL used for renewing this document/system. Populates the renewal modal automatically.">
+                <TextInput
+                  type="url"
+                  placeholder="https://example.com/renew"
+                  value={form.renewalUrl}
+                  onChange={(e) => setForm((prev) => ({ ...prev, renewalUrl: e.target.value }))}
+                />
+              </Field>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Default Renewal Checklist</h3>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <p className="text-xs text-gray-500 -mt-1 mb-1">Default documents required every time this document is renewed.</p>
+              {defaultChecklist.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500">
+                  No default documents configured. Add required documents below.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {defaultChecklist.map((item) => (
+                    <div
+                      key={item.id} className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#003366]/10 text-[#003366]">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDefaultChecklistItem(item.id)}
+                        className="shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        aria-label="Remove checklist item"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-stretch gap-2 border-t border-gray-200 pt-3">
+                <TextInput
+                  value={newDefaultChecklistName}
+                  onChange={(e) => setNewDefaultChecklistName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addDefaultChecklistItem()
+                    }
+                  }}
+                  placeholder="Add required document…"
+                  className="flex-1 min-w-0"
+                />
+                <Button type="button" onClick={addDefaultChecklistItem} disabled={!newDefaultChecklistName.trim()} className="shrink-0 px-4">
+                  Add
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Reminder Rules</h3>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+              <label className="inline-flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors w-full">
                 <input
                   type="checkbox"
                   checked={useGlobalRule}
@@ -210,110 +324,122 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
                       }))
                     }
                   }}
-                  className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-[#003366] focus-visible:ring-2 focus-visible:ring-[#003366]/30"
                 />
-                Use Global Defaults
-              </label>
-            </div>
-            <Field label="Expiring Soon Days" hint="Document status switches to Expiring Soon based on this threshold.">
-              <TextInput type="number" min="0" value={form.expiringSoonDays} onChange={(e) => setForm((prev) => ({ ...prev, expiringSoonDays: e.target.value }))} required disabled={useGlobalRule} />
-            </Field>
-            <Field label="Reminder 1">
-              <TextInput type="number" min="0" value={form.reminder1Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder1Days: e.target.value }))} required disabled={useGlobalRule} />
-            </Field>
-            <Field label="Reminder 2">
-              <TextInput type="number" min="0" value={form.reminder2Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder2Days: e.target.value }))} required disabled={useGlobalRule} />
-            </Field>
-            <Field label="Reminder 3">
-              <TextInput type="number" min="0" value={form.reminder3Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder3Days: e.target.value }))} required disabled={useGlobalRule} />
-            </Field>
-            <Field label="Reminder 4">
-              <TextInput type="number" min="0" value={form.reminder4Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder4Days: e.target.value }))} required disabled={useGlobalRule} />
-            </Field>
-            <div className="md:col-span-2">
-              <AppSurface padding="lg" variant="panel" className="space-y-4">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-ink">Reminder Recipients</h3>
-                  <p className="text-xs text-ink-soft">Owner always receives every reminder. Add extra recipients for each reminder level below.</p>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Use Global Defaults</p>
+                  <p className="text-xs text-gray-500">Apply system-wide reminder thresholds to this expiry profile.</p>
                 </div>
-                {REMINDER_LEVELS.map((level) => {
-                  const selectedIds = new Set(form.reminderRecipients?.[level.key] || [])
-                  const searchTerm = (recipientSearch[level.key] || '').trim().toLowerCase()
-                  const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
-                  const filteredUsers = activeUsers.filter((user) => {
-                    if (!searchTerm) return true
-                    return formatUserLabel(user).toLowerCase().includes(searchTerm)
-                  })
-                  const selectedSummary = selectedUsers.length > 0
-                    ? selectedUsers.slice(0, 2).map((user) => formatUserLabel(user)).join(', ')
-                    : ''
-                  const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
-                  return (
-                    <details key={level.key} className="rounded-xl border border-border bg-surface">
-                      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-ink">{level.label}</p>
-                          <p className="text-xs text-ink-soft">{form[level.daysField] ?? '-'} day(s) before expiry</p>
-                          <p className="mt-1 truncate text-xs text-ink-soft">
-                            Owner + {selectedIds.size} extra recipient(s)
-                            {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-xs font-medium text-ink-soft">Click to expand</p>
-                          <p className="text-xs text-ink-soft">Owner included automatically</p>
-                        </div>
-                      </summary>
-                      <div className="space-y-3 border-t border-border px-4 py-3">
-                        <TextInput
-                          value={recipientSearch[level.key] || ''}
-                          onChange={(e) => setRecipientSearch((prev) => ({ ...prev, [level.key]: e.target.value }))}
-                          placeholder="Search user name"
-                        />
-                        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                          <label className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2 text-sm text-ink-muted">
-                            <input
-                              type="checkbox"
-                              checked
-                              disabled
-                              className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                            />
-                            <span>{profile.document?.ownerName || 'Owner'} (Owner)</span>
-                          </label>
-                          {filteredUsers.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-ink-soft">
-                              No matching user found.
-                            </div>
-                          ) : (
-                            filteredUsers.map((user) => {
-                              const isOwner = ownerId && user.id === ownerId
-                              if (isOwner) return null
-                              return (
-                                <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-ink">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(user.id)}
-                                    onChange={() => toggleRecipient(level.key, user.id)}
-                                    className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                                  />
-                                  <span>{formatUserLabel(user)}</span>
-                                </label>
-                              )
-                            })
-                          )}
-                        </div>
+              </label>
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                <Field label="Expiring Soon Days" hint="Status switches on this threshold.">
+                  <TextInput type="number" min="0" value={form.expiringSoonDays} onChange={(e) => setForm((prev) => ({ ...prev, expiringSoonDays: e.target.value }))} required disabled={useGlobalRule} />
+                </Field>
+                <Field label="Reminder 1 (Days)">
+                  <TextInput type="number" min="0" value={form.reminder1Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder1Days: e.target.value }))} required disabled={useGlobalRule} />
+                </Field>
+                <Field label="Reminder 2 (Days)">
+                  <TextInput type="number" min="0" value={form.reminder2Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder2Days: e.target.value }))} required disabled={useGlobalRule} />
+                </Field>
+                <Field label="Reminder 3 (Days)">
+                  <TextInput type="number" min="0" value={form.reminder3Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder3Days: e.target.value }))} required disabled={useGlobalRule} />
+                </Field>
+                <Field label="Reminder 4 (Days)">
+                  <TextInput type="number" min="0" value={form.reminder4Days} onChange={(e) => setForm((prev) => ({ ...prev, reminder4Days: e.target.value }))} required disabled={useGlobalRule} />
+                </Field>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Reminder Recipients</h3>
+              <p className="text-xs text-gray-500">Owner always receives every reminder.</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+              {REMINDER_LEVELS.map((level) => {
+                const selectedIds = new Set(form.reminderRecipients?.[level.key] || [])
+                const searchTerm = (recipientSearch[level.key] || '').trim().toLowerCase()
+                const selectedUsers = activeUsers.filter((user) => selectedIds.has(user.id))
+                const filteredUsers = activeUsers.filter((user) => {
+                  if (!searchTerm) return true
+                  return formatUserLabel(user).toLowerCase().includes(searchTerm)
+                })
+                const selectedSummary = selectedUsers.length > 0
+                  ? selectedUsers.slice(0, 2).map((user) => formatUserLabel(user)).join(', ')
+                  : ''
+                const selectedOverflow = selectedUsers.length > 2 ? ` +${selectedUsers.length - 2} more` : ''
+                return (
+                  <details key={level.key} className="rounded-xl border border-gray-200 bg-gray-50 group">
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{level.label}</p>
+                        <p className="text-xs text-gray-500">{form[level.daysField] ?? '-'} day(s) before expiry</p>
+                        <p className="mt-1 truncate text-xs text-gray-500">
+                          Owner + {selectedIds.size} extra recipient(s)
+                          {selectedSummary ? ` | ${selectedSummary}${selectedOverflow}` : ' | No extra recipients selected'}
+                        </p>
                       </div>
-                    </details>
-                  )
-                })}
-              </AppSurface>
+                      <div className="shrink-0 text-right">
+                        <svg className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                        <p className="text-[11px] text-gray-400 mt-1">Owner auto-included</p>
+                      </div>
+                    </summary>
+                    <div className="space-y-3 border-t border-gray-200 px-4 py-3 bg-white rounded-b-xl">
+                      <TextInput
+                        value={recipientSearch[level.key] || ''}
+                        onChange={(e) => setRecipientSearch((prev) => ({ ...prev, [level.key]: e.target.value }))}
+                        placeholder="Search user name"
+                      />
+                      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                        <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                          <input
+                            type="checkbox"
+                            checked
+                            disabled
+                            className="h-4 w-4 rounded border-gray-300 text-[#003366] focus-visible:ring-2 focus-visible:ring-[#003366]/30"
+                          />
+                          <span>{profile.document?.ownerName || 'Owner'} (Owner)</span>
+                        </label>
+                        {filteredUsers.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500">
+                            No matching user found.
+                          </div>
+                        ) : (
+                          filteredUsers.map((user) => {
+                            const isOwner = ownerId && user.id === ownerId
+                            if (isOwner) return null
+                            return (
+                              <label key={`${level.key}-${user.id}`} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(user.id)}
+                                  onChange={() => toggleRecipient(level.key, user.id)}
+                                  className="h-4 w-4 rounded border-gray-300 text-[#003366] focus-visible:ring-2 focus-visible:ring-[#003366]/30"
+                                />
+                                <span>{formatUserLabel(user)}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </details>
+                )
+              })}
             </div>
-            <div className="md:col-span-2">
-              <Field label="Remarks">
-                <TextArea rows={4} value={form.remarks} onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))} />
-              </Field>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 rounded-full bg-[#003366]"></div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700">Remarks</h3>
             </div>
-          </div>
+            <TextArea rows={4} placeholder="Add any notes about this expiry profile…" value={form.remarks} onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))} />
+          </section>
         </ModalBody>
         <ModalFooter>
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
@@ -329,23 +455,63 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
     startDate: '',
     newExpiryDate: '',
     remarks: '',
-    file: null
+    file: null,
+    renewalUrl: ''
   })
+  const [checklistItems, setChecklistItems] = useState([])
 
   useEffect(() => {
     if (!profile || !open) return
+    const typeDefault = Array.isArray(profile.documentTypeDefaultChecklist)
+      ? profile.documentTypeDefaultChecklist.map((name, idx) => ({
+          id: 'default-' + idx,
+          name: typeof name === 'string' ? name : (name?.name || ('Document ' + (idx + 1))),
+          checked: false
+        }))
+      : []
+    const profileDefault = Array.isArray(profile.defaultChecklistItems)
+      ? profile.defaultChecklistItems.map((it, idx) => ({
+          id: 'profile-' + idx,
+          name: typeof it === 'string' ? it : (it?.name || ('Document ' + (idx + 1))),
+          checked: false
+        }))
+      : []
+    const merged = [...typeDefault, ...profileDefault]
+    const seen = new Set()
+    const deduped = merged.filter((item) => {
+      const key = item.name.toLowerCase().trim()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    setChecklistItems(deduped)
     setForm({
       startDate: toDateInputValue(new Date()),
       newExpiryDate: '',
       remarks: '',
-      file: null
+      file: null,
+      renewalUrl: profile.renewalUrl || ''
     })
   }, [profile, open])
+
+  const toggleChecklistItem = (id) => {
+    setChecklistItems((prev) => prev.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item)))
+  }
+
+  const openRenewalUrl = () => {
+    const url = form.renewalUrl?.trim()
+    if (!url) return
+    const normalized = /^https?:\/\//i.test(url) ? url : 'https://' + url
+    window.open(normalized, '_blank', 'noopener,noreferrer')
+  }
+
+  const completedCount = checklistItems.filter((it) => it.checked).length
+  const totalCount = checklistItems.length
 
   if (!open || !profile) return null
 
   return (
-    <Modal onClose={onClose} closeOnBackdrop size="md">
+    <Modal onClose={onClose} closeOnBackdrop size="lg">
       <ModalHeader
         title="Complete Renewal"
         subtitle={profile.document ? `${profile.document.fileCode} - ${profile.document.title}` : ''}
@@ -353,10 +519,10 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
       />
       <form onSubmit={(e) => {
         e.preventDefault()
-        onSubmit(form)
+        onSubmit({ ...form, checklistItems })
       }}>
         <ModalBody>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Current Version">
                 <TextInput value={profile.currentVersion || profile.document?.version || '-'} readOnly className="bg-surface-muted text-ink-muted" />
@@ -370,7 +536,72 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
               <Field label="New Expiry Date">
                 <TextInput type="date" value={form.newExpiryDate} onChange={(e) => setForm((prev) => ({ ...prev, newExpiryDate: e.target.value }))} required />
               </Field>
+              <div className="md:col-span-2">
+                <Field label="Renewal Portal URL" hint="Link to external system or portal used to perform this renewal (configured in Expiry Profile settings).">
+                  <div className="flex items-stretch gap-2">
+                    <div className="flex-1 min-w-0">
+                      <TextInput
+                        value={form.renewalUrl || '(not configured)'}
+                        readOnly
+                        className={form.renewalUrl ? 'bg-surface-muted text-ink' : 'bg-surface-muted text-ink-muted italic'}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={openRenewalUrl}
+                      disabled={!form.renewalUrl?.trim()}
+                      className="shrink-0"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                      <span className="ml-1.5">Open Link</span>
+                    </Button>
+                  </div>
+                </Field>
+              </div>
             </div>
+            <Field
+              label={
+                <div className="flex items-center justify-between gap-3">
+                  <span>Required Documents Checklist</span>
+                  {totalCount > 0 ? (
+                    <span className="text-xs font-normal text-ink-soft">
+                      {completedCount}/{totalCount} completed
+                    </span>
+                  ) : null}
+                </div>
+              }
+              hint="List of documents to prepare before completing the renewal (configured in Expiry Profile settings)."
+            >
+              <AppSurface padding="md" variant="panel" className="space-y-3">
+                {checklistItems.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-ink-soft">
+                    No required documents configured for this expiry profile.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {checklistItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors ${item.checked ? 'bg-[var(--dms-color-success-soft)]/40 border-[var(--dms-color-success-soft)]' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={() => toggleChecklistItem(item.id)}
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm ${item.checked ? 'text-ink-muted line-through' : 'text-ink'}`}>
+                            {item.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </AppSurface>
+            </Field>
             <Field label="Upload New File" hint="Renewal creates a new document version on the same document.">
               <TextInput
                 type="file"
@@ -403,6 +634,56 @@ function DetailModal({ open, profile, onClose }) {
     { id: 'toVersion', key: 'toVersion', accessor: 'toVersion', label: 'To Version', sortable: true, required: true, render: (v) => v || '-' },
     { id: 'previousExpiryDate', key: 'previousExpiryDate', accessor: 'previousExpiryDate', label: 'Previous Expiry', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
     { id: 'newExpiryDate', key: 'newExpiryDate', accessor: 'newExpiryDate', label: 'New Expiry', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
+    {
+      id: 'renewalUrl',
+      key: 'renewalUrl',
+      accessor: 'renewalUrl',
+      label: 'Portal URL',
+      sortable: false,
+      render: (v) => {
+        if (!v) return <span className="text-ink-soft">—</span>
+        const normalized = /^https?:\/\//i.test(v) ? v : `https://${v}`
+        return (
+          <a
+            href={normalized}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 truncate text-xs font-medium text-[var(--color-brand, #003366)] hover:underline max-w-[220px]"
+            title={v}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+            <span className="truncate">Open</span>
+          </a>
+        )
+      }
+    },
+    {
+      id: 'checklistItems',
+      key: 'checklistItems',
+      accessor: 'checklistItems',
+      label: 'Checklist',
+      sortable: false,
+      render: (v) => {
+        if (!Array.isArray(v) || v.length === 0) return <span className="text-ink-soft">—</span>
+        const total = v.length
+        const done = v.filter((it) => it?.checked).length
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className={`font-semibold ${done === total ? 'text-[var(--dms-color-success)]' : 'text-ink'}`}>{done}/{total}</span>
+              <span className="text-ink-soft">done</span>
+            </div>
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className={`h-full rounded-full transition-all ${done === total ? 'bg-[var(--dms-color-success)]' : 'bg-[var(--color-brand, #003366)]'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )
+      }
+    },
     { id: 'renewedAt', key: 'renewedAt', accessor: 'renewedAt', label: 'Renewed At', sortable: true, sortType: 'date', render: (v) => formatDate(v) },
     { id: 'remarks', key: 'remarks', accessor: 'remarks', label: 'Remarks', sortable: false, render: (v) => v || '-' }
   ], [])
@@ -480,6 +761,28 @@ function DetailModal({ open, profile, onClose }) {
             <div className="grid gap-3">
               <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Start Date</p><p className="mt-1 text-sm text-ink">{formatDate(profile.startDate)}</p></div>
               <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Expiry Date</p><p className="mt-1 text-sm text-ink">{formatDate(profile.expiryDate)}</p></div>
+              {profile.renewalUrl ? (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Renewal Portal URL</p>
+                  <p className="mt-1">
+                    {(() => {
+                      const url = profile.renewalUrl
+                      const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
+                      return (
+                        <a
+                          href={normalized}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-brand, #003366)] hover:underline break-all"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                          {url}
+                        </a>
+                      )
+                    })()}
+                  </p>
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2"><ExpiryStatusBadge status={profile.expiryStatus} /><RenewalStatusBadge status={profile.renewalStatus} /></div>
               <div><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Remarks</p><p className="mt-1 text-sm text-ink">{profile.remarks || '-'}</p></div>
             </div>
@@ -763,7 +1066,9 @@ export default function ExpiryTracking() {
       const payload = {
         startDate: form.startDate,
         expiryDate: form.expiryDate,
-        remarks: form.remarks
+        remarks: form.remarks,
+        renewalUrl: form.renewalUrl?.trim() || null,
+        defaultChecklistItems: Array.isArray(form.defaultChecklistItems) ? form.defaultChecklistItems : null
       }
 
       if (form.useGlobalRule) {
@@ -811,6 +1116,10 @@ export default function ExpiryTracking() {
       payload.append('startDate', form.startDate)
       payload.append('newExpiryDate', form.newExpiryDate)
       payload.append('remarks', form.remarks || '')
+      payload.append('renewalUrl', form.renewalUrl?.trim() || '')
+      if (Array.isArray(form.checklistItems) && form.checklistItems.length > 0) {
+        payload.append('checklistItems', JSON.stringify(form.checklistItems))
+      }
       payload.append('file', form.file)
       await api.post(`/expiry-tracking/${selectedProfile.documentId}/renew/complete`, payload, {
         headers: { 'Content-Type': 'multipart/form-data' }

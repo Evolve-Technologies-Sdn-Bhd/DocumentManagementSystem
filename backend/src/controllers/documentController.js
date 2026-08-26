@@ -662,11 +662,17 @@ class DocumentController {
             const remarks = expiryRaw?.remarks
             if (!enabled) return { trackingEnabled: false }
             if (!startDate || !expiryDate) return { trackingEnabled: false }
+            const rawItems = expiryRaw?.defaultChecklistItems
+            const cleanItems = Array.isArray(rawItems)
+              ? rawItems.map((x) => String(typeof x === 'object' ? (x?.name || '') : x).trim()).filter(Boolean)
+              : null
             return {
               trackingEnabled: true,
               startDate,
               expiryDate,
               remarks,
+              renewalUrl: expiryRaw?.renewalUrl ? String(expiryRaw.renewalUrl).trim() || null : null,
+              defaultChecklistItems: cleanItems && cleanItems.length > 0 ? cleanItems : null,
               expiringSoonDays: expiryRaw?.expiringSoonDays,
               reminder1Days: expiryRaw?.reminder1Days,
               reminder2Days: expiryRaw?.reminder2Days,
@@ -3127,13 +3133,21 @@ class DocumentController {
     const candidateFileCodes = Array.from(new Set([trimmedFileCode, normalizedFileCode].filter(Boolean)));
     const uid = Number(req.user.id);
 
-    const existingDocument = await prisma.document.findFirst({
-      where: {
-        fileCode: { in: candidateFileCodes },
-        status: { in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'] },
-        OR: [{ ownerId: uid }, { createdById: uid }]
+    // Full existence check across ALL statuses and owners (for consistent validation)
+    const allExistingDocument = await prisma.document.findFirst({
+      where: { fileCode: { in: candidateFileCodes } },
+      include: {
+        owner: { select: { id: true, email: true, firstName: true, lastName: true } },
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
       }
     });
+
+    // Narrower check for own updatable drafts
+    const ownUpdatableDocument = (allExistingDocument &&
+      (allExistingDocument.ownerId === uid || allExistingDocument.createdById === uid) &&
+      ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'].includes(String(allExistingDocument.status || '').toUpperCase()))
+      ? allExistingDocument
+      : null;
 
     let documentId;
     let savedFileCode = trimmedFileCode;
@@ -3157,12 +3171,28 @@ class DocumentController {
       }
     }
 
-    if (existingDocument) {
-      documentId = existingDocument.id;
-      savedFileCode = existingDocument.fileCode;
+    if (allExistingDocument && !ownUpdatableDocument) {
+      const status = String(allExistingDocument.status || '').toUpperCase() || 'UNKNOWN';
+      const ownerName = allExistingDocument.owner
+        ? `${allExistingDocument.owner.firstName || ''} ${allExistingDocument.owner.lastName || ''}`.trim() || allExistingDocument.owner.email
+        : 'Unknown';
+      const message = `Document code "${allExistingDocument.fileCode}" already exists in the system (Status: ${status}, Owner: ${ownerName}). ` +
+                      `If you want to create a new version of this document, please open the existing document and use the "New Version" action instead. ` +
+                      `If this is a brand new document, please select a different document type to generate a new unique code.`;
+      return ResponseFormatter.error(res, message, 409, {
+        code: 'FILE_CODE_CONFLICT',
+        existingStatus: status,
+        existingOwner: ownerName,
+        existingFileCode: allExistingDocument.fileCode
+      });
+    }
 
-      const stUpper = String(existingDocument.status || '').toUpperCase()
-      const stageUpper = String(existingDocument.stage || '').toUpperCase()
+    if (ownUpdatableDocument) {
+      documentId = ownUpdatableDocument.id;
+      savedFileCode = ownUpdatableDocument.fileCode;
+
+      const stUpper = String(ownUpdatableDocument.status || '').toUpperCase()
+      const stageUpper = String(ownUpdatableDocument.stage || '').toUpperCase()
       const isUpdatable =
         (stUpper === 'DRAFT' && stageUpper === 'DRAFT') ||
         (stUpper === 'RETURNED' && stageUpper === 'DRAFT') ||
@@ -3183,7 +3213,7 @@ class DocumentController {
           data: {
             title,
             description: comments,
-            version: versionNo || existingDocument.version,
+            version: versionNo || ownUpdatableDocument.version,
             contentFormat: normalizedContentFormat,
             contentData: parsedContentData,
             contentText: mergedContentText || null,
@@ -3405,14 +3435,21 @@ class DocumentController {
     const candidateFileCodes = Array.from(new Set([trimmedFileCode, normalizedFileCode].filter(Boolean)));
     const uid = Number(req.user.id);
 
-    // Check if document with this file code already exists
-    const existingDocument = await prisma.document.findFirst({
-      where: {
-        fileCode: { in: candidateFileCodes },
-        status: { in: ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'] },
-        OR: [{ ownerId: uid }, { createdById: uid }]
+    // Full existence check across ALL statuses and owners (for consistent validation)
+    const allExistingDocument = await prisma.document.findFirst({
+      where: { fileCode: { in: candidateFileCodes } },
+      include: {
+        owner: { select: { id: true, email: true, firstName: true, lastName: true } },
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
       }
     });
+
+    // Narrower check for own updatable drafts
+    const ownUpdatableDocument = (allExistingDocument &&
+      (allExistingDocument.ownerId === uid || allExistingDocument.createdById === uid) &&
+      ['DRAFT', 'ACKNOWLEDGED', 'RETURNED'].includes(String(allExistingDocument.status || '').toUpperCase()))
+      ? allExistingDocument
+      : null;
 
     let documentId;
     let savedFileCode = trimmedFileCode;
@@ -3436,13 +3473,28 @@ class DocumentController {
       }
     }
 
-    if (existingDocument) {
-      // Update existing document
-      documentId = existingDocument.id;
-      savedFileCode = existingDocument.fileCode;
+    if (allExistingDocument && !ownUpdatableDocument) {
+      const status = String(allExistingDocument.status || '').toUpperCase() || 'UNKNOWN';
+      const ownerName = allExistingDocument.owner
+        ? `${allExistingDocument.owner.firstName || ''} ${allExistingDocument.owner.lastName || ''}`.trim() || allExistingDocument.owner.email
+        : 'Unknown';
+      const message = `Document code "${allExistingDocument.fileCode}" already exists in the system (Status: ${status}, Owner: ${ownerName}). ` +
+                      `If you want to create a new version of this document, please open the existing document and use the "New Version" action instead. ` +
+                      `If this is a brand new document, please select a different document type to generate a new unique code.`;
+      return ResponseFormatter.error(res, message, 409, {
+        code: 'FILE_CODE_CONFLICT',
+        existingStatus: status,
+        existingOwner: ownerName,
+        existingFileCode: allExistingDocument.fileCode
+      });
+    }
 
-      const stUpper = String(existingDocument.status || '').toUpperCase()
-      const stageUpper = String(existingDocument.stage || '').toUpperCase()
+    if (ownUpdatableDocument) {
+      documentId = ownUpdatableDocument.id;
+      savedFileCode = ownUpdatableDocument.fileCode;
+
+      const stUpper = String(ownUpdatableDocument.status || '').toUpperCase()
+      const stageUpper = String(ownUpdatableDocument.stage || '').toUpperCase()
       const isUpdatable =
         (stUpper === 'DRAFT' && stageUpper === 'DRAFT') ||
         (stUpper === 'RETURNED' && stageUpper === 'DRAFT') ||
@@ -3463,7 +3515,7 @@ class DocumentController {
           data: {
             title,
             description: comments,
-            version: versionNo || existingDocument.version,
+            version: versionNo || ownUpdatableDocument.version,
             contentFormat: normalizedContentFormat,
             contentData: parsedContentData,
             contentText: mergedContentText || null,

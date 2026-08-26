@@ -183,6 +183,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     startDate: getToday(),
     expiryDate: '',
     remarks: '',
+    renewalUrl: '',
+    defaultChecklist: [],
     expiringSoonDays: 60,
     reminder1Days: 90,
     reminder2Days: 60,
@@ -200,6 +202,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const [formError, setFormError] = useState('')
   const [expiryEditor, setExpiryEditor] = useState({ open: false, itemIndex: -1, draft: null })
   const [expiryEditorSearch, setExpiryEditorSearch] = useState(createReminderSearch())
+  const [newDefaultChecklistName, setNewDefaultChecklistName] = useState('')
+  const [newExpiryEditorChecklistName, setNewExpiryEditorChecklistName] = useState('')
   const [documentTypes, setDocumentTypes] = useState([])
   const [numberingSettings, setNumberingSettings] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
@@ -486,6 +490,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       startDate: getToday(),
       expiryDate: '',
       remarks: '',
+      renewalUrl: '',
+      defaultChecklist: [],
       expiringSoonDays: expirySettings.expiringSoonDays,
       reminder1Days: expirySettings.reminder1Days,
       reminder2Days: expirySettings.reminder2Days,
@@ -495,6 +501,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     })
     setRecipientSearch({ global: createReminderSearch(), file: {} })
     setFormError('')
+    setNewDefaultChecklistName('')
+    setNewExpiryEditorChecklistName('')
     setDocumentTypes([])
     setNumberingSettings(null)
     setProjectCategories([])
@@ -782,6 +790,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     startDate: source?.startDate || getToday(),
     expiryDate: source?.expiryDate || '',
     remarks: source?.remarks || '',
+    renewalUrl: source?.renewalUrl || '',
+    defaultChecklist: Array.isArray(source?.defaultChecklist) ? source.defaultChecklist.slice() : [],
     expiringSoonDays: source?.expiringSoonDays ?? expiryInfo.expiringSoonDays,
     reminder1Days: source?.reminder1Days ?? expiryInfo.reminder1Days,
     reminder2Days: source?.reminder2Days ?? expiryInfo.reminder2Days,
@@ -796,14 +806,16 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       if (item?.expiryOverride?.trackingEnabled) {
         const start = item?.expiryOverride?.startDate || '-'
         const end = item?.expiryOverride?.expiryDate || '-'
-        return `Custom expiry: ${start} -> ${end}`
+        const docCount = Array.isArray(item?.expiryOverride?.defaultChecklist) ? item.expiryOverride.defaultChecklist.length : 0
+        return `Custom expiry: ${start} -> ${end}${docCount ? ` | ${docCount} doc(s) required` : ''}`
       }
       return 'Custom setting: no expiry tracking'
     }
     if (expiryInfo.trackingEnabled) {
       const start = expiryInfo.startDate || '-'
       const end = expiryInfo.expiryDate || '-'
-      return `Using global expiry: ${start} -> ${end}`
+      const docCount = Array.isArray(expiryInfo.defaultChecklist) ? expiryInfo.defaultChecklist.length : 0
+      return `Using global expiry: ${start} -> ${end}${docCount ? ` | ${docCount} doc(s) required` : ''}`
     }
     return 'No expiry tracking'
   }
@@ -818,6 +830,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
           startDate: expiryInfo.startDate || getToday(),
           expiryDate: expiryInfo.expiryDate || '',
           remarks: expiryInfo.remarks || '',
+          renewalUrl: expiryInfo.renewalUrl || '',
+          defaultChecklist: Array.isArray(expiryInfo.defaultChecklist) ? expiryInfo.defaultChecklist.slice() : [],
           expiringSoonDays: expiryInfo.expiringSoonDays,
           reminder1Days: expiryInfo.reminder1Days,
           reminder2Days: expiryInfo.reminder2Days,
@@ -872,6 +886,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
           startDate: getToday(),
           expiryDate: '',
           remarks: '',
+          renewalUrl: '',
+          defaultChecklist: [],
           expiringSoonDays: expiryInfo.expiringSoonDays,
           reminder1Days: expiryInfo.reminder1Days,
           reminder2Days: expiryInfo.reminder2Days,
@@ -905,6 +921,54 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             ...(prev.draft.reminderRecipients || createReminderRecipients()),
             [levelKey]: Array.from(existing)
           }
+        }
+      }
+    })
+  }
+
+  // Default checklist helpers for global Expiry Options
+  const addGlobalChecklistItem = () => {
+    const name = newDefaultChecklistName.trim()
+    if (!name) return
+    setExpiryInfo((prev) => ({
+      ...prev,
+      defaultChecklist: [...(Array.isArray(prev.defaultChecklist) ? prev.defaultChecklist : []), { id: 'bi-global-cl-' + Date.now(), name }]
+    }))
+    setNewDefaultChecklistName('')
+  }
+  const removeGlobalChecklistItem = (id) => {
+    setExpiryInfo((prev) => ({
+      ...prev,
+      defaultChecklist: (Array.isArray(prev.defaultChecklist) ? prev.defaultChecklist : []).filter((it) => it && it.id !== id)
+    }))
+  }
+
+  // Default checklist helpers for per-file custom expiry editor
+  const addEditorChecklistItem = () => {
+    const name = newExpiryEditorChecklistName.trim()
+    if (!name) return
+    setExpiryEditor((prev) => {
+      if (!prev.draft) return prev
+      const existing = Array.isArray(prev.draft.defaultChecklist) ? prev.draft.defaultChecklist.slice() : []
+      return {
+        ...prev,
+        draft: {
+          ...prev.draft,
+          defaultChecklist: [...existing, { id: 'bi-editor-cl-' + Date.now(), name }]
+        }
+      }
+    })
+    setNewExpiryEditorChecklistName('')
+  }
+  const removeEditorChecklistItem = (id) => {
+    setExpiryEditor((prev) => {
+      if (!prev.draft) return prev
+      const existing = Array.isArray(prev.draft.defaultChecklist) ? prev.draft.defaultChecklist : []
+      return {
+        ...prev,
+        draft: {
+          ...prev.draft,
+          defaultChecklist: existing.filter((it) => it && it.id !== id)
         }
       }
     })
@@ -1172,6 +1236,10 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               startDate: expiryInfo.startDate,
               expiryDate: expiryInfo.expiryDate,
               remarks: expiryInfo.remarks,
+              renewalUrl: expiryInfo.renewalUrl,
+              defaultChecklistItems: Array.isArray(expiryInfo.defaultChecklist)
+                ? expiryInfo.defaultChecklist.map((it) => (it && typeof it === 'object' ? it.name : it)).filter(Boolean)
+                : [],
               expiringSoonDays: expiryInfo.expiringSoonDays,
               reminder1Days: expiryInfo.reminder1Days,
               reminder2Days: expiryInfo.reminder2Days,
@@ -1194,6 +1262,10 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 startDate: it.expiryOverride?.startDate || '',
                 expiryDate: it.expiryOverride?.expiryDate || '',
                 remarks: it.expiryOverride?.remarks || '',
+                renewalUrl: it.expiryOverride?.renewalUrl || '',
+                defaultChecklistItems: Array.isArray(it.expiryOverride?.defaultChecklist)
+                  ? it.expiryOverride.defaultChecklist.map((x) => (x && typeof x === 'object' ? x.name : x)).filter(Boolean)
+                  : [],
                 expiringSoonDays: it.expiryOverride?.expiringSoonDays,
                 reminder1Days: it.expiryOverride?.reminder1Days,
                 reminder2Days: it.expiryOverride?.reminder2Days,
@@ -1260,14 +1332,14 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         onCancel={() => setReassignConfirm({ show: false, conflicts: [], payload: null })}
       />
       <div
-        className="fixed inset-0 bg-overlay transition-opacity"
+        className="fixed inset-0 transition-opacity"
         onClick={() => {
           if (submitting) return
           handleClose()
         }}
       />
 
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200" data-tour-id="bulk-import-modal">
+      <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto border border-gray-200" data-tour-id="bulk-import-modal">
         <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center justify-between">
             <div>
@@ -1293,7 +1365,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               </div>
             )}
             <div className="bg-gray-50 border-b border-gray-200 px-3 py-3 rounded-lg">
-              <div className="flex flex-nowrap items-center justify-center gap-2 overflow-x-auto whitespace-nowrap">
+              <div className="flex flex-nowrap items-center justify-center gap-2 whitespace-nowrap">
                 {BULK_IMPORT_STEPS.map((step, idx) => {
                   const isActive = idx === currentStep
                   const isCompleted = idx < currentStep
@@ -1853,6 +1925,112 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                       onSearchChange={(levelKey, value) => updateSearchScope('global', levelKey, value)}
                       onToggle={toggleGlobalRecipient}
                     />
+
+                    <details className="border border-gray-200 rounded-lg bg-white">
+                      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Advanced Settings</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Renewal portal URL, required documents checklist, and internal notes.</p>
+                        </div>
+                        <p className="shrink-0 text-xs font-medium text-gray-500 pt-0.5">Click to expand</p>
+                      </summary>
+                      <div className="space-y-4 border-t border-gray-200 px-4 py-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Renewal Portal URL
+                          </label>
+                          <input
+                            type="url"
+                            placeholder="https://example.com/renew"
+                            value={expiryInfo.renewalUrl || ''}
+                            onChange={(e) => setExpiryInfo((prev) => ({ ...prev, renewalUrl: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                          />
+                          <p className="mt-1.5 text-xs text-gray-500">
+                            Link to external system or portal used to perform future renewals.
+                          </p>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <label className="block text-sm font-medium text-gray-900">
+                              Required Documents Checklist
+                            </label>
+                            {Array.isArray(expiryInfo.defaultChecklist) && expiryInfo.defaultChecklist.length > 0 ? (
+                              <span className="text-xs font-normal text-gray-500">
+                                {expiryInfo.defaultChecklist.length} document(s)
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
+                            {!Array.isArray(expiryInfo.defaultChecklist) || expiryInfo.defaultChecklist.length === 0 ? (
+                              <div className="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500 bg-white">
+                                No required documents configured yet. Add items below.
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {expiryInfo.defaultChecklist.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                                  >
+                                    <svg className="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    <span className="flex-1 text-sm text-gray-900 truncate">{item.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeGlobalChecklistItem(item.id)}
+                                      className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+                                      aria-label="Remove document from checklist"
+                                    >
+                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-stretch gap-2 border-t border-gray-200 pt-2">
+                              <input
+                                type="text"
+                                placeholder="Add required document (e.g. Company Registration Form)"
+                                value={newDefaultChecklistName}
+                                onChange={(e) => setNewDefaultChecklistName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    addGlobalChecklistItem()
+                                  }
+                                }}
+                                className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={addGlobalChecklistItem}
+                                disabled={!newDefaultChecklistName.trim()}
+                                className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-60 shrink-0"
+                              >
+                                Add Item
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-xs text-gray-500">
+                            Documents that must be prepared before each renewal for these imported documents.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Remarks
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={expiryInfo.remarks || ''}
+                            onChange={(e) => setExpiryInfo((prev) => ({ ...prev, remarks: e.target.value }))}
+                            placeholder="Internal notes (e.g. special renewal conditions, escalation contacts)…"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900 resize-y"
+                          />
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500">
@@ -1907,7 +2085,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
           {expiryEditor.open && expiryEditor.draft ? (
             <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-              <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+              <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
                 <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1964,9 +2142,89 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Expiring Soon Days</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryEditor.draft.expiringSoonDays ?? ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), expiringSoonDays: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 1</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryEditor.draft.reminder1Days ?? ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), reminder1Days: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 2</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryEditor.draft.reminder2Days ?? ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), reminder2Days: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 3</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryEditor.draft.reminder3Days ?? ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), reminder3Days: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 4</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={expiryEditor.draft.reminder4Days ?? ''}
+                        onChange={(e) => setExpiryEditor((prev) => ({
+                          ...prev,
+                          draft: { ...(prev.draft || {}), reminder4Days: e.target.value }
+                        }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <ReminderRecipientsPicker
+                    values={expiryEditor.draft}
+                    activeUsers={activeUsers}
+                    searchValues={expiryEditorSearch}
+                    onSearchChange={updateExpiryEditorSearch}
+                    onToggle={toggleExpiryEditorRecipient}
+                  />
+
                   <details className="border border-gray-200 bg-white rounded-lg">
-                    <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-gray-900 marker:hidden">
-                      More options
+                    <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3 marker:hidden">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Advanced Settings</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Internal notes, renewal portal URL, and required documents checklist.</p>
+                      </div>
+                      <p className="shrink-0 text-xs font-medium text-gray-500 pt-0.5">Click to expand</p>
                     </summary>
                     <div className="space-y-4 border-t border-gray-200 px-4 py-4">
                       <div>
@@ -1982,81 +2240,90 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 mb-2">Expiring Soon Days</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={expiryEditor.draft.expiringSoonDays ?? ''}
-                            onChange={(e) => setExpiryEditor((prev) => ({
-                              ...prev,
-                              draft: { ...(prev.draft || {}), expiringSoonDays: e.target.value }
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 1</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={expiryEditor.draft.reminder1Days ?? ''}
-                            onChange={(e) => setExpiryEditor((prev) => ({
-                              ...prev,
-                              draft: { ...(prev.draft || {}), reminder1Days: e.target.value }
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 2</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={expiryEditor.draft.reminder2Days ?? ''}
-                            onChange={(e) => setExpiryEditor((prev) => ({
-                              ...prev,
-                              draft: { ...(prev.draft || {}), reminder2Days: e.target.value }
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 3</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={expiryEditor.draft.reminder3Days ?? ''}
-                            onChange={(e) => setExpiryEditor((prev) => ({
-                              ...prev,
-                              draft: { ...(prev.draft || {}), reminder3Days: e.target.value }
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 mb-2">Reminder 4</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={expiryEditor.draft.reminder4Days ?? ''}
-                            onChange={(e) => setExpiryEditor((prev) => ({
-                              ...prev,
-                              draft: { ...(prev.draft || {}), reminder4Days: e.target.value }
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                          Renewal Portal URL
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://example.com/renew"
+                          value={expiryEditor.draft?.renewalUrl || ''}
+                          onChange={(e) => setExpiryEditor((prev) => ({
+                            ...prev,
+                            draft: { ...(prev.draft || {}), renewalUrl: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                        />
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          Link to external system or portal used to perform renewals for this specific file.
+                        </p>
                       </div>
 
-                      <ReminderRecipientsPicker
-                        values={expiryEditor.draft}
-                        activeUsers={activeUsers}
-                        searchValues={expiryEditorSearch}
-                        onSearchChange={updateExpiryEditorSearch}
-                        onToggle={toggleExpiryEditorRecipient}
-                      />
+                      <div>
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <label className="block text-sm font-medium text-gray-900">
+                            Required Documents Checklist
+                          </label>
+                          {Array.isArray(expiryEditor.draft?.defaultChecklist) && expiryEditor.draft.defaultChecklist.length > 0 ? (
+                            <span className="text-xs font-normal text-gray-500">
+                              {expiryEditor.draft.defaultChecklist.length} document(s)
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
+                          {!Array.isArray(expiryEditor.draft?.defaultChecklist) || expiryEditor.draft.defaultChecklist.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500 bg-white">
+                              No required documents configured for this file.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {expiryEditor.draft.defaultChecklist.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                                >
+                                  <svg className="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                  <span className="flex-1 text-sm text-gray-900 truncate">{item.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEditorChecklistItem(item.id)}
+                                    className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
+                                    aria-label="Remove document from checklist"
+                                  >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-stretch gap-2 border-t border-gray-200 pt-2">
+                            <input
+                              type="text"
+                              placeholder="Add required document (e.g. Company Registration Form)"
+                              value={newExpiryEditorChecklistName}
+                              onChange={(e) => setNewExpiryEditorChecklistName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  addEditorChecklistItem()
+                                }
+                              }}
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                            />
+                            <button
+                              type="button"
+                              onClick={addEditorChecklistItem}
+                              disabled={!newExpiryEditorChecklistName.trim()}
+                              className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-60 shrink-0"
+                            >
+                              Add Item
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          Documents that must be prepared before each renewal for this file.
+                        </p>
+                      </div>
                     </div>
                   </details>
                 </div>

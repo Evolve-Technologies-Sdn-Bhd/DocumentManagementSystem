@@ -252,6 +252,7 @@ model DocumentType {
   isActive    Boolean  @default(true)
   requiresExpiryTracking Boolean @default(false)
   allowRenewal Boolean @default(true)
+  defaultRenewalChecklist Json?
   // Smart Document — ADDITIVE fields
   creationMode CreationMode @default(FILE_BASED) // FILE_BASED or SMART_DOCUMENT
   // Points to DEFAULT SmartTemplate. DocumentType can have only 1 default active template.
@@ -1047,6 +1048,8 @@ model DocumentExpiryProfile {
   lastReminder3SentAt  DateTime?
   lastReminder4SentAt  DateTime?
   remarks              String?       @db.Text
+  renewalUrl           String?
+  defaultChecklistItems Json?
   companySnapshot      String?
   departmentSnapshot   String?
   folderSnapshotName   String?
@@ -1082,6 +1085,8 @@ model DocumentExpiryRenewalHistory {
   renewalStatusBefore RenewalStatus?
   renewalStatusAfter  RenewalStatus?
   remarks             String?       @db.Text
+  renewalUrl          String?
+  checklistItems      Json?
   renewedBy           Int?
   renewedAt           DateTime      @default(now())
 

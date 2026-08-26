@@ -591,6 +591,10 @@ export default function PublishedDocuments() {
         startDate: form.startDate,
         expiryDate: form.expiryDate,
         remarks: form.remarks,
+        renewalUrl: form.renewalUrl ? String(form.renewalUrl).trim() || null : null,
+        defaultChecklistItems: Array.isArray(form.defaultChecklistItems)
+          ? form.defaultChecklistItems.map((x) => String(x).trim()).filter(Boolean)
+          : null,
         expiringSoonDays: parseInt(form.useGlobalRule ? expirySettings.expiringSoonDays : form.expiringSoonDays, 10) || 0,
         reminder1Days: parseInt(form.useGlobalRule ? expirySettings.reminder1Days : form.reminder1Days, 10) || 0,
         reminder2Days: parseInt(form.useGlobalRule ? expirySettings.reminder2Days : form.reminder2Days, 10) || 0,

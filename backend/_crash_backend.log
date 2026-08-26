@@ -172,3 +172,83 @@ Error: listen EADDRINUSE: address already in use :::4001
     at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
     at node:internal/main/run_main_module:33:47
+
+
+===== [2026-08-26T08:54:12.568Z] UNCAUGHT EXCEPTION =====
+ReferenceError: Cannot access 'asyncHandler' before initialization
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\app.js:195:37)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\index.js:24:13)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+
+===== [2026-08-26T08:54:33.327Z] UNCAUGHT EXCEPTION =====
+ReferenceError: Cannot access 'asyncHandler' before initialization
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\app.js:195:37)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\index.js:24:13)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+
+===== [2026-08-26T08:57:30.445Z] UNCAUGHT EXCEPTION =====
+ReferenceError: Cannot access 'asyncHandler' before initialization
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\app.js:195:37)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\index.js:24:13)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+
+===== [2026-08-26T08:57:44.602Z] UNCAUGHT EXCEPTION =====
+ReferenceError: Cannot access 'asyncHandler' before initialization
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\app.js:195:37)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (c:\Users\USER\Desktop\DocumentManagementSystem\backend\src\index.js:24:13)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
