@@ -3003,9 +3003,13 @@ class DocumentController {
     );
 
     // Log submission for review
-    await auditLogService.logWorkflow(req.user.id, 'SUBMIT_FOR_REVIEW', document, req, {
-      reviewerIds
-    });
+    try {
+      await auditLogService.logWorkflow(req.user.id, 'SUBMIT_FOR_REVIEW', document, req, {
+        reviewerIds
+      });
+    } catch (auditErr) {
+      console.error('[submitDraftForReview] audit log failed (submission succeeded):', auditErr?.message || auditErr);
+    }
 
     return ResponseFormatter.success(
       res,
@@ -3677,9 +3681,13 @@ class DocumentController {
     );
 
     // Log submission for review
-    await auditLogService.logWorkflow(req.user.id, 'SUBMIT_FOR_REVIEW', finalDocument, req, {
-      reviewerIds
-    });
+    try {
+      await auditLogService.logWorkflow(req.user.id, 'SUBMIT_FOR_REVIEW', finalDocument, req, {
+        reviewerIds
+      });
+    } catch (auditErr) {
+      console.error('[createDraftAndSubmitForReview] audit log failed (submission succeeded):', auditErr?.message || auditErr);
+    }
 
     return ResponseFormatter.success(
       res,

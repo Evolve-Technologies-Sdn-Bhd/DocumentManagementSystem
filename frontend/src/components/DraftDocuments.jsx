@@ -440,36 +440,29 @@ export default function DraftDocuments() {
     }
   }
 
-  const handleNewDraftSubmit = async (formData, type) => {
+  const handleNewDraftSubmit = async (result) => {
     try {
       setLoading(true)
-
-      if (type === 'review') {
-        // Submit for review: create document, upload file, assign reviewers, submit
-        const response = await api.post('/documents/drafts/submit-for-review', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
-        
-        setAlertModal({ show: true, title: 'Success', message: 'Document submitted for review successfully!', type: 'success' })
-        setShowModal(false)
-        await loadDocuments()
-      } else {
-        // Save as draft
-        const response = await api.post('/documents/drafts', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
-        
-        setAlertModal({ show: true, title: 'Success', message: 'Draft saved successfully!', type: 'success' })
-        setShowModal(false)
-        await loadDocuments()
-      }
+      const { docId, verId } = result || {}
+      
+      setAlertModal({
+        show: true,
+        title: 'Success',
+        message: docId
+          ? `Draft ${verId ? 'and version created' : 'created'} successfully!`
+          : 'Document processed successfully!',
+        type: 'success'
+      })
+      setShowModal(false)
+      await loadDocuments()
     } catch (error) {
-      console.error('Failed to submit draft:', error)
-      setAlertModal({ show: true, title: 'Error', message: error.response?.data?.message || 'Failed to submit draft document', type: 'error' })
+      console.error('Failed to refresh documents after draft action:', error)
+      setAlertModal({
+        show: true,
+        title: 'Warning',
+        message: 'Document was processed but the list could not be refreshed. Please refresh the page manually.',
+        type: 'warning'
+      })
     } finally {
       setLoading(false)
     }
