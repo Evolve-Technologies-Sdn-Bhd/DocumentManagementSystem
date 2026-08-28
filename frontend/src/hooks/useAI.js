@@ -53,7 +53,7 @@ export function useAI() {
       if (data?.configured && (data?.enabled != null || data?.status === 'online' || data?.status === 'disabled')) {
         setConfig((prev) => prev || {
           enabled: data?.enabled ?? data?.status === 'online',
-          provider: 'gemini',
+          provider: data?.provider || null,
           model: data?.model,
         })
         setConfigLoaded(true)
@@ -234,8 +234,8 @@ export function useAI() {
           if (hRes?.status === 'online' || hRes?.enabled === true || cfgRes?.enabled === true) {
             setConfig((prev) => prev || {
               enabled: true,
-              provider: 'gemini',
-              model: hRes?.model || cfgRes?.model || 'gemini-3.6-flash',
+              provider: cfgRes?.provider || hRes?.provider || null,
+              model: hRes?.model || cfgRes?.model || null,
             })
           } else if (cfgRes?.enabled === false || hRes?.status === 'disabled') {
             setConfig((prev) => prev || { enabled: false, provider: null, model: null })

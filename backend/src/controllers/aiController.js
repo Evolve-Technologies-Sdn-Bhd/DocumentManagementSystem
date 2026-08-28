@@ -1,4 +1,4 @@
-const aiService = require('../services/geminiAIService');
+const aiService = require('../services/aiService');
 const documentService = require('../services/documentService');
 const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require('../utils/asyncHandler');
@@ -46,17 +46,23 @@ const healthCheck = asyncHandler(async (req, res) => {
 });
 
 const getConfig = asyncHandler(async (req, res) => {
+  const provider = String(config.ai?.provider || 'gemini').toLowerCase();
+  const model = provider === 'openai'
+    ? (config.ai?.openaiModel || 'gpt-4o-mini')
+    : (config.ai?.geminiModel || 'gemini-3.6-flash');
   return ResponseFormatter.success(res, {
     enabled: aiService.isEnabled(),
-    provider: config.ai?.provider || 'gemini',
-    model: config.ai?.geminiModel || 'gemini-3.6-flash',
+    provider,
+    model,
     defaultLanguage: config.ai?.defaultLanguage || 'en',
   });
 });
 
 const summarizeDocument = asyncHandler(async (req, res) => {
   if (!aiService.isEnabled()) {
-    return ResponseFormatter.error(res, 'AI service is not enabled. Configure GEMINI_API_KEY and set AI_ENABLED=true.', 400);
+    const provider = String(config.ai?.provider || 'gemini').toLowerCase();
+    const keyHint = provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY';
+    return ResponseFormatter.error(res, `AI service is not enabled. Configure ${keyHint} and set AI_ENABLED=true.`, 400);
   }
 
   let documentText = req.body?.documentText || req.body?.text || '';

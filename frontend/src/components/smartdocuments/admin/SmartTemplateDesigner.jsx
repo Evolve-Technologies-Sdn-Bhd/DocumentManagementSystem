@@ -3642,7 +3642,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                 }}
                 disabled={!currentVersion || generating || saving}
                 className="flex-shrink-0"
-                title="Ask Gemini AI to suggest an initial field schema (keys, types, labels) based on document type and description."
+                title="Ask AI to suggest an initial field schema (keys, types, labels) based on document type and description."
               >
                 <span className="mr-1.5">&#129302;</span> AI Suggest Fields
               </Button>
@@ -4729,7 +4729,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
       >
         <ModalHeader
           title="&#129302; AI Suggest Template Fields"
-          subtitle="Describe the document type and Gemini will suggest a complete Smart Form field schema."
+          subtitle="Describe the document type and AI will suggest a complete Smart Form field schema."
           onClose={() => !aiSuggestLoading && setAiSuggestOpen(false)}
         />
         <ModalBody>
@@ -4774,7 +4774,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                 onClick={runAiSuggest}
                 disabled={aiSuggestLoading || (!aiDocType.trim() && !aiDocDesc.trim())}
                 loading={aiSuggestLoading}
-                loadingText="Asking Gemini to suggest fields..."
+                loadingText="Asking AI to suggest fields..."
               >
                 <span className="mr-1.5">&#128161;</span> Generate Suggestions
               </Button>

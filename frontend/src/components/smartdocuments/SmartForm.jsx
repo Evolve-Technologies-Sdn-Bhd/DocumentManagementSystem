@@ -1419,7 +1419,7 @@ export default function SmartForm({
                   &#10024; AI Autofill
                 </p>
                 <p className="text-xs mt-0.5 text-gray-600">
-                  Paste a reference letter / email / notes and Gemini will auto-fill as many of the {formFields.length} fields as possible.
+                  Paste a reference letter / email / notes and AI will auto-fill as many of the {formFields.length} fields as possible.
                 </p>
               </div>
             </div>
@@ -1468,7 +1468,7 @@ export default function SmartForm({
                   disabled={ai.loading.autofill}
                 />
                 <p className="mt-1.5 text-[11px] text-gray-500">
-                  Tip: Include names, dates, titles, and amounts clearly. Gemini will never invent values &mdash; if a field is missing, it stays empty.
+                  Tip: Include names, dates, titles, and amounts clearly. AI will never invent values &mdash; if a field is missing, it stays empty.
                 </p>
               </div>
 

@@ -121,7 +121,7 @@ export default function FloatingAIBot() {
   }
   const rateLimitBanner = (sec) =>
     sec
-      ? `\n\n**⏰ Rate Limit Reached (429)**\nGoogle Gemini free tier = **5 requests per minute**.\nNext slot available in ~ **${sec} seconds**.\nTips: Upgrade to pay-as-you-go in AI Studio for 15 RPM min or wait patiently.`
+      ? `\n\n**⏰ Rate Limit Reached (429)**\nAI Provider returned rate limit.\nNext slot available in ~ **${sec} seconds**.\nTips: If using free tier, consider upgrading or wait patiently.`
       : '\n\n*If this keeps happening, check backend rate limits or wait 1-2 minutes.*'
 
 
@@ -129,13 +129,16 @@ export default function FloatingAIBot() {
     const { config, health } = await ai.forceRefreshAIStatus({ deep: true })
     const enabled = Boolean(config?.enabled === true || health?.status === 'online')
     if (!enabled) {
+      const provider = String(config?.provider || health?.provider || (config?.model?.toLowerCase?.().includes('gpt') ? 'openai' : 'gemini')).toLowerCase()
+      const keyName = provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'
       alert(
         'AI Assistant is not activated yet.\n\n' +
         'To activate:\n' +
         '1. Open backend/.env\n' +
         '2. Set AI_ENABLED=true\n' +
-        '3. Enter your GEMINI_API_KEY\n' +
-        '4. Restart the backend server (most important!)' +
+        '3. Set AI_PROVIDER to "openai" or "gemini"\n' +
+        `4. Enter your ${keyName}\n` +
+        '5. Restart the backend server (most important!)' +
         (health?.status === 'error' ? `\n\nLast health error: ${health.message?.slice?.(0, 140) || ''}` : '')
       )
     }
@@ -451,7 +454,7 @@ export default function FloatingAIBot() {
       pushMessage('assistant', body.trim(), { kind: 'rephrase-result' })
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== loadingId))
-      pushMessage('assistant', `⚠️ **Rephrase failed:** ${err.message}\n*Please try again in a moment (free tier rate limit 5 RPM for gemini-3.6-flash).*`)
+      pushMessage('assistant', `⚠️ **Rephrase failed:** ${err.message}\n*Please try again in a moment (rate limit reached — try again in a minute).*`)
     }
   }
 
@@ -743,7 +746,7 @@ export default function FloatingAIBot() {
             <div className="font-semibold text-sm leading-tight">DMS Assistant</div>
             <div className="flex items-center gap-1.5 text-[11px] text-white/85">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-              <span>Online · {ai.config?.model || 'gemini-3.6-flash'}</span>
+              <span>Online · {ai.config?.model || 'AI Model'}</span>
             </div>
             {activeTool && (
               <div className="mt-0.5 flex items-center gap-1 flex-wrap">
@@ -833,7 +836,7 @@ export default function FloatingAIBot() {
                           {icons[m.loadingFor] || '⚙️'} {label}…
                         </div>
                         <div className="text-[10.5px] text-gray-400 mt-0.5">
-                          Calling AI {ai.config?.model || 'gemini-3.6-flash'}…
+                          Calling AI {ai.config?.model || 'model'}…
                         </div>
                       </div>
                     </div>
