@@ -1,4 +1,3 @@
-const OpenAI = require('openai');
 const config = require('../config/app');
 const logger = require('../utils/logger');
 
@@ -14,6 +13,16 @@ class OpenAIAIService {
     this.defaultLanguage = config.ai?.defaultLanguage || 'en';
 
     this.client = null;
+    this._OpenAIConstructor = null;
+    this._requireFailed = false;
+
+    try {
+      this._OpenAIConstructor = require('openai');
+    } catch (e) {
+      this._requireFailed = true;
+      this.aiEnabled = false;
+      logger.warn('[OpenAIAIService] "openai" npm package is not installed. Run: cd /var/www/dms/backend && npm install openai');
+    }
 
     this._healthCache = null;
     this._healthCachedAt = 0;
@@ -21,7 +30,7 @@ class OpenAIAIService {
     this.HEALTH_CACHE_TTL_MS = 60 * 1000;
     this.HEALTH_ERROR_CACHE_TTL_MS = 90 * 1000;
 
-    if (this.aiEnabled && this.apiKey) {
+    if (this.aiEnabled && this.apiKey && this._OpenAIConstructor) {
       try {
         const opts = {
           apiKey: this.apiKey,
@@ -29,16 +38,14 @@ class OpenAIAIService {
         if (this.baseURL) {
           opts.baseURL = this.baseURL;
         }
-        this.client = new OpenAI(opts);
-        logger.info(`[OpenAIAIService] Initialized with model: ${this.modelName}${this.baseURL ? ' (baseURL: ' + this.baseURL + ')' : ''}`);
+        this.client = new this._OpenAIConstructor(opts);
+        logger.info('[OpenAIAIService] Initialized with model: ' + this.modelName + (this.baseURL ? ' (baseURL: ' + this.baseURL + ')' : ''));
       } catch (err) {
-        logger.error(`[OpenAIAIService] Failed to initialize`, { error: err?.message || String(err) });
+        logger.error('[OpenAIAIService] Failed to initialize. Error: ' + String(err?.message || err));
         this.aiEnabled = false;
       }
-    } else {
-      logger.warn(`[OpenAIAIService] AI is disabled or API key not configured`, {
-        hint: 'Set AI_ENABLED=true and OPENAI_API_KEY in .env',
-      });
+    } else if (!this._requireFailed) {
+      logger.warn('[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env');
     }
   }
 
