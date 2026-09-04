@@ -1,6 +1,23 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const prisma = require('../config/database');
+const fs = require('fs/promises');
+const path = require('path');
+const appConfig = require('../config/app');
+
+const resolveBrandingFile = async (pathOrUrl) => {
+  if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
+  const match = pathOrUrl.match(/^\/uploads\/branding\/([^?]+)(?:\?.*)?$/i);
+  if (!match) return pathOrUrl;
+  const fileName = match[1];
+  const filePath = path.join(appConfig.uploadDir, 'branding', fileName);
+  try {
+    await fs.access(filePath);
+    return pathOrUrl;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Get system features and information for landing page
@@ -292,6 +309,11 @@ exports.getBranding = asyncHandler(async (req, res) => {
   if (themeConfig?.value) {
     try {
       theme = JSON.parse(themeConfig.value)
+      if (theme && typeof theme === 'object') {
+        theme.mainLogo = await resolveBrandingFile(theme.mainLogo)
+        theme.favicon = await resolveBrandingFile(theme.favicon)
+        theme.bgImage = await resolveBrandingFile(theme.bgImage)
+      }
     } catch {
       theme = null
     }

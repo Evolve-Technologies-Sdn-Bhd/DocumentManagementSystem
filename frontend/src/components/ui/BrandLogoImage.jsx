@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { normalizeAppPath } from '../../utils/normalizeUrl'
 
 export default function BrandLogoImage({
@@ -13,6 +13,15 @@ export default function BrandLogoImage({
   const [displaySrc, setDisplaySrc] = useState(() => normalizedPlaceholder || normalizedSrc || null)
   const [loadedFull, setLoadedFull] = useState(() => !normalizedPlaceholder || normalizedPlaceholder === normalizedSrc)
 
+  const handleImgError = useCallback(() => {
+    if (normalizedPlaceholder && normalizedPlaceholder !== displaySrc) {
+      setDisplaySrc(normalizedPlaceholder)
+    } else {
+      setDisplaySrc(null)
+    }
+    setLoadedFull(true)
+  }, [normalizedPlaceholder, displaySrc])
+
   useEffect(() => {
     if (!normalizedSrc) {
       setDisplaySrc(null)
@@ -22,8 +31,15 @@ export default function BrandLogoImage({
 
     if (!normalizedPlaceholder || normalizedPlaceholder === normalizedSrc) {
       setDisplaySrc(normalizedSrc)
-      setLoadedFull(true)
-      return
+      setLoadedFull(false)
+      const image = new Image()
+      image.onload = () => setLoadedFull(true)
+      image.onerror = handleImgError
+      image.src = normalizedSrc
+      return () => {
+        image.onload = null
+        image.onerror = null
+      }
     }
 
     setDisplaySrc(normalizedPlaceholder)
@@ -34,17 +50,14 @@ export default function BrandLogoImage({
       setDisplaySrc(normalizedSrc)
       setLoadedFull(true)
     }
-    image.onerror = () => {
-      setDisplaySrc(normalizedSrc)
-      setLoadedFull(true)
-    }
+    image.onerror = handleImgError
     image.src = normalizedSrc
 
     return () => {
       image.onload = null
       image.onerror = null
     }
-  }, [normalizedPlaceholder, normalizedSrc])
+  }, [normalizedPlaceholder, normalizedSrc, handleImgError])
 
   if (!displaySrc) return null
 
@@ -56,6 +69,7 @@ export default function BrandLogoImage({
       loading="eager"
       decoding="async"
       fetchpriority="high"
+      onError={handleImgError}
       style={{
         ...style,
         transition: 'filter 180ms ease, opacity 180ms ease',

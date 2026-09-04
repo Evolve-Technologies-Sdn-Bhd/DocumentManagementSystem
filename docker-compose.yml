@@ -1,0 +1,135 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dms-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb_buffer_pool_size=1G
+      - --max_connections=200
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Kuala_Lumpur
+    volumes:
+      - dms_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - dms-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dms-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    shm_size: "1gb"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      FRONTEND_URL: ${FRONTEND_URL}
+      UPLOAD_DIR: ./uploads
+      RUN_SEED: ${RUN_SEED:-false}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.2}
+      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-2048}
+      AI_DEFAULT_LANGUAGE: ${AI_DEFAULT_LANGUAGE:-en}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_SMTP_HOST: ${SMTP_HOST:-}
+      EMAIL_SMTP_PORT: ${SMTP_PORT:-587}
+      EMAIL_USER: ${SMTP_USERNAME:-}
+      EMAIL_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${SMTP_FROM:-}
+      CHROME_BIN: /usr/bin/chromium
+      LIBREOFFICE_BIN: /usr/bin/soffice
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      TZ: Asia/Kuala_Lumpur
+    volumes:
+      - dms_uploads:/app/uploads
+      - dms_backups:/app/backups
+    networks:
+      - dms-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dms-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    volumes:
+      - dms_uploads:/usr/share/nginx/uploads:ro
+    networks:
+      - dms-net
+
+  caddy:
+    build:
+      context: ./deploy/docker/caddy
+      dockerfile: Dockerfile
+    container_name: dms-caddy
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      TZ: Asia/Kuala_Lumpur
+      TLS_MODE: ${TLS_MODE:-auto}
+      DMS_PUBLIC_URLS: ${DMS_PUBLIC_URLS:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./deploy/docker/caddy/tls:/etc/caddy/tls:ro
+    networks:
+      - dms-net
+
+volumes:
+  dms_mysql_data:
+    driver: local
+  dms_uploads:
+    driver: local
+  dms_backups:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  dms-net:
+    driver: bridge

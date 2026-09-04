@@ -974,6 +974,20 @@ class ConfigService {
     return JSON.parse(config.value);
   }
 
+  async resolveBrandingFile(pathOrUrl) {
+    if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
+    const match = pathOrUrl.match(/^\/uploads\/branding\/([^?]+)(?:\?.*)?$/i);
+    if (!match) return pathOrUrl;
+    const fileName = match[1];
+    const filePath = path.join(appConfig.uploadDir, 'branding', fileName);
+    try {
+      await fs.access(filePath);
+      return pathOrUrl;
+    } catch {
+      return null;
+    }
+  }
+
   async getThemeSettings() {
     const config = await prisma.configuration.findUnique({
       where: { key: 'theme_settings' }
@@ -981,7 +995,13 @@ class ConfigService {
 
     if (config?.value) {
       try {
-        return JSON.parse(config.value);
+        const parsed = JSON.parse(config.value);
+        if (parsed && typeof parsed === 'object') {
+          parsed.mainLogo = await this.resolveBrandingFile(parsed.mainLogo);
+          parsed.favicon = await this.resolveBrandingFile(parsed.favicon);
+          parsed.bgImage = await this.resolveBrandingFile(parsed.bgImage);
+        }
+        return parsed;
       } catch (error) {
         console.error('Failed to parse theme settings:', error);
       }
