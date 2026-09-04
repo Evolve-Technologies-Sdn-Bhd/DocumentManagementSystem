@@ -430,6 +430,14 @@ export function applyCompanyInfo(companyInfo) {
 }
 
 export function persistBranding({ companyInfo, theme }) {
+  // #region debug-point A,H:persistBranding
+  console.log(`%c[DEBUG-BRAND-PERSIST] ===== persistBranding() CALLED =====`, 'color:#0E7490;font-weight:bold')
+  if (theme) {
+    console.log(`[DEBUG-BRAND-PERSIST] theme.mainLogo (raw before inMemoryBranding)=`, theme.mainLogo, typeof theme.mainLogo)
+    console.log(`[DEBUG-BRAND-PERSIST] theme.mainLogoPlaceholder=`, theme.mainLogoPlaceholder)
+    console.log(`[DEBUG-BRAND-PERSIST] theme.favicon=`, theme.favicon ? '(set)' : 'null/undefined')
+  }
+  // #endregion
   if (companyInfo && typeof companyInfo === 'object') {
     inMemoryBranding.companyInfo = cloneValue(companyInfo)
     try {
@@ -439,13 +447,42 @@ export function persistBranding({ companyInfo, theme }) {
     }
   }
   if (theme && typeof theme === 'object') {
-    inMemoryBranding.theme = cloneValue(theme)
-    const sanitizedTheme = sanitizeThemeForStorage(theme)
+    // 🌟 CRITICAL GUARD AGAINST "LOGO DISAPPEARS" RACE:
+    // If backend returned mainLogo=null (failed to resolve file / pre-fix behavior) BUT we already have
+    // a cached mainLogo in memory (from previous state/navigation), PRESERVE the cached one.
+    // This prevents: appears briefly from cache → gets overwritten to null → disappears.
+    // Only overwrite when incoming explicitly provides a logo (even if path later errors, it will fallback via onerror).
+    const hasIncomingLogo = typeof theme.mainLogo === 'string' && theme.mainLogo.trim() !== '';
+    const hasCachedLogo = typeof inMemoryBranding.theme?.mainLogo === 'string' && inMemoryBranding.theme.mainLogo.trim() !== '';
+    let effectiveTheme = theme;
+    if (!hasIncomingLogo && hasCachedLogo) {
+      effectiveTheme = { ...theme, mainLogo: inMemoryBranding.theme.mainLogo };
+      // Also preserve placeholder if incoming has none and cached has one
+      if (!theme.mainLogoPlaceholder && inMemoryBranding.theme.mainLogoPlaceholder) {
+        effectiveTheme.mainLogoPlaceholder = inMemoryBranding.theme.mainLogoPlaceholder;
+      }
+      // #region debug-point A,H:persistBranding
+      console.log(`%c[DEBUG-BRAND-PERSIST] 🛡️ GUARD TRIGGERED: incoming theme.mainLogo is NULL/EMPTY but cache has logo — PRESERVING cached logo instead of nullifying!`, 'color:#065F46;font-weight:bold');
+      console.log(`[DEBUG-BRAND-PERSIST]   preserved mainLogo=`, inMemoryBranding.theme.mainLogo);
+      // #endregion
+    }
+    inMemoryBranding.theme = cloneValue(effectiveTheme)
+    // #region debug-point A,H:persistBranding
+    console.log(`[DEBUG-BRAND-PERSIST] ✅ inMemoryBranding.theme.mainLogo set to=`, inMemoryBranding.theme.mainLogo)
+    // #endregion
+    const sanitizedTheme = sanitizeThemeForStorage(effectiveTheme)
+    // #region debug-point A,H:persistBranding
+    console.log(`[DEBUG-BRAND-PERSIST] sanitizedTheme (for localStorage, mainLogo stripped if localFileRef)=`, sanitizedTheme.mainLogo ? 'still has it' : 'WAS REMOVED by sanitizeThemeForStorage')
+    console.log(`[DEBUG-BRAND-PERSIST] isLocalFileRef(effectiveTheme.mainLogo)?=`, isLocalFileRef(effectiveTheme.mainLogo))
+    // #endregion
     try {
       localStorage.setItem('dms_theme_settings', JSON.stringify(sanitizedTheme))
     } catch (error) {
       console.warn('Failed to persist theme branding to localStorage; using in-memory fallback.', error)
     }
   }
+  // #region debug-point A,H:persistBranding
+  console.log(`%c[DEBUG-BRAND-PERSIST] 📢 dispatchEvent BRANDING_UPDATED_EVENT — ALL SUBSCRIBERS WILL RE-RENDER`, 'color:#F59E0B;font-weight:bold')
+  // #endregion
   window.dispatchEvent(new Event(BRANDING_UPDATED_EVENT))
 }

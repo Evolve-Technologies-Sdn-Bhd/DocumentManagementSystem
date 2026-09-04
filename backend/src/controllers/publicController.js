@@ -6,44 +6,136 @@ const path = require('path');
 const appConfig = require('../config/app');
 
 const resolveBrandingFile = async (pathOrUrl) => {
-  if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
+  // #region debug-point E:publicResolveBrandingFile
+  const traceId = `pub-logo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] ===== resolveBrandingFile (publicController) START =====`)
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] raw input:`, JSON.stringify(pathOrUrl), typeof pathOrUrl)
+  // #endregion
+  if (!pathOrUrl || typeof pathOrUrl !== 'string') {
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] early return null (empty/invalid)`)
+    // #endregion
+    return null;
+  }
   const trimmed = pathOrUrl.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('data:')) return trimmed;
+  if (!trimmed) {
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] early return null (trimmed empty)`)
+    // #endregion
+    return null;
+  }
+  if (trimmed.startsWith('data:')) {
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] is data: URL, return as-is (len=${trimmed.length})`)
+    // #endregion
+    return trimmed;
+  }
   const normalized = trimmed
     .replace(/^https?:\/\/[^/]+/i, '')
     .replace(/^\/+/, '');
+  // #region debug-point E:publicResolveBrandingFile
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] trimmed:`, JSON.stringify(trimmed))
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] normalized (strip domain/leading slashes):`, JSON.stringify(normalized))
+  // #endregion
   const match = normalized.match(/^uploads\/branding\/([^/?#]+)(?:[?#].*)?$/i);
+  // #region debug-point E:publicResolveBrandingFile
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] match (uploads/branding regex):`, match ? `OK -> fileName=${match[1]}` : 'NO MATCH')
+  // #endregion
   if (!match) {
     const legacyMatch = trimmed.match(/(?:^|\/)branding\/([^/?#]+)(?:[?#].*)?$/i);
-    if (!legacyMatch) return trimmed;
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] legacyMatch (branding regex):`, legacyMatch ? `OK -> fileName=${legacyMatch[1]}` : 'NO MATCH')
+    // #endregion
+    if (!legacyMatch) {
+      // #region debug-point E:publicResolveBrandingFile
+      console.log(`[DEBUG-PUB-BRANDING:${traceId}] NO MATCH either regex, returning trimmed=`, JSON.stringify(trimmed))
+      // #endregion
+      return trimmed;
+    }
   }
   const fileName = (match ? match[1] : null) || (trimmed.match(/(?:^|\/)([^\/?#]+)(?:[?#].*)?$/) || [])[1] || null;
-  if (!fileName) return null;
+  if (!fileName) {
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] fileName extraction FAILED, return null`)
+    // #endregion
+    return null;
+  }
+  // #region debug-point E:publicResolveBrandingFile
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] FINAL fileName=`, JSON.stringify(fileName))
+  // #endregion
   const baseDir = appConfig && appConfig.uploadDir ? appConfig.uploadDir : path.resolve(process.cwd(), 'uploads');
   const filePath = path.join(baseDir, 'branding', fileName);
   const fsConst = require('fs').constants;
+  // #region debug-point E:publicResolveBrandingFile
+  console.log(`[DEBUG-PUB-BRANDING:${traceId}] baseDir=`, JSON.stringify(baseDir), `checking filePath=`, JSON.stringify(filePath))
+  // #endregion
   try {
     await fs.access(filePath, fsConst.R_OK);
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] ✅ baseDir FOUND, return /uploads/branding/${fileName}`)
+    // #endregion
     return `/uploads/branding/${fileName}`;
-  } catch {
+  } catch (err) {
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ baseDir NOT FOUND (${err.code}), trying altDirs...`)
+    // #endregion
+    let foundPath = null;
     try {
+      const processCwd = process.cwd();
+      let osHomedir = processCwd;
+      try { osHomedir = require('os').homedir(); } catch {}
       const altDirs = [
-        path.resolve(process.cwd(), 'uploads'),
-        path.resolve(process.cwd(), '..', 'uploads'),
-        path.resolve(process.cwd(), 'public', 'uploads'),
+        path.resolve(processCwd, 'uploads'),
+        path.resolve(processCwd, '..', 'uploads'),
+        path.resolve(processCwd, 'public', 'uploads'),
+        path.resolve(processCwd, '..', 'backend', 'uploads'),
+        path.resolve(processCwd, 'backend', 'uploads'),
+        // aaPanel standard paths (demo + generic)
         '/www/wwwroot/dms.demo.clbgroups.com/backend/uploads',
-        '/www/wwwroot/dms.demo.clbgroups.com/uploads'
+        '/www/wwwroot/dms.demo.clbgroups.com/uploads',
+        '/www/wwwroot/dms.demo.clbgroups.com/backend/public/uploads',
+        '/www/wwwroot/dms.demo.clbgroups.com/public/uploads',
+        '/www/wwwroot/default/backend/uploads',
+        '/www/wwwroot/default/uploads',
+        // Docker on-prem bind mount paths
+        '/var/www/html/backend/uploads',
+        '/var/www/html/uploads',
+        '/app/backend/uploads',
+        '/app/uploads',
+        '/data/backend/uploads',
+        '/data/uploads',
+        // Home dir fallback
+        path.resolve(osHomedir, 'dms', 'uploads'),
+        path.resolve(osHomedir, 'dms', 'backend', 'uploads')
       ];
       for (const dir of altDirs) {
         const altPath = path.join(dir, 'branding', fileName);
         try {
           await fs.access(altPath, fsConst.R_OK);
-          return `/uploads/branding/${fileName}`;
-        } catch {}
+          // #region debug-point E:publicResolveBrandingFile
+          console.log(`[DEBUG-PUB-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /uploads/branding/${fileName}`)
+          // #endregion
+          foundPath = `/uploads/branding/${fileName}`;
+          break;
+        } catch (e2) {
+          // #region debug-point E:publicResolveBrandingFile
+          console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ altDir MISS: dir=${JSON.stringify(dir)} (${e2.code})`)
+          // #endregion
+        }
       }
-    } catch {}
-    return null;
+    } catch (outerErr) {
+      // #region debug-point E:publicResolveBrandingFile
+      console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ altDirs loop EXCEPTION:`, outerErr.message)
+      // #endregion
+    }
+    if (foundPath) return foundPath;
+    // 🌟 CRITICAL FALLBACK (same as configService): return RELATIVE PATH instead of NULL
+    // This prevents frontend global state null override race.
+    const relativeReturn = `/uploads/branding/${fileName}`;
+    // #region debug-point E:publicResolveBrandingFile
+    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning RELATIVE PATH FALLBACK: ${JSON.stringify(relativeReturn)} INSTEAD OF NULL (prevents global state null override)`, 'color:#B45309;font-weight:bold');
+    // #endregion
+    return relativeReturn;
   }
 };
 
