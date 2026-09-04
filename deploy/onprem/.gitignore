@@ -1,8 +1,0 @@
-# On-prem server files get copied from workstation — we do NOT commit the live
-# on-prem server's .env, MySQL dump imports, TLS keys, or local PKI private
-# key (Root CA private key MUST stay OFF git, ideally encrypted in a vault).
-# The PUBLIC root certs (DMS-RootCA.pem/.crt/.p7b) can safely be committed if
-# you want them; the .gitkeep just makes sure the folder exists in git.
-*.sql
-*.sql.gz
-!.gitkeep
