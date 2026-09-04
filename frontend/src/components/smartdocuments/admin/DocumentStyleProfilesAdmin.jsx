@@ -1910,6 +1910,8 @@ export default function DocumentStyleProfilesAdmin() {
                   )}
                 </div>
               )}
+              </>
+              )}
               {formStep === 5 && (
               <>
                 <p className="text-xs font-semibold text-gray-900 tracking-wide uppercase mt-2 mb-5">Tables</p>
