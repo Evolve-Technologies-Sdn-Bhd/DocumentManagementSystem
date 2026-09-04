@@ -1,0 +1,2 @@
+# Keep this folder tracked in git; real generated TLS keys, server-key.pem,
+# and RootCA private key are .gitignored individually.
