@@ -64,14 +64,19 @@ export default function BrandLogoImage({
     console.log(`[DEBUG-BRANDIMG:${compId.current}]   displaySrc BEFORE=`, displaySrc, '— loadedFull=', loadedFull)
     // #endregion
     setDisplaySrc((prev) => {
-      if (normalizedPlaceholder && normalizedPlaceholder !== prev) {
+      // Always prefer placeholder FIRST if available — regardless of what prev was
+      if (normalizedPlaceholder) {
         // #region debug-point D,H:brandLogoImage
-        console.log(`[DEBUG-BRANDIMG:${compId.current}]   displaySrc AFTER= normalizedPlaceholder=`, normalizedPlaceholder)
+        if (prev === normalizedPlaceholder) {
+          console.log(`[DEBUG-BRANDIMG:${compId.current}]   ⚠️ prev already WAS placeholder; but normalizedPlaceholder is set → still USE placeholder (prevent NULL fallback)`)
+        } else {
+          console.log(`[DEBUG-BRANDIMG:${compId.current}]   displaySrc AFTER= normalizedPlaceholder=`, normalizedPlaceholder)
+        }
         // #endregion
         return normalizedPlaceholder
       }
       // #region debug-point D,H:brandLogoImage
-      console.log(`%c[DEBUG-BRANDIMG:${compId.current}]   displaySrc AFTER= NULL — LOGO DISAPPEARS!`, 'color:#DC2626;font-weight:bold')
+      console.log(`%c[DEBUG-BRANDIMG:${compId.current}]   displaySrc AFTER= NULL — NO PLACEHOLDER, LOGO HIDDEN (expected: no placeholder available)`, 'color:#B45309;font-weight:bold')
       // #endregion
       return null
     })
