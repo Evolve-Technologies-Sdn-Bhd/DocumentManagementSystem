@@ -1128,6 +1128,12 @@ function ThemeAssetField({
   previewImageClassName = 'max-h-full max-w-full object-contain',
   onRemove
 }) {
+  const [previewError, setPreviewError] = useState(false)
+  const safePreview = preview && !previewError ? preview : null
+  const handleImgError = () => setPreviewError(true)
+  useEffect(() => {
+    setPreviewError(false)
+  }, [preview])
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-ink">{label}</label>
@@ -1142,10 +1148,20 @@ function ThemeAssetField({
           />
           <p className="mt-1 text-xs text-ink-muted">{hint}</p>
         </div>
-        {preview ? (
+        {safePreview ? (
           <div className="flex flex-col gap-2">
             <div className={`${previewBoxClassName} flex items-center justify-center rounded-lg border border-border bg-surface p-2`}>
-              <img src={preview} alt={previewAlt} className={previewImageClassName} />
+              <img src={safePreview} alt={previewAlt} className={previewImageClassName} onError={handleImgError} />
+            </div>
+            <Button type="button" variant="danger" size="sm" onClick={onRemove}>
+              Remove
+            </Button>
+          </div>
+        ) : preview && previewError ? (
+          <div className="flex flex-col gap-2">
+            <div className={`${previewBoxClassName} flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface-muted p-2 text-xs text-ink-muted`}>
+              <span className="mb-1 font-medium">File missing</span>
+              <span>Upload a new one</span>
             </div>
             <Button type="button" variant="danger" size="sm" onClick={onRemove}>
               Remove
@@ -1313,9 +1329,9 @@ const ThemeBranding = () => {
       setTheme(mergedTheme)
       setOriginalTheme(mergedTheme)
       applyTheme(mergedTheme)
-      if (mergedTheme.mainLogo) setLogoPreview(mergedTheme.mainLogo)
-      if (mergedTheme.favicon) setFaviconPreview(mergedTheme.favicon)
-      if (mergedTheme.bgImage) setBgImagePreview(mergedTheme.bgImage)
+      setLogoPreview(mergedTheme.mainLogo ?? null)
+      setFaviconPreview(mergedTheme.favicon ?? null)
+      setBgImagePreview(mergedTheme.bgImage ?? null)
     }
 
     const load = async () => {

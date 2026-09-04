@@ -343,6 +343,25 @@ class DocxToPdfService {
       </table>`
     }
 
+    const useCustom = sp.headerUseCustomImage === true && !!sp.headerCustomImagePath
+    if (useCustom) {
+      try {
+        const imgDataUrl = await this._loadLogoBase64(sp.headerCustomImagePath)
+        const pageWidthMm = (sp.pageOrientation === 'LANDSCAPE')
+          ? (({ A4: 297, LETTER: 279.4, LEGAL: 355.6 }[sp.pageSize]) || (Number(sp.pageWidthMm) || 297))
+          : (({ A4: 210, LETTER: 215.9, LEGAL: 215.9 }[sp.pageSize]) || (Number(sp.pageWidthMm) || 210))
+        const contentWidthMm = Math.max(1, pageWidthMm - leftPadMm - rightPadMm)
+        let userWidthMm = sp.headerCustomImageWidthMm != null ? Number(sp.headerCustomImageWidthMm) : NaN
+        let imgWidthMm = Number.isFinite(userWidthMm) && userWidthMm > 0 ? Math.min(userWidthMm, contentWidthMm) : contentWidthMm
+        const inner = imgDataUrl
+          ? `<div style="width:100%; padding:0; margin:0; box-sizing:border-box;"><img src="${imgDataUrl}" alt="Header" style="width:${imgWidthMm}mm; max-width:100%; height:auto; display:block; object-fit:contain;"/></div>`
+          : `<div style="width:100%; padding:1mm 0; border-bottom:1px dashed #ccc; text-align:center; color:#999; font-size:9px;">[Header image not found]</div>`
+        return `<div style="width:100%; font-family:${fontFamily}; padding:0; box-sizing:border-box; margin:0;">${_wrapWithMargins(inner)}</div>`
+      } catch (e) {
+        console.warn('[docxToPdfService] Custom header image build failed (fallback to pro/simple):', e?.message || e)
+      }
+    }
+
     const usePro = sp.headerUseProfessionalLayout === true
     if (usePro) {
       try {
@@ -486,6 +505,25 @@ class DocxToPdfService {
           <td width="${rightPadMm}mm" style="width:${rightPadMm}mm; min-width:${rightPadMm}mm; max-width:${rightPadMm}mm; padding:0; margin:0;"></td>
         </tr>
       </table>`
+    }
+
+    const useCustom = sp.footerUseCustomImage === true && !!sp.footerCustomImagePath
+    if (useCustom) {
+      try {
+        const imgDataUrl = await this._loadLogoBase64(sp.footerCustomImagePath)
+        const pageWidthMm = (sp.pageOrientation === 'LANDSCAPE')
+          ? (({ A4: 297, LETTER: 279.4, LEGAL: 355.6 }[sp.pageSize]) || (Number(sp.pageWidthMm) || 297))
+          : (({ A4: 210, LETTER: 215.9, LEGAL: 215.9 }[sp.pageSize]) || (Number(sp.pageWidthMm) || 210))
+        const contentWidthMm = Math.max(1, pageWidthMm - leftPadMm - rightPadMm)
+        let userWidthMm = sp.footerCustomImageWidthMm != null ? Number(sp.footerCustomImageWidthMm) : NaN
+        let imgWidthMm = Number.isFinite(userWidthMm) && userWidthMm > 0 ? Math.min(userWidthMm, contentWidthMm) : contentWidthMm
+        const inner = imgDataUrl
+          ? `<div style="width:100%; padding:0; margin:0; box-sizing:border-box;"><img src="${imgDataUrl}" alt="Footer" style="width:${imgWidthMm}mm; max-width:100%; height:auto; display:block; object-fit:contain;"/></div>`
+          : `<div style="width:100%; padding:1mm 0; border-top:1px dashed #ccc; text-align:center; color:#999; font-size:9px;">[Footer image not found]</div>`
+        return `<div style="width:100%; font-family:${fontFamily}; padding:0; box-sizing:border-box; margin:0;">${_wrapWithMargins(inner)}</div>`
+      } catch (e) {
+        console.warn('[docxToPdfService] Custom footer image build failed (fallback to pro/simple):', e?.message || e)
+      }
     }
 
     const usePro = sp.footerUseProfessionalLayout === true

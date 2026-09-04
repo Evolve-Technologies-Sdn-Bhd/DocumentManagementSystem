@@ -1975,6 +1975,10 @@ model SmartDocumentStyleProfile {
   headerEnabled    Boolean  @default(true)
   headerHeightMm   Decimal? @db.Decimal(10, 2)
   headerLogoPath   String?
+  // ===== Custom Pre-formatted Image Mode (upload an existing letterhead image directly) =====
+  headerUseCustomImage   Boolean  @default(false)
+  headerCustomImagePath  String?
+  headerCustomImageWidthMm Decimal? @db.Decimal(10, 2)
   // ===== Professional Evolve-style Header (logo + name/regno + address + tel + email + line) =====
   headerUseProfessionalLayout Boolean  @default(true)
   // Logo size in millimetres (aspect ratio preserved if only one set)
@@ -2004,6 +2008,10 @@ model SmartDocumentStyleProfile {
   // Footer configuration
   footerEnabled    Boolean  @default(true)
   footerHeightMm   Decimal? @db.Decimal(10, 2)
+  // ===== Custom Pre-formatted Footer Image Mode =====
+  footerUseCustomImage   Boolean  @default(false)
+  footerCustomImagePath  String?
+  footerCustomImageWidthMm Decimal? @db.Decimal(10, 2)
   // ===== Professional Footer Standards (pro-controlled documentation) =====
   footerUseProfessionalLayout Boolean  @default(true)
   // Confidentiality / classification line (e.g. "CONFIDENTIAL - Property of Evolve Technology Platform Sdn. Bhd.")

@@ -844,6 +844,46 @@ function buildProfessionalHeaderXml(profile, systemValues, context) {
   return parts.join('');
 }
 
+function buildCustomImageHeaderXml(profile, context) {
+  const sp = profile || {};
+  const ctx = context || {};
+  const relId = ctx.customImageRelId || null;
+
+  const parts = [];
+  parts.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
+  parts.push('<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">');
+
+  try {
+    const pageWidthMm = (sp.pageOrientation === 'LANDSCAPE')
+      ? (PAGE_SIZE_PRESETS[sp.pageSize] ? PAGE_SIZE_PRESETS[sp.pageSize].heightMm : (Number(sp.pageWidthMm) || 297))
+      : (PAGE_SIZE_PRESETS[sp.pageSize] ? PAGE_SIZE_PRESETS[sp.pageSize].widthMm : (Number(sp.pageWidthMm) || 210));
+    const ml = sp.marginLeftMm != null ? Number(sp.marginLeftMm) : 25.4;
+    const mr = sp.marginRightMm != null ? Number(sp.marginRightMm) : 25.4;
+    const contentWidthMm = Math.max(1, pageWidthMm - ml - mr);
+
+    let widthMm = sp.headerCustomImageWidthMm != null ? Number(sp.headerCustomImageWidthMm) : contentWidthMm;
+    if (!isFinite(widthMm) || widthMm <= 0) widthMm = contentWidthMm;
+    if (widthMm > contentWidthMm) widthMm = contentWidthMm;
+
+    const aspectHeightMm = Math.max(5, Math.round(widthMm * 0.28));
+    const cxEmu = mmToEmu(widthMm);
+    const cyEmu = mmToEmu(aspectHeightMm);
+
+    parts.push('<w:p><w:pPr><w:jc w:val="left"/></w:pPr>');
+    if (relId) {
+      parts.push(`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cxEmu}" cy="${cyEmu}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="2" name="CustomHeaderImg" descr="Custom Header Image"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="2" name="CustomHeaderImg.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cxEmu}" cy="${cyEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`);
+    } else {
+      parts.push(`<w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:t xml:space="preserve">&#160;</w:t></w:r>`);
+    }
+    parts.push('</w:p>');
+  } catch (e) {
+    console.warn('[SmartDocumentFormatter] Custom image header build failed:', e.message);
+  }
+
+  parts.push('</w:hdr>');
+  return parts.join('');
+}
+
 function buildFooterXml({ styleProfile, footerValues }) {
   const sp = styleProfile || {};
   const fv = footerValues || {};
@@ -1013,12 +1053,54 @@ function buildProfessionalFooterXml(profile, systemValues) {
   }
 }
 
+function buildCustomImageFooterXml(profile, context) {
+  const sp = profile || {};
+  const ctx = context || {};
+  const relId = ctx.customImageRelId || null;
+
+  const parts = [];
+  parts.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
+  parts.push('<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">');
+
+  try {
+    const pageWidthMm = (sp.pageOrientation === 'LANDSCAPE')
+      ? (PAGE_SIZE_PRESETS[sp.pageSize] ? PAGE_SIZE_PRESETS[sp.pageSize].heightMm : (Number(sp.pageWidthMm) || 297))
+      : (PAGE_SIZE_PRESETS[sp.pageSize] ? PAGE_SIZE_PRESETS[sp.pageSize].widthMm : (Number(sp.pageWidthMm) || 210));
+    const ml = sp.marginLeftMm != null ? Number(sp.marginLeftMm) : 25.4;
+    const mr = sp.marginRightMm != null ? Number(sp.marginRightMm) : 25.4;
+    const contentWidthMm = Math.max(1, pageWidthMm - ml - mr);
+
+    let widthMm = sp.footerCustomImageWidthMm != null ? Number(sp.footerCustomImageWidthMm) : contentWidthMm;
+    if (!isFinite(widthMm) || widthMm <= 0) widthMm = contentWidthMm;
+    if (widthMm > contentWidthMm) widthMm = contentWidthMm;
+
+    const aspectHeightMm = Math.max(3, Math.round(widthMm * 0.14));
+    const cxEmu = mmToEmu(widthMm);
+    const cyEmu = mmToEmu(aspectHeightMm);
+
+    parts.push('<w:p><w:pPr><w:jc w:val="left"/></w:pPr>');
+    if (relId) {
+      parts.push(`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cxEmu}" cy="${cyEmu}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="3" name="CustomFooterImg" descr="Custom Footer Image"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="3" name="CustomFooterImg.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cxEmu}" cy="${cyEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`);
+    } else {
+      parts.push(`<w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:t xml:space="preserve">&#160;</w:t></w:r>`);
+    }
+    parts.push('</w:p>');
+  } catch (e) {
+    console.warn('[SmartDocumentFormatter] Custom image footer build failed:', e.message);
+  }
+
+  parts.push('</w:ftr>');
+  return parts.join('');
+}
+
 function injectHeaderFooter(zip, docXml, styleProfile, headerValues, footerValues, systemValues) {
   const sp = styleProfile || {};
   const headerEnabled = sp.headerEnabled === true;
   const footerEnabled = sp.footerEnabled === true;
-  const useProHeader = sp.headerUseProfessionalLayout === true;
-  const useProFooter = sp.footerUseProfessionalLayout === true;
+  const useCustomHeader = sp.headerUseCustomImage === true && !!sp.headerCustomImagePath;
+  const useCustomFooter = sp.footerUseCustomImage === true && !!sp.footerCustomImagePath;
+  const useProHeader = !useCustomHeader && sp.headerUseProfessionalLayout === true;
+  const useProFooter = !useCustomFooter && sp.footerUseProfessionalLayout === true;
 
   let relsXml = '';
   const relsFile = zip.file('word/_rels/document.xml.rels');
@@ -1031,63 +1113,111 @@ function injectHeaderFooter(zip, docXml, styleProfile, headerValues, footerValue
 
   if (headerEnabled) {
     try {
-      let headerLogoRelId = null;
-      if (sp.headerLogoPath) {
-        headerLogoRelId = buildUniqueRelId(existingRIds);
-        existingRIds.push(headerLogoRelId);
-        relsXml = addRelEntry(relsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
-        changed = true;
-      }
-
       let headerXml;
-      if (useProHeader) {
-        try {
-          let mailtoRelId = null;
-          if (sp.headerCompanyEmail) {
-            try {
-              mailtoRelId = buildUniqueRelId(existingRIds);
-              existingRIds.push(mailtoRelId);
-            } catch (e) { mailtoRelId = null; }
-          }
 
-          headerXml = buildProfessionalHeaderXml(sp, systemValues, { headerLogoRelId, mailtoRelId });
+      if (useCustomHeader) {
+        let customImgRelId = null;
+        const resolvedCustomPath = resolveLogoFilePath(sp.headerCustomImagePath);
+        if (resolvedCustomPath) {
+          try {
+            const imgBuffer = fs.readFileSync(resolvedCustomPath);
+            const ext = path.extname(resolvedCustomPath).toLowerCase();
+            const mediaName = ext === '.jpg' || ext === '.jpeg' ? 'word/media/headerCustomImg.jpeg' : 'word/media/headerCustomImg.png';
+            zip.file(mediaName, imgBuffer, { binary: true });
 
-          if (mailtoRelId) {
+            customImgRelId = buildUniqueRelId(existingRIds);
+            existingRIds.push(customImgRelId);
+
+            let headerRelsXml = '';
+            const existingHeaderRels = zip.file('word/_rels/header1.xml.rels');
+            if (existingHeaderRels) headerRelsXml = existingHeaderRels.asText();
+            headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.IMAGE);
+            headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.HYPERLINK);
+            const mediaTarget = ext === '.jpg' || ext === '.jpeg' ? 'media/headerCustomImg.jpeg' : 'media/headerCustomImg.png';
+            headerRelsXml = addRelEntry(headerRelsXml, customImgRelId, REL_TYPES.IMAGE, mediaTarget);
+            zip.file('word/_rels/header1.xml.rels', ensureXmlDirective(headerRelsXml));
+            changed = true;
+
             try {
-              const target = `mailto:${encodeURIComponent(sp.headerCompanyEmail)}`;
-              let headerRelsXml = '';
-              const existingHeaderRels = zip.file('word/_rels/header1.xml.rels');
-              if (existingHeaderRels) headerRelsXml = existingHeaderRels.asText();
-              headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.HYPERLINK);
-              headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.IMAGE);
-              headerRelsXml = addRelEntry(headerRelsXml, mailtoRelId, REL_TYPES.HYPERLINK, target);
-              if (headerLogoRelId) {
-                headerRelsXml = addRelEntry(headerRelsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
+              const ctFile = zip.file('[Content_Types].xml');
+              if (ctFile) {
+                let ctXml = ctFile.asText();
+                const needPng = ext === '.png';
+                const needJpeg = ext === '.jpg' || ext === '.jpeg';
+                if (needPng && !ctXml.includes('Extension="png"')) {
+                  ctXml = ctXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+                }
+                if (needJpeg && !ctXml.includes('Extension="jpeg"') && !ctXml.includes('Extension="jpg"')) {
+                  ctXml = ctXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+                }
+                zip.file('[Content_Types].xml', ensureXmlDirective(ctXml));
               }
-              zip.file('word/_rels/header1.xml.rels', ensureXmlDirective(headerRelsXml));
-              changed = true;
-            } catch (e) {
-              console.warn('[SmartDocumentFormatter] Header rels write failed:', e.message);
-            }
-          } else if (headerLogoRelId) {
-            try {
-              let headerRelsXml = '';
-              const existingHeaderRels = zip.file('word/_rels/header1.xml.rels');
-              if (existingHeaderRels) headerRelsXml = existingHeaderRels.asText();
-              headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.IMAGE);
-              headerRelsXml = addRelEntry(headerRelsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
-              zip.file('word/_rels/header1.xml.rels', ensureXmlDirective(headerRelsXml));
-              changed = true;
-            } catch (e) {
-              console.warn('[SmartDocumentFormatter] Header logo rels write failed:', e.message);
-            }
+            } catch (_) { /* ignore */ }
+          } catch (embErr) {
+            console.warn('[SmartDocumentFormatter] Custom header image embed failed:', embErr.message);
           }
-        } catch (proErr) {
-          console.warn('[SmartDocumentFormatter] Pro header generation failed, fallback to legacy:', proErr.message);
+        } else if (sp.headerCustomImagePath) {
+          console.warn('[SmartDocumentFormatter] Custom header image could not be resolved on disk:', sp.headerCustomImagePath);
+        }
+        headerXml = buildCustomImageHeaderXml(sp, { customImageRelId: customImgRelId });
+      } else {
+        let headerLogoRelId = null;
+        if (sp.headerLogoPath) {
+          headerLogoRelId = buildUniqueRelId(existingRIds);
+          existingRIds.push(headerLogoRelId);
+          relsXml = addRelEntry(relsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
+          changed = true;
+        }
+
+        if (useProHeader) {
+          try {
+            let mailtoRelId = null;
+            if (sp.headerCompanyEmail) {
+              try {
+                mailtoRelId = buildUniqueRelId(existingRIds);
+                existingRIds.push(mailtoRelId);
+              } catch (e) { mailtoRelId = null; }
+            }
+
+            headerXml = buildProfessionalHeaderXml(sp, systemValues, { headerLogoRelId, mailtoRelId });
+
+            if (mailtoRelId) {
+              try {
+                const target = `mailto:${encodeURIComponent(sp.headerCompanyEmail)}`;
+                let headerRelsXml = '';
+                const existingHeaderRels = zip.file('word/_rels/header1.xml.rels');
+                if (existingHeaderRels) headerRelsXml = existingHeaderRels.asText();
+                headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.HYPERLINK);
+                headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.IMAGE);
+                headerRelsXml = addRelEntry(headerRelsXml, mailtoRelId, REL_TYPES.HYPERLINK, target);
+                if (headerLogoRelId) {
+                  headerRelsXml = addRelEntry(headerRelsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
+                }
+                zip.file('word/_rels/header1.xml.rels', ensureXmlDirective(headerRelsXml));
+                changed = true;
+              } catch (e) {
+                console.warn('[SmartDocumentFormatter] Header rels write failed:', e.message);
+              }
+            } else if (headerLogoRelId) {
+              try {
+                let headerRelsXml = '';
+                const existingHeaderRels = zip.file('word/_rels/header1.xml.rels');
+                if (existingHeaderRels) headerRelsXml = existingHeaderRels.asText();
+                headerRelsXml = removeRelsByType(headerRelsXml, REL_TYPES.IMAGE);
+                headerRelsXml = addRelEntry(headerRelsXml, headerLogoRelId, REL_TYPES.IMAGE, 'media/headerLogo.png');
+                zip.file('word/_rels/header1.xml.rels', ensureXmlDirective(headerRelsXml));
+                changed = true;
+              } catch (e) {
+                console.warn('[SmartDocumentFormatter] Header logo rels write failed:', e.message);
+              }
+            }
+          } catch (proErr) {
+            console.warn('[SmartDocumentFormatter] Pro header generation failed, fallback to legacy:', proErr.message);
+            headerXml = buildHeaderXml({ styleProfile: sp, headerValues, headerLogoRelId });
+          }
+        } else {
           headerXml = buildHeaderXml({ styleProfile: sp, headerValues, headerLogoRelId });
         }
-      } else {
-        headerXml = buildHeaderXml({ styleProfile: sp, headerValues, headerLogoRelId });
       }
 
       zip.file('word/header1.xml', headerXml);
@@ -1151,15 +1281,63 @@ function injectHeaderFooter(zip, docXml, styleProfile, headerValues, footerValue
   if (footerEnabled) {
     try {
       let footerXml;
-      if (useProFooter) {
-        try {
-          footerXml = buildProfessionalFooterXml(sp, systemValues || footerValues || {});
-        } catch (proErr) {
-          console.warn('[SmartDocumentFormatter] Pro footer generation failed, fallback to legacy:', proErr.message);
+
+      if (useCustomFooter) {
+        let customImgRelId = null;
+        const resolvedCustomPath = resolveLogoFilePath(sp.footerCustomImagePath);
+        if (resolvedCustomPath) {
+          try {
+            const imgBuffer = fs.readFileSync(resolvedCustomPath);
+            const ext = path.extname(resolvedCustomPath).toLowerCase();
+            const mediaName = ext === '.jpg' || ext === '.jpeg' ? 'word/media/footerCustomImg.jpeg' : 'word/media/footerCustomImg.png';
+            zip.file(mediaName, imgBuffer, { binary: true });
+
+            customImgRelId = buildUniqueRelId(existingRIds);
+            existingRIds.push(customImgRelId);
+
+            let footerRelsXml = '';
+            const existingFooterRels = zip.file('word/_rels/footer1.xml.rels');
+            if (existingFooterRels) footerRelsXml = existingFooterRels.asText();
+            footerRelsXml = removeRelsByType(footerRelsXml, REL_TYPES.IMAGE);
+            footerRelsXml = removeRelsByType(footerRelsXml, REL_TYPES.HYPERLINK);
+            const mediaTarget = ext === '.jpg' || ext === '.jpeg' ? 'media/footerCustomImg.jpeg' : 'media/footerCustomImg.png';
+            footerRelsXml = addRelEntry(footerRelsXml, customImgRelId, REL_TYPES.IMAGE, mediaTarget);
+            zip.file('word/_rels/footer1.xml.rels', ensureXmlDirective(footerRelsXml));
+            changed = true;
+
+            try {
+              const ctFile = zip.file('[Content_Types].xml');
+              if (ctFile) {
+                let ctXml = ctFile.asText();
+                const needPng = ext === '.png';
+                const needJpeg = ext === '.jpg' || ext === '.jpeg';
+                if (needPng && !ctXml.includes('Extension="png"')) {
+                  ctXml = ctXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+                }
+                if (needJpeg && !ctXml.includes('Extension="jpeg"') && !ctXml.includes('Extension="jpg"')) {
+                  ctXml = ctXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+                }
+                zip.file('[Content_Types].xml', ensureXmlDirective(ctXml));
+              }
+            } catch (_) { /* ignore */ }
+          } catch (embErr) {
+            console.warn('[SmartDocumentFormatter] Custom footer image embed failed:', embErr.message);
+          }
+        } else if (sp.footerCustomImagePath) {
+          console.warn('[SmartDocumentFormatter] Custom footer image could not be resolved on disk:', sp.footerCustomImagePath);
+        }
+        footerXml = buildCustomImageFooterXml(sp, { customImageRelId: customImgRelId });
+      } else {
+        if (useProFooter) {
+          try {
+            footerXml = buildProfessionalFooterXml(sp, systemValues || footerValues || {});
+          } catch (proErr) {
+            console.warn('[SmartDocumentFormatter] Pro footer generation failed, fallback to legacy:', proErr.message);
+            footerXml = buildFooterXml({ styleProfile: sp, footerValues });
+          }
+        } else {
           footerXml = buildFooterXml({ styleProfile: sp, footerValues });
         }
-      } else {
-        footerXml = buildFooterXml({ styleProfile: sp, footerValues });
       }
 
       zip.file('word/footer1.xml', footerXml);

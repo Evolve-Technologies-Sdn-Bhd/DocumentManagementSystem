@@ -111,6 +111,9 @@ function emptyProfile() {
     paragraphSpacingAfterPt: 6,
     typographyJson: { ...DEFAULT_TYPOGRAPHY },
     headerEnabled: true,
+    headerUseCustomImage: false,
+    headerCustomImagePath: '',
+    headerCustomImageWidthMm: null,
     headerUseProfessionalLayout: true,
     headerLeftText: '',
     headerCenterText: '',
@@ -130,6 +133,9 @@ function emptyProfile() {
     headerBottomDividerWidthPt: 1.5,
     headerBottomDividerColor: '#000000',
     footerEnabled: true,
+    footerUseCustomImage: false,
+    footerCustomImagePath: '',
+    footerCustomImageWidthMm: null,
     footerUseProfessionalLayout: true,
     footerLeftText: '',
     footerCenterText: '',
@@ -485,6 +491,153 @@ function LogoUploadField({ value, onChange, disabled }) {
         <div className="text-[10px] text-gray-500 mt-1">
           Enter path manually or use upload button above
         </div>
+      </div>
+    </div>
+  )
+}
+
+const MAX_CUSTOM_HF_SIZE_MB = 5
+
+function CustomHeaderFooterImageUpload({
+  value,
+  onChange,
+  disabled,
+  endpoint,
+  formField,
+  responseKey = 'imagePath',
+  buttonText = 'Upload Image',
+  pathLabel = 'Image Path',
+  pathPlaceholder = '/uploads/branding/smart-headers/...png or full URL',
+  previewLabel = 'No image'
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = React.useRef(null)
+
+  function validateFile(file) {
+    const ext = '.' + file.name.split('.').pop().toLowerCase()
+    if (!ACCEPTED_LOGO_TYPES.includes(file.type) && !ACCEPTED_LOGO_EXTS.includes(ext)) {
+      return 'Invalid file type. Only JPEG and PNG images are allowed.'
+    }
+    const sizeMb = file.size / (1024 * 1024)
+    if (sizeMb > MAX_CUSTOM_HF_SIZE_MB) {
+      return `File too large. Maximum size is ${MAX_CUSTOM_HF_SIZE_MB}MB (your file: ${sizeMb.toFixed(2)}MB).`
+    }
+    return null
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadError('')
+    const validationError = validateFile(file)
+    if (validationError) {
+      setUploadError(validationError)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append(formField, file)
+      const res = await api.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      const resolvedPath = res?.data?.data?.[responseKey] || res?.data?.[responseKey]
+      if (resolvedPath) {
+        onChange(resolvedPath)
+      } else {
+        setUploadError('Upload failed: invalid response from server')
+      }
+    } catch (err) {
+      setUploadError(err?.response?.data?.message || err?.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  function handleRemove() {
+    onChange('')
+  }
+
+  const isUrl = value && (value.startsWith('http://') || value.startsWith('https://'))
+  const previewSrc = value ? (isUrl ? value : (value.startsWith('/') ? value : '/' + value)) : null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <div className="w-48 h-20 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden">
+            {previewSrc ? (
+              <img
+                src={previewSrc}
+                alt="Preview"
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            ) : (
+              <div className="text-[11px] text-gray-500 text-center px-2">
+                {previewLabel}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-2">
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+              onChange={handleFileChange}
+              disabled={disabled || uploading}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || uploading}
+            >
+              {uploading ? 'Uploading...' : buttonText}
+            </Button>
+            {value && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleRemove}
+                disabled={disabled || uploading}
+                className="!text-red-600"
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+          <div className="text-[11px] text-gray-500 space-y-0.5">
+            <div>Format: <span className="font-medium">JPEG, PNG</span> &nbsp;|&nbsp; Max size: <span className="font-medium">{MAX_CUSTOM_HF_SIZE_MB}MB</span></div>
+            <div className="text-gray-400">Tip: For best fit, export image with page width (A4 = ~170mm printable area @ 300dpi = ~2000px wide)</div>
+          </div>
+          {uploadError && (
+            <div className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+              {uploadError}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <Label>{pathLabel}</Label>
+        <TextInput
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={pathPlaceholder}
+          disabled={disabled}
+        />
       </div>
     </div>
   )
@@ -1156,16 +1309,63 @@ export default function DocumentStyleProfilesAdmin() {
                   <div className="space-y-5 pl-5 border-l-2 border-blue-500/30">
                     <label className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors w-fit mb-3">
                       <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                        checked={!!form.headerUseProfessionalLayout} onChange={(e) => setForm({ ...form, headerUseProfessionalLayout: e.target.checked })} />
+                        checked={!!form.headerUseCustomImage}
+                        onChange={(e) => setForm({ ...form, headerUseCustomImage: e.target.checked })} />
                       <div>
-                        <span className="text-sm text-gray-700 font-medium">Use Professional Header</span>
-                        
+                        <span className="text-sm text-gray-700 font-medium">Use Custom Header Image</span>
+                        <span className="block text-[11px] text-gray-500">Upload an existing letterhead image directly</span>
                       </div>
                     </label>
 
-                    {form.headerUseProfessionalLayout ? (
-                      <div className="space-y-5">
-                        <AccordionCard id="A" active={openHeaderSection === 'A'} onToggle={toggleOpenHeader} headerBadge="A" headerTitle="Logo Settings">
+                    {form.headerUseCustomImage ? (
+                      <div className="space-y-5 p-4 rounded-lg border border-indigo-100 bg-indigo-50/30">
+                        <div className="flex items-start gap-3">
+                          <div className="shrink-0 w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
+                            i
+                          </div>
+                          <div className="text-[12px] text-gray-600 leading-relaxed">
+                            <div className="font-medium text-gray-800 mb-1">How to use this mode</div>
+                            <div>1. Scan or export your existing company letterhead as a PNG/JPG image</div>
+                            <div>2. Upload it below — it will be placed as the full header on every page</div>
+                            <div>3. Adjust the Page margins (Step 2) → <span className="font-semibold">Top margin</span> to match the visual height of your letterhead</div>
+                          </div>
+                        </div>
+                        <CustomHeaderFooterImageUpload
+                          value={form.headerCustomImagePath}
+                          onChange={(v) => setForm({ ...form, headerCustomImagePath: v })}
+                          disabled={formSaving}
+                          endpoint="/smart-document-style/upload-header-image"
+                          formField="headerImage"
+                          buttonText="Upload Header Image"
+                          pathLabel="Header Image Path"
+                          previewLabel="No header image"
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">Image Width (mm)</label>
+                            <TextInput type="number" step="0.1" min="0"
+                              value={form.headerCustomImageWidthMm ?? ''}
+                              onChange={(e) => setForm({ ...form, headerCustomImageWidthMm: e.target.value === '' ? null : Number(e.target.value) })}
+                              placeholder="Auto = full page width (recommended)" />
+                            <div className="text-[10px] text-gray-500 mt-1">
+                              Leave blank to fill entire printable width (margin-aware)
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors w-fit mb-3">
+                          <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                            checked={!!form.headerUseProfessionalLayout} onChange={(e) => setForm({ ...form, headerUseProfessionalLayout: e.target.checked })} />
+                          <div>
+                            <span className="text-sm text-gray-700 font-medium">Use Professional Header</span>
+                          </div>
+                        </label>
+
+                        {form.headerUseProfessionalLayout ? (
+                          <div className="space-y-5">
+                            <AccordionCard id="A" active={openHeaderSection === 'A'} onToggle={toggleOpenHeader} headerBadge="A" headerTitle="Logo Settings">
                           <LogoUploadField
                             value={form.headerLogoPath}
                             onChange={(v) => setForm({ ...form, headerLogoPath: v })}
@@ -1282,6 +1482,8 @@ export default function DocumentStyleProfilesAdmin() {
                           </div>
                         </div>
                       </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -1302,14 +1504,50 @@ export default function DocumentStyleProfilesAdmin() {
                   <div className="space-y-5 pl-5 border-l-2 border-blue-500/30">
                     <label className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors w-fit mb-3">
                       <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                        checked={!!form.footerUseProfessionalLayout} onChange={(e) => setForm({ ...form, footerUseProfessionalLayout: e.target.checked })} />
+                        checked={!!form.footerUseCustomImage}
+                        onChange={(e) => setForm({ ...form, footerUseCustomImage: e.target.checked })} />
                       <div>
-                        <span className="text-sm text-gray-700 font-medium">Use Professional Footer Layout</span>
-                        
+                        <span className="text-sm text-gray-700 font-medium">Use Custom Footer Image</span>
+                        <span className="block text-[11px] text-gray-500">Upload an existing footer design as image</span>
                       </div>
                     </label>
 
-                    {form.footerUseProfessionalLayout ? (
+                    {form.footerUseCustomImage ? (
+                      <div className="space-y-5 p-4 rounded-lg border border-indigo-100 bg-indigo-50/30">
+                        <CustomHeaderFooterImageUpload
+                          value={form.footerCustomImagePath}
+                          onChange={(v) => setForm({ ...form, footerCustomImagePath: v })}
+                          disabled={formSaving}
+                          endpoint="/smart-document-style/upload-footer-image"
+                          formField="footerImage"
+                          buttonText="Upload Footer Image"
+                          pathLabel="Footer Image Path"
+                          previewLabel="No footer image"
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">Image Width (mm)</label>
+                            <TextInput type="number" step="0.1" min="0"
+                              value={form.footerCustomImageWidthMm ?? ''}
+                              onChange={(e) => setForm({ ...form, footerCustomImageWidthMm: e.target.value === '' ? null : Number(e.target.value) })}
+                              placeholder="Auto = full page width (recommended)" />
+                            <div className="text-[10px] text-gray-500 mt-1">
+                              Leave blank to fill entire printable width
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors w-fit mb-3">
+                          <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                            checked={!!form.footerUseProfessionalLayout} onChange={(e) => setForm({ ...form, footerUseProfessionalLayout: e.target.checked })} />
+                          <div>
+                            <span className="text-sm text-gray-700 font-medium">Use Professional Footer Layout</span>
+                          </div>
+                        </label>
+
+                        {form.footerUseProfessionalLayout ? (
                       <div className="space-y-5">
                         <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
                           <GroupTitle hint="Pilih SATU kandungan utama untuk footer">Footer Content (Choose One)</GroupTitle>
@@ -1668,9 +1906,9 @@ export default function DocumentStyleProfilesAdmin() {
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-              </>
+                  </>
+                  )}
+                </div>
               )}
               {formStep === 5 && (
               <>

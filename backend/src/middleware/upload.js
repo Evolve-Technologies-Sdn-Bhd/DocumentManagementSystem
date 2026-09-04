@@ -367,12 +367,64 @@ const uploadLogo = multer({
   fileFilter: logoFileFilter
 });
 
+const smartHeaderFooterStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadPath = path.join(config.uploadDir, 'branding', 'smart-headers');
+    try {
+      const fs = require('fs').promises;
+      await fs.mkdir(uploadPath, { recursive: true });
+      cb(null, uploadPath);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const fieldPrefix = (file.fieldname === 'headerImage') ? 'hdr' : (file.fieldname === 'footerImage' ? 'ftr' : 'hf');
+    cb(null, `${fieldPrefix}-${timestamp}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const smartHeaderFooterFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG and PNG images are allowed'), false);
+  }
+};
+
+const uploadSmartHeaderImage = multer({
+  storage: smartHeaderFooterStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: smartHeaderFooterFileFilter
+});
+
+const uploadSmartFooterImage = multer({
+  storage: smartHeaderFooterStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: smartHeaderFooterFileFilter
+});
+
 module.exports = {
   uploadDocument,
   uploadTemplate,
   uploadProfileImage,
   uploadLandingPdf,
   uploadLogo,
+  uploadSmartHeaderImage,
+  uploadSmartFooterImage,
   createUploadMiddleware,
   updateFileUploadSettingsCache
 };
