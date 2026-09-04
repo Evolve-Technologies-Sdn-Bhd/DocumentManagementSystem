@@ -111,12 +111,18 @@ exports.createStyleProfile = asyncHandler(async (req, res) => {
     headerEnabled,
     headerHeightMm,
     headerLogoPath,
+    headerUseCustomImage,
+    headerCustomImagePath,
+    headerCustomImageWidthMm,
     headerLeftText,
     headerCenterText,
     headerRightText,
     headerBorderBottomStyle,
     footerEnabled,
     footerHeightMm,
+    footerUseCustomImage,
+    footerCustomImagePath,
+    footerCustomImageWidthMm,
     footerLeftText,
     footerCenterText,
     footerRightText,
@@ -211,12 +217,18 @@ exports.createStyleProfile = asyncHandler(async (req, res) => {
   if (headerEnabled !== undefined) data.headerEnabled = toBool(headerEnabled);
   if (headerHeightMm !== undefined) data.headerHeightMm = toDecimalOrNull(headerHeightMm);
   if (headerLogoPath !== undefined) data.headerLogoPath = headerLogoPath;
+  if (headerUseCustomImage !== undefined) data.headerUseCustomImage = toBool(headerUseCustomImage);
+  if (headerCustomImagePath !== undefined) data.headerCustomImagePath = headerCustomImagePath;
+  if (headerCustomImageWidthMm !== undefined) data.headerCustomImageWidthMm = toDecimalOrNull(headerCustomImageWidthMm);
   if (headerLeftText !== undefined) data.headerLeftText = headerLeftText;
   if (headerCenterText !== undefined) data.headerCenterText = headerCenterText;
   if (headerRightText !== undefined) data.headerRightText = headerRightText;
   if (headerBorderBottomStyle !== undefined) data.headerBorderBottomStyle = headerBorderBottomStyle;
   if (footerEnabled !== undefined) data.footerEnabled = toBool(footerEnabled);
   if (footerHeightMm !== undefined) data.footerHeightMm = toDecimalOrNull(footerHeightMm);
+  if (footerUseCustomImage !== undefined) data.footerUseCustomImage = toBool(footerUseCustomImage);
+  if (footerCustomImagePath !== undefined) data.footerCustomImagePath = footerCustomImagePath;
+  if (footerCustomImageWidthMm !== undefined) data.footerCustomImageWidthMm = toDecimalOrNull(footerCustomImageWidthMm);
   if (footerLeftText !== undefined) data.footerLeftText = footerLeftText;
   if (footerCenterText !== undefined) data.footerCenterText = footerCenterText;
   if (footerRightText !== undefined) data.footerRightText = footerRightText;
@@ -327,12 +339,18 @@ exports.updateStyleProfile = asyncHandler(async (req, res) => {
     headerEnabled,
     headerHeightMm,
     headerLogoPath,
+    headerUseCustomImage,
+    headerCustomImagePath,
+    headerCustomImageWidthMm,
     headerLeftText,
     headerCenterText,
     headerRightText,
     headerBorderBottomStyle,
     footerEnabled,
     footerHeightMm,
+    footerUseCustomImage,
+    footerCustomImagePath,
+    footerCustomImageWidthMm,
     footerLeftText,
     footerCenterText,
     footerRightText,
@@ -429,12 +447,18 @@ exports.updateStyleProfile = asyncHandler(async (req, res) => {
   if (headerEnabled !== undefined) data.headerEnabled = toBool(headerEnabled);
   if (headerHeightMm !== undefined) data.headerHeightMm = toDecimalOrNull(headerHeightMm);
   if (headerLogoPath !== undefined) data.headerLogoPath = headerLogoPath;
+  if (headerUseCustomImage !== undefined) data.headerUseCustomImage = toBool(headerUseCustomImage);
+  if (headerCustomImagePath !== undefined) data.headerCustomImagePath = headerCustomImagePath;
+  if (headerCustomImageWidthMm !== undefined) data.headerCustomImageWidthMm = toDecimalOrNull(headerCustomImageWidthMm);
   if (headerLeftText !== undefined) data.headerLeftText = headerLeftText;
   if (headerCenterText !== undefined) data.headerCenterText = headerCenterText;
   if (headerRightText !== undefined) data.headerRightText = headerRightText;
   if (headerBorderBottomStyle !== undefined) data.headerBorderBottomStyle = headerBorderBottomStyle;
   if (footerEnabled !== undefined) data.footerEnabled = toBool(footerEnabled);
   if (footerHeightMm !== undefined) data.footerHeightMm = toDecimalOrNull(footerHeightMm);
+  if (footerUseCustomImage !== undefined) data.footerUseCustomImage = toBool(footerUseCustomImage);
+  if (footerCustomImagePath !== undefined) data.footerCustomImagePath = footerCustomImagePath;
+  if (footerCustomImageWidthMm !== undefined) data.footerCustomImageWidthMm = toDecimalOrNull(footerCustomImageWidthMm);
   if (footerLeftText !== undefined) data.footerLeftText = footerLeftText;
   if (footerCenterText !== undefined) data.footerCenterText = footerCenterText;
   if (footerRightText !== undefined) data.footerRightText = footerRightText;
@@ -629,5 +653,47 @@ exports.uploadLogo = asyncHandler(async (req, res) => {
       filename: req.file.filename
     },
     'Logo uploaded successfully'
+  );
+});
+
+exports.uploadHeaderCustomImage = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return ResponseFormatter.error(res, 'No file uploaded', 400);
+  }
+
+  const imagePath = `/uploads/branding/smart-headers/${req.file.filename}`;
+  const originalName = req.file.originalname;
+  const sizeKb = Math.round(req.file.size / 1024);
+
+  return ResponseFormatter.success(
+    res,
+    {
+      imagePath,
+      originalName,
+      sizeKb,
+      filename: req.file.filename
+    },
+    'Header custom image uploaded successfully'
+  );
+});
+
+exports.uploadFooterCustomImage = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return ResponseFormatter.error(res, 'No file uploaded', 400);
+  }
+
+  const imagePath = `/uploads/branding/smart-headers/${req.file.filename}`;
+  const originalName = req.file.originalname;
+  const sizeKb = Math.round(req.file.size / 1024);
+
+  return ResponseFormatter.success(
+    res,
+    {
+      imagePath,
+      originalName,
+      sizeKb,
+      filename: req.file.filename
+    },
+    'Footer custom image uploaded successfully'
   );
 });

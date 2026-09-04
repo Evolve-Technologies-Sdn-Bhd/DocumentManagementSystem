@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate, authorizePermission } = require('../middleware/auth');
-const { uploadLogo } = require('../middleware/upload');
+const { uploadLogo, uploadSmartHeaderImage, uploadSmartFooterImage } = require('../middleware/upload');
 const {
   listStyleProfiles,
   getStyleProfile,
@@ -8,7 +8,9 @@ const {
   updateStyleProfile,
   deleteStyleProfile,
   setDefaultStyleProfile,
-  uploadLogo: uploadLogoController
+  uploadLogo: uploadLogoController,
+  uploadHeaderCustomImage,
+  uploadFooterCustomImage
 } = require('../controllers/smartDocumentStyleController');
 
 const router = express.Router();
@@ -48,6 +50,20 @@ router.post(
   authorizePermission('configuration.settings', 'edit'),
   uploadLogo.single('logo'),
   uploadLogoController
+);
+
+router.post(
+  '/upload-header-image',
+  authorizePermission('configuration.settings', 'edit'),
+  uploadSmartHeaderImage.single('headerImage'),
+  uploadHeaderCustomImage
+);
+
+router.post(
+  '/upload-footer-image',
+  authorizePermission('configuration.settings', 'edit'),
+  uploadSmartFooterImage.single('footerImage'),
+  uploadFooterCustomImage
 );
 
 module.exports = router;

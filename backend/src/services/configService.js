@@ -976,14 +976,41 @@ class ConfigService {
 
   async resolveBrandingFile(pathOrUrl) {
     if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
-    const match = pathOrUrl.match(/^\/uploads\/branding\/([^?]+)(?:\?.*)?$/i);
-    if (!match) return pathOrUrl;
-    const fileName = match[1];
-    const filePath = path.join(appConfig.uploadDir, 'branding', fileName);
+    const trimmed = pathOrUrl.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('data:')) return trimmed;
+    const normalized = trimmed
+      .replace(/^https?:\/\/[^/]+/i, '')
+      .replace(/^\/+/, '');
+    const match = normalized.match(/^uploads\/branding\/([^/?#]+)(?:[?#].*)?$/i);
+    if (!match) {
+      const legacyMatch = trimmed.match(/(?:^|\/)branding\/([^/?#]+)(?:[?#].*)?$/i);
+      if (!legacyMatch) return trimmed;
+    }
+    const fileName = (match ? match[1] : null) || (trimmed.match(/(?:^|\/)([^\/?#]+)(?:[?#].*)?$/) || [])[1] || null;
+    if (!fileName) return null;
+    const baseDir = appConfig && appConfig.uploadDir ? appConfig.uploadDir : path.resolve(process.cwd(), 'uploads');
+    const filePath = path.join(baseDir, 'branding', fileName);
     try {
-      await fs.access(filePath);
-      return pathOrUrl;
+      await fs.access(filePath, require('fs').constants.R_OK);
+      return `/uploads/branding/${fileName}`;
     } catch {
+      try {
+        const altDirs = [
+          path.resolve(process.cwd(), 'uploads'),
+          path.resolve(process.cwd(), '..', 'uploads'),
+          path.resolve(process.cwd(), 'public', 'uploads'),
+          '/www/wwwroot/dms.demo.clbgroups.com/backend/uploads',
+          '/www/wwwroot/dms.demo.clbgroups.com/uploads'
+        ];
+        for (const dir of altDirs) {
+          const altPath = path.join(dir, 'branding', fileName);
+          try {
+            await fs.access(altPath, require('fs').constants.R_OK);
+            return `/uploads/branding/${fileName}`;
+          } catch {}
+        }
+      } catch {}
       return null;
     }
   }
