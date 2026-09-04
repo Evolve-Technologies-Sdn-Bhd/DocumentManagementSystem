@@ -1,8 +1,0 @@
-# Never commit private keys, CSRs, or serial files of the on-prem PKI.
-# Distribute the generated Root CA *public* files (DMS-RootCA.pem, .crt, .p7b)
-# via AD GPO / Intune / MDM — don't rely on git to distribute trust anchors.
-server-key.pem
-*.key
-DMS-RootCA.key
-DMS-RootCA.srl
-*.csr
