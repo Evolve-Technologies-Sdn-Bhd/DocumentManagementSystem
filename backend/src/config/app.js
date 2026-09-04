@@ -41,6 +41,20 @@ const config = {
     user: process.env.EMAIL_USER,
     password: process.env.EMAIL_PASSWORD,
     from: process.env.EMAIL_FROM || 'noreply@company.com'
+  },
+
+  // AI Configuration (supports Gemini and OpenAI)
+  ai: {
+    enabled: process.env.AI_ENABLED === 'true',
+    provider: process.env.AI_PROVIDER || 'gemini',
+    geminiApiKey: process.env.GEMINI_API_KEY,
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    openaiBaseURL: process.env.OPENAI_BASE_URL || undefined,
+    defaultTemperature: parseFloat(process.env.AI_TEMPERATURE || '0.2'),
+    maxOutputTokens: parseInt(process.env.AI_MAX_OUTPUT_TOKENS || '2048'),
+    defaultLanguage: process.env.AI_DEFAULT_LANGUAGE || 'en'
   }
 };
 

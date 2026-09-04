@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense, useMemo, useRef, useCallback } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
@@ -10,9 +10,29 @@ import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
 import AsyncActionStatus from './ui/AsyncActionStatus'
 import useLoadingProgress from '../hooks/useLoadingProgress'
+import SmartForm from './smartdocuments/SmartForm'
 
-export default function ReviewDocumentModal({ document, onClose, onSubmit, isSubmitting = false, submitError = '' }) {
-  const { t } = usePreferences()
+const FallbackReadOnlyGrid = ({ initialValues, readonly }) => (
+  <div className="grid grid-cols-2 gap-2">
+    {Object.entries(initialValues || {}).map(([k, v]) => (
+      <div key={k}>
+        <strong>{k}</strong>: {String(v || '')}
+      </div>
+    ))}
+  </div>
+)
+
+const SmartFormLazy = SmartForm
+
+function valueString(v) {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  try { return JSON.stringify(v) } catch { return String(v) }
+}
+
+export default function ReviewDocumentModal({ document, onClose, onSubmit, isSubmitting = false, submitError = '', latestDocumentVersionId }) {
+  const { t, formatDateTime } = usePreferences()
   const [formData, setFormData] = useState({
     fileCode: document?.fileCode || '',
     documentTitle: document?.title || '',
@@ -20,8 +40,8 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
     documentType: document?.documentType || document?.type || '',
     comments: '',
     reviewedFile: null,
-    reviewDecision: '', // 'reviewed' or 'amendments'
-    assignedApprover: null, // Only ONE approver can be assigned
+    reviewDecision: '',
+    assignedApprover: null,
     skipApproval: false
   })
 
@@ -29,20 +49,118 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
   const [approversList, setApproversList] = useState([])
   const [loadingApprovers, setLoadingApprovers] = useState(true)
   const [formError, setFormError] = useState('')
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
   const submitProgress = useLoadingProgress(isSubmitting)
+
+  const latestVersion = (() => {
+    if (latestDocumentVersionId && document?.versions) {
+      const v = document.versions.find(v => v.id === latestDocumentVersionId)
+      if (v) return v
+    }
+    if (document?.versions && document.versions.length > 0) {
+      const sorted = [...document.versions].sort((a, b) => (b.id || 0) - (a.id || 0))
+      return sorted[0]
+    }
+    return null
+  })()
+  const latestVersionId = latestVersion?.id
+
+  // Smart Document state
+  const [isSmartDocument, setIsSmartDocument] = useState(() => {
+    if (!document) return false
+    if (document.isSmartDocument === true) return true
+    if (String(document.creationMode || '').toUpperCase() === 'SMART_DOCUMENT') return true
+    if (Boolean(document.smartTemplateVersionId)) return true
+    if (latestVersion && Boolean(latestVersion.smartTemplateVersionId)) return true
+    return false
+  })
+  const [smartContentLoading, setSmartContentLoading] = useState(false)
+  const [smartDocumentContent, setSmartDocumentContent] = useState(null)
+  const [smartTemplateVersion, setSmartTemplateVersion] = useState(null)
+  const [smartOriginalValues, setSmartOriginalValues] = useState({})   // drafter punya original (fixed)
+  const [smartCurrentValues, setSmartCurrentValues] = useState({})     // reviewer punya current edits
+  const [smartEditMode, setSmartEditMode] = useState(false)           // false=Read Only, true=Edit Directly
+  const [savingSmartChanges, setSavingSmartChanges] = useState(false)
+  const [smartChangesSaved, setSmartChangesSaved] = useState(true)
+
+  const smartChangedFields = useMemo(() => {
+    const set = new Set()
+    const allKeys = new Set([...Object.keys(smartOriginalValues || {}), ...Object.keys(smartCurrentValues || {})])
+    allKeys.forEach(k => {
+      const o = valueString(smartOriginalValues?.[k])
+      const c = valueString(smartCurrentValues?.[k])
+      if (o !== c) set.add(k)
+    })
+    return set
+  }, [smartOriginalValues, smartCurrentValues])
+
+  const changedCount = smartChangedFields.size
+
+  useEffect(() => {
+    if (!latestVersionId) return
+    const detectSmart = async () => {
+      try {
+        setSmartContentLoading(true)
+        const res = await api.get(`/smart-documents/document-versions/${latestVersionId}/content`)
+        const respData = res.data?.data || res.data || {}
+        const content = respData.smartDocumentContent || null
+        if (content) {
+          setIsSmartDocument(true)
+          setSmartDocumentContent(content)
+          let templateVersion =
+            respData.templateVersion ||
+            (content && (content.smartTemplateVersion || content.templateVersion)) ||
+            null
+          if (templateVersion) {
+            if (!templateVersion.formFields && Array.isArray(respData.formFields)) {
+              templateVersion = { ...templateVersion, formFields: respData.formFields }
+            }
+            if (!templateVersion.sections && Array.isArray(respData.sections)) {
+              templateVersion = { ...templateVersion, sections: respData.sections }
+            }
+          }
+          setSmartTemplateVersion(templateVersion)
+          let fieldValues = {}
+          try {
+            if (typeof content.fieldValuesJson === 'string') {
+              fieldValues = JSON.parse(content.fieldValuesJson)
+            } else if (typeof content.fieldValuesJson === 'object' && content.fieldValuesJson) {
+              fieldValues = content.fieldValuesJson
+            }
+          } catch (e) {
+            fieldValues = {}
+          }
+          setSmartOriginalValues(fieldValues)
+          setSmartCurrentValues(fieldValues)
+        }
+      } catch (err) {
+        const status = err?.response?.status
+        const msg = String(err?.response?.data?.message || err?.message || '')
+        const isExpected =
+          status === 404 ||
+          (status === 400 && msg.toLowerCase().includes('does not contain smart document content'))
+        if (!isExpected) {
+          console.debug('Smart document detection skipped:', msg)
+        }
+      } finally {
+        setSmartContentLoading(false)
+      }
+    }
+    detectSmart()
+  }, [latestVersionId])
 
   // Fetch list of approvers from the API
   useEffect(() => {
     const fetchApprovers = async () => {
       try {
         setLoadingApprovers(true)
-        const res = await api.get('/users')
+        const res = await api.get('/users', {
+          params: document?.id ? { documentId: document.id, roleName: 'approver' } : { roleName: 'approver' }
+        })
         const users = res.data.data?.users || res.data.users || []
-        
-        // Get document owner ID to exclude from approvers
+
         const documentOwnerId = document?.submittedById || document?.createdById || document?.userId || document?.ownerId
-        
-        // Get current user ID (the reviewer) to exclude from approvers
+
         let currentUserId = null
         try {
           const userStr = localStorage.getItem('user')
@@ -53,62 +171,29 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
         } catch (error) {
           console.error('Error getting current user:', error)
         }
-        
-        // Filter users who have roles with Review/Approval permissions
+
         const approvers = users.filter(user => {
-          // Exclude document owner from approvers list
-          if (documentOwnerId && user.id === documentOwnerId) {
-            return false
-          }
-          
-          // Exclude current reviewer from approvers list (same person cannot review AND approve)
-          if (currentUserId && user.id === currentUserId) {
-            return false
-          }
-          
-          const userRoles = user.roles || []
-
-          return userRoles.some(userRole => {
-            // Handle nested structure: roles: [{ role: { name: 'Approver', permissions: {...} } }]
-            const role = userRole.role || {}
-            const roleName = role.name || role.displayName || role.roleName || userRole.name || ''
-            const permissions = role.permissions || {}
-
-            // Check if role name matches - ONLY Approver or Administrator roles can approve
-            const roleNameLower = roleName.toLowerCase()
-            const isApproverRole = [
-              'approver', 'administrator', 'admin'
-            ].includes(roleNameLower)
-            
-            // Check if permissions object has reviewApproval with approve permission
-            const hasApprovePermission = 
-              permissions?.reviewApproval?.approve ||
-              permissions?.['documents.reviewApproval']?.approve
-            
-            const matched = isApproverRole || hasApprovePermission
-
-            return matched
-          })
+          if (documentOwnerId && user.id === documentOwnerId) return false
+          if (currentUserId && user.id === currentUserId) return false
+          return user.status === 'ACTIVE'
         })
 
-        // Format for dropdown
         const formattedApprovers = approvers.map(user => ({
           id: user.id,
           name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
         }))
-        
+
         setApproversList(formattedApprovers)
       } catch (error) {
         console.error('Failed to fetch approvers:', error)
-        // Fallback to empty list
         setApproversList([])
       } finally {
         setLoadingApprovers(false)
       }
     }
-    
+
     fetchApprovers()
-  }, [])
+  }, [document?.id])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -172,37 +257,345 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
     }
   }
 
-  const handleSubmit = (e) => {
+  // ========== Smart Document handlers ==========
+  const handleSmartFieldChange = (fieldKey, newValue) => {
+    setSmartCurrentValues(prev => ({ ...prev, [fieldKey]: newValue }))
+    setSmartChangesSaved(false)
+  }
+
+  const handleResetAllChanges = () => {
+    setSmartCurrentValues({ ...smartOriginalValues })
+    setSmartChangesSaved(true)
+  }
+
+  const handleResetField = (fieldKey, originalValue) => {
+    setSmartCurrentValues(prev => ({ ...prev, [fieldKey]: originalValue }))
+    setSmartChangesSaved(false)
+  }
+
+  const handleOpenPreview = async () => {
+    if (!document?.id) return
+    try {
+      setIsPreviewLoading(true)
+      setFormError('')
+      const response = await api.get(`/documents/${document.id}/preview`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/pdf'
+      })
+      const blobUrl = URL.createObjectURL(blob)
+      const newWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer')
+      if (!newWindow) {
+        setFormError('Pop-up was blocked. Please allow pop-ups for this site.')
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+    } catch (e) {
+      console.error('Failed to open preview:', e)
+      const msg = e?.response?.data?.message || 'Could not open the preview. Try downloading from My Documents.'
+      setFormError(msg)
+    } finally {
+      setIsPreviewLoading(false)
+    }
+  }
+
+  const handleSaveSmartChanges = async (showToast = true) => {
+    if (!latestVersionId) return false
+    if (changedCount === 0) {
+      if (showToast) setSmartChangesSaved(true)
+      return true
+    }
+    try {
+      setSavingSmartChanges(true)
+      setFormError('')
+      const changes = {}
+      smartChangedFields.forEach(k => { changes[k] = smartCurrentValues[k] })
+      await api.put(`/smart-documents/document-versions/${latestVersionId}/field-values`, {
+        fieldValues: changes,
+        workflowAction: 'REVIEWER_DIRECT_EDIT'
+      })
+      setSmartOriginalValues(prev => ({ ...prev, ...changes }))
+      setSmartChangesSaved(true)
+      return true
+    } catch (err) {
+      console.error('Failed to save smart field changes:', err)
+      const msg = err?.response?.data?.message || 'Failed to save field changes'
+      setFormError(msg)
+      return false
+    } finally {
+      setSavingSmartChanges(false)
+    }
+  }
+
+  // ========== Auto-Save debounce ==========
+  const autoSaveTimerRef = useRef(null)
+  const lastSavedSnapshotRef = useRef('')
+
+  const triggerAutoSave = useCallback(() => {
+    if (changedCount === 0) {
+      setSmartChangesSaved(true)
+      return
+    }
+    const snap = Object.entries(smartCurrentValues || {})
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, v]) => `${k}=${valueString(v)}`)
+      .join('|')
+    if (snap === lastSavedSnapshotRef.current) return
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const ok = await handleSaveSmartChanges(true)
+      if (ok) {
+        lastSavedSnapshotRef.current = Object.entries(smartCurrentValues || {})
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([k, v]) => `${k}=${valueString(v)}`)
+          .join('|')
+      }
+    }, 800)
+  }, [changedCount, smartCurrentValues])
+
+  useEffect(() => {
+    if (!smartEditMode) return
+    triggerAutoSave()
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [smartCurrentValues, smartEditMode, triggerAutoSave])
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // Validation
+
     if (!formData.reviewDecision) {
       setFormError('Please select a review decision')
       return
     }
-
-    // Require comments when returning for amendments
     if (formData.reviewDecision === 'amendments' && !formData.comments.trim()) {
       setFormError('Please provide comments explaining why the document needs amendments')
       return
     }
-
-    // Require approver assignment when document is reviewed
     if (formData.reviewDecision === 'reviewed' && !formData.skipApproval && !formData.assignedApprover) {
       setFormError('Please assign an approver for the reviewed document')
       return
     }
 
     setFormError('')
-    onSubmit(formData)
+
+    // Smart flow: auto save edits dulu sebelum submit
+    if (isSmartDocument && changedCount > 0 && !smartChangesSaved) {
+      const ok = await handleSaveSmartChanges(false)
+      if (!ok) {
+        setFormError('Could not save field changes before submitting. Try clicking Save Changes Now first.')
+        return
+      }
+    }
+
+    const finalFormData = { ...formData }
+    if (isSmartDocument && changedCount > 0) {
+      finalFormData.comments =
+        (finalFormData.comments || '') +
+        ` [Reviewer edited ${changedCount} field(s) directly]`
+    }
+    onSubmit(finalFormData)
+  }
+
+  // ========== RENDER ==========
+
+  const renderFileUploadSection = () => (
+    <div>
+      <label className="block text-sm font-medium text-gray-900 mb-2">
+        {t('upload_reviewed_doc')}
+      </label>
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="rounded-lg"
+      >
+        <AppSurface
+          variant="muted"
+          padding="lg"
+          className={[
+            'border-2 border-dashed text-center transition-colors',
+            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+          ].join(' ')}
+        >
+          <div className="flex flex-col items-center">
+          <svg
+            className="w-12 h-12 text-gray-500 mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            />
+          </svg>
+          <p className="text-gray-900 font-medium mb-1">{t('drop_files_here')}</p>
+          <p className="text-xs text-gray-500 mb-3">{t('supported_format_docx')}</p>
+          <p className="text-xs text-gray-500 mb-2">{t('or_text')}</p>
+          <label className="cursor-pointer">
+            <span className="text-blue-600 hover:text-blue-700 text-sm font-semibold underline underline-offset-2">
+              {t('browse_files')}
+            </span>
+            <input
+              type="file"
+              accept=".docx,.doc,.pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </label>
+          {formData.reviewedFile && (
+            <div className="mt-3 text-sm text-gray-700">
+              {t('selected_colon')} <span className="font-medium">{formData.reviewedFile.name}</span>
+            </div>
+          )}
+        </div>
+        </AppSurface>
+      </div>
+    </div>
+  )
+
+
+
+  // ====== NEW Smart Document Review Layout ======
+  const renderSmartReviewPanel = () => {
+    const readonly = !smartEditMode
+    return (
+      <div className="space-y-5">
+        {/* Action Status Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-gray-200 rounded-xl bg-gray-50/60 px-4 py-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {changedCount > 0 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleResetAllChanges}
+                disabled={savingSmartChanges}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Reset All Changes
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+              changedCount > 0
+                ? 'border-amber-300 bg-amber-50 text-amber-800'
+                : 'border-gray-200 bg-white text-gray-600'
+            }`}>
+              {changedCount > 0 ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              ) : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
+              {changedCount > 0 ? `${changedCount} field(s) edited` : 'No changes yet'}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+              savingSmartChanges
+                ? 'border-blue-300 bg-blue-50 text-blue-800'
+                : smartChangesSaved
+                  ? 'border-green-300 bg-green-50 text-green-800'
+                  : 'border-amber-300 bg-amber-50 text-amber-800'
+            }`}>
+              {savingSmartChanges ? (
+                <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              ) : smartChangesSaved ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              )}
+              {savingSmartChanges ? 'Auto-Saving...' : smartChangesSaved ? 'Auto-Saved' : 'Pending Auto-Save'}
+            </span>
+          </div>
+        </div>
+
+        {/* Mode Pills */}
+        <div className="flex items-center gap-2 p-1 rounded-xl bg-gray-100 w-fit border border-gray-200">
+          <button
+            type="button"
+            onClick={() => setSmartEditMode(false)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              !smartEditMode
+                ? 'bg-white shadow-sm border border-gray-200 text-[#003366]'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Read Only
+          </button>
+          <button
+            type="button"
+            onClick={() => setSmartEditMode(true)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              smartEditMode
+                ? 'bg-white shadow-sm border border-gray-200 text-[#003366]'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Edit Directly
+          </button>
+        </div>
+
+        {smartEditMode ? (
+          <div className="rounded-xl border border-[#003366]/20 bg-[#003366]/5 px-4 py-3 text-xs text-[#003366]">
+            <div className="flex items-start gap-2">
+              <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <div className="font-semibold">Direct Edit Mode — changes you make will OVERWRITE the drafter values</div>
+                <div className="opacity-90 mt-0.5">
+                  Every edit is tracked and auto-saved. Approver will see a diff showing original vs your edits.
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-xs text-amber-800">
+            <div className="flex items-start gap-2">
+              <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <div>
+                <div className="font-semibold">Read Only Mode</div>
+                <div className="opacity-90 mt-0.5">
+                  Switch to <span className="font-semibold">Edit Directly</span> to edit fields inline, then Submit for Approval with your changes.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Smart Form dengan diff badges */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 max-h-[500px] overflow-y-auto pr-2">
+          <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 flex items-center justify-center gap-2"><InlineSpinner className="h-4 w-4 border-2"/>Loading Smart Form...</div>}>
+            {smartTemplateVersion ? (
+              <SmartFormLazy
+                templateVersion={smartTemplateVersion}
+                initialValues={smartCurrentValues}
+                onChange={handleSmartFieldChange}
+                readonly={readonly}
+                originalValues={smartOriginalValues}
+                diffStyle="reviewer"
+                showResetButton={changedCount > 0}
+                onResetField={handleResetField}
+                onResetAll={handleResetAllChanges}
+                showReadonlyBanner={false}
+                className="py-2"
+              />
+            ) : (
+              <FallbackReadOnlyGrid initialValues={smartCurrentValues} readonly={readonly} />
+            )}
+          </Suspense>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="lg">
+    <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="xl">
       <form onSubmit={handleSubmit}>
         <ModalHeader
-          title={t('review_document')}
-          subtitle={t('modal_draft_desc')}
+          title={isSmartDocument ? 'Smart Document Review' : t('review_document')}
+          subtitle={isSmartDocument
+            ? `Edit Smart Form fields directly — changes are tracked and shown to the approver.`
+            : t('modal_draft_desc')}
           onClose={isSubmitting ? undefined : onClose}
         />
 
@@ -218,7 +611,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
             {isSubmitting ? (
               <AsyncActionStatus
                 title="Submitting review"
-                message="Review decision, comments, and file updates are being processed."
+                message="Review decision, comments, and (if Smart) field edits are being applied."
                 progress={submitProgress}
                 busy
               />
@@ -232,15 +625,14 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
             ) : null}
             {/* File Code */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-1">
                 {t('file_code')}
               </label>
               <TextInput
                 type="text"
                 name="fileCode"
                 value={formData.fileCode}
-                onChange={handleInputChange}
-                className="bg-surface-muted text-ink-secondary"
+                className="bg-gray-50 text-gray-700"
                 readOnly
               />
             </div>
@@ -248,28 +640,26 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
             {/* Document Title & Version */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   {t('document_title_col')}
                 </label>
                 <TextInput
                   type="text"
                   name="documentTitle"
                   value={formData.documentTitle}
-                  onChange={handleInputChange}
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                   readOnly
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   {t('version_revision')}
                 </label>
                 <TextInput
                   type="text"
                   name="versionNo"
                   value={formData.versionNo}
-                  onChange={handleInputChange}
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                   readOnly
                 />
               </div>
@@ -277,79 +667,33 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
 
             {/* Document Type */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-1">
                 {t('doc_type')}
               </label>
               <TextInput
                 type="text"
                 name="documentType"
                 value={formData.documentType}
-                onChange={handleInputChange}
-                className="bg-surface-muted text-ink-secondary"
+                className="bg-gray-50 text-gray-700"
                 readOnly
               />
             </div>
 
-            {/* Upload Reviewed Document */}
-            <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
-                {t('upload_reviewed_doc')}
-              </label>
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className="rounded-[18px]"
-              >
-                <AppSurface
-                  variant="muted"
-                  padding="lg"
-                  className={[
-                    'border-2 border-dashed text-center transition-colors',
-                    isDragging ? 'border-brand bg-blue-50/40' : 'border-border'
-                  ].join(' ')}
-                >
-                  <div className="flex flex-col items-center">
-                  <svg
-                    className="w-12 h-12 text-ink-soft mb-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <p className="text-ink font-medium mb-1">{t('drop_files_here')}</p>
-                  <p className="text-xs text-ink-muted mb-3">{t('supported_format_docx')}</p>
-                  <p className="text-xs text-ink-soft mb-2">{t('or_text')}</p>
-                  <label className="cursor-pointer">
-                    <span className="text-brand hover:text-brand-hover text-sm font-semibold underline underline-offset-2">
-                      {t('browse_files')}
-                    </span>
-                    <input
-                      type="file"
-                      accept=".docx,.doc,.pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </label>
-                  {formData.reviewedFile && (
-                    <div className="mt-3 text-sm text-ink-secondary">
-                      {t('selected_colon')} <span className="font-medium">{formData.reviewedFile.name}</span>
-                    </div>
-                  )}
-                </div>
-                </AppSurface>
+            {/* Smart or Legacy Upload */}
+            {smartContentLoading ? (
+              <div className="p-8 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
+                <InlineSpinner className="h-4 w-4 border-2" />
+                Checking document format...
               </div>
-            </div>
+            ) : isSmartDocument ? (
+              renderSmartReviewPanel()
+            ) : (
+              renderFileUploadSection()
+            )}
 
             {/* Review Decision */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 {t('review_decision')} <span className="text-red-500">*</span>
               </label>
               <div className="space-y-2">
@@ -359,9 +703,9 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
                     value="reviewed"
                     checked={formData.reviewDecision === 'reviewed'}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                   />
-                  <span className="ml-2 text-sm text-ink-secondary">{t('document_reviewed')}</span>
+                  <span className="ml-2 text-sm text-gray-700">{t('document_reviewed')}</span>
                 </label>
                 {formData.reviewDecision === 'reviewed' && (
                   <label className="flex items-center ml-6">
@@ -369,9 +713,9 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
                       type="checkbox"
                       checked={formData.skipApproval}
                       onChange={handleSkipApprovalChange}
-                      className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                     />
-                    <span className="ml-2 text-sm text-ink-secondary">{t('skip_approval_flow')}</span>
+                    <span className="ml-2 text-sm text-gray-700">{t('skip_approval_flow')}</span>
                   </label>
                 )}
                 <label className="flex items-center">
@@ -380,16 +724,16 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
                     value="amendments"
                     checked={formData.reviewDecision === 'amendments'}
                     onChange={handleCheckboxChange}
-                    className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/30"
                   />
-                  <span className="ml-2 text-sm text-ink-secondary">{t('return_amendments')}</span>
+                  <span className="ml-2 text-sm text-gray-700">{t('return_amendments')}</span>
                 </label>
               </div>
             </div>
 
-            {/* Comments / Review Notes - Always visible, but required for amendments */}
+            {/* Comments / Review Notes */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-1">
                 {t('comments_review_notes')}
                 {formData.reviewDecision === 'amendments' && <span className="text-red-500"> *</span>}
               </label>
@@ -407,7 +751,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
             {/* Assign Approver */}
             {formData.reviewDecision === 'reviewed' && !formData.skipApproval && (
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t('assign_approver_label')}
                 </label>
                 <div className="flex items-center gap-3">
@@ -437,10 +781,25 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
 
         </ModalBody>
 
-        <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            {t('cancel')}
-          </Button>
+        <ModalFooter className="!justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleOpenPreview}
+              disabled={isSubmitting || isPreviewLoading}
+            >
+              {isPreviewLoading ? (
+                <InlineSpinner className="h-4 w-4 border-2" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              )}
+              {isPreviewLoading ? 'Loading PDF...' : 'Preview PDF (New Tab)'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
+              {t('cancel')}
+            </Button>
+          </div>
           <Button type="submit" loading={isSubmitting} loadingText={`Submitting... ${submitProgress}%`}>
             {t('submit')}
           </Button>

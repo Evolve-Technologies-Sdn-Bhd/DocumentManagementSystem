@@ -25,7 +25,9 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
   const loadReviewers = async () => {
     setLoading(true)
     try {
-      const res = await api.get('/users')
+      const res = await api.get('/users', {
+        params: document?.id ? { documentId: document.id, roleName: 'reviewer' } : { roleName: 'reviewer' }
+      })
       const users = res.data.data?.users || res.data.users || []
       
       // Get current user ID to exclude document owner
@@ -128,20 +130,20 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
             />
           ) : null}
           {!loading && availableReviewers.length === 0 ? (
-            <AppSurface variant="muted" padding="md" className="text-center text-sm text-ink-muted">
+            <AppSurface variant="muted" padding="md" className="text-center text-sm text-gray-500">
               No reviewers available
             </AppSurface>
           ) : (
             <>
-              <p className="text-sm text-ink-muted">Select a reviewer for this document.</p>
+              <p className="text-sm text-gray-500">Select a reviewer for this document.</p>
               <div className="max-h-[48vh] space-y-2 overflow-y-auto pr-1">
                 {availableReviewers.map((reviewer) => (
                   <label
                     key={reviewer.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors ${
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-colors ${
                       selectedReviewerId === reviewer.id
-                        ? 'border-brand bg-blue-50/50'
-                        : 'border-border hover:bg-surface-muted'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
                     }`}
                   >
                     <input
@@ -152,16 +154,16 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
                       className="mt-1 h-4 w-4"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-ink">
+                      <div className="text-sm font-semibold text-gray-900">
                         {reviewer.firstName && reviewer.lastName
                           ? `${reviewer.firstName} ${reviewer.lastName}`
                           : reviewer.email}
                       </div>
                       {reviewer.position ? (
-                        <div className="text-xs text-ink-muted">{reviewer.position}</div>
+                        <div className="text-xs text-gray-500">{reviewer.position}</div>
                       ) : null}
                       {reviewer.department ? (
-                        <div className="text-xs text-ink-muted">{reviewer.department}</div>
+                        <div className="text-xs text-gray-500">{reviewer.department}</div>
                       ) : null}
                     </div>
                   </label>
@@ -171,7 +173,7 @@ export default function AssignReviewerModal({ isOpen, onClose, document, onSucce
           )}
 
           {selectedReviewerId ? (
-            <AppSurface variant="panel" padding="sm" className="text-sm font-medium text-[var(--dms-color-info-ink)]">
+            <AppSurface variant="panel" padding="sm" className="text-sm font-medium text-blue-800">
               1 reviewer selected
             </AppSurface>
           ) : null}

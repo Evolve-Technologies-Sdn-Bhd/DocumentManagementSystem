@@ -1,5 +1,6 @@
 const prisma = require('../config/database')
 const { ForbiddenError, BadRequestError, NotFoundError } = require('../utils/errors')
+const divisionScopeService = require('./divisionScopeService')
 
 class FolderPermissionService {
   isAdminRoleNames(roleNames) {
@@ -76,8 +77,14 @@ class FolderPermissionService {
     const folder = await this.getFolderById(folderId)
     const roleNames = user?.roles || []
 
-    if (String(folder.accessMode || 'PUBLIC').toUpperCase() === 'PUBLIC') return true
+    if (user?.permissions?.all === true) return true
     if (this.isAdminRoleNames(roleNames)) return true
+
+    const isPublic = await this._isFolderOrAncestorPublic(folder)
+    if (isPublic) return true
+
+    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
+    if (!withinDivisionScope) return false
 
     const roleIds = await this.getRoleIdsByNames(roleNames)
     const folderIds = []
@@ -102,6 +109,17 @@ class FolderPermissionService {
     return false
   }
 
+  async _isFolderOrAncestorPublic(startFolder) {
+    let cur = startFolder
+    while (cur) {
+      if (divisionScopeService.isPublicAccessMode(cur.accessMode)) return true
+      if (!cur.inheritPermissions) break
+      if (!cur.parentId) break
+      cur = await this.getFolderById(cur.parentId).catch(() => null)
+    }
+    return false
+  }
+
   async assertCan(folderId, user, action) {
     const ok = await this.canUser(folderId, user, action)
     if (!ok) throw new ForbiddenError(`You don't have permission to ${action} in this folder`)
@@ -110,6 +128,9 @@ class FolderPermissionService {
 
   async assertCanManage(folderId, user) {
     const folder = await this.getFolderById(folderId)
+    if (user?.permissions?.all === true) return true
+    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
+    if (!withinDivisionScope) throw new ForbiddenError(`You don't have permission to manage this folder`)
     if (this.isAdminRoleNames(user?.roles || [])) return true
     if (folder.createdById === user?.id) return true
     throw new ForbiddenError(`You don't have permission to manage this folder`)

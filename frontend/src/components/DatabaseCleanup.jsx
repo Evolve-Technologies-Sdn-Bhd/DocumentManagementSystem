@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import api from '../api/axios';
 import { usePreferences } from '../contexts/PreferencesContext';
+import AppModal, { ModalBody, ModalHeader } from './ui/Modal';
 
 export default function DatabaseCleanup() {
   const { t } = usePreferences();
@@ -16,8 +18,10 @@ export default function DatabaseCleanup() {
   
   // Form states
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-gray-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
   
   // Result states
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -69,6 +73,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setIncludeFiles(false);
       setShowCleanupModal(false);
       
@@ -107,6 +112,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setConfirmText('');
       setIncludeFiles(false);
       setShowResetModal(false);
@@ -140,6 +146,7 @@ export default function DatabaseCleanup() {
 
       setCleanupResult(res.data.data.results);
       setPassword('');
+      setShowPassword(false);
       setIncludeFiles(false);
       setShowTestingModal(false);
       
@@ -183,6 +190,7 @@ export default function DatabaseCleanup() {
     setShowResetModal(true);
     setError('');
     setPassword('');
+    setShowPassword(false);
     setConfirmText('');
     setIncludeFiles(false);
   };
@@ -353,14 +361,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -420,14 +443,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -489,14 +527,29 @@ export default function DatabaseCleanup() {
 
             <div>
               <label className="label">Admin Password *</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="Enter your admin password"
-                disabled={processing}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="Enter your admin password"
+                  disabled={processing}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className={passwordToggleClass}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={processing}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
@@ -554,10 +607,10 @@ function StatCard({ label, value, icon, highlight }) {
   return (
     <div className={`p-4 rounded-lg border ${highlight ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
       <div className="text-2xl mb-2">{icon}</div>
-      <div className={`text-2xl font-bold ${highlight ? 'text-blue-700' : 'text-gray-900'}`}>
+      <div className="text-2xl font-bold text-gray-900">
         {value.toLocaleString()}
       </div>
-      <div className={`text-xs ${highlight ? 'text-blue-600' : 'text-gray-600'} mt-1`}>
+      <div className="text-xs text-gray-600 mt-1">
         {label}
       </div>
     </div>
@@ -566,20 +619,15 @@ function StatCard({ label, value, icon, highlight }) {
 
 function Modal({ title, children, onClose, danger }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={onClose}></div>
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-          <div className={`px-6 py-4 border-b ${danger ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
-            <h3 className={`text-lg font-semibold ${danger ? 'text-red-900' : 'text-gray-900'}`}>
-              {title}
-            </h3>
-          </div>
-          <div className="px-6 py-4">
-            {children}
-          </div>
-        </div>
-      </div>
-    </>
+    <AppModal onClose={onClose} closeOnBackdrop className="max-w-md">
+      <ModalHeader
+        title={title}
+        onClose={onClose}
+        className={danger ? 'border-red-200 bg-red-50' : ''}
+      />
+      <ModalBody>
+        {children}
+      </ModalBody>
+    </AppModal>
   );
 }

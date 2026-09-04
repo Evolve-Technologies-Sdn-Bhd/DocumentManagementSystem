@@ -133,10 +133,10 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full my-8">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg z-10">
+        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-gray-900">
               {initialData ? 'Edit Workflow' : 'Add New Workflow'}
@@ -235,7 +235,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                 <h4 className="font-semibold text-gray-900 text-lg">Workflow Steps</h4>
                 <button
                   onClick={addStep}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                 >
                   + Add Step
                 </button>
@@ -262,7 +262,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                         <button
                           onClick={() => moveStepUp(index)}
                           disabled={index === 0}
-                          className="p-1.5 text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 rounded transition-colors text-gray-400 hover:text-[#003366] hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Move up"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +272,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                         <button
                           onClick={() => moveStepDown(index)}
                           disabled={index === workflowSteps.length - 1}
-                          className="p-1.5 text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 rounded transition-colors text-gray-400 hover:text-[#003366] hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Move down"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +282,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                         <button
                           onClick={() => removeStep(step.id)}
                           disabled={workflowSteps.length === 1}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 rounded transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                           title="Remove step"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,17 +352,17 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 rounded-b-lg">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
           <button
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? 'Loading...' : initialData ? 'Update Workflow' : 'Create Workflow'}
           </button>

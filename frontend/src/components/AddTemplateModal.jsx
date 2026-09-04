@@ -133,8 +133,8 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center justify-between">
@@ -228,7 +228,7 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
                 <p className="text-gray-700 font-medium mb-1">Drop files here</p>
                 <p className="text-sm text-gray-500 mb-3">Supported formats: DOCX, DOTX, XLSX, XLTX, CSV, PPTX</p>
                 <div className="text-sm text-gray-500 mb-3">OR</div>
-                <button type="button" onClick={handleBrowseClick} className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">Browse files</button>
+                <button type="button" onClick={handleBrowseClick} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Browse files</button>
                 <input ref={fileInputRef} type="file" accept=".docx,.dotx,.pptx" multiple onChange={handleFileSelect} className="hidden" />
               </div>
             </div>
@@ -249,7 +249,7 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
                         <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleRemoveFile(index)} className="ml-3 p-1 text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0" title="Remove file">
+                    <button onClick={() => handleRemoveFile(index)} className="ml-3 p-1 rounded transition-colors text-gray-400 hover:text-gray-600 flex-shrink-0" title="Remove file">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -263,8 +263,8 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
 
         {/* Footer */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
-          <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
-          <button onClick={handleSubmit} className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Submit</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+          <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">Submit</button>
         </div>
       </div>
     </div>

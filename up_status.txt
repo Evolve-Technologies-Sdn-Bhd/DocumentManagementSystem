@@ -1,0 +1,15 @@
+BACK_PORT4000=
+---BACKEND OUT---
+Upload directories verified
+---BACKEND ERR---
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v24.14.1
+

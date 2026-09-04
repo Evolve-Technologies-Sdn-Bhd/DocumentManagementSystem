@@ -25,6 +25,10 @@ router.get('/login-page-settings', publicController.getLoginPageSettings);
 // GET /api/public/branding - Get global branding (company info + theme)
 router.get('/branding', publicController.getBranding);
 
+router.get('/maintenance-status', publicController.getMaintenanceStatus);
+
+router.get('/smart-document-status', publicController.getSmartDocumentStatus);
+
 router.get('/share/:token/meta', publicShareController.getSharedDocumentMeta)
 router.get('/share/:token/preview', publicShareController.previewSharedDocument)
 

@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import HomePage from './components/HomePage'
 import DiagnosticPage from './components/DiagnosticPage'
 import Dashboard from './components/Dashboard'
@@ -10,25 +10,59 @@ import ReviewAndApproval from './components/ReviewAndApproval'
 import PublishedDocuments from './components/PublishedDocuments'
 import SupersededObsolete from './components/SupersededObsolete'
 import Configuration from './components/Configuration'
+import SystemReports from './components/SystemReports'
 import LogsReports from './pages/LogsReports'
 import ReportViewer from './components/ReportViewer'
 import MasterRecord from './pages/MasterRecord'
 import ProfileSettings from './pages/ProfileSettings'
+import SmartDocumentEditor from './pages/SmartDocumentEditor'
 import DocumentLink from './pages/DocumentLink'
 import PublicShare from './pages/PublicShare'
+import Maintenance from './pages/Maintenance'
 import Login from './components/Login'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import SessionProvider from './components/SessionProvider'
 import RfidEpcRegistry from './components/RfidEpcRegistry'
 import ExpiryTracking from './components/ExpiryTracking'
-import { PreferencesProvider } from './contexts/PreferencesContext'
+import TenderBookRegister from './components/TenderBookRegister'
+import FbEnquiryRegister from './components/FbEnquiryRegister'
+import { PreferencesProvider, usePreferences } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
+import { getUserPermissions } from './utils/permissions'
 
 const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
 
+function SmartDocGate({ children }) {
+  const { smartDocumentEnabled } = usePreferences()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!smartDocumentEnabled) {
+      navigate('/draft-documents', { replace: true })
+    }
+  }, [smartDocumentEnabled, navigate])
+
+  if (!smartDocumentEnabled) return null
+  return children
+}
+
+function SystemFeatureRefresher({ children }) {
+  const { refreshSystemFeatureFlags } = usePreferences()
+  const location = useLocation()
+
+  useEffect(() => {
+    refreshSystemFeatureFlags()
+  }, [location.pathname, refreshSystemFeatureFlags])
+
+  return children
+}
+
 export default function App() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   useLayoutEffect(() => {
     const savedTheme = readThemeSettings()
     const savedCompanyInfo = readCompanyInfo()
@@ -39,33 +73,74 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let mounted = true
+    let cancelled = false
+    let timer = null
     const load = async () => {
+      const alreadyCached = Boolean(readCompanyInfo() && readThemeSettings())
+      const delayMs = alreadyCached ? 3500 : 800
+      await new Promise((r) => { timer = setTimeout(r, delayMs) })
+      if (cancelled) return
       try {
-        const res = await api.get('/public/branding')
+        const res = await api.get('/public/branding', { timeout: 6000, skipGlobalLoading: true, _retryAttempt: 0 })
+        if (cancelled) return
         const companyInfo = res.data?.data?.companyInfo || null
         const theme = res.data?.data?.theme || null
-        if (!mounted) return
         persistBranding({ companyInfo, theme })
-        applyTheme(theme)
-        applyCompanyInfo(companyInfo)
+        if (theme) applyTheme(theme)
+        if (companyInfo) applyCompanyInfo(companyInfo)
       } catch {}
     }
     load()
     return () => {
-      mounted = false
+      cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    let timer = null
+    const checkMaintenance = async () => {
+      await new Promise((r) => { timer = setTimeout(r, 1200) })
+      if (cancelled) return
+      try {
+        const res = await api.get('/public/maintenance-status', { timeout: 5000, skipGlobalLoading: true, _retryAttempt: 0 })
+        if (cancelled) return
+        const enabled = Boolean(res?.data?.data?.enabled)
+        const message =
+          res?.data?.data?.message || res?.data?.message || 'System is under maintenance'
+
+        try {
+          localStorage.setItem('maintenanceStatus', JSON.stringify({ enabled, message }))
+        } catch {}
+
+        const permissions = getUserPermissions()
+        const isSystemAdmin = permissions?.all === true
+        const path = location.pathname
+
+        if (enabled && !isSystemAdmin && path !== '/maintenance' && path !== '/login') {
+          navigate('/maintenance', { replace: true })
+        }
+      } catch {}
+    }
+    checkMaintenance()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [location.pathname, navigate])
 
   return (
     <PreferencesProvider>
     <SessionProvider>
       <div className="min-h-screen">
-        <Routes>
+        <SystemFeatureRefresher>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/diagnostic" element={<DiagnosticPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/documents/:id" element={<DocumentLink />} />
           <Route path="/share/:token" element={<PublicShare />} />
           
@@ -135,6 +210,26 @@ export default function App() {
           }
         />
         <Route
+          path="/tender-book"
+          element={
+            <ProtectedRoute module="crm.tenderBook" requireAny>
+              <Layout>
+                <TenderBookRegister />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/fb-enquiries"
+          element={
+            <ProtectedRoute module="crm.fbEnquiry" requireAny>
+              <Layout>
+                <FbEnquiryRegister />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/new-document-request"
           element={
             <ProtectedRoute module="newDocumentRequest" action="view">
@@ -157,6 +252,15 @@ export default function App() {
         <Route
           path="/drafts"
           element={
+            <Navigate
+              to={`/documents/drafts${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/documents/drafts"
+          element={
             <ProtectedRoute module="documents.draft" requireAny>
               <Layout>
                 <DraftDocuments />
@@ -165,7 +269,7 @@ export default function App() {
           }
         />
         <Route
-          path="/review-approval"
+          path="/documents/review-approval"
           element={
             <ProtectedRoute module="documents.review" requireAny>
               <Layout>
@@ -175,7 +279,7 @@ export default function App() {
           }
         />
         <Route
-          path="/published"
+          path="/documents/published"
           element={
             <ProtectedRoute module="documents.published" requireAny>
               <Layout>
@@ -185,13 +289,59 @@ export default function App() {
           }
         />
         <Route
-          path="/archived"
+          path="/documents/archived"
           element={
             <ProtectedRoute module="documents.superseded" requireAny>
               <Layout>
                 <SupersededObsolete />
               </Layout>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents/my-documents"
+          element={
+            <ProtectedRoute module="myDocumentsStatus" action="view">
+              <Layout>
+                <MyDocumentsStatus />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review-approval"
+          element={
+            <Navigate
+              to={`/documents/review-approval${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/published"
+          element={
+            <Navigate
+              to={`/documents/published${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/archived"
+          element={
+            <Navigate
+              to={`/documents/archived${location.search || ''}${location.hash || ''}`}
+              replace
+            />
+          }
+        />
+        <Route
+          path="/my-documents"
+          element={
+            <Navigate
+              to={`/documents/my-documents${location.search || ''}${location.hash || ''}`}
+              replace
+            />
           }
         />
         <Route
@@ -218,7 +368,15 @@ export default function App() {
         <Route
           path="/logs"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute
+              module={[
+                'logsReport.activityLogs',
+                'logsReport.userActivity',
+                'logsReport.reports',
+                'logsReport.analytics'
+              ]}
+              requireAny
+            >
               <Layout>
                 <LogsReports />
               </Layout>
@@ -228,9 +386,9 @@ export default function App() {
         <Route
           path="/reports"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
-                <LogsReports />
+                <SystemReports />
               </Layout>
             </ProtectedRoute>
           }
@@ -238,7 +396,7 @@ export default function App() {
         <Route
           path="/reports/:reportType"
           element={
-            <ProtectedRoute module="logsReport.activityLogs" requireAny>
+            <ProtectedRoute module="logsReport.reports" requireAny>
               <Layout>
                 <ReportViewer />
               </Layout>
@@ -265,7 +423,20 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/smart-documents/edit/:documentId/:documentVersionId"
+          element={
+            <ProtectedRoute module="documents.draft" requireAny>
+              <Layout>
+                <SmartDocGate>
+                  <SmartDocumentEditor />
+                </SmartDocGate>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
         </Routes>
+        </SystemFeatureRefresher>
       </div>
     </SessionProvider>
     </PreferencesProvider>

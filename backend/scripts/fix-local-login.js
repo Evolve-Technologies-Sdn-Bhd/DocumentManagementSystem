@@ -48,7 +48,6 @@ async function main() {
       password: hashedPassword,
       firstName: 'System',
       lastName: 'Administrator',
-      employeeId: 'EMP001',
       department: 'IT',
       position: 'System Administrator',
       status: 'ACTIVE',

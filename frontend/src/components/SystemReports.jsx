@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
@@ -7,7 +7,9 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import EmptyPanelState from './ui/EmptyPanelState'
 import InlineSpinner from './ui/InlineSpinner'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 // Main System Reports Component
 export default function SystemReports() {
@@ -22,6 +24,8 @@ export default function SystemReports() {
     scheduledReports: 0,
     totalSize: '0 MB'
   })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   useEffect(() => {
     loadStats()
@@ -71,10 +75,10 @@ export default function SystemReports() {
     {
       id: 'document-request',
       name: 'Document Request Report',
-      description: 'Summary of new document requests (NDR) and version requests (NVR) with acknowledgment status',
+      description: 'Summary of new document, version, supersede, and obsolete requests across the request lifecycle',
       category: 'Requests',
       estimatedTime: '1 minute',
-      metrics: ['Total requests', 'Pending acknowledgment', 'Acknowledged', 'By document type', 'By requester']
+      metrics: ['Total requests', 'By request type', 'By status', 'By document type', 'By requester']
     },
     {
       id: 'security-audit',
@@ -103,14 +107,7 @@ export default function SystemReports() {
   ]
 
   const handleViewReport = (reportId) => {
-    // Navigate to report viewer with default 30-day date range
-    const today = new Date()
-    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-    const params = new URLSearchParams({
-      dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
-      dateTo: today.toISOString().split('T')[0]
-    })
-    navigate(`/reports/${reportId}?${params.toString()}`)
+    navigate(`/reports/${reportId}`)
   }
 
   const handleDownloadReport = async (report) => {
@@ -155,11 +152,110 @@ export default function SystemReports() {
   }
 
   const statCards = [
-    { label: t('sr_available_reports'), value: stats.availableReports, tone: 'text-brand' },
-    { label: t('sr_generated_today'), value: stats.generatedToday, tone: 'text-emerald-600' },
-    { label: t('sr_scheduled_reports'), value: stats.scheduledReports, tone: 'text-violet-600' },
-    { label: t('sr_total_size'), value: stats.totalSize, tone: 'text-amber-600' }
+    { label: t('sr_available_reports'), value: stats.availableReports, tone: 'text-ink' },
+    { label: t('sr_generated_today'), value: stats.generatedToday, tone: 'text-ink' },
+    { label: t('sr_scheduled_reports'), value: stats.scheduledReports, tone: 'text-ink' },
+    { label: t('sr_total_size'), value: stats.totalSize, tone: 'text-ink' }
   ]
+
+  const recentReportsColumns = [
+    {
+      id: 'name',
+      key: 'name',
+      accessor: 'name',
+      label: 'Report Name',
+      sortable: true,
+      required: true,
+      render: (value) => <span className="font-medium text-ink">{value}</span>
+    },
+    {
+      id: 'generatedAt',
+      key: 'generatedAt',
+      accessor: 'generatedAt',
+      label: 'Generated At',
+      sortable: true,
+      sortType: 'date',
+      sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0)
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: 'Status',
+      sortable: true,
+      render: (value) => (
+        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+          {value}
+        </span>
+      )
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: 'Actions',
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <Button
+          onClick={() => handleDownloadReport(row)}
+          variant="ghost"
+          size="sm"
+        >
+          Download
+        </Button>
+      )
+    }
+  ]
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'system-reports-list',
+    columns: recentReportsColumns,
+    data: recentReports,
+    defaultSortKey: 'generatedAt',
+    defaultSortDirection: 'desc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
 
   return (
     <div className="space-y-6">
@@ -227,42 +323,64 @@ export default function SystemReports() {
       <div>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-ink">{t('sr_recent_reports')}</h3>
-          <Button variant="ghost" size="sm">
-            View All
-          </Button>
+          <div className="flex items-center gap-2">
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
+            <Button variant="ghost" size="sm">
+              View All
+            </Button>
+          </div>
         </div>
 
         <TableContainer>
           <Table>
             <thead className="bg-surface-muted/80">
               <tr>
-                <Th>
-                  Report Name
-                </Th>
-                <Th>
-                  Generated At
-                </Th>
-                <Th>
-                  Status
-                </Th>
-                <Th>
-                  Actions
-                </Th>
+                {visibleColumns.map((col, idx) => {
+                  const id = col.id || col.key
+                  const canDrag = !col.stickyRight
+                  const isDragOver = canDrag && dragOverColIndex === idx
+                  return (
+                    <Th
+                      key={id}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      sortable={Boolean(col.sortable)}
+                      sortDirection={getSortDirectionFor(id)}
+                      sortKey={id}
+                      onSort={col.sortable ? toggleSort : undefined}
+                      draggable={canDrag}
+                      dragOver={isDragOver}
+                      onDragStart={(e) => handleColDragStart(idx, e)}
+                      onDragOver={(e) => handleColDragOver(idx, e)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(idx, e)}
+                      onDragEnd={handleColDragEnd}
+                      title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                    >
+                      {col.label || col.header || id}
+                    </Th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <Td colSpan="4" className="py-10 text-center">
+                  <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-10 text-center">
                     <span className="inline-flex items-center gap-2 text-ink-muted">
                       <InlineSpinner />
                       {t('loading')}...
                     </span>
                   </Td>
                 </tr>
-              ) : recentReports.length === 0 ? (
+              ) : sortedData.length === 0 ? (
                 <tr>
-                  <Td colSpan="4" className="py-8">
+                  <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-8">
                     <EmptyPanelState
                       title={t('sr_no_recent')}
                       description="Generated reports will appear here once they are available."
@@ -270,28 +388,31 @@ export default function SystemReports() {
                   </Td>
                 </tr>
               ) : (
-                recentReports.map((report) => (
+                sortedData.map((report) => (
                   <Tr key={report.id}>
-                    <Td className="font-medium text-ink">
-                      {report.name}
-                    </Td>
-                    <Td>
-                      {report.generatedAt}
-                    </Td>
-                    <Td>
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        {report.status}
-                      </span>
-                    </Td>
-                    <Td>
-                      <Button
-                        onClick={() => handleDownloadReport(report)}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        Download
-                      </Button>
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(report, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = report?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, report) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))
               )}

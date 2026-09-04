@@ -1,0 +1,6 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": ["uploads/*", "prisma/migrations/*"],
+  "exec": "node src/index.js"
+}

@@ -106,43 +106,43 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   File Code
                 </label>
                 <TextInput
                   type="text"
                   value={document?.fileCode || ''}
                   disabled
-                  className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                  className="bg-gray-50 text-gray-600 cursor-not-allowed"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   Status
                 </label>
                 <TextInput
                   type="text"
                   value={document?.status || ''}
                   disabled
-                  className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                  className="bg-gray-50 text-gray-600 cursor-not-allowed"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Document Title
               </label>
               <TextInput
                 type="text"
                 value={document?.title || ''}
                 disabled
-                className="bg-surface-muted text-ink-muted cursor-not-allowed"
+                className="bg-gray-50 text-gray-600 cursor-not-allowed"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Select Archive Folder <span className="text-red-500">*</span>
               </label>
               <FolderTreePicker
@@ -158,12 +158,12 @@ const ArchiveDocumentModal = ({ isOpen, onClose, document, onArchive }) => {
                 mode="nested"
                 disabled={loading || loadingFolders}
               />
-              <p className="mt-1 text-xs text-ink-muted">
+              <p className="mt-1 text-xs text-gray-500">
                 Choose the folder where this obsolete document should be archived.
               </p>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>Note:</strong> This will move the obsolete/superseded document to the selected folder for archival purposes. 
                 The document will remain in its current status ({document?.status}) but will be organized in the archive folder.

@@ -1,6 +1,9 @@
 const { verifyAccessToken } = require('../utils/jwt');
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
 const prisma = require('../config/database');
+const divisionScopeService = require('../services/divisionScopeService');
+const ResponseFormatter = require('../utils/responseFormatter');
+const configService = require('../services/configService');
 
 /**
  * Authenticate user from JWT token
@@ -92,12 +95,27 @@ const authenticate = async (req, res, next) => {
       return acc
     }, {})
 
+    const divisionIds = await divisionScopeService.getUserDivisionIds(session.user.id)
+
     req.user = {
       id: session.user.id,
       email: session.user.email,
       roles: session.user.roles.map(r => r.role.name),
-      permissions: mergedPermissions
+      permissions: mergedPermissions,
+      divisionIds
     };
+
+    try {
+      const maintenance = await configService.getMaintenanceSettings();
+      if (maintenance?.enabled && req.user.permissions?.all !== true) {
+        return ResponseFormatter.error(
+          res,
+          maintenance.message || 'System is under maintenance',
+          503,
+          { code: 'MAINTENANCE_MODE', maintenance }
+        );
+      }
+    } catch {}
 
     next();
   } catch (error) {
@@ -119,6 +137,10 @@ const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return next(new UnauthorizedError('User not authenticated'));
+    }
+
+    if (req.user.permissions?.all === true) {
+      return next()
     }
 
     const userRoles = req.user.roles;
@@ -160,6 +182,18 @@ const authorizePermission = (resource, ...actions) => {
   };
 };
 
+const requireSystemAdmin = (req, res, next) => {
+  if (!req.user) {
+    return next(new UnauthorizedError('User not authenticated'));
+  }
+
+  if (req.user.permissions?.all === true) {
+    return next();
+  }
+
+  return next(new ForbiddenError('Insufficient permissions'));
+};
+
 /**
  * Optional authentication - does not fail if no token
  * Useful for endpoints that work for both authenticated and unauthenticated users
@@ -191,10 +225,13 @@ const optionalAuth = async (req, res, next) => {
     });
 
     if (session && new Date() <= session.expiresAt) {
+      const divisionIds = await divisionScopeService.getUserDivisionIds(session.user.id)
+
       req.user = {
         id: session.user.id,
         email: session.user.email,
-        roles: session.user.roles.map(r => r.role.name)
+        roles: session.user.roles.map(r => r.role.name),
+        divisionIds
       };
     }
 
@@ -212,6 +249,7 @@ module.exports = {
   authenticate,
   authorize,
   authorizePermission,
+  requireSystemAdmin,
   optionalAuth,
   requireAuth // backward compatibility
 };

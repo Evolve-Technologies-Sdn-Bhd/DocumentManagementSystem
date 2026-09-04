@@ -5,6 +5,27 @@ import autoTable from 'jspdf-autotable'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 
+const ensureArray = (value) => (Array.isArray(value) ? value : [])
+
+const pickFirstArray = (...values) => {
+  for (const value of values) {
+    if (Array.isArray(value)) return value
+  }
+  return []
+}
+
+const normalizeReportData = (payload) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null
+  }
+
+  return {
+    ...payload,
+    columns: ensureArray(payload.columns),
+    rows: ensureArray(payload.rows)
+  }
+}
+
 const ReportViewer = () => {
   const { reportType } = useParams()
   const navigate = useNavigate()
@@ -17,8 +38,8 @@ const ReportViewer = () => {
   
   // Filter states
   const [filters, setFilters] = useState({
-    dateFrom: searchParams.get('dateFrom') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    dateTo: searchParams.get('dateTo') || new Date().toISOString().split('T')[0],
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
     status: searchParams.get('status') || '',
     department: searchParams.get('department') || '',
     documentTypeId: searchParams.get('documentTypeId') || '',
@@ -53,40 +74,78 @@ const ReportViewer = () => {
   const loadDropdownOptions = async () => {
     try {
       const [typesRes, usersRes] = await Promise.all([
-        api.get('/document-types'),
+        api.get('/system/config/document-types'),
         api.get('/users')
       ])
       
-      setDocumentTypes(typesRes.data.data || [])
+      const documentTypeOptions = pickFirstArray(
+        typesRes.data?.data?.documentTypes,
+        typesRes.data?.documentTypes,
+        typesRes.data?.data
+      )
+      setDocumentTypes(documentTypeOptions)
       
-      const users = usersRes.data.data || []
+      const users = pickFirstArray(
+        usersRes.data?.data?.users,
+        usersRes.data?.users,
+        usersRes.data?.data
+      )
       const depts = [...new Set(users.map(u => u.department).filter(Boolean))]
       setDepartments(depts)
     } catch (err) {
       console.error('Error loading dropdown options:', err)
+      setDocumentTypes([])
+      setDepartments([])
     }
   }
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (activeFilters = filters) => {
     setLoading(true)
     setError(null)
     
     try {
-      const params = new URLSearchParams({
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo
-      })
+      const params = new URLSearchParams()
       
-      if (filters.status) params.append('status', filters.status)
-      if (filters.department) params.append('department', filters.department)
-      if (filters.documentTypeId) params.append('documentTypeId', filters.documentTypeId)
+      if (activeFilters.dateFrom) params.append('dateFrom', activeFilters.dateFrom)
+      if (activeFilters.dateTo) params.append('dateTo', activeFilters.dateTo)
+      if (activeFilters.status) params.append('status', activeFilters.status)
+      if (activeFilters.department) params.append('department', activeFilters.department)
+      if (activeFilters.documentTypeId) params.append('documentTypeId', activeFilters.documentTypeId)
       
-      const response = await api.get(`/reports/system/data/${reportType}?${params.toString()}`)
-      setReportData(response.data.data)
+      const query = params.toString()
+      const requestUrl = query ? `/reports/system/data/${reportType}?${query}` : `/reports/system/data/${reportType}`
+      const response = await api.get(requestUrl)
+      // #region debug-point A:report-viewer-response
+      fetch('http://127.0.0.1:7777/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'document-request-report',
+          runId: 'pre-fix',
+          hypothesisId: 'A',
+          location: 'frontend/src/components/ReportViewer.jsx:84',
+          msg: '[DEBUG] Report viewer received API response',
+          data: {
+            reportType,
+            requestUrl,
+            title: response?.data?.data?.title || null,
+            summaryKeys: Object.keys(response?.data?.data?.summary || {}),
+            total: response?.data?.data?.summary?.total ?? null,
+            rowCount: Array.isArray(response?.data?.data?.rows) ? response.data.data.rows.length : null,
+            rowTypes: Array.isArray(response?.data?.data?.rows)
+              ? Array.from(new Set(response.data.data.rows.map((row) => row?.requestType).filter(Boolean)))
+              : []
+          },
+          ts: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
+      setReportData(normalizeReportData(response.data?.data))
       setCurrentPage(1)
     } catch (err) {
       console.error('Error fetching report data:', err)
       setError(err.response?.data?.message || 'Failed to load report data')
+      setReportData(null)
     } finally {
       setLoading(false)
     }
@@ -97,23 +156,24 @@ const ReportViewer = () => {
   }
 
   const applyFilters = () => {
-    fetchReportData()
+    fetchReportData(filters)
   }
 
   const resetFilters = () => {
-    setFilters({
-      dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      dateTo: new Date().toISOString().split('T')[0],
+    const resetState = {
+      dateFrom: '',
+      dateTo: '',
       status: '',
       department: '',
       documentTypeId: '',
       searchText: ''
-    })
-    setTimeout(() => fetchReportData(), 0)
+    }
+    setFilters(resetState)
+    fetchReportData(resetState)
   }
 
   const filteredRows = useMemo(() => {
-    if (!reportData?.rows) return []
+    if (!Array.isArray(reportData?.rows)) return []
     if (!filters.searchText) return reportData.rows
     
     const searchLower = filters.searchText.toLowerCase()
@@ -130,14 +190,45 @@ const ReportViewer = () => {
   }, [filteredRows, currentPage, rowsPerPage])
 
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage)
+  const reportColumns = ensureArray(reportData?.columns)
+
+  const triggerBlobDownload = (blob, fileName) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const syncExportToHistory = async ({ blob, fileName, format }) => {
+    const formData = new FormData()
+    formData.append('file', blob, fileName)
+    formData.append('reportType', reportType)
+    formData.append('reportName', reportData?.title || reportTypeLabels[reportType] || 'System Report')
+    formData.append('format', format)
+    formData.append('config', JSON.stringify({
+      appliedFilters: filters,
+      exportedRows: filteredRows.length
+    }))
+
+    await api.post('/reports/system/export-upload', formData)
+  }
 
   const exportToCSV = () => {
     if (!reportData) return
     
     setExporting(true)
-    try {
-      const columns = reportData.columns
+    Promise.resolve()
+      .then(async () => {
+      const columns = reportColumns
       const rows = filteredRows
+
+      if (columns.length === 0) {
+        throw new Error('No report columns available')
+      }
       
       const headers = columns.map(c => c.label).join(',')
       const csvRows = rows.map(row => 
@@ -149,31 +240,43 @@ const ReportViewer = () => {
       )
       
       const csvContent = [headers, ...csvRows].join('\n')
-      
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`
-      link.click()
-    } catch (err) {
-      console.error('CSV export error:', err)
-      alert('Failed to export CSV')
-    } finally {
-      setExporting(false)
-    }
+      const fileName = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`
+
+      triggerBlobDownload(blob, fileName)
+
+      try {
+        await syncExportToHistory({ blob, fileName, format: 'CSV' })
+      } catch (syncErr) {
+        console.error('Failed to sync CSV export history:', syncErr)
+        window.alert('CSV berjaya di-download, tapi senarai recent report gagal dikemas kini.')
+      }
+      })
+      .catch((err) => {
+        console.error('CSV export error:', err)
+        window.alert('Failed to export CSV')
+      })
+      .finally(() => {
+        setExporting(false)
+      })
   }
 
   const exportToPDF = () => {
     if (!reportData) return
     
     setExporting(true)
-    try {
+    Promise.resolve()
+      .then(async () => {
       const doc = new jsPDF('landscape')
       const pageWidth = doc.internal.pageSize.getWidth()
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 14
-      const columns = reportData.columns
+      const columns = reportColumns
       const rows = filteredRows
+
+      if (columns.length === 0) {
+        throw new Error('No report columns available')
+      }
       
       // Company info from localStorage
       const companyName = localStorage.getItem('dms_company_name') || 'FileNix DMS'
@@ -303,13 +406,25 @@ const ReportViewer = () => {
         )
       }
       
-      doc.save(`${reportType}-${new Date().toISOString().split('T')[0]}.pdf`)
-    } catch (err) {
-      console.error('PDF export error:', err)
-      alert('Failed to export PDF')
-    } finally {
-      setExporting(false)
-    }
+      const fileName = `${reportType}-${new Date().toISOString().split('T')[0]}.pdf`
+      const blob = doc.output('blob')
+
+      triggerBlobDownload(blob, fileName)
+
+      try {
+        await syncExportToHistory({ blob, fileName, format: 'PDF' })
+      } catch (syncErr) {
+        console.error('Failed to sync PDF export history:', syncErr)
+        window.alert('PDF berjaya di-download, tapi senarai recent report gagal dikemas kini.')
+      }
+      })
+      .catch((err) => {
+        console.error('PDF export error:', err)
+        window.alert('Failed to export PDF')
+      })
+      .finally(() => {
+        setExporting(false)
+      })
   }
   
   const hexToRGB = (hex) => {
@@ -463,34 +578,99 @@ const ReportViewer = () => {
     if (!reportData?.summary) return null
     
     const { summary } = reportData
+    const totalActivities = summary.totalActivities
+    const uniqueUsers = summary.uniqueUsers
+    const topUsers = summary.topUsers
+    const actionBreakdown = summary.actionBreakdown
+    const hasUserActivitySummary = typeof totalActivities !== 'undefined'
+      && typeof uniqueUsers !== 'undefined'
+      && topUsers
+      && actionBreakdown
     
     return (
       <div className="card p-4 mb-6">
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--dms-text-primary)' }}>Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {Object.entries(summary).map(([key, value]) => {
-            if (typeof value === 'object' && !Array.isArray(value)) {
-              return (
-                <div key={key} className="col-span-2 rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
-                  <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(value).map(([k, v]) => (
-                      <span key={k} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border" style={{ background: 'var(--dms-card-bg)' }}>
-                        <span className="muted">{formatKey(k)}:</span>
-                        <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
-                      </span>
-                    ))}
-                  </div>
+        {hasUserActivitySummary ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 items-stretch">
+              <div className="relative rounded-lg p-4 min-h-[132px] flex items-center justify-center" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="absolute left-4 top-4 text-xs font-medium muted">Total Activities</p>
+                <p className="text-4xl font-bold leading-none md:text-5xl" style={{ color: 'var(--dms-primary)' }}>{totalActivities}</p>
+              </div>
+
+              <div className="relative rounded-lg p-4 min-h-[132px] flex items-center justify-center" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="absolute left-4 top-4 text-xs font-medium muted">Unique Users</p>
+                <p className="text-4xl font-bold leading-none md:text-5xl" style={{ color: 'var(--dms-primary)' }}>{uniqueUsers}</p>
+              </div>
+
+              <div className="rounded-lg p-3 min-h-[132px] flex flex-col" style={{ background: 'var(--dms-panel-bg)' }}>
+                <p className="text-xs font-medium muted mb-2">Top Users</p>
+                <div className="space-y-1 text-xs" style={{ color: 'var(--dms-text-primary)' }}>
+                  {Object.entries(topUsers || {}).map(([k, v]) => (
+                    <div key={k}>{`${formatKey(k)}: ${v}`}</div>
+                  ))}
                 </div>
-              )
-            } else if (Array.isArray(value)) {
+              </div>
+            </div>
+
+            <div className="rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
+              <p className="text-xs font-medium muted mb-2">Action Breakdown</p>
+              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(actionBreakdown || {}).map(([k, v]) => (
+                  <span
+                    key={k}
+                    className="inline-flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs"
+                    style={{ background: 'var(--dms-card-bg)' }}
+                  >
+                    <span className="muted">{formatKey(k)}</span>
+                    <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 items-start">
+            {Object.entries(summary).map(([key, value]) => {
+              const isComplex = typeof value === 'object' && value !== null
+              const isArray = Array.isArray(value)
+
+              if (!isComplex) {
+                return (
+                  <div key={key} className="rounded-lg p-3 self-start" style={{ background: 'var(--dms-panel-bg)' }}>
+                    <p className="text-xs font-medium muted mb-1">{formatKey(key)}</p>
+                    <p className="text-xl font-bold" style={{ color: 'var(--dms-primary)' }}>{value}</p>
+                  </div>
+                )
+              }
+
+              if (!isArray) {
+                return (
+                  <div key={key} className="rounded-lg p-3 self-start" style={{ background: 'var(--dms-panel-bg)' }}>
+                    <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(value || {}).map(([k, v]) => (
+                        <span
+                          key={k}
+                          className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                          style={{ background: 'var(--dms-card-bg)' }}
+                        >
+                          <span className="muted">{formatKey(k)}:</span>
+                          <span className="font-semibold" style={{ color: 'var(--dms-text-primary)' }}>{v}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={key} className="col-span-2 rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
+                <div key={key} className="rounded-lg p-3 self-start md:col-span-2" style={{ background: 'var(--dms-panel-bg)' }}>
                   <p className="text-xs font-medium muted mb-2">{formatKey(key)}</p>
                   <div className="space-y-1">
-                    {value.slice(0, 3).map((item, idx) => (
+                    {value.slice(0, 5).map((item, idx) => (
                       <div key={idx} className="text-xs" style={{ color: 'var(--dms-text-primary)' }}>
-                        {typeof item === 'object' 
+                        {typeof item === 'object'
                           ? Object.entries(item).map(([k, v]) => `${formatKey(k)}: ${v}`).join(' | ')
                           : Array.isArray(item) ? `${item[0]}: ${item[1]}` : item
                         }
@@ -499,16 +679,9 @@ const ReportViewer = () => {
                   </div>
                 </div>
               )
-            } else {
-              return (
-                <div key={key} className="rounded-lg p-3" style={{ background: 'var(--dms-panel-bg)' }}>
-                  <p className="text-xs font-medium muted mb-1">{formatKey(key)}</p>
-                  <p className="text-xl font-bold" style={{ color: 'var(--dms-primary)' }}>{value}</p>
-                </div>
-              )
-            }
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     )
   }
@@ -521,7 +694,7 @@ const ReportViewer = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/logs')}
+            onClick={() => navigate('/reports')}
             className="flex items-center gap-2 text-sm muted hover:opacity-80 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,9 +704,9 @@ const ReportViewer = () => {
           </button>
           <div className="h-6 w-px bg-gray-300" />
           <h1 className="text-2xl font-bold" style={{ color: 'var(--dms-text-primary)' }}>{reportTypeLabels[reportType] || reportType}</h1>
-          {reportData?.dateRange && (
+          {(reportData?.dateRange?.from || reportData?.dateRange?.to) && (
             <span className="text-sm px-3 py-1 rounded-full" style={{ background: 'var(--dms-panel-bg)', color: 'var(--dms-muted)' }}>
-              {reportData.dateRange.from} to {reportData.dateRange.to}
+              {reportData.dateRange.from || 'Start'} to {reportData.dateRange.to || 'Now'}
             </span>
           )}
         </div>
@@ -613,15 +786,13 @@ const ReportViewer = () => {
           <div className="flex gap-2">
             <button 
               onClick={applyFilters}
-              className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
-              style={{ background: 'var(--dms-primary)' }}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
             >
               Apply Filters
             </button>
             <button 
               onClick={resetFilters}
-              className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              style={{ background: 'var(--dms-card-bg)', color: 'var(--dms-text-primary)' }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Reset
             </button>
@@ -643,8 +814,7 @@ const ReportViewer = () => {
             <button 
               onClick={exportToCSV}
               disabled={exporting || !reportData}
-              className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              style={{ background: 'var(--dms-secondary)' }}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -654,7 +824,7 @@ const ReportViewer = () => {
             <button 
               onClick={exportToPDF}
               disabled={exporting || !reportData}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -682,7 +852,7 @@ const ReportViewer = () => {
           <p className="text-red-600 mb-4">{error}</p>
           <button 
             onClick={fetchReportData}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
           >
             Retry
           </button>
@@ -722,7 +892,7 @@ const ReportViewer = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead style={{ background: 'var(--dms-primary)' }}>
                   <tr>
-                    {reportData.columns?.map(col => (
+                    {reportColumns.map(col => (
                       <th 
                         key={col.key} 
                         className="px-4 py-3 text-left text-xs font-semibold text-white tracking-wider whitespace-nowrap"
@@ -735,14 +905,14 @@ const ReportViewer = () => {
                 <tbody className="divide-y divide-gray-200" style={{ background: 'var(--dms-card-bg)' }}>
                   {paginatedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={reportData.columns?.length || 1} className="px-4 py-12 text-center muted">
+                      <td colSpan={reportColumns.length || 1} className="px-4 py-12 text-center muted">
                         No data found
                       </td>
                     </tr>
                   ) : (
                     paginatedRows.map((row, idx) => (
                       <tr key={row.id || idx} className="hover:bg-gray-50 transition-colors">
-                        {reportData.columns?.map(col => (
+                        {reportColumns.map(col => (
                           <td key={col.key} className="px-4 py-3 text-sm whitespace-nowrap" style={{ color: 'var(--dms-text-primary)' }}>
                             {col.key === 'status' ? (
                               <StatusBadge status={row[col.key]} />
@@ -763,16 +933,14 @@ const ReportViewer = () => {
                 <button 
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--dms-card-bg)', color: 'var(--dms-text-primary)' }}
+                  className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   First
                 </button>
                 <button 
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--dms-card-bg)', color: 'var(--dms-text-primary)' }}
+                  className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -782,16 +950,14 @@ const ReportViewer = () => {
                 <button 
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--dms-card-bg)', color: 'var(--dms-text-primary)' }}
+                  className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
                 <button 
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: 'var(--dms-card-bg)', color: 'var(--dms-text-primary)' }}
+                  className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Last
                 </button>

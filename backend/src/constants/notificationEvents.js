@@ -1,6 +1,7 @@
 const NOTIFICATION_EVENT_DEFINITIONS = [
   { key: 'documentSubmitted', dbType: 'REVIEW_REQUIRED' },
   { key: 'reviewAssigned', dbType: 'DOCUMENT_ASSIGNED' },
+  { key: 'requiredDocumentPicAssigned', dbType: 'DOCUMENT_ASSIGNED' },
   { key: 'reviewRequired', dbType: 'REVIEW_REQUIRED' },
   { key: 'reviewCompleted', dbType: 'STATUS_CHANGED' },
   { key: 'approvalRequest', dbType: 'APPROVAL_REQUIRED' },

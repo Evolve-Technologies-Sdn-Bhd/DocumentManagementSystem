@@ -8,10 +8,11 @@ import { applyTheme, readLandingPageSettings, readThemeSettings, subscribeBrandi
 import GettingStartedModal from './GettingStartedModal'
 import { isAdmin } from '../utils/permissions'
 import GuidedTour from './GuidedTour'
-import UploadProgressBar from './UploadProgressBar'
 import AppShell from './layout/AppShell'
 import PageContainer from './ui/PageContainer'
 import IconButton from './ui/IconButton'
+import GlobalLoadingOverlay from './ui/GlobalLoadingOverlay'
+import FloatingAIBot from './ai/FloatingAIBot'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -110,7 +111,7 @@ export default function Layout({ children }) {
 
   return (
     <>
-      <UploadProgressBar />
+      <GlobalLoadingOverlay />
       <AppShell
         topbar={(
           <Topbar
@@ -249,6 +250,7 @@ export default function Layout({ children }) {
           {children}
         </PageContainer>
       </AppShell>
+      <FloatingAIBot />
     </>
   )
 }

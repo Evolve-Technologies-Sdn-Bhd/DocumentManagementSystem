@@ -5,6 +5,9 @@ const config = require('./config/app');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const ResponseFormatter = require('./utils/responseFormatter');
 
+const isProd = process.env.NODE_ENV === 'production';
+const MEM_GUARD_THRESHOLD_MB = isProd ? 820 : 4000;
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const docRoutes = require('./routes/documents');
@@ -18,10 +21,17 @@ const auditRoutes = require('./routes/audit');
 const systemRoutes = require('./routes/system');
 const usersRoutes = require('./routes/users');
 const rolesRoutes = require('./routes/roles');
+const divisionsRoutes = require('./routes/divisions');
 const epcRegistryRoutes = require('./routes/epcRegistry');
 const projectTrackingRoutes = require('./routes/projectTracking');
 const expiryTrackingRoutes = require('./routes/expiryTracking');
+const crmRoutes = require('./routes/crm');
+const smartTemplatesRoutes = require('./routes/smartTemplates');
+const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
+const smartDocumentsRoutes = require('./routes/smartDocuments');
+const aiRoutes = require('./routes/ai');
 const notificationService = require('./services/notificationService');
+const configService = require('./services/configService');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -97,16 +107,44 @@ if (config.nodeEnv === 'development') {
 app.use(express.json({ limit: config.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
+// Memory usage guard: reject incoming requests with 503 when Node heap is dangerously high
+// Prevents OOM kill on low-RAM servers (3-5GB instances)
+app.use((req, res, next) => {
+  try {
+    const mem = process.memoryUsage();
+    const heapMB = Math.round(mem.heapUsed / 1048576);
+    if (heapMB > MEM_GUARD_THRESHOLD_MB) {
+      const url = String(req.originalUrl || req.url || '');
+      if (url.includes('/api/system/health') || url === '/healthz' || url === '/readyz') return next();
+      console.warn(`[MEM_GUARD] Heap=${heapMB}MB > threshold=${MEM_GUARD_THRESHOLD_MB}MB, rejecting ${req.method} ${url}`);
+      res.setHeader('Retry-After', '3');
+      return res.status(503).json({
+        success: false,
+        message: 'Server is currently under high load, please retry in a moment.',
+        code: 'HIGH_MEMORY_LOAD'
+      });
+    }
+  } catch (_err) {}
+  next();
+});
+
 app.use('/uploads/branding', express.static(path.join(config.uploadDir, 'branding'), { maxAge: '30d', immutable: true }));
 app.use('/uploads/landing', express.static(path.join(config.uploadDir, 'landing'), { maxAge: '30d' }));
 app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '1d' }));
 
 // Health check
+app.get(['/healthz', '/readyz'], (req, res) => { res.status(200).type('text/plain').send('ok'); });
 app.get('/', (req, res) => {
+  const mem = process.memoryUsage();
   ResponseFormatter.success(res, {
     service: 'DMS Backend API',
     version: '1.0.0',
-    status: 'running'
+    status: 'running',
+    memory: {
+      heapUsedMB: Math.round(mem.heapUsed / 1048576),
+      heapTotalMB: Math.round(mem.heapTotal / 1048576),
+      rssMB: Math.round(mem.rss / 1048576)
+    }
   }, 'Service is healthy');
 });
 
@@ -126,7 +164,10 @@ app.get(['/api', '/api/'], (req, res) => {
       notifications: '/api/notifications',
       epcRegistry: '/api/epc-registry',
       projectTracking: '/api/project-tracking',
-      expiryTracking: '/api/expiry-tracking'
+      expiryTracking: '/api/expiry-tracking',
+      crm: '/api/crm',
+      smartTemplates: '/api/smart-templates',
+      smartDocumentStyle: '/api/smart-document-style'
     }
   }, 'API root');
 });
@@ -144,15 +185,99 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/divisions', divisionsRoutes);
 app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
+app.use('/api/crm', crmRoutes);
+
+// Alias routes helpers (require BEFORE first use to avoid TDZ)
+const { authenticate, authorizePermission } = require('./middleware/auth');
+const asyncHandler = require('./utils/asyncHandler');
+const documentController = require('./controllers/documentController');
+const { uploadDocument } = require('./middleware/upload');
+
+// Smart Document feature gating middleware
+const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
+  try {
+    const settings = await configService.getSmartDocumentSettings()
+    if (!settings.enabled) {
+      return ResponseFormatter.error(
+        res,
+        'Smart Document feature is currently disabled. Please contact your administrator.',
+        403,
+        { code: 'SMART_DOCUMENT_DISABLED' }
+      )
+    }
+    next()
+  } catch (error) {
+    console.error('Smart Document gating error:', error)
+    next()
+  }
+})
+
+app.use('/api/smart-templates', requireSmartDocumentEnabled, smartTemplatesRoutes);
+app.use('/api/smart-document-style', requireSmartDocumentEnabled, smartDocumentStyleRoutes);
+app.use('/api/smart-documents', requireSmartDocumentEnabled, smartDocumentsRoutes);
+
+// AI routes: mount SAFELY. If aiRoutes is invalid or has undefined handlers, expose stubs instead of crashing the server.
+(function mountAIRoutesSafely() {
+  try {
+    const routerType = typeof aiRoutes;
+    if (routerType !== 'function') {
+      throw new Error(`aiRoutes is ${routerType}, expected Express router function`);
+    }
+    // Verify known public endpoints exist so "undefined callback" error cannot happen
+    const testStack = aiRoutes.stack || [];
+    let hasHealth = false;
+    let hasConfig = false;
+    for (const layer of testStack) {
+      const route = layer && layer.route;
+      if (!route || !route.path || !Array.isArray(route.methods)) continue;
+      if (route.path === '/health' && route.methods.get) hasHealth = true;
+      if (route.path === '/config' && route.methods.get) hasConfig = true;
+    }
+    if (!hasHealth || !hasConfig) {
+      throw new Error('aiRoutes missing /health or /config public endpoint (undefined callback risk)');
+    }
+    app.use('/api/ai', aiRoutes);
+    console.log('✅ AI routes mounted safely');
+  } catch (mountErr) {
+    console.warn('⚠️  [AI_ROUTES] Skipping AI mount:', mountErr.message);
+    // Stubs: MUST match expected frontend endpoints
+    app.get('/api/ai/health', (req, res) => {
+      res.status(200).json({
+        success: true,
+        data: {
+          enabled: false,
+          status: 'unavailable',
+          model: 'none',
+          message: 'AI module is unavailable on this server instance'
+        }
+      });
+    });
+    app.get('/api/ai/config', (req, res) => {
+      res.status(200).json({ success: true, data: { enabled: false, model: null } });
+    });
+    app.use('/api/ai/*', (req, res) => {
+      return res.status(501).json({
+        success: false,
+        message: 'AI endpoints are currently unavailable.',
+        code: 'AI_MODULE_DISABLED'
+      });
+    });
+  }
+})();
+
 app.use('/api/public', require('./routes/public'));
 
-// Alias routes for easier frontend access
-const configService = require('./services/configService');
-const { authenticate } = require('./middleware/auth');
-const asyncHandler = require('./utils/asyncHandler');
+app.post(
+  '/api/files/upload',
+  authenticate,
+  authorizePermission('documents.published', 'create'),
+  uploadDocument.array('files'),
+  documentController.bulkImportPublished
+);
 
 app.get('/api/workflows', authenticate, asyncHandler(async (req, res) => {
   const workflows = await configService.getWorkflows();
@@ -305,5 +430,17 @@ app.use(notFoundHandler);
 
 // Global error handler (must be last)
 app.use(errorHandler);
+
+// PM2 ready signal + periodic manual GC hint (when --expose-gc enabled)
+if (typeof process.send === 'function') {
+  try {
+    process.nextTick(() => {
+      try { process.send('ready'); } catch (_e) {}
+    });
+  } catch (_e) {}
+}
+setInterval(() => {
+  try { if (global.gc) global.gc(); } catch (_e) {}
+}, 20000);
 
 module.exports = app;

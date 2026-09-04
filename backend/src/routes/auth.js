@@ -8,6 +8,9 @@ const router = express.Router();
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-reset-code', authController.verifyResetCode);
+router.post('/reset-password-code', authController.resetPasswordWithCode);
 router.post('/refresh-token', authController.refreshToken);
 router.post('/verify-2fa', authController.verify2FA);
 router.post('/resend-2fa', authController.resend2FA);

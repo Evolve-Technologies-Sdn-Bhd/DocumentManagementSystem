@@ -1,12 +1,14 @@
 const prisma = require('../config/database');
 const fileStorageService = require('./fileStorageService');
 const path = require('path');
+const divisionScopeService = require('./divisionScopeService');
+const { ConflictError } = require('../utils/errors')
 
 class FolderService {
   /**
    * List all folders with hierarchy
    */
-  async listFolders() {
+  async listFolders(user = null) {
     const folders = await prisma.folder.findMany({
       orderBy: [
         { parentId: 'asc' },
@@ -19,8 +21,14 @@ class FolderService {
       }
     });
 
+    const accessibleFolderIds = user ? await divisionScopeService.getAccessibleFolderIdsForUser(user) : null
+    const allowedIds = accessibleFolderIds ? new Set(accessibleFolderIds) : null
+    const scopedFolders = allowedIds
+      ? folders.filter((folder) => allowedIds.has(folder.id))
+      : folders
+
     // Build hierarchy
-    return this.buildFolderTree(folders);
+    return this.buildFolderTree(scopedFolders);
   }
 
   /**
@@ -77,7 +85,7 @@ class FolderService {
     });
 
     if (existingFolder) {
-      throw new Error('A folder with this name already exists at this level');
+      throw new ConflictError('A folder with this name already exists at this level');
     }
 
     const folder = await prisma.folder.create({
@@ -136,7 +144,7 @@ class FolderService {
       });
 
       if (existingFolder) {
-        throw new Error('A folder with this name already exists at this level');
+        throw new ConflictError('A folder with this name already exists at this level');
       }
     }
 

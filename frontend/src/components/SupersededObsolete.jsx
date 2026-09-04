@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import api from '../api/axios'
 import RequestSupersedeModal from './RequestSupersedeModal'
 import ReviewSupersedeModal from './ReviewSupersedeModal'
@@ -18,7 +18,9 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import InlineSpinner from './ui/InlineSpinner'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 export default function SupersededObsolete() {
   const { itemsPerPage, t } = usePreferences()
@@ -36,6 +38,8 @@ export default function SupersededObsolete() {
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState(null)
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
   useEffect(() => {
     loadDocuments()
@@ -155,12 +159,7 @@ export default function SupersededObsolete() {
   const allActionTypes = ['All', ...new Set(documents.map(doc => doc.actionType))]
   const allStatuses = ['All', ...new Set(documents.map(doc => doc.status))]
 
-  // Pagination
-  const totalPages = Math.ceil(filteredDocuments.length / pageSize)
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const currentDocuments = filteredDocuments.slice(startIndex, endIndex)
-
+  // Pagination overrides below via useTableFeatures.sortedData
   const handlePageChange = (page) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -296,6 +295,177 @@ export default function SupersededObsolete() {
     loadDocuments()
   }
 
+  const soTableColumns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      sortable: true,
+      required: true,
+      render: (value, row) => (
+        <a href="#" className="font-medium text-ink hover:text-brand">
+          {value}
+        </a>
+      )
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('doc_title'),
+      sortable: true,
+      required: true,
+      render: (value) => (
+        <a href="#" className="font-medium text-brand hover:text-brand-hover hover:underline">
+          {value}
+        </a>
+      )
+    },
+    {
+      id: 'actionType',
+      key: 'actionType',
+      accessor: 'actionType',
+      label: t('action_type'),
+      sortable: true,
+      render: (value) => <span>{value}</span>
+    },
+    {
+      id: 'replacedBy',
+      key: 'replacedBy',
+      accessor: 'replacedBy',
+      label: t('replaced_by'),
+      sortable: true,
+      render: (value) => (
+        <span className="text-sm" title={value}>
+          {value === '-' ? '-' : (
+            <span className="text-brand">{value}</span>
+          )}
+        </span>
+      )
+    },
+    {
+      id: 'requestedBy',
+      key: 'requestedBy',
+      accessor: 'requestedBy',
+      label: t('requested_by'),
+      sortable: true,
+      render: (value) => <span>{value}</span>
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      sortable: true,
+      render: (_v, row) => <StatusBadge status={row.status} />
+    },
+    {
+      id: 'archiveStatus',
+      key: 'archiveStatus',
+      accessor: 'isArchived',
+      label: t('archive_status'),
+      sortable: true,
+      render: (value) => (
+        value ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            {t('archived')}
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-ink-secondary border border-border">
+            {t('not_archived')}
+          </span>
+        )
+      )
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: '__actions',
+      label: t('action'),
+      required: true,
+      align: 'right',
+      stickyRight: true,
+      render: (_v, row) => (
+        <ActionMenu
+          actions={[
+            ...(hasPermission('documents.superseded', 'view')
+              ? [{ label: t('view'), onClick: () => handleView(row) }]
+              : []
+            ),
+            ...(row.status === 'Pending Review' && hasPermission('documents.review', 'review')
+              ? [{ label: t('review_action'), onClick: () => handleReview(row) }]
+              : []
+            ),
+            ...(row.status === 'Pending Approval' && hasPermission('documents.review', 'approve')
+              ? [{ label: t('approve_action'), onClick: () => handleApproved(row) }]
+              : []
+            ),
+            ...(row.status === 'Completed' && !row.isArchived && hasPermission('documents.superseded', 'update')
+              ? [{ label: t('archive_action'), onClick: () => handleArchive(row) }]
+              : []
+            )
+          ]}
+        />
+      )
+    }
+  ], [t])
+
+  const tableFeatures = useTableFeatures({
+    tableId: 'superseded-obsolete-list',
+    columns: soTableColumns,
+    data: filteredDocuments,
+    defaultSortKey: 'fileCode',
+    defaultSortDirection: 'asc'
+  })
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = tableFeatures
+
+  useEffect(() => { setCurrentPage(1) }, [sortedData.length])
+
+  const totalPages = Math.ceil(sortedData.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const currentDocuments = sortedData.slice(startIndex, endIndex)
+
+  const handleColDragStart = (idx, e) => {
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) { e.preventDefault(); return }
+    setDragColIndex(idx)
+    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)) } catch {}
+  }
+  const handleColDragOver = (idx, e) => {
+    e.preventDefault()
+    const col = visibleColumns[idx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(idx)
+  }
+  const handleColDragLeave = () => setDragOverColIndex(null)
+  const handleColDrop = (toIdx, e) => {
+    e.preventDefault()
+    const fromIdx = dragColIndex
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+    if (fromIdx === null || toIdx === null || fromIdx === toIdx) return
+    const fromId = visibleColumns[fromIdx]?.id
+    const toId = visibleColumns[toIdx]?.id
+    if (!fromId || !toId) return
+    const globalFrom = orderedColumns.findIndex((c) => c.id === fromId)
+    const globalTo = orderedColumns.findIndex((c) => c.id === toId)
+    if (globalFrom >= 0 && globalTo >= 0) moveColumn(globalFrom, globalTo)
+  }
+  const handleColDragEnd = () => { setDragColIndex(null); setDragOverColIndex(null) }
+
   return (
     <>
       {/* Request Supersede/Obsolete Modal */}
@@ -380,50 +550,67 @@ export default function SupersededObsolete() {
           </div>
 
           {/* Search and Filters */}
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <TextInput
-                type="text"
-                placeholder="Search by file code, title, or requester..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-10"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          <div className="flex flex-col md:flex-row md:items-center gap-3 w-full">
+            {/* 3 equal-width columns for search + 2 filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1 min-w-0 w-full">
+              {/* Search */}
+              <div className="min-w-0 relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <TextInput
+                  type="text"
+                  placeholder="Search by file code, title, or requester..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Action Type Filter */}
+              <div className="min-w-0">
+                <SelectField
+                  value={actionTypeFilter}
+                  onChange={(e) => setActionTypeFilter(e.target.value)}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+                  {allActionTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </SelectField>
+              </div>
+
+              {/* Status Filter */}
+              <div className="min-w-0">
+                <SelectField
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  {allStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </SelectField>
+              </div>
             </div>
 
-            {/* Action Type Filter */}
-            <SelectField
-              value={actionTypeFilter}
-              onChange={(e) => setActionTypeFilter(e.target.value)}
-            >
-              {allActionTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </SelectField>
-
-            {/* Status Filter */}
-            <SelectField
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              {allStatuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </SelectField>
+            {/* Column Settings — pinned to right, separate from the 3-column grid */}
+            <div className="flex items-center shrink-0 md:ml-auto">
+              <ColumnSettingsButton
+                orderedColumns={orderedColumns}
+                hiddenColumns={hiddenColumns}
+                onToggleColumn={toggleColumnVisibility}
+                onReset={resetTableSettings}
+              />
+            </div>
           </div>
         </div>
 
@@ -433,95 +620,81 @@ export default function SupersededObsolete() {
           <Table>
             <thead className="bg-surface-muted">
               <tr>
-                <Th>{t('file_code')}</Th>
-                <Th>{t('doc_title')}</Th>
-                <Th>{t('action_type')}</Th>
-                <Th>{t('replaced_by')}</Th>
-                <Th>{t('requested_by')}</Th>
-                <Th>{t('status')}</Th>
-                <Th>{t('archive_status')}</Th>
-                <Th>{t('action')}</Th>
+                {visibleColumns.map((col, idx) => {
+                  const id = col.id || col.key
+                  const canDrag = !col.stickyRight
+                  const isDragOver = canDrag && dragOverColIndex === idx
+                  return (
+                    <Th
+                      key={id}
+                      align={col.align || 'left'}
+                      stickyRight={col.stickyRight || false}
+                      sortable={Boolean(col.sortable)}
+                      sortDirection={getSortDirectionFor(id)}
+                      sortKey={id}
+                      onSort={col.sortable ? toggleSort : undefined}
+                      draggable={canDrag}
+                      dragOver={isDragOver}
+                      onDragStart={(e) => handleColDragStart(idx, e)}
+                      onDragOver={(e) => handleColDragOver(idx, e)}
+                      onDragLeave={handleColDragLeave}
+                      onDrop={(e) => handleColDrop(idx, e)}
+                      onDragEnd={handleColDragEnd}
+                      title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                    >
+                      {col.label || col.header || id}
+                    </Th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-10">
+                  <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-10">
                     <div className="flex flex-col items-center gap-2">
                       <InlineSpinner className="h-8 w-8 border-2" />
                       <span className="text-sm text-ink-muted">{t('loading_docs')}</span>
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ) : currentDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan="8">
+                  <Td colSpan={Math.max(visibleColumns.length, 1)}>
                     <EmptyState 
                       message={t('no_docs_found')} 
                       description={searchQuery || actionTypeFilter !== 'All' || statusFilter !== 'All' ? t('try_adjusting') : t('no_superseded_docs')}
                       actionLabel={searchQuery ? t('clear_search') : null}
                       onAction={searchQuery ? () => setSearchQuery('') : null}
                     />
-                  </td>
+                  </Td>
                 </tr>
               ) : (
                 currentDocuments.map((doc) => (
                   <Tr key={doc.id}>
-                    <Td>
-                      <a href="#" className="font-medium text-ink hover:text-brand">
-                        {doc.fileCode}
-                      </a>
-                    </Td>
-                    <Td>
-                      <a href="#" className="font-medium text-brand hover:text-brand-hover hover:underline">
-                        {doc.title}
-                      </a>
-                    </Td>
-                    <Td>{doc.actionType}</Td>
-                    <Td>
-                      <span className="text-sm" title={doc.replacedBy}>
-                        {doc.replacedBy === '-' ? '-' : (
-                          <span className="text-brand">{doc.replacedBy}</span>
-                        )}
-                      </span>
-                    </Td>
-                    <Td>{doc.requestedBy}</Td>
-                    <Td className="py-3">
-                      <StatusBadge status={doc.status} />
-                    </Td>
-                    <Td className="py-3">
-                      {doc.isArchived ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {t('archived')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-ink-secondary border border-border">
-                          {t('not_archived')}
-                        </span>
-                      )}
-                    </Td>
-                    <Td className="py-3">
-                      <ActionMenu
-                        actions={[
-                          ...(hasPermission('documents.superseded', 'view')
-                            ? [{ label: t('view'), onClick: () => handleView(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'Pending Review' && hasPermission('documents.review', 'review')
-                            ? [{ label: t('review_action'), onClick: () => handleReview(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'Pending Approval' && hasPermission('documents.review', 'approve')
-                            ? [{ label: t('approve_action'), onClick: () => handleApproved(doc) }]
-                            : []
-                          ),
-                          ...(doc.status === 'Completed' && !doc.isArchived && hasPermission('documents.superseded', 'update')
-                            ? [{ label: t('archive_action'), onClick: () => handleArchive(doc) }]
-                            : []
-                          )
-                        ]}
-                      />
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const id = col.id || col.key || col.accessor
+                      const accessor = col.accessor || id
+                      let value
+                      if (typeof accessor === 'function') {
+                        value = accessor(doc, col)
+                      } else if (accessor === '__actions') {
+                        value = null
+                      } else {
+                        value = doc?.[accessor]
+                      }
+                      const content = typeof col.render === 'function' ? col.render(value, doc) : (value != null ? value : '')
+                      return (
+                        <Td
+                          key={id}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          className={col.stickyRight ? 'py-3' : ''}
+                        >
+                          {content}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))
               )}
@@ -620,11 +793,11 @@ export default function SupersededObsolete() {
       </AppSurface>
 
       {/* Pagination */}
-      {!loading && filteredDocuments.length > 0 && (
+      {!loading && sortedData.length > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalRecords={filteredDocuments.length}
+          totalRecords={sortedData.length}
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}

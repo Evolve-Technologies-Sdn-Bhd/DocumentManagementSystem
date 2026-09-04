@@ -15,6 +15,15 @@ import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import TextInput from './ui/TextInput'
+import SelectField from './ui/SelectField'
+import TextArea from './ui/TextArea'
+import Button from './ui/Button'
+import {
+  SmartTemplateAdminList,
+  DocumentStyleProfilesAdmin
+} from './smartdocuments/admin'
 
 const VALID_CONFIG_TABS = ['general', 'masterdata', 'roles', 'template', 'audit', 'backup', 'cleanup']
 
@@ -50,8 +59,9 @@ function TabNavigation({ activeTab, onTabChange, tabs }) {
 
 // Template Management Tab Component
 function TemplateManagement() {
-  const { t, itemsPerPage } = usePreferences()
+  const { t, itemsPerPage, smartDocumentEnabled } = usePreferences()
   const [activeSubTab, setActiveSubTab] = useState('templates')
+  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -63,7 +73,6 @@ function TemplateManagement() {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [documentTypes, setDocumentTypes] = useState([])
   const [isAdminUser, setIsAdminUser] = useState(false)
-  const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'warning' })
   const [templateRequests, setTemplateRequests] = useState([])
   const [loadingTemplateRequests, setLoadingTemplateRequests] = useState(false)
@@ -237,7 +246,7 @@ function TemplateManagement() {
   const handleDownload = async (template) => {
     try {
       const token = localStorage.getItem('token')
-      const baseURL = import.meta.env.VITE_API_URL || '/api'
+      const baseURL = String(import.meta.env.VITE_API_URL || '').trim() || 'http://localhost:4001/api'
       
       // Fetch the file as blob
       const response = await fetch(`${baseURL}/templates/${template.id}/download`, {
@@ -491,12 +500,12 @@ function TemplateManagement() {
       </div>
 
       <div className="mb-6 border-b border-border">
-        <nav className="flex space-x-8">
+        <nav className="dms-scrollbar flex gap-8 overflow-x-auto">
           <button
             type="button"
-            onClick={() => setActiveSubTab('templates')}
+            onClick={() => { setActiveSubTab('templates') }}
             data-tour-id="tmpl-subtab-templates"
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeSubTab === 'templates'
                 ? 'border-brand text-brand'
                 : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
@@ -507,9 +516,9 @@ function TemplateManagement() {
           {hasAnyPermission('configuration.templateRequests') && (
             <button
               type="button"
-              onClick={() => setActiveSubTab('requests')}
+              onClick={() => { setActiveSubTab('requests') }}
               data-tour-id="tmpl-subtab-requests"
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeSubTab === 'requests'
                   ? 'border-brand text-brand'
                   : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
@@ -518,30 +527,50 @@ function TemplateManagement() {
               Template Requests
             </button>
           )}
+          {hasAnyPermission('configuration.templates') && smartDocumentEnabled && (
+            <button
+              type="button"
+              onClick={() => { setActiveSubTab('smartTemplates') }}
+              data-tour-id="tmpl-subtab-smart-templates"
+              className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSubTab === 'smartTemplates'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
+              }`}
+            >
+              Smart Templates
+            </button>
+          )}
+          {hasAnyPermission('configuration.settings') && smartDocumentEnabled && (
+            <button
+              type="button"
+              onClick={() => { setActiveSubTab('documentStyles') }}
+              data-tour-id="tmpl-subtab-document-styles"
+              className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSubTab === 'documentStyles'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-ink-muted hover:text-ink hover:border-border'
+              }`}
+            >
+              Document Style Profiles
+            </button>
+          )}
         </nav>
       </div>
 
       {showTemplateRequestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h3 className="text-lg font-semibold text-ink">Request Template</h3>
-              <button
-                type="button"
-                onClick={() => setShowTemplateRequestModal(false)}
-                className="text-ink-soft transition-colors hover:text-ink"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4 px-6 py-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Modal
+          onClose={() => setShowTemplateRequestModal(false)}
+          closeOnBackdrop
+          size="lg"
+        >
+          <ModalHeader title="Request Template" onClose={() => setShowTemplateRequestModal(false)} />
+          <ModalBody>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-ink-secondary">Request Type</label>
-                  <select
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Request Type <span className="text-red-500">*</span></label>
+                  <SelectField
                     value={templateRequestForm.requestType}
                     onChange={(e) => {
                       const v = e.target.value
@@ -552,17 +581,16 @@ function TemplateManagement() {
                         templateId: v === 'NEW' ? '' : prev.templateId
                       }))
                     }}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   >
                     <option value="NEW">New Template</option>
                     <option value="UPDATE">Update Existing Template</option>
-                  </select>
+                  </SelectField>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-ink-secondary">Document Type</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">Document Type</label>
                   <div className="mb-2 flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="radio"
                         name="docTypeModeCfg"
@@ -571,7 +599,7 @@ function TemplateManagement() {
                       />
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="radio"
                         name="docTypeModeCfg"
@@ -583,33 +611,31 @@ function TemplateManagement() {
                   </div>
 
                   {templateRequestForm.documentTypeMode === 'existing' ? (
-                    <select
+                    <SelectField
                       value={templateRequestForm.documentTypeId}
                       onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, documentTypeId: e.target.value, templateId: '' }))}
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                     >
                       <option value="">Select document type</option>
                       {documentTypes.map((dt) => (
                         <option key={dt.id} value={dt.id}>{dt.name}</option>
                       ))}
-                    </select>
+                    </SelectField>
                   ) : (
-                    <input
+                    <TextInput
                       type="text"
                       value={templateRequestForm.documentTypeName}
                       onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, documentTypeName: e.target.value }))}
                       placeholder="Enter new document type"
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-secondary">Template</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">Template</label>
                 {templateRequestForm.requestType === 'UPDATE' && (
                   <div className="mb-2 flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="radio"
                         name="tplModeCfg"
@@ -618,7 +644,7 @@ function TemplateManagement() {
                       />
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-ink-secondary">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                       <input
                         type="radio"
                         name="tplModeCfg"
@@ -631,18 +657,16 @@ function TemplateManagement() {
                 )}
 
                 {templateRequestForm.requestType === 'NEW' || templateRequestForm.templateMode === 'new' ? (
-                  <input
+                  <TextInput
                     type="text"
                     value={templateRequestForm.templateName}
                     onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, templateName: e.target.value }))}
                     placeholder="Enter template name"
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 ) : (
-                  <select
+                  <SelectField
                     value={templateRequestForm.templateId}
                     onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, templateId: e.target.value }))}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-surface-muted disabled:text-ink-soft"
                     disabled={templateRequestForm.documentTypeMode !== 'existing' || !templateRequestForm.documentTypeId}
                   >
                     <option value="">Select template</option>
@@ -654,43 +678,42 @@ function TemplateManagement() {
                         <option key={tpl.id} value={tpl.id}>{tpl.templateName} (v{tpl.version})</option>
                       ))
                     })()}
-                  </select>
+                  </SelectField>
                 )}
                 {templateRequestForm.requestType === 'UPDATE' && templateRequestForm.templateMode === 'existing' && templateRequestForm.documentTypeMode !== 'existing' && (
-                  <p className="mt-1 text-xs text-ink-muted">Select an existing document type to choose an existing template.</p>
+                  <p className="mt-1.5 text-xs text-gray-500">Select an existing document type to choose an existing template.</p>
                 )}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-secondary">Description / Reason</label>
-                <textarea
+                <label className="block text-sm font-medium text-gray-900 mb-2">Description / Reason</label>
+                <TextArea
                   value={templateRequestForm.description}
                   onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, description: e.target.value }))}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
                   rows={3}
                   placeholder="Describe what you need (optional)"
                 />
               </div>
             </div>
+          </ModalBody>
 
-            <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
-              <button
+          <ModalFooter>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setShowTemplateRequestModal(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-muted hover:text-ink"
               >
                 {t('cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="primary"
                 onClick={submitTemplateRequest}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
               >
                 {t('submit')}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+          </ModalFooter>
+        </Modal>
       )}
 
       {/* Template List */}
@@ -708,7 +731,7 @@ function TemplateManagement() {
                   <button
                     onClick={handleAddNewTemplate}
                     data-tour-id="tmpl-btn-add-template"
-                    className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
+                    className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                   >
                     {t('cfg_add_new_template')}
                   </button>
@@ -739,7 +762,7 @@ function TemplateManagement() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_prefix_code')}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_by')}</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_on')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('action')}</th>
+                    <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary border-l border-border">{t('action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -765,14 +788,14 @@ function TemplateManagement() {
                     </tr>
                   ) : (
                     currentTemplates.map((template) => (
-                      <tr key={template.id} className="border-b border-border transition-colors hover:bg-surface-muted">
+                      <tr key={template.id} className="group border-b border-border transition-colors hover:bg-surface-muted">
                         <td className="px-4 py-4 text-ink-secondary">{template.documentType}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.templateName}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.version}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.prefixCode}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.uploadedBy}</td>
                         <td className="px-4 py-4 text-ink-secondary">{template.uploadedOn}</td>
-                        <td className="px-4 py-4">
+                        <td className="sticky right-0 z-20 bg-surface group-hover:bg-surface-muted px-4 py-4 border-l border-border">
                           <ActionMenu
                             actions={[
                               ...(hasPermission('configuration.templates', 'read') ? [{ label: t('view'), onClick: () => handleView(template) }] : []),
@@ -830,7 +853,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'read') && (
                         <button
                           onClick={() => handleView(template)}
-                          className="flex-1 rounded bg-surface-muted px-3 py-2 text-sm text-ink-secondary transition-colors hover:bg-surface-strong hover:text-ink"
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                         >
                           {t('view')}
                         </button>
@@ -838,7 +861,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'update') && (
                         <button
                           onClick={(e) => handleReupload(e, template)}
-                          className="flex-1 rounded bg-surface-muted px-3 py-2 text-sm text-brand transition-colors hover:bg-surface-strong"
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                         >
                           {t('cfg_reupload')}
                         </button>
@@ -846,7 +869,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'read') && (
                         <button
                           onClick={() => handleDownload(template)}
-                          className="flex-1 rounded bg-brand px-3 py-2 text-sm text-ink-inverse transition-colors hover:bg-brand-hover"
+                          className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                         >
                           {t('download')}
                         </button>
@@ -854,7 +877,7 @@ function TemplateManagement() {
                       {isAdminUser && (
                         <button
                           onClick={() => handleDeleteTemplate(template)}
-                          className="flex-1 rounded bg-[var(--dms-color-danger-ink)] px-3 py-2 text-sm text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
+                          className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                         >
                           {t('delete')}
                         </button>
@@ -888,7 +911,7 @@ function TemplateManagement() {
                   type="button"
                   onClick={openTemplateRequestModal}
                   data-tour-id="tmpl-btn-request-template"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-ink-inverse transition-colors hover:bg-brand-hover"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                 >
                   Request Template
                 </button>
@@ -951,14 +974,14 @@ function TemplateManagement() {
                                   <button
                                     type="button"
                                     onClick={() => updateTemplateRequestStatus(r, 'RESOLVED')}
-                                    className="rounded bg-[var(--dms-color-success-ink)] px-3 py-1.5 text-xs font-medium text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
+                                    className="px-3 py-1.5 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                                   >
                                     Resolve
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateTemplateRequestStatus(r, 'REJECTED')}
-                                    className="rounded bg-[var(--dms-color-danger-ink)] px-3 py-1.5 text-xs font-medium text-[color:var(--dms-color-bg-canvas)] transition-colors hover:opacity-90"
+                                    className="px-3 py-1.5 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
                                   >
                                     Reject
                                   </button>
@@ -977,6 +1000,16 @@ function TemplateManagement() {
             </div>
           </div>
         )}
+
+        {activeSubTab === 'smartTemplates' && hasAnyPermission('configuration.templates') && smartDocumentEnabled && (
+          <SmartTemplateAdminList
+            saveNotification={(msg, type='success') => setAlertModal({ show: true, title: msg, type })}
+          />
+        )}
+
+        {activeSubTab === 'documentStyles' && hasAnyPermission('configuration.settings') && smartDocumentEnabled && (
+          <DocumentStyleProfilesAdmin />
+        )}
     </div>
     </div>
   )
@@ -991,7 +1024,7 @@ export default function Configuration() {
       { id: 'general', translationKey: 'cfg_general_system', modules: ['configuration.settings'] },
       { id: 'masterdata', translationKey: 'cfg_master_data', modules: ['configuration.masterData', 'configuration.documentTypes'] },
       { id: 'roles', translationKey: 'cfg_role_permission', modules: ['configuration.users', 'configuration.roles'] },
-      { id: 'template', translationKey: 'cfg_template_mgmt', modules: ['configuration.templates', 'configuration.templateRequests'] },
+      { id: 'template', translationKey: 'cfg_template_mgmt', modules: ['configuration.templates', 'configuration.templateRequests', 'configuration.settings'] },
       { id: 'audit', translationKey: 'cfg_audit_log', modules: ['configuration.auditSettings'] },
       { id: 'backup', translationKey: 'cfg_backup_recovery', modules: ['configuration.backup'] },
       { id: 'cleanup', translationKey: 'cfg_database_cleanup', modules: ['configuration.cleanup'] }
@@ -1003,8 +1036,14 @@ export default function Configuration() {
     })
   }, [])
 
+  const OBSOLETE_TAB_MAP = {
+    smartTemplates: 'template',
+    documentStyles: 'template'
+  }
+
   const [activeTab, setActiveTab] = useState(() => {
-    const tab = new URLSearchParams(location.search).get('tab')
+    const rawTab = new URLSearchParams(location.search).get('tab')
+    const tab = rawTab && OBSOLETE_TAB_MAP[rawTab] ? OBSOLETE_TAB_MAP[rawTab] : rawTab
     const requested = tab && VALID_CONFIG_TABS.includes(tab) ? tab : null
     const firstAllowed = configTabs?.[0]?.id || 'general'
     const allowedIds = new Set((configTabs || []).map((t) => t.id))
@@ -1014,11 +1053,17 @@ export default function Configuration() {
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get('tab')
+    if (tab && OBSOLETE_TAB_MAP[tab]) {
+      const params = new URLSearchParams(location.search)
+      params.set('tab', OBSOLETE_TAB_MAP[tab])
+      navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true })
+      return
+    }
     const requested = tab && VALID_CONFIG_TABS.includes(tab) ? tab : null
     const allowedIds = new Set((configTabs || []).map((t) => t.id))
     const nextTab = requested && allowedIds.has(requested) ? requested : (configTabs?.[0]?.id || 'general')
     setActiveTab((prev) => (prev === nextTab ? prev : nextTab))
-  }, [location.search, configTabs])
+  }, [location.search, configTabs, navigate])
 
   useEffect(() => {
     const allowedIds = new Set((configTabs || []).map((t) => t.id))

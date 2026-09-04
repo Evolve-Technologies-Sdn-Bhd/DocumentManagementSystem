@@ -17,7 +17,9 @@ router.post('/requests/:id/reject', authorizePermission('newDocumentRequest', 'a
 router.delete('/requests/:id', authorizePermission('newDocumentRequest', 'create'), documentController.deleteDocumentRequest);
 
 // Draft document workflow
+router.post('/drafts', uploadDocument.single('file'), documentController.createDraft);
 router.post('/drafts/submit-for-review', uploadDocument.single('file'), documentController.createDraftAndSubmitForReview);
+router.delete('/drafts/:id', documentController.deleteDraft);
 router.post('/:id/submit-for-review', documentController.submitDraftForReview);
 
 // Version requests (MUST be before generic /:id routes to avoid conflicts)
@@ -32,7 +34,6 @@ router.delete('/version-requests/:id', versionRequestController.deleteRequest);
 
 router.post(
   '/bulk-import',
-  authorizePermission('documents.published', 'publish'),
   authorizePermission('documents.published', 'create'),
   uploadDocument.array('files'),
   documentController.bulkImportPublished
@@ -47,7 +48,11 @@ router.get('/published', documentController.getPublishedDocuments);
 router.get('/stats', documentController.getStats);
 router.get('/my-stats', documentController.getMyStats);
 router.get('/drafts', documentController.getUserDrafts);
-router.get('/review-approval', documentController.getReviewApprovalDocuments);
+router.get(
+  '/review-approval',
+  authorizePermission('documents.review', 'view', 'read', 'review', 'approve', 'reject'),
+  documentController.getReviewApprovalDocuments
+);
 router.get('/superseded-obsolete', documentController.getSupersededObsoleteDocuments);
 router.get('/my-status', documentController.getMyDocuments);
 router.get('/my-status/:status', documentController.getMyDocumentsByStatus);

@@ -5,7 +5,6 @@ const asyncHandler = require('../utils/asyncHandler');
 const prisma = require('../config/database');
 const { uploadTemplate } = require('../middleware/upload');
 const path = require('path');
-const documentConversionService = require('../services/documentConversionService');
 const notificationService = require('../services/notificationService');
 
 const router = express.Router();
@@ -177,22 +176,23 @@ router.patch('/requests/:id', authorize('admin', 'document_controller'), asyncHa
 router.get('/', asyncHandler(async (req, res) => {
   const templates = await prisma.template.findMany({
     include: {
-      documentType: true
+      documentType: true,
     },
     orderBy: { createdAt: 'desc' }
   });
 
-  // Format response to match frontend expectations
   const formattedTemplates = templates.map(template => ({
     id: template.id,
-    documentType: template.documentType.name,
+    documentType: template.documentType?.name || null,
+    documentTypeId: template.documentTypeId,
     templateName: template.templateName,
     version: template.version,
-    prefixCode: template.documentType.prefix,
+    prefixCode: template.documentType?.prefix || null,
     uploadedBy: template.uploadedBy,
-    uploadedOn: new Date(template.uploadedOn).toLocaleDateString('en-GB'),
+    uploadedOn: template.uploadedOn ? new Date(template.uploadedOn).toLocaleDateString('en-GB') : null,
     filePath: template.filePath,
-    fileName: template.fileName
+    fileName: template.fileName,
+    isActive: template.isActive
   }));
 
   return ResponseFormatter.success(

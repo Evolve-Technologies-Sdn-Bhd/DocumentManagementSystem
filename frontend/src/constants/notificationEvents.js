@@ -7,6 +7,7 @@ export const notificationEventCategories = [
     items: [
       { key: 'documentSubmitted', label: 'Document Submitted', description: 'When a document is submitted for review.' },
       { key: 'reviewAssigned', label: 'Review Assigned', description: 'When a document is assigned to you for review.' },
+      { key: 'requiredDocumentPicAssigned', label: 'Required Document PIC Assigned', description: 'When you are assigned as PIC for a required project document.' },
       { key: 'reviewRequired', label: 'Review Reminder', description: 'Reminder that your review is still pending.' },
       { key: 'reviewCompleted', label: 'Review Completed', description: 'When your document is reviewed and forwarded.' },
       { key: 'approvalRequest', label: 'Approval Request', description: 'When a document is assigned to you for approval.' },

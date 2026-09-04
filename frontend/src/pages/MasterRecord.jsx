@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import api from '../api/axios'
 import ActionMenu from '../components/ActionMenu'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
@@ -7,6 +7,7 @@ import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import AppSurface from '../components/ui/AppSurface'
 import Button from '../components/ui/Button'
+import ColumnSettingsButton from '../components/ui/ColumnSettingsButton'
 import EmptyPanelState from '../components/ui/EmptyPanelState'
 import InlineSpinner from '../components/ui/InlineSpinner'
 import PageHeader from '../components/ui/PageHeader'
@@ -14,6 +15,7 @@ import SelectField from '../components/ui/SelectField'
 import { TableContainer, Table, Th, Td, Tr } from '../components/ui/Table'
 import TextInput from '../components/ui/TextInput'
 import { usePreferences } from '../contexts/PreferencesContext'
+import useTableFeatures from '../hooks/useTableFeatures'
 import { isAdmin } from '../utils/permissions'
 
 const MASTER_RECORD_DEBUG_URL = 'http://127.0.0.1:7777/event'
@@ -75,7 +77,6 @@ const downloadCsv = (fileName, headers, rows) => {
   window.URL.revokeObjectURL(link.href)
 }
 
-// Tab Navigation Component
 function TabNavigation({ activeTab, onTabChange }) {
   const { t } = usePreferences()
   const tabs = [
@@ -108,7 +109,6 @@ function TabNavigation({ activeTab, onTabChange }) {
   )
 }
 
-// New Document Register Component
 function NewDocumentRegister({ projectCategories = [], documentTypes = [], users = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [documents, setDocuments] = useState([])
@@ -128,6 +128,141 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(itemsPerPage)
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  const handleViewRef = { current: null }
+  const handleDownloadRef = { current: null }
+  const purgeByFileCodeRef = { current: null }
+
+  const tab1Columns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      header: t('file_code'),
+      className: 'font-medium text-brand',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('mr_doc_title'),
+      header: t('mr_doc_title'),
+      className: 'text-ink',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'type',
+      key: 'type',
+      accessor: 'type',
+      label: t('type'),
+      header: t('type'),
+      sortable: true
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: (row) => row.projectCategory || '',
+      label: t('project_category'),
+      header: t('project_category'),
+      sortable: true
+    },
+    {
+      id: 'version',
+      key: 'version',
+      accessor: (row) => normalizeRevision(row.version, row.fileCode),
+      label: t('version'),
+      header: t('version'),
+      sortable: true
+    },
+    {
+      id: 'registeredDate',
+      key: 'registeredDate',
+      accessor: 'registeredDate',
+      label: t('mr_registered_date'),
+      header: t('mr_registered_date'),
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'owner',
+      key: 'owner',
+      accessor: (row) => ({ owner: row.owner, department: row.department }),
+      label: t('owner'),
+      header: t('owner'),
+      sortable: true,
+      render: (value) => (
+        <>
+          <div>{value.owner}</div>
+          <div className="text-xs text-ink-muted">{value.department}</div>
+        </>
+      )
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      header: t('status'),
+      sortable: true,
+      render: (value) => (
+        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+          {value}
+        </span>
+      )
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: (row) => row,
+      label: t('actions'),
+      header: t('actions'),
+      className: 'sticky-right',
+      stickyRight: true,
+      required: true,
+      render: (doc) => (
+        <ActionMenu
+          actions={[
+            { label: 'View', onClick: () => handleViewRef.current(doc) },
+            { label: 'Download', onClick: () => handleDownloadRef.current(doc) },
+            ...(isAdmin() ? [{
+              label: 'Delete',
+              variant: 'destructive',
+              onClick: () => setConfirmModal({
+                show: true,
+                title: 'Delete document records?',
+                message: `This will permanently delete ALL records for "${doc.fileCode}" (document, versions, registers, and stored files). This action cannot be undone.`,
+                onConfirm: () => purgeByFileCodeRef.current(doc.fileCode)
+              })
+            }] : [])
+          ]}
+        />
+      )
+    }
+  ], [t])
+
+  const {
+    sortedData,
+    orderedColumns,
+    visibleColumns,
+    hiddenColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'masterrecord-newdocs',
+    columns: tab1Columns,
+    data: documents,
+    defaultSortKey: 'registeredDate',
+    defaultSortDirection: 'desc'
+  })
 
   useEffect(() => {
     loadDocuments()
@@ -138,7 +273,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
     try {
       const res = await api.get('/reports/master-record/new-documents', { params: filters })
       const docs = res.data.data?.documents || []
-      // #region debug-point A:new-documents-response
       reportMasterRecordDebug('A', 'MasterRecord.jsx:loadDocuments:new-documents', '[DEBUG] Loaded new document register rows', {
         totalRows: docs.length,
         sampleRows: docs.slice(0, 10).map((doc) => ({
@@ -151,7 +285,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
         })),
         filters
       }, 'pre-fix')
-      // #endregion
       setDocuments(docs)
     } catch (error) {
       console.error('Failed to load documents:', error)
@@ -185,6 +318,8 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
       setDeleting(false)
     }
   }
+
+  purgeByFileCodeRef.current = purgeByFileCode
 
   const handleExport = async () => {
     try {
@@ -233,7 +368,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   }
 
   const handleView = (doc) => {
-    // #region debug-point B:view-click
     reportMasterRecordDebug('B', 'MasterRecord.jsx:handleView:new-documents', '[DEBUG] User clicked View on master record row', {
       id: doc?.id ?? null,
       documentId: doc?.documentId ?? null,
@@ -242,7 +376,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
       title: doc?.title ?? null,
       status: doc?.status ?? null
     }, 'pre-fix')
-    // #endregion
     if (!doc?.documentId && !doc?.id) {
       setAlertModal({
         show: true,
@@ -255,6 +388,8 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
     setSelectedDocument(doc)
     setShowViewModal(true)
   }
+
+  handleViewRef.current = handleView
 
   const handleDownload = async (doc) => {
     try {
@@ -305,8 +440,50 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
     }
   }
 
-  // Pagination calculations
-  const filteredDocuments = documents.filter((doc) => {
+  handleDownloadRef.current = handleDownload
+
+  const visibleToGlobalIndex = (visibleIdx) => {
+    const visColId = visibleColumns[visibleIdx]?.id || visibleColumns[visibleIdx]?.key || visibleColumns[visibleIdx]?.accessor
+    return orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === visColId)
+  }
+
+  const handleDragStart = (e, visibleIdx) => {
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragOverColIndex(globalIdx)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const toGlobalIdx = visibleToGlobalIndex(visibleIdx)
+    if (dragColIndex === null || toGlobalIdx === -1 || dragColIndex === toGlobalIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(dragColIndex, toGlobalIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const filteredDocuments = sortedData.filter((doc) => {
     if (filters.search && !doc.fileCode.toLowerCase().includes(filters.search.toLowerCase()) && 
         !doc.title.toLowerCase().includes(filters.search.toLowerCase())) {
       return false
@@ -391,7 +568,13 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
           <Button
             onClick={handleExport}
           >
@@ -406,103 +589,73 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
       <TableContainer>
         <Table>
           <thead className="bg-surface-muted/80">
-              <tr>
-                <Th>
-                  {t('file_code')}
-                </Th>
-                <Th>
-                  {t('mr_doc_title')}
-                </Th>
-                <Th>
-                  {t('type')}
-                </Th>
-                <Th>
-                  {t('project_category')}
-                </Th>
-                <Th>
-                  {t('version')}
-                </Th>
-                <Th>
-                  {t('mr_registered_date')}
-                </Th>
-                <Th>
-                  {t('owner')}
-                </Th>
-                <Th>
-                  {t('status')}
-                </Th>
-                <Th>
-                  {t('actions')}
-                </Th>
-              </tr>
+              <Tr>
+                {visibleColumns.map((col, visibleIdx) => {
+                  const colId = col.id || col.key || col.accessor
+                  const globalIdx = orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === colId)
+                  return (
+                    <Th
+                      key={colId}
+                      stickyRight={col.stickyRight}
+                      sortable={col.sortable}
+                      sortDirection={getSortDirectionFor(colId)}
+                      onSort={() => toggleSort(colId)}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, visibleIdx)}
+                      onDragOver={(e) => handleDragOver(e, visibleIdx)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, visibleIdx)}
+                      onDragEnd={handleDragEnd}
+                      dragOver={dragOverColIndex === globalIdx}
+                      className={col.className}
+                    >
+                      {col.label || col.header}
+                    </Th>
+                  )
+                })}
+              </Tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <Td colSpan="9" className="py-10 text-center">
+                <Tr>
+                  <Td colSpan={visibleColumns.length} className="py-10 text-center">
                     <span className="inline-flex items-center gap-2 text-ink-muted">
                       <InlineSpinner />
                       {t('mr_loading_documents')}
                     </span>
                   </Td>
-                </tr>
+                </Tr>
               ) : paginatedDocuments.length === 0 ? (
-                <tr>
-                  <Td colSpan="9" className="py-8">
+                <Tr>
+                  <Td colSpan={visibleColumns.length} className="py-8">
                     <EmptyPanelState
                       title={t('mr_no_docs_found')}
                       description={filters.search ? t('mr_try_adjust') : t('mr_no_docs_registered')}
                     />
                   </Td>
-                </tr>
+                </Tr>
               ) : (
                 paginatedDocuments.map((doc) => (
                   <Tr key={doc.id}>
-                    <Td className="font-medium text-brand">
-                      {doc.fileCode}
-                    </Td>
-                    <Td className="text-ink">
-                      {doc.title}
-                    </Td>
-                    <Td>
-                      {doc.type}
-                    </Td>
-                    <Td>
-                      {doc.projectCategory || ''}
-                    </Td>
-                    <Td>
-                      {normalizeRevision(doc.version, doc.fileCode)}
-                    </Td>
-                    <Td>
-                      {doc.registeredDate}
-                    </Td>
-                    <Td>
-                      <div>{doc.owner}</div>
-                      <div className="text-xs text-ink-muted">{doc.department}</div>
-                    </Td>
-                    <Td>
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        {doc.status}
-                      </span>
-                    </Td>
-                    <Td>
-                      <ActionMenu
-                        actions={[
-                          { label: 'View', onClick: () => handleView(doc) },
-                          { label: 'Download', onClick: () => handleDownload(doc) },
-                          ...(isAdmin() ? [{
-                            label: 'Delete',
-                            variant: 'destructive',
-                            onClick: () => setConfirmModal({
-                              show: true,
-                              title: 'Delete document records?',
-                              message: `This will permanently delete ALL records for "${doc.fileCode}" (document, versions, registers, and stored files). This action cannot be undone.`,
-                              onConfirm: () => purgeByFileCode(doc.fileCode)
-                            })
-                          }] : [])
-                        ]}
-                      />
-                    </Td>
+                    {visibleColumns.map((col) => {
+                      const colId = col.id || col.key || col.accessor
+                      let cellValue
+                      if (typeof col.accessor === 'function') {
+                        cellValue = col.accessor(doc, col)
+                      } else {
+                        cellValue = doc?.[col.accessor]
+                      }
+                      const rendered = col.render ? col.render(cellValue, doc) : cellValue
+                      return (
+                        <Td
+                          key={colId}
+                          stickyRight={col.stickyRight}
+                          className={col.className}
+                        >
+                          {rendered}
+                        </Td>
+                      )
+                    })}
                   </Tr>
                 ))
               )}
@@ -540,7 +693,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
         />
       )}
 
-      {/* Pagination */}
       {!loading && filteredDocuments.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -555,7 +707,6 @@ function NewDocumentRegister({ projectCategories = [], documentTypes = [], users
   )
 }
 
-// New Version Register Component
 function NewVersionRegister({ projectCategories = [], users = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [versions, setVersions] = useState([])
@@ -572,6 +723,124 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
     projectCategoryId: 'all',
     search: ''
   })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  const handleCompareRef = { current: null }
+
+  const tab2Columns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      header: t('file_code'),
+      className: 'font-medium text-brand',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('mr_doc_title'),
+      header: t('mr_doc_title'),
+      className: 'text-ink',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: (row) => row.projectCategory || '',
+      label: t('project_category'),
+      header: t('project_category'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'previousVersion',
+      key: 'previousVersion',
+      accessor: 'previousVersion',
+      label: t('mr_previous_version'),
+      header: t('mr_previous_version'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'newVersion',
+      key: 'newVersion',
+      accessor: 'newVersion',
+      label: t('mr_new_version'),
+      header: t('mr_new_version'),
+      sortable: true,
+      render: (value) => (
+        <span className="px-2 py-1 text-xs font-medium bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] rounded">
+          {value}
+        </span>
+      )
+    },
+    {
+      id: 'versionDate',
+      key: 'versionDate',
+      accessor: 'versionDate',
+      label: t('mr_version_date'),
+      header: t('mr_version_date'),
+      className: 'text-ink-secondary',
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'updatedBy',
+      key: 'updatedBy',
+      accessor: 'updatedBy',
+      label: t('mr_updated_by'),
+      header: t('mr_updated_by'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'changeSummary',
+      key: 'changeSummary',
+      accessor: 'changeSummary',
+      label: t('mr_change_summary'),
+      header: t('mr_change_summary'),
+      className: 'text-ink-secondary max-w-xs truncate',
+      sortable: true
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: (row) => row,
+      label: t('actions'),
+      header: t('actions'),
+      stickyRight: true,
+      required: true,
+      render: (version) => (
+        <ActionMenu
+          actions={[
+            { label: t('mr_compare'), onClick: () => handleCompareRef.current(version) }
+          ]}
+        />
+      )
+    }
+  ], [t])
+
+  const {
+    sortedData,
+    orderedColumns,
+    visibleColumns,
+    hiddenColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'masterrecord-newversions',
+    columns: tab2Columns,
+    data: versions
+  })
 
   useEffect(() => {
     loadVersions()
@@ -582,8 +851,6 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
     try {
       const res = await api.get('/reports/master-record/version-register', { params: filters })
       const data = res.data.data?.records || []
-      
-      // Format for frontend
       const formattedVersions = data.map(record => ({
         id: record.id,
         fileCode: record.fileCode,
@@ -595,7 +862,6 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
         updatedBy: record.updatedBy,
         changeSummary: record.changeSummary || 'No summary provided'
       }))
-      
       setVersions(formattedVersions)
     } catch (error) {
       console.error('Failed to load versions:', error)
@@ -606,12 +872,10 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
   }
 
   const handleExport = async () => {
-    // #region debug-point B:new-version-export
     reportMasterRecordDebug('B', 'MasterRecord.jsx:handleExport:new-versions', '[DEBUG] New Version export clicked', {
       totalRows: versions.length,
       filters
     })
-    // #endregion
     try {
       const res = await api.get('/reports/master-record/version-register', { params: filters })
       const exportRows = res.data?.data?.records || []
@@ -664,8 +928,50 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
     })
   }
 
-  // Pagination calculations
-  const filteredVersions = versions.filter((v) => {
+  handleCompareRef.current = handleCompare
+
+  const visibleToGlobalIndex = (visibleIdx) => {
+    const visColId = visibleColumns[visibleIdx]?.id || visibleColumns[visibleIdx]?.key || visibleColumns[visibleIdx]?.accessor
+    return orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === visColId)
+  }
+
+  const handleDragStart = (e, visibleIdx) => {
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragOverColIndex(globalIdx)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const toGlobalIdx = visibleToGlobalIndex(visibleIdx)
+    if (dragColIndex === null || toGlobalIdx === -1 || dragColIndex === toGlobalIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(dragColIndex, toGlobalIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const filteredVersions = sortedData.filter((v) => {
     if (filters.search && !v.fileCode.toLowerCase().includes(filters.search.toLowerCase()) && 
         !v.title.toLowerCase().includes(filters.search.toLowerCase())) {
       return false
@@ -678,7 +984,6 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
       <div className="card p-4">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
@@ -752,7 +1057,13 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
           <button
             onClick={handleExport}
             className="px-4 py-2 bg-[var(--dms-color-success-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 transition-colors flex items-center gap-2"
@@ -765,82 +1076,90 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-muted">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('file_code')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_doc_title')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('project_category')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_previous_version')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_new_version')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_version_date')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_updated_by')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_change_summary')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan="9" className="px-4 py-8 text-center text-ink-muted">
-                    {t('mr_loading_versions')}
-                  </td>
-                </tr>
-              ) : paginatedVersions.length === 0 ? (
-                <tr>
-                  <td colSpan="9" className="px-4 py-8">
-                    {/* #region debug-point A:new-version-empty */}
-                    {(() => {
-                      reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:new-versions', '[DEBUG] Rendering New Version empty state', {
-                        totalRows: versions.length,
-                        filteredRows: paginatedVersions.length,
-                        filters
-                      })
-                      return null
-                    })()}
-                    {/* #endregion */}
-                    <EmptyState
-                      message={t('mr_no_versions')}
-                      description={filters.search ? t('mr_try_adjust') : t('mr_no_new_versions')}
-                      actionLabel={filters.search ? 'Clear Search' : null}
-                      onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                paginatedVersions.map((version) => (
-                <tr key={version.id} className="hover:bg-surface-muted">
-                  <td className="px-4 py-3 text-sm font-medium text-brand">{version.fileCode}</td>
-                  <td className="px-4 py-3 text-sm text-ink">{version.title}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.projectCategory}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.previousVersion}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="px-2 py-1 text-xs font-medium bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] rounded">
-                      {version.newVersion}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.versionDate}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.updatedBy}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary max-w-xs truncate">{version.changeSummary}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <ActionMenu
-                      actions={[
-                        { label: t('mr_compare'), onClick: () => handleCompare(version) }
-                      ]}
-                    />
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableContainer className="card overflow-hidden">
+        <Table>
+          <thead className="bg-surface-muted">
+            <Tr>
+              {visibleColumns.map((col, visibleIdx) => {
+                const colId = col.id || col.key || col.accessor
+                const globalIdx = orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === colId)
+                return (
+                  <Th
+                    key={colId}
+                    stickyRight={col.stickyRight}
+                    sortable={col.sortable}
+                    sortDirection={getSortDirectionFor(colId)}
+                    onSort={() => toggleSort(colId)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, visibleIdx)}
+                    onDragOver={(e) => handleDragOver(e, visibleIdx)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, visibleIdx)}
+                    onDragEnd={handleDragEnd}
+                    dragOver={dragOverColIndex === globalIdx}
+                    className={col.className}
+                  >
+                    {col.label || col.header}
+                  </Th>
+                )
+              })}
+            </Tr>
+          </thead>
+          <tbody className="bg-surface divide-y divide-border">
+            {loading ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8 text-center text-ink-muted">
+                  {t('mr_loading_versions')}
+                </Td>
+              </Tr>
+            ) : paginatedVersions.length === 0 ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8">
+                  {(() => {
+                    reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:new-versions', '[DEBUG] Rendering New Version empty state', {
+                      totalRows: versions.length,
+                      filteredRows: paginatedVersions.length,
+                      filters
+                    })
+                    return null
+                  })()}
+                  <EmptyState
+                    message={t('mr_no_versions')}
+                    description={filters.search ? t('mr_try_adjust') : t('mr_no_new_versions')}
+                    actionLabel={filters.search ? 'Clear Search' : null}
+                    onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
+                  />
+                </Td>
+              </Tr>
+            ) : (
+              paginatedVersions.map((version) => (
+                <Tr key={version.id}>
+                  {visibleColumns.map((col) => {
+                    const colId = col.id || col.key || col.accessor
+                    let cellValue
+                    if (typeof col.accessor === 'function') {
+                      cellValue = col.accessor(version, col)
+                    } else {
+                      cellValue = version?.[col.accessor]
+                    }
+                    const rendered = col.render ? col.render(cellValue, version) : cellValue
+                    return (
+                      <Td
+                        key={colId}
+                        stickyRight={col.stickyRight}
+                        className={col.className}
+                      >
+                        {rendered}
+                      </Td>
+                    )
+                  })}
+                </Tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </TableContainer>
 
-      {/* Pagination */}
       {!loading && filteredVersions.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -863,7 +1182,6 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
   )
 }
 
-// Obsolete Register Component
 function ObsoleteRegister({ projectCategories = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [documents, setDocuments] = useState([])
@@ -882,6 +1200,111 @@ function ObsoleteRegister({ projectCategories = [] }) {
     projectCategoryId: 'all',
     search: ''
   })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  const handleViewArchiveRef = { current: null }
+
+  const tab3Columns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      header: t('file_code'),
+      className: 'font-medium text-ink-secondary',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('mr_doc_title'),
+      header: t('mr_doc_title'),
+      className: 'text-ink',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'type',
+      key: 'type',
+      accessor: 'type',
+      label: t('type'),
+      header: t('type'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: (row) => row.projectCategory || '',
+      label: t('project_category'),
+      header: t('project_category'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'obsoleteDate',
+      key: 'obsoleteDate',
+      accessor: 'obsoleteDate',
+      label: t('mr_obsolete_date'),
+      header: t('mr_obsolete_date'),
+      className: 'text-ink-secondary',
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'reason',
+      key: 'reason',
+      accessor: 'reason',
+      label: t('mr_reason'),
+      header: t('mr_reason'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'replacedBy',
+      key: 'replacedBy',
+      accessor: 'replacedBy',
+      label: t('mr_replaced_by'),
+      header: t('mr_replaced_by'),
+      className: 'text-brand font-medium',
+      sortable: true
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: (row) => row,
+      label: t('actions'),
+      header: t('actions'),
+      stickyRight: true,
+      required: true,
+      render: (doc) => (
+        <ActionMenu
+          actions={[
+            { label: t('mr_view_archive'), onClick: () => handleViewArchiveRef.current(doc) }
+          ]}
+        />
+      )
+    }
+  ], [t])
+
+  const {
+    sortedData,
+    orderedColumns,
+    visibleColumns,
+    hiddenColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'masterrecord-obsolete',
+    columns: tab3Columns,
+    data: documents
+  })
 
   useEffect(() => {
     loadObsoleteDocuments()
@@ -892,8 +1315,6 @@ function ObsoleteRegister({ projectCategories = [] }) {
     try {
       const res = await api.get('/reports/master-record/obsolete-register', { params: filters })
       const data = res.data.data?.records || []
-      
-      // Format for frontend
       const formattedDocs = data.map(record => ({
         id: record.id,
         fileCode: record.fileCode,
@@ -906,7 +1327,6 @@ function ObsoleteRegister({ projectCategories = [] }) {
         replacedBy: record.replacedBy || 'N/A',
         lastOwner: record.lastOwner
       }))
-      
       setDocuments(formattedDocs)
     } catch (error) {
       console.error('Failed to load obsolete documents:', error)
@@ -917,12 +1337,10 @@ function ObsoleteRegister({ projectCategories = [] }) {
   }
 
   const handleExport = () => {
-    // #region debug-point A:obsolete-export
     reportMasterRecordDebug('A', 'MasterRecord.jsx:handleExport:obsolete', '[DEBUG] Obsolete export clicked', {
       totalRows: documents.length,
       filters
     })
-    // #endregion
     ;(async () => {
       try {
         const res = await api.get('/reports/master-record/obsolete-register', { params: filters })
@@ -1006,8 +1424,50 @@ function ObsoleteRegister({ projectCategories = [] }) {
     }
   }
 
-  // Pagination calculations
-  const filteredDocuments = documents.filter((doc) => {
+  handleViewArchiveRef.current = handleViewArchive
+
+  const visibleToGlobalIndex = (visibleIdx) => {
+    const visColId = visibleColumns[visibleIdx]?.id || visibleColumns[visibleIdx]?.key || visibleColumns[visibleIdx]?.accessor
+    return orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === visColId)
+  }
+
+  const handleDragStart = (e, visibleIdx) => {
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragOverColIndex(globalIdx)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const toGlobalIdx = visibleToGlobalIndex(visibleIdx)
+    if (dragColIndex === null || toGlobalIdx === -1 || dragColIndex === toGlobalIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(dragColIndex, toGlobalIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const filteredDocuments = sortedData.filter((doc) => {
     if (filters.search && !doc.fileCode.toLowerCase().includes(filters.search.toLowerCase()) && 
         !doc.title.toLowerCase().includes(filters.search.toLowerCase())) {
       return false
@@ -1020,7 +1480,6 @@ function ObsoleteRegister({ projectCategories = [] }) {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
       <div className="card p-4">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
@@ -1096,7 +1555,13 @@ function ObsoleteRegister({ projectCategories = [] }) {
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
           <button
             onClick={handleExport}
             className="px-4 py-2 bg-[var(--dms-color-success-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 transition-colors flex items-center gap-2"
@@ -1109,76 +1574,90 @@ function ObsoleteRegister({ projectCategories = [] }) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-muted">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('file_code')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_doc_title')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('type')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('project_category')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_obsolete_date')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_reason')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_replaced_by')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-ink-muted">
-                    {t('mr_loading_documents')}
-                  </td>
-                </tr>
-              ) : paginatedDocuments.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="px-4 py-8">
-                    {/* #region debug-point A:obsolete-empty */}
-                    {(() => {
-                      reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:obsolete', '[DEBUG] Rendering Obsolete empty state', {
-                        totalRows: documents.length,
-                        filteredRows: paginatedDocuments.length,
-                        filters
-                      })
-                      return null
-                    })()}
-                    {/* #endregion */}
-                    <EmptyState
-                      message={t('mr_no_obsolete_docs')}
-                      description={filters.search ? t('mr_try_adjust') : t('mr_no_obsolete_yet')}
-                      actionLabel={filters.search ? 'Clear Search' : null}
-                      onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                paginatedDocuments.map((doc) => (
-                <tr key={doc.id} className="hover:bg-surface-muted">
-                  <td className="px-4 py-3 text-sm font-medium text-ink-secondary">{doc.fileCode}</td>
-                  <td className="px-4 py-3 text-sm text-ink">{doc.title}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{doc.type}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{doc.projectCategory}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{doc.obsoleteDate}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{doc.reason}</td>
-                  <td className="px-4 py-3 text-sm text-brand font-medium">{doc.replacedBy}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <ActionMenu
-                      actions={[
-                        { label: t('mr_view_archive'), onClick: () => handleViewArchive(doc) }
-                      ]}
-                    />
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableContainer className="card overflow-hidden">
+        <Table>
+          <thead className="bg-surface-muted">
+            <Tr>
+              {visibleColumns.map((col, visibleIdx) => {
+                const colId = col.id || col.key || col.accessor
+                const globalIdx = orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === colId)
+                return (
+                  <Th
+                    key={colId}
+                    stickyRight={col.stickyRight}
+                    sortable={col.sortable}
+                    sortDirection={getSortDirectionFor(colId)}
+                    onSort={() => toggleSort(colId)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, visibleIdx)}
+                    onDragOver={(e) => handleDragOver(e, visibleIdx)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, visibleIdx)}
+                    onDragEnd={handleDragEnd}
+                    dragOver={dragOverColIndex === globalIdx}
+                    className={col.className}
+                  >
+                    {col.label || col.header}
+                  </Th>
+                )
+              })}
+            </Tr>
+          </thead>
+          <tbody className="bg-surface divide-y divide-border">
+            {loading ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8 text-center text-ink-muted">
+                  {t('mr_loading_documents')}
+                </Td>
+              </Tr>
+            ) : paginatedDocuments.length === 0 ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8">
+                  {(() => {
+                    reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:obsolete', '[DEBUG] Rendering Obsolete empty state', {
+                      totalRows: documents.length,
+                      filteredRows: paginatedDocuments.length,
+                      filters
+                    })
+                    return null
+                  })()}
+                  <EmptyState
+                    message={t('mr_no_obsolete_docs')}
+                    description={filters.search ? t('mr_try_adjust') : t('mr_no_obsolete_yet')}
+                    actionLabel={filters.search ? 'Clear Search' : null}
+                    onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
+                  />
+                </Td>
+              </Tr>
+            ) : (
+              paginatedDocuments.map((doc) => (
+                <Tr key={doc.id}>
+                  {visibleColumns.map((col) => {
+                    const colId = col.id || col.key || col.accessor
+                    let cellValue
+                    if (typeof col.accessor === 'function') {
+                      cellValue = col.accessor(doc, col)
+                    } else {
+                      cellValue = doc?.[col.accessor]
+                    }
+                    const rendered = col.render ? col.render(cellValue, doc) : cellValue
+                    return (
+                      <Td
+                        key={colId}
+                        stickyRight={col.stickyRight}
+                        className={col.className}
+                      >
+                        {rendered}
+                      </Td>
+                    )
+                  })}
+                </Tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </TableContainer>
 
-      {/* Pagination */}
       {!loading && filteredDocuments.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -1211,7 +1690,6 @@ function ObsoleteRegister({ projectCategories = [] }) {
   )
 }
 
-// Old Version Register Component
 function OldVersionRegister({ projectCategories = [] }) {
   const { itemsPerPage, t } = usePreferences()
   const [versions, setVersions] = useState([])
@@ -1227,6 +1705,116 @@ function OldVersionRegister({ projectCategories = [] }) {
     projectCategoryId: 'all',
     search: ''
   })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  const handleRestoreRef = { current: null }
+
+  const tab4Columns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      header: t('file_code'),
+      className: 'font-medium text-brand',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'title',
+      key: 'title',
+      accessor: 'title',
+      label: t('mr_doc_title'),
+      header: t('mr_doc_title'),
+      className: 'text-ink',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: (row) => row.projectCategory || '',
+      label: t('project_category'),
+      header: t('project_category'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'version',
+      key: 'version',
+      accessor: 'version',
+      label: t('mr_old_version'),
+      header: t('mr_old_version'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'currentVersion',
+      key: 'currentVersion',
+      accessor: 'currentVersion',
+      label: t('mr_current_version'),
+      header: t('mr_current_version'),
+      sortable: true,
+      render: (value) => (
+        <span className="px-2 py-1 text-xs font-medium bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] rounded">
+          {value}
+        </span>
+      )
+    },
+    {
+      id: 'archivedDate',
+      key: 'archivedDate',
+      accessor: 'archivedDate',
+      label: t('mr_archived_date'),
+      header: t('mr_archived_date'),
+      className: 'text-ink-secondary',
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'retentionUntil',
+      key: 'retentionUntil',
+      accessor: 'retentionUntil',
+      label: t('mr_retention_until'),
+      header: t('mr_retention_until'),
+      className: 'text-ink-secondary',
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'actions',
+      key: 'actions',
+      accessor: (row) => row,
+      label: t('actions'),
+      header: t('actions'),
+      stickyRight: true,
+      required: true,
+      render: (version) => (
+        <ActionMenu
+          actions={[
+            { label: t('mr_restore'), onClick: () => handleRestoreRef.current(version) }
+          ]}
+        />
+      )
+    }
+  ], [t])
+
+  const {
+    sortedData,
+    orderedColumns,
+    visibleColumns,
+    hiddenColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'masterrecord-oldversions',
+    columns: tab4Columns,
+    data: versions
+  })
 
   useEffect(() => {
     loadArchivedVersions()
@@ -1237,8 +1825,6 @@ function OldVersionRegister({ projectCategories = [] }) {
     try {
       const res = await api.get('/reports/master-record/archive-register', { params: filters })
       const data = res.data.data?.records || []
-      
-      // Format for frontend
       const formattedVersions = data.map(record => ({
         id: record.id,
         fileCode: record.fileCode,
@@ -1250,7 +1836,6 @@ function OldVersionRegister({ projectCategories = [] }) {
         currentVersion: record.currentVersion,
         retentionUntil: record.retentionUntil ? new Date(record.retentionUntil).toLocaleDateString('en-GB') : 'N/A'
       }))
-      
       setVersions(formattedVersions)
     } catch (error) {
       console.error('Failed to load archived versions:', error)
@@ -1261,12 +1846,10 @@ function OldVersionRegister({ projectCategories = [] }) {
   }
 
   const handleExport = () => {
-    // #region debug-point A:old-version-export
     reportMasterRecordDebug('A', 'MasterRecord.jsx:handleExport:old-versions', '[DEBUG] Old Version export clicked', {
       totalRows: versions.length,
       filters
     })
-    // #endregion
     ;(async () => {
       try {
         const res = await api.get('/reports/master-record/archive-register', { params: filters })
@@ -1321,8 +1904,50 @@ function OldVersionRegister({ projectCategories = [] }) {
     })
   }
 
-  // Pagination calculations
-  const filteredVersions = versions.filter((v) => {
+  handleRestoreRef.current = handleRestore
+
+  const visibleToGlobalIndex = (visibleIdx) => {
+    const visColId = visibleColumns[visibleIdx]?.id || visibleColumns[visibleIdx]?.key || visibleColumns[visibleIdx]?.accessor
+    return orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === visColId)
+  }
+
+  const handleDragStart = (e, visibleIdx) => {
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragOverColIndex(globalIdx)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const toGlobalIdx = visibleToGlobalIndex(visibleIdx)
+    if (dragColIndex === null || toGlobalIdx === -1 || dragColIndex === toGlobalIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(dragColIndex, toGlobalIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const filteredVersions = sortedData.filter((v) => {
     if (filters.search && !v.fileCode.toLowerCase().includes(filters.search.toLowerCase()) && 
         !v.title.toLowerCase().includes(filters.search.toLowerCase())) {
       return false
@@ -1335,7 +1960,6 @@ function OldVersionRegister({ projectCategories = [] }) {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
       <div className="card p-4">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
@@ -1403,7 +2027,13 @@ function OldVersionRegister({ projectCategories = [] }) {
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <ColumnSettingsButton
+            orderedColumns={orderedColumns}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
+            onReset={resetTableSettings}
+          />
           <button
             onClick={handleExport}
             className="px-4 py-2 bg-[var(--dms-color-success-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 transition-colors flex items-center gap-2"
@@ -1416,80 +2046,90 @@ function OldVersionRegister({ projectCategories = [] }) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-muted">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('file_code')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_doc_title')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('project_category')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_old_version')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_current_version')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_archived_date')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('mr_retention_until')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="px-4 py-8 text-center text-ink-muted">
-                    {t('mr_loading_versions')}
-                  </td>
-                </tr>
-              ) : paginatedVersions.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="px-4 py-8">
-                    {/* #region debug-point A:old-version-empty */}
-                    {(() => {
-                      reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:old-versions', '[DEBUG] Rendering Old Version empty state', {
-                        totalRows: versions.length,
-                        filteredRows: paginatedVersions.length,
-                        filters
-                      })
-                      return null
-                    })()}
-                    {/* #endregion */}
-                    <EmptyState
-                      message={t('mr_no_old_versions')}
-                      description={filters.search ? t('mr_try_adjust') : t('mr_no_archived_versions')}
-                      actionLabel={filters.search ? 'Clear Search' : null}
-                      onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                paginatedVersions.map((version) => (
-                <tr key={version.id} className="hover:bg-surface-muted">
-                  <td className="px-4 py-3 text-sm font-medium text-brand">{version.fileCode}</td>
-                  <td className="px-4 py-3 text-sm text-ink">{version.title}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.projectCategory}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.version}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="px-2 py-1 text-xs font-medium bg-[var(--dms-color-success-soft)] text-[var(--dms-color-success-ink)] rounded">
-                      {version.currentVersion}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.archivedDate}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{version.retentionUntil}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <ActionMenu
-                      actions={[
-                        { label: t('mr_restore'), onClick: () => handleRestore(version) }
-                      ]}
-                    />
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableContainer className="card overflow-hidden">
+        <Table>
+          <thead className="bg-surface-muted">
+            <Tr>
+              {visibleColumns.map((col, visibleIdx) => {
+                const colId = col.id || col.key || col.accessor
+                const globalIdx = orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === colId)
+                return (
+                  <Th
+                    key={colId}
+                    stickyRight={col.stickyRight}
+                    sortable={col.sortable}
+                    sortDirection={getSortDirectionFor(colId)}
+                    onSort={() => toggleSort(colId)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, visibleIdx)}
+                    onDragOver={(e) => handleDragOver(e, visibleIdx)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, visibleIdx)}
+                    onDragEnd={handleDragEnd}
+                    dragOver={dragOverColIndex === globalIdx}
+                    className={col.className}
+                  >
+                    {col.label || col.header}
+                  </Th>
+                )
+              })}
+            </Tr>
+          </thead>
+          <tbody className="bg-surface divide-y divide-border">
+            {loading ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8 text-center text-ink-muted">
+                  {t('mr_loading_versions')}
+                </Td>
+              </Tr>
+            ) : paginatedVersions.length === 0 ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8">
+                  {(() => {
+                    reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:old-versions', '[DEBUG] Rendering Old Version empty state', {
+                      totalRows: versions.length,
+                      filteredRows: paginatedVersions.length,
+                      filters
+                    })
+                    return null
+                  })()}
+                  <EmptyState
+                    message={t('mr_no_old_versions')}
+                    description={filters.search ? t('mr_try_adjust') : t('mr_no_archived_versions')}
+                    actionLabel={filters.search ? 'Clear Search' : null}
+                    onAction={filters.search ? () => setFilters({ ...filters, search: '' }) : null}
+                  />
+                </Td>
+              </Tr>
+            ) : (
+              paginatedVersions.map((version) => (
+                <Tr key={version.id}>
+                  {visibleColumns.map((col) => {
+                    const colId = col.id || col.key || col.accessor
+                    let cellValue
+                    if (typeof col.accessor === 'function') {
+                      cellValue = col.accessor(version, col)
+                    } else {
+                      cellValue = version?.[col.accessor]
+                    }
+                    const rendered = col.render ? col.render(cellValue, version) : cellValue
+                    return (
+                      <Td
+                        key={colId}
+                        stickyRight={col.stickyRight}
+                        className={col.className}
+                      >
+                        {rendered}
+                      </Td>
+                    )
+                  })}
+                </Tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </TableContainer>
 
-      {/* Pagination */}
       {!loading && filteredVersions.length > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -1524,6 +2164,102 @@ function ConsolidatedRegister() {
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [documentTypes, setDocumentTypes] = useState([])
   const [projectCategories, setProjectCategories] = useState([])
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
+
+  const tab5Columns = useMemo(() => [
+    {
+      id: 'fileCode',
+      key: 'fileCode',
+      accessor: 'fileCode',
+      label: t('file_code'),
+      header: t('file_code'),
+      className: 'font-mono text-brand',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'documentTitle',
+      key: 'documentTitle',
+      accessor: 'documentTitle',
+      label: t('mr_doc_title'),
+      header: t('mr_doc_title'),
+      className: 'text-ink',
+      required: true,
+      sortable: true
+    },
+    {
+      id: 'documentType',
+      key: 'documentType',
+      accessor: 'documentType',
+      label: t('type'),
+      header: t('type'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'projectCategory',
+      key: 'projectCategory',
+      accessor: (row) => row.projectCategory || '',
+      label: t('project_category'),
+      header: t('project_category'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'date',
+      key: 'date',
+      accessor: (row) => row.date ? new Date(row.date).toLocaleDateString('en-GB') : '',
+      label: t('date'),
+      header: t('date'),
+      className: 'text-ink-secondary',
+      sortType: 'date',
+      sortable: true
+    },
+    {
+      id: 'status',
+      key: 'status',
+      accessor: 'status',
+      label: t('status'),
+      header: t('status'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'rev',
+      key: 'rev',
+      accessor: (row) => normalizeRevision(row.rev, row.fileCode),
+      label: t('mr_rev'),
+      header: t('mr_rev'),
+      className: 'text-ink-secondary',
+      sortable: true
+    },
+    {
+      id: 'register',
+      key: 'register',
+      accessor: 'register',
+      label: t('mr_register'),
+      header: t('mr_register'),
+      className: 'text-ink-secondary',
+      sortable: true
+    }
+  ], [t])
+
+  const {
+    sortedData,
+    orderedColumns,
+    visibleColumns,
+    hiddenColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'masterrecord-consolidated',
+    columns: tab5Columns,
+    data: rows
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -1575,13 +2311,11 @@ function ConsolidatedRegister() {
   }
 
   const exportExcel = async () => {
-    // #region debug-point B:consolidated-export
     reportMasterRecordDebug('B', 'MasterRecord.jsx:handleExport:consolidated', '[DEBUG] Consolidated export clicked', {
       totalRows: rows.length,
       filters,
       pagination
     })
-    // #endregion
     try {
       const res = await api.get('/reports/master-record/consolidated', {
         params: {
@@ -1627,8 +2361,49 @@ function ConsolidatedRegister() {
     }
   }
 
+  const visibleToGlobalIndex = (visibleIdx) => {
+    const visColId = visibleColumns[visibleIdx]?.id || visibleColumns[visibleIdx]?.key || visibleColumns[visibleIdx]?.accessor
+    return orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === visColId)
+  }
+
+  const handleDragStart = (e, visibleIdx) => {
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragColIndex(globalIdx)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e, visibleIdx) => {
+    e.preventDefault()
+    const globalIdx = visibleToGlobalIndex(visibleIdx)
+    if (globalIdx === -1) return
+    setDragOverColIndex(globalIdx)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+
+  const handleDrop = (e, visibleIdx) => {
+    e.preventDefault()
+    const toGlobalIdx = visibleToGlobalIndex(visibleIdx)
+    if (dragColIndex === null || toGlobalIdx === -1 || dragColIndex === toGlobalIdx) {
+      setDragColIndex(null)
+      setDragOverColIndex(null)
+      return
+    }
+    moveColumn(dragColIndex, toGlobalIdx)
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
 
   const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pageSize))
+  const displayRows = sortedData
 
   return (
     <div className="space-y-6">
@@ -1660,7 +2435,13 @@ function ConsolidatedRegister() {
               ))}
             </select>
           </div>
-          <div className="md:col-span-2 flex items-end justify-end gap-3">
+          <div className="md:col-span-2 flex items-end justify-between gap-3">
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
             <button
               onClick={exportExcel}
               className="px-4 py-2 bg-[var(--dms-color-success-ink)] text-[color:var(--dms-color-bg-canvas)] rounded-lg hover:opacity-90 transition-colors"
@@ -1671,58 +2452,80 @@ function ConsolidatedRegister() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-muted">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('file_code')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('mr_doc_title')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('type')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('project_category')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('date')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('status')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('mr_rev')}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-ink-muted uppercase tracking-wider">{t('mr_register')}</th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-ink-muted">{t('loading')}</td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8">
-                    {/* #region debug-point A:consolidated-empty */}
-                    {(() => {
-                      reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:consolidated', '[DEBUG] Rendering Consolidated empty state', {
-                        totalRows: rows.length,
-                        filters,
-                        pagination
-                      })
-                      return null
-                    })()}
-                    {/* #endregion */}
-                    <EmptyState title={t('no_data')} message={t('no_records')} />
-                  </td>
-                </tr>
-              ) : rows.map((r) => (
-                <tr key={r.fileCode}>
-                  <td className="px-4 py-3 text-sm font-mono text-brand">{r.fileCode}</td>
-                  <td className="px-4 py-3 text-sm text-ink">{r.documentTitle}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{r.documentType}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{r.projectCategory}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{r.date ? new Date(r.date).toLocaleDateString('en-GB') : ''}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{r.status}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{normalizeRevision(r.rev, r.fileCode)}</td>
-                  <td className="px-4 py-3 text-sm text-ink-secondary">{r.register}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableContainer className="card overflow-hidden">
+        <Table>
+          <thead className="bg-surface-muted">
+            <Tr>
+              {visibleColumns.map((col, visibleIdx) => {
+                const colId = col.id || col.key || col.accessor
+                const globalIdx = orderedColumns.findIndex((c) => (c.id || c.key || c.accessor) === colId)
+                return (
+                  <Th
+                    key={colId}
+                    stickyRight={col.stickyRight}
+                    sortable={col.sortable}
+                    sortDirection={getSortDirectionFor(colId)}
+                    onSort={() => toggleSort(colId)}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, visibleIdx)}
+                    onDragOver={(e) => handleDragOver(e, visibleIdx)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, visibleIdx)}
+                    onDragEnd={handleDragEnd}
+                    dragOver={dragOverColIndex === globalIdx}
+                    className={col.className}
+                  >
+                    {col.label || col.header}
+                  </Th>
+                )
+              })}
+            </Tr>
+          </thead>
+          <tbody className="bg-surface divide-y divide-border">
+            {loading ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8 text-center text-ink-muted">{t('loading')}</Td>
+              </Tr>
+            ) : displayRows.length === 0 ? (
+              <Tr>
+                <Td colSpan={visibleColumns.length} className="py-8">
+                  {(() => {
+                    reportMasterRecordDebug('A', 'MasterRecord.jsx:empty:consolidated', '[DEBUG] Rendering Consolidated empty state', {
+                      totalRows: rows.length,
+                      filters,
+                      pagination
+                    })
+                    return null
+                  })()}
+                  <EmptyState title={t('no_data')} message={t('no_records')} />
+                </Td>
+              </Tr>
+            ) : displayRows.map((r) => (
+              <Tr key={r.fileCode}>
+                {visibleColumns.map((col) => {
+                  const colId = col.id || col.key || col.accessor
+                  let cellValue
+                  if (typeof col.accessor === 'function') {
+                    cellValue = col.accessor(r, col)
+                  } else {
+                    cellValue = r?.[col.accessor]
+                  }
+                  const rendered = col.render ? col.render(cellValue, r) : cellValue
+                  return (
+                    <Td
+                      key={colId}
+                      stickyRight={col.stickyRight}
+                      className={col.className}
+                    >
+                      {rendered}
+                    </Td>
+                  )
+                })}
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableContainer>
 
       {!loading && (pagination.total || 0) > 0 && (
         <Pagination
@@ -1749,7 +2552,6 @@ function ConsolidatedRegister() {
   )
 }
 
-// Main Master Record Component
 export default function MasterRecord() {
   const { t } = usePreferences()
   const [activeTab, setActiveTab] = useState('new-documents')
@@ -1807,7 +2609,6 @@ export default function MasterRecord() {
       const res = await api.get('/reports/dashboard-stats')
       const data = res.data.data?.stats || {}
       
-      // Calculate new this month
       const now = new Date()
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       const newDocsRes = await api.get('/reports/master-record/new-documents', {
@@ -1850,10 +2651,8 @@ export default function MasterRecord() {
         ))}
       </div>
 
-      {/* Tab Navigation */}
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'new-documents' && (
           <NewDocumentRegister

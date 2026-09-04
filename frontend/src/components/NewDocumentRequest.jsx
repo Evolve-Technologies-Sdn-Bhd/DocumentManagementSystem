@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import NewVersionRequestModal from './NewVersionRequestModal'
@@ -12,10 +12,13 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
-import SelectField from './ui/SelectField'
 import IconButton from './ui/IconButton'
 import InlineSpinner from './ui/InlineSpinner'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
+import ActionMenu from './ActionMenu'
+import ColumnSettingsButton from './ui/ColumnSettingsButton'
+import useTableFeatures from '../hooks/useTableFeatures'
 
 // Calendar icon
 const CalendarIcon = () => (
@@ -33,6 +36,163 @@ function DatePicker({ value, onChange, placeholder = "Select date" }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+    </div>
+  )
+}
+
+function SearchableSingleSelect({
+  value,
+  options,
+  onChange,
+  placeholder,
+  searchPlaceholder,
+  noResultsLabel,
+  disabled = false,
+  loading = false,
+  clearLabel = 'Clear',
+  loadingLabel = 'Loading...',
+  invalid = false,
+  ...rest
+}) {
+  const [open, setOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState('')
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  const selectedOption = useMemo(
+    () => options.find((option) => String(option.value) === String(value)) || null,
+    [options, value]
+  )
+
+  const filteredOptions = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase()
+    if (!normalizedSearch) return options
+
+    return options.filter((option) =>
+      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
+    )
+  }, [options, searchValue])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false)
+      setSearchValue('')
+    }
+  }, [disabled])
+
+  const handleSelect = (option) => {
+    onChange(option.value, option)
+    setOpen(false)
+    setSearchValue('')
+  }
+
+  return (
+    <div ref={containerRef} className="relative flex-1" {...rest}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!disabled) setOpen((prev) => !prev)
+        }}
+        disabled={disabled}
+        aria-expanded={open}
+        className={`flex min-h-[40px] w-full items-center justify-between rounded-2xl border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
+          invalid ? 'border-red-300 focus-visible:ring-red-200/80' : 'border-border'
+        } ${disabled ? 'cursor-not-allowed bg-surface-muted text-ink-soft' : ''} ${
+          open ? 'ring-2 ring-brand/20' : ''
+        }`}
+      >
+        <span className={selectedOption ? 'text-ink' : 'text-ink-muted'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
+          <div className="border-b border-border p-3">
+            <input
+              ref={inputRef}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
+              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
+              {searchValue ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchValue('')}
+                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
+                >
+                  {clearLabel}
+                </button>
+              ) : (
+                <span>Type to filter</span>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-2">
+            {loading ? (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{loadingLabel}</div>
+            ) : filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = String(option.value) === String(value)
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSelect(option)}
+                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{option.label}</div>
+                      {option.meta?.length ? (
+                        <div className="mt-1 space-y-0.5">
+                          {option.meta.map((metaLine) => (
+                            <div key={metaLine} className="text-xs text-ink-muted">
+                              {metaLine}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
+                  </button>
+                )
+              })
+            ) : (
+              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -84,11 +244,17 @@ export default function NewDocumentRequest() {
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'error' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, type: 'info' })
   const [templatePicker, setTemplatePicker] = useState({ show: false, templates: [], selectedId: '', documentTypeName: '' })
+  const [dragColIndex, setDragColIndex] = useState(null)
+  const [dragOverColIndex, setDragOverColIndex] = useState(null)
   
   // Master data states
   const [documentTypes, setDocumentTypes] = useState([])
   const [projectCategories, setProjectCategories] = useState([])
   const [loadingMasterData, setLoadingMasterData] = useState(true)
+  const [fieldErrors, setFieldErrors] = useState({
+    documentType: false,
+    projectCategory: false
+  })
   
   // Check if user has permission to acknowledge document requests
   // Uses permission-based checking instead of hardcoded roles
@@ -279,10 +445,31 @@ export default function NewDocumentRequest() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const nextFieldErrors = {
+      documentType: !formData.documentType,
+      projectCategory: !formData.projectCategory
+    }
+
+    if (nextFieldErrors.documentType || nextFieldErrors.projectCategory) {
+      setFieldErrors(nextFieldErrors)
+      setAlertModal({
+        show: true,
+        title: 'Validation Error',
+        message: 'Please select both document type and project category.',
+        type: 'warning'
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
       await api.post('/documents/requests', formData)
+      setFieldErrors({
+        documentType: false,
+        projectCategory: false
+      })
       setAlertModal({
         show: true,
         title: 'Success',
@@ -349,6 +536,10 @@ export default function NewDocumentRequest() {
       dateOfDocument: '',
       remarks: ''
     })
+    setFieldErrors({
+      documentType: false,
+      projectCategory: false
+    })
   }
 
   const handleAcknowledge = async (request) => {
@@ -388,10 +579,17 @@ export default function NewDocumentRequest() {
       setAlertModal({
         show: true,
         title: 'Success',
-        message: successMessage,
+        message: isNVR
+          ? successMessage
+          : (successMessage + ' Now you can upload a file manually to create your draft.'),
         type: 'success'
       })
       loadRequests()
+      if (!isNVR) {
+        setTimeout(() => {
+          navigate('/documents/drafts?origin=ndr', { replace: false })
+        }, 1200)
+      }
     } catch (error) {
       console.error('Failed to acknowledge request:', error)
       const errorMessage = error.response?.data?.message || 'Failed to acknowledge request. Please try again.'
@@ -469,10 +667,18 @@ export default function NewDocumentRequest() {
     }
 
     try {
-      // Find the document type ID from the documentTypes array
-      const docType = documentTypes.find(dt => dt.name === request.documentType)
-      
-      if (!docType) {
+      const documentTypeId = request.documentTypeId
+        ? Number(request.documentTypeId)
+        : null
+
+      const resolvedDocTypeId = Number.isFinite(documentTypeId)
+        ? documentTypeId
+        : (() => {
+            const docType = documentTypes.find((dt) => dt.name === request.documentType)
+            return docType?.id ? Number(docType.id) : null
+          })()
+
+      if (!resolvedDocTypeId) {
         setAlertModal({
           show: true,
           title: 'Error',
@@ -482,7 +688,7 @@ export default function NewDocumentRequest() {
         return
       }
 
-      const listRes = await api.get(`/templates/by-document-type/${docType.id}`)
+      const listRes = await api.get(`/templates/by-document-type/${resolvedDocTypeId}`)
       const templates = listRes.data?.data?.templates || []
 
       if (templates.length === 0) {
@@ -673,6 +879,308 @@ export default function NewDocumentRequest() {
     }
   }
 
+  const documentTypeOptions = useMemo(
+    () => documentTypes.map((type) => ({
+      id: type.id,
+      value: type.name,
+      label: type.name,
+      searchText: `${type.name || ''} ${type.prefix || ''}`,
+      meta: type.prefix ? [`Prefix: ${type.prefix}`] : []
+    })),
+    [documentTypes]
+  )
+
+  const projectCategoryOptions = useMemo(
+    () => projectCategories.map((category) => ({
+      id: category.id,
+      value: category.name,
+      label: category.name,
+      searchText: `${category.name || ''} ${category.code || ''}`,
+      meta: category.code ? [`Code: ${category.code}`] : []
+    })),
+    [projectCategories]
+  )
+
+  const ndrTableColumns = useMemo(() => {
+    const warning = 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-warning-ink)]/20'
+    const info = 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-info-ink)]/20'
+    const cols = [
+      {
+        id: 'requestType',
+        key: 'requestType',
+        accessor: 'requestType',
+        label: t('request_type'),
+        sortable: true,
+        required: true,
+        align: 'center',
+        sortType: 'string',
+        render: (value) => (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${value === 'NVR' ? warning : info}`}>
+            {value || 'NDR'}
+          </span>
+        )
+      },
+      {
+        id: 'title',
+        key: 'title',
+        accessor: 'title',
+        label: t('document_title_label'),
+        sortable: true,
+        required: true,
+        sortType: 'string',
+        render: (value) => <span className="text-ink font-medium">{value}</span>
+      },
+      {
+        id: 'documentType',
+        key: 'documentType',
+        accessor: 'documentType',
+        label: t('document_type'),
+        sortable: true,
+        sortType: 'string',
+        render: (value, row) => (
+          <button
+            onClick={() => handleDownloadTemplate(row)}
+            disabled={row.status !== 'Acknowledged' && row.status !== 'ACKNOWLEDGED'}
+            data-tour-id="ndr-btn-download-template"
+            className={`text-left font-medium ${
+              row.status === 'Acknowledged' || row.status === 'ACKNOWLEDGED'
+                ? 'text-brand hover:text-brand-hover hover:underline cursor-pointer'
+                : 'text-ink-secondary cursor-default'
+            }`}
+            title={row.status === 'Acknowledged' || row.status === 'ACKNOWLEDGED' ? 'Click to download template for this document type' : 'Template download available after acknowledgment'}
+          >
+            {value}
+          </button>
+        )
+      },
+      {
+        id: 'projectCategory',
+        key: 'projectCategory',
+        accessor: 'projectCategory',
+        label: t('project_category'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => (
+          <span className="px-2.5 py-1 bg-surface-muted text-ink-secondary rounded-full text-xs font-medium border border-border">
+            {value}
+          </span>
+        )
+      },
+      {
+        id: 'dateOfDocument',
+        key: 'dateOfDocument',
+        accessor: 'dateOfDocument',
+        label: t('date_of_document'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => value
+      },
+      {
+        id: 'requestDate',
+        key: 'requestDate',
+        accessor: 'requestDate',
+        label: t('request_date'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => value
+      },
+      {
+        id: 'requestedBy',
+        key: 'requestedBy',
+        accessor: 'requestedBy',
+        label: t('requested_by'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => <span className="font-medium text-ink-secondary">{value}</span>
+      },
+      {
+        id: 'remarks',
+        key: 'remarks',
+        accessor: 'remarks',
+        label: t('remarks'),
+        sortable: true,
+        sortType: 'string',
+        render: (value) => (
+          <span className="text-xs text-ink-muted max-w-xs truncate" title={value}>{value}</span>
+        )
+      },
+      {
+        id: 'fileCode',
+        key: 'fileCode',
+        accessor: 'fileCode',
+        label: t('file_code'),
+        sortable: true,
+        sortType: 'string',
+        render: (value, row) => {
+          if (isAdmin() && value && value !== '-' && row.status !== 'Pending Acknowledgment') {
+            return (
+              <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => setAdminPurgeMenuRequestId((prev) => (prev === row.id ? null : row.id))}
+                  className="font-mono text-xs text-ink-secondary hover:text-ink"
+                  title="Click for options"
+                >
+                  {value}
+                </button>
+                {adminPurgeMenuRequestId === row.id && (
+                  <div className="absolute z-20 mt-2 w-44 bg-surface border border-border rounded-2xl shadow-dms-lg p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminPurgeMenuRequestId(null)
+                        setConfirmModal({
+                          show: true,
+                          title: 'Delete document records?',
+                          message: `This will permanently delete ALL records for "${value}" (document, versions, registers, and stored files). This action cannot be undone.`,
+                          type: 'danger',
+                          onConfirm: () => handleAdminPurgeByFileCode(value)
+                        })
+                      }}
+                      disabled={purgingFileCode === value}
+                      className="w-full text-left px-3 py-2 text-xs text-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)] rounded-md disabled:opacity-50"
+                    >
+                      {purgingFileCode === value ? 'Deleting...' : 'Delete record'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return (
+            <span className={`font-mono text-xs ${value === '-' ? 'text-ink-soft' : 'text-ink-secondary'}`}>
+              {value}
+            </span>
+          )
+        }
+      },
+      {
+        id: 'status',
+        key: 'status',
+        accessor: 'status',
+        label: t('status'),
+        sortable: true,
+        required: true,
+        sortType: 'string',
+        render: (_v, row) => renderRequestStatus(row)
+      }
+    ]
+    if (canAcknowledge) {
+      cols.push({
+        id: 'actions',
+        key: 'actions',
+        accessor: '__actions',
+        label: t('actions'),
+        sortable: false,
+        required: true,
+        stickyRight: true,
+        align: 'right',
+        render: (_v, row) => {
+          if (canAcknowledgeRequest(row) && row.requestType !== 'NVR') {
+            return (
+              <ActionMenu
+                actions={[
+                  { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(row), disabled: acknowledgingId === row.id },
+                  { label: t('reject_btn'), onClick: () => openRejectModal(row), variant: 'destructive', disabled: acknowledgingId === row.id }
+                ]}
+              />
+            )
+          }
+          if (canAcknowledgeRequest(row) && row.requestType === 'NVR') {
+            return (
+              <div className="flex justify-end">
+                <ActionMenu
+                  actions={[
+                    { label: t('acknowledge_btn'), onClick: () => handleAcknowledge(row), disabled: acknowledgingId === row.id }
+                  ]}
+                />
+              </div>
+            )
+          }
+          if (row.status === 'Pending Acknowledgment' && !canAcknowledgeRequest(row)) {
+            return (
+              <div className="flex justify-end">
+                <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
+              </div>
+            )
+          }
+          return <span className="text-gray-400 text-xs">-</span>
+        }
+      })
+    }
+    return cols
+  }, [t, canAcknowledge, acknowledgingId, adminPurgeMenuRequestId, purgingFileCode])
+
+  const {
+    sortedData,
+    visibleColumns,
+    orderedColumns,
+    getSortDirectionFor,
+    toggleSort,
+    moveColumn,
+    hiddenColumns,
+    toggleColumnVisibility,
+    resetTableSettings
+  } = useTableFeatures({
+    tableId: 'new-document-requests',
+    data: requests,
+    columns: ndrTableColumns
+  })
+
+  const handleColDragStart = (visibleIdx, e) => {
+    const colId = visibleColumns[visibleIdx]?.id
+    if (!colId) return
+    const globalIdx = orderedColumns.findIndex((c) => c.id === colId)
+    if (globalIdx === -1) return
+    setDragColIndex(visibleIdx)
+    try {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', String(globalIdx))
+    } catch {}
+  }
+  const handleColDragEnter = (visibleIdx, e) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(visibleIdx)
+    if (typeof e.preventDefault === 'function') e.preventDefault()
+  }
+  const handleColDragOver = (visibleIdx, e) => {
+    const col = visibleColumns[visibleIdx]
+    if (!col || col.stickyRight) return
+    setDragOverColIndex(visibleIdx)
+    if (typeof e.preventDefault === 'function') e.preventDefault()
+  }
+  const handleColDragLeave = () => {
+    setDragOverColIndex(null)
+  }
+  const handleColDrop = (visibleIdx, e) => {
+    try { if (typeof e.preventDefault === 'function') e.preventDefault() } catch {}
+    const targetColId = visibleColumns[visibleIdx]?.id
+    if (!targetColId) { setDragColIndex(null); setDragOverColIndex(null); return }
+    const targetGlobalIdx = orderedColumns.findIndex((c) => c.id === targetColId)
+    let sourceGlobalIdx = -1
+    try {
+      const raw = e.dataTransfer.getData('text/plain')
+      if (raw !== '' && raw != null) sourceGlobalIdx = parseInt(raw, 10)
+    } catch {}
+    if (Number.isNaN(sourceGlobalIdx) || sourceGlobalIdx === -1) {
+      const srcVisible = dragColIndex
+      if (srcVisible != null && srcVisible !== -1) {
+        const srcColId = visibleColumns[srcVisible]?.id
+        if (srcColId) sourceGlobalIdx = orderedColumns.findIndex((c) => c.id === srcColId)
+      }
+    }
+    if (sourceGlobalIdx !== -1 && targetGlobalIdx !== -1 && sourceGlobalIdx !== targetGlobalIdx) {
+      moveColumn(sourceGlobalIdx, targetGlobalIdx)
+    }
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+  const handleColDragEnd = () => {
+    setDragColIndex(null)
+    setDragOverColIndex(null)
+  }
+
   return (
     <div className="space-y-6" data-tour-id="ndr-page">
       {/* Confirmation Modal */}
@@ -695,26 +1203,18 @@ export default function NewDocumentRequest() {
       />
 
       {templatePicker.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <AppSurface padding="none" className="max-w-lg w-full overflow-hidden rounded-[18px]">
-            <div className="px-6 py-4 border-b border-border bg-surface-muted flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-ink">{t('select_template')}</h3>
-                <p className="text-sm text-ink-muted mt-1">{templatePicker.documentTypeName}</p>
-              </div>
-              <IconButton
-                type="button"
-                size="sm"
-                onClick={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
-                aria-label={t('close')}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </IconButton>
-            </div>
-
-            <div className="px-6 py-4">
+        <Modal
+          onClose={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
+          closeOnBackdrop
+          size="sm"
+          className="max-w-lg"
+        >
+          <ModalHeader
+            title={t('select_template')}
+            subtitle={templatePicker.documentTypeName}
+            onClose={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
+          />
+          <ModalBody>
               <div className="dms-scrollbar space-y-3 max-h-72 overflow-auto pr-1">
                 {templatePicker.templates.map((tpl) => (
                   <label key={tpl.id} className="flex items-start gap-3 p-3 border border-border rounded-2xl cursor-pointer bg-surface hover:bg-surface-muted transition-colors">
@@ -735,9 +1235,8 @@ export default function NewDocumentRequest() {
                   </label>
                 ))}
               </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-border flex justify-end gap-3 bg-surface">
+          </ModalBody>
+          <ModalFooter>
               <Button
                 type="button"
                 onClick={() => setTemplatePicker({ show: false, templates: [], selectedId: '', documentTypeName: '' })}
@@ -752,9 +1251,8 @@ export default function NewDocumentRequest() {
               >
                 {t('download')}
               </Button>
-            </div>
-          </AppSurface>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
 
       <PageHeader
@@ -792,21 +1290,22 @@ export default function NewDocumentRequest() {
                 {t('document_type')} <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
-                <SelectField
-                  required
+                <SearchableSingleSelect
                   data-tour-id="ndr-field-document-type"
                   value={formData.documentType}
-                  onChange={(e) => setFormData({ ...formData, documentType: e.target.value })}
-                  className="flex-1"
+                  options={documentTypeOptions}
+                  onChange={(value) => {
+                    setFormData({ ...formData, documentType: value })
+                    setFieldErrors((prev) => ({ ...prev, documentType: false }))
+                  }}
+                  placeholder={loadingMasterData ? t('loading') : t('select_document_type')}
+                  searchPlaceholder={t('search_doc_type')}
+                  noResultsLabel={t('adjust_search')}
+                  clearLabel={t('clear_search')}
+                  loadingLabel={t('loading')}
                   disabled={loadingMasterData}
-                >
-                  <option value="">{loadingMasterData ? t('loading') : t('select_document_type')}</option>
-                  {documentTypes.map((type) => (
-                    <option key={type.id} value={type.name}>
-                      {type.name}
-                    </option>
-                  ))}
-                </SelectField>
+                  invalid={fieldErrors.documentType}
+                />
                 <IconButton
                   type="button"
                   onClick={handleAddDocumentType}
@@ -844,20 +1343,21 @@ export default function NewDocumentRequest() {
                 </span>
               </label>
               <div className="flex gap-2">
-                <SelectField
-                  required
+                <SearchableSingleSelect
                   value={formData.projectCategory}
-                  onChange={(e) => setFormData({ ...formData, projectCategory: e.target.value })}
-                  className="flex-1"
+                  options={projectCategoryOptions}
+                  onChange={(value) => {
+                    setFormData({ ...formData, projectCategory: value })
+                    setFieldErrors((prev) => ({ ...prev, projectCategory: false }))
+                  }}
+                  placeholder={loadingMasterData ? t('loading') : t('select_project_category')}
+                  searchPlaceholder={t('search_placeholder')}
+                  noResultsLabel={t('adjust_search')}
+                  clearLabel={t('clear_search')}
+                  loadingLabel={t('loading')}
                   disabled={loadingMasterData}
-                >
-                  <option value="">{loadingMasterData ? t('loading') : t('select_project_category')}</option>
-                  {projectCategories.map((category) => (
-                    <option key={category.id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
-                </SelectField>
+                  invalid={fieldErrors.projectCategory}
+                />
                 <IconButton
                   type="button"
                   onClick={handleAddProjectCategory}
@@ -947,12 +1447,18 @@ export default function NewDocumentRequest() {
             <h2 className="text-lg font-semibold text-ink">{t('document_request_list')}</h2>
             <p className="text-sm text-ink-secondary mt-1">{t('document_request_list_desc')}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             {requests.length > 0 && (
               <div className="text-sm text-ink-secondary flex items-center">
                 {t('showing_results')} <span className="font-medium text-ink mx-1">{requests.length}</span> {t('requests')}
               </div>
             )}
+            <ColumnSettingsButton
+              orderedColumns={orderedColumns}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={toggleColumnVisibility}
+              onReset={resetTableSettings}
+            />
             <PermissionGate module="newDocumentRequest" action="create">
               <Button
                 onClick={() => setShowVersionModal(true)}
@@ -992,158 +1498,62 @@ export default function NewDocumentRequest() {
               <Table>
                 <thead>
                   <tr className="bg-surface-muted">
-                    <Th>{t('request_type')}</Th>
-                    <Th>{t('document_title_label')}</Th>
-                    <Th>
-                      <span className="inline-flex items-center gap-2">
-                        <span>{t('document_type')}</span>
-                        <span className="relative inline-flex group">
-                          <svg
-                            className="w-4 h-4 text-ink-soft hover:text-ink-secondary"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
-                          </svg>
-                          <span
-                            className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-96 -translate-x-1/2 rounded-md bg-surface-strong border border-border px-3 py-2 text-xs normal-case text-ink opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
-                            role="tooltip"
-                          >
-                            If a template does not exist, please request a template in Configuration &gt; Template Management &gt; Template Request.
-                          </span>
-                        </span>
-                      </span>
-                    </Th>
-                    <Th>{t('project_category')}</Th>
-                    <Th>{t('date_of_document')}</Th>
-                    <Th>{t('request_date')}</Th>
-                    <Th>{t('requested_by')}</Th>
-                    <Th>{t('remarks')}</Th>
-                    <Th>{t('file_code')}</Th>
-                    <Th>{t('status')}</Th>
-                    {canAcknowledge && (
-                      <Th>{t('actions')}</Th>
-                    )}
+                    {visibleColumns.map((col, idx) => {
+                      const colId = col.id || col.key
+                      const canDrag = !col.stickyRight
+                      const isDragOver = canDrag && dragOverColIndex === idx
+                      return (
+                        <Th
+                          key={colId}
+                          align={col.align || 'left'}
+                          stickyRight={col.stickyRight || false}
+                          sortable={Boolean(col.sortable)}
+                          sortDirection={getSortDirectionFor(colId)}
+                          sortKey={colId}
+                          onSort={col.sortable ? toggleSort : undefined}
+                          draggable={canDrag}
+                          dragOver={isDragOver}
+                          onDragStart={(e) => handleColDragStart(idx, e)}
+                          onDragEnter={(e) => handleColDragEnter(idx, e)}
+                          onDragOver={(e) => handleColDragOver(idx, e)}
+                          onDragLeave={handleColDragLeave}
+                          onDrop={(e) => handleColDrop(idx, e)}
+                          onDragEnd={handleColDragEnd}
+                          title={canDrag ? 'Click to sort • Drag to reorder' : col.sortable ? 'Click to sort' : undefined}
+                          className={colId === 'documentType' || colId === 'actions' ? 'whitespace-nowrap' : ''}
+                        >
+                          {col.label || col.header || colId}
+                        </Th>
+                      )
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((req) => (
+                  {sortedData.map((req) => (
                     <Tr key={req.id}>
-                      <Td>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          req.requestType === 'NVR'
-                            ? 'bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)] border-[var(--dms-color-warning-ink)]/20'
-                            : 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] border-[var(--dms-color-info-ink)]/20'
-                        }`}>
-                          {req.requestType || 'NDR'}
-                        </span>
-                      </Td>
-                      <Td className="text-ink font-medium">{req.title}</Td>
-                      <Td>
-                        <button
-                          onClick={() => handleDownloadTemplate(req)}
-                          disabled={req.status !== 'Acknowledged' && req.status !== 'ACKNOWLEDGED'}
-                          data-tour-id="ndr-btn-download-template"
-                          className={`text-left font-medium ${
-                            req.status === 'Acknowledged' || req.status === 'ACKNOWLEDGED'
-                              ? 'text-brand hover:text-brand-hover hover:underline cursor-pointer'
-                              : 'text-ink-secondary cursor-default'
-                          }`}
-                          title={req.status === 'Acknowledged' || req.status === 'ACKNOWLEDGED' ? 'Click to download template for this document type' : 'Template download available after acknowledgment'}
-                        >
-                          {req.documentType}
-                        </button>
-                      </Td>
-                      <Td>
-                        <span className="px-2.5 py-1 bg-surface-muted text-ink-secondary rounded-full text-xs font-medium border border-border">
-                          {req.projectCategory}
-                        </span>
-                      </Td>
-                      <Td>{req.dateOfDocument}</Td>
-                      <Td>{req.requestDate}</Td>
-                      <Td className="font-medium text-ink-secondary">{req.requestedBy}</Td>
-                      <Td className="text-xs text-ink-muted max-w-xs truncate" title={req.remarks}>{req.remarks}</Td>
-                      <Td>
-                        {isAdmin() && req.fileCode && req.fileCode !== '-' && req.status !== 'Pending Acknowledgment' ? (
-                          <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => setAdminPurgeMenuRequestId((prev) => (prev === req.id ? null : req.id))}
-                              className="font-mono text-xs text-ink-secondary hover:text-ink"
-                              title="Click for options"
-                            >
-                              {req.fileCode}
-                            </button>
-                            {adminPurgeMenuRequestId === req.id && (
-                              <div className="absolute z-20 mt-2 w-44 bg-surface border border-border rounded-2xl shadow-dms-lg p-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAdminPurgeMenuRequestId(null)
-                                    setConfirmModal({
-                                      show: true,
-                                      title: 'Delete document records?',
-                                      message: `This will permanently delete ALL records for "${req.fileCode}" (document, versions, registers, and stored files). This action cannot be undone.`,
-                                      type: 'danger',
-                                      onConfirm: () => handleAdminPurgeByFileCode(req.fileCode)
-                                    })
-                                  }}
-                                  disabled={purgingFileCode === req.fileCode}
-                                  className="w-full text-left px-3 py-2 text-xs text-[var(--dms-color-danger-ink)] hover:bg-[var(--dms-color-danger-soft)] rounded-md disabled:opacity-50"
-                                >
-                                  {purgingFileCode === req.fileCode ? 'Deleting...' : 'Delete record'}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className={`font-mono text-xs ${req.fileCode === '-' ? 'text-ink-soft' : 'text-ink-secondary'}`}>
-                            {req.fileCode}
-                          </span>
-                        )}
-                      </Td>
-                      <Td className="py-3">
-                        {renderRequestStatus(req)}
-                      </Td>
-                      {canAcknowledge && (
-                        <Td className="py-3">
-                          {canAcknowledgeRequest(req) && req.requestType !== 'NVR' ? (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleAcknowledge(req)}
-                                disabled={acknowledgingId === req.id}
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                              >
-                                {acknowledgingId === req.id ? t('processing') : t('acknowledge_btn')}
-                              </Button>
-                              <Button
-                                onClick={() => openRejectModal(req)}
-                                disabled={acknowledgingId === req.id}
-                                size="sm"
-                                variant="danger"
-                              >
-                                {t('reject_btn')}
-                              </Button>
-                            </div>
-                          ) : canAcknowledgeRequest(req) && req.requestType === 'NVR' ? (
-                            <Button
-                              onClick={() => handleAcknowledge(req)}
-                              disabled={acknowledgingId === req.id}
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              {acknowledgingId === req.id ? t('processing') : t('acknowledge_btn')}
-                            </Button>
-                          ) : req.status === 'Pending Acknowledgment' && !canAcknowledgeRequest(req) ? (
-                            <span className="text-amber-600 text-xs italic" title="You cannot acknowledge your own request">{t('own_request')}</span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">-</span>
-                          )}
-                        </Td>
-                      )}
+                      {visibleColumns.map((col) => {
+                        const cId = col.id || col.key || col.accessor
+                        const accessor = col.accessor || cId
+                        let cVal
+                        if (typeof accessor === 'function') {
+                          cVal = accessor(req, col)
+                        } else if (accessor === '__actions') {
+                          cVal = null
+                        } else {
+                          cVal = req?.[accessor]
+                        }
+                        const cContent = typeof col.render === 'function' ? col.render(cVal, req) : (cVal != null ? cVal : '')
+                        return (
+                          <Td
+                            key={cId}
+                            align={col.align || 'left'}
+                            stickyRight={col.stickyRight || false}
+                            className={col.stickyRight || cId === 'status' || cId === 'actions' ? 'py-3 whitespace-nowrap' : ''}
+                          >
+                            {cContent}
+                          </Td>
+                        )
+                      })}
                     </Tr>
                   ))}
                 </tbody>
@@ -1338,23 +1748,9 @@ export default function NewDocumentRequest() {
 
       {/* Reject Request Modal */}
       {showRejectModal && rejectingRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Reject Document Request</h3>
-              <button
-                onClick={closeRejectModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
+        <Modal onClose={closeRejectModal} closeOnBackdrop size="sm">
+          <ModalHeader title="Reject Document Request" onClose={closeRejectModal} />
+          <ModalBody className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Document Title:</p>
                 <p className="font-medium text-gray-900">{rejectingRequest.title}</p>
@@ -1385,10 +1781,8 @@ export default function NewDocumentRequest() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex gap-3 p-6 border-t border-border bg-surface">
+          </ModalBody>
+          <ModalFooter className="gap-3">
               <Button
                 onClick={closeRejectModal}
                 disabled={acknowledgingId === rejectingRequest.id}
@@ -1405,9 +1799,8 @@ export default function NewDocumentRequest() {
               >
                 {acknowledgingId === rejectingRequest.id ? 'Rejecting...' : 'Reject Request'}
               </Button>
-            </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   )

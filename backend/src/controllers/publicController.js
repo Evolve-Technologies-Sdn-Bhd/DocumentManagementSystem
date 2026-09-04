@@ -198,87 +198,164 @@ exports.getStatistics = asyncHandler(async (req, res) => {
  * Get landing page settings (global)
  */
 exports.getLandingPageSettings = asyncHandler(async (req, res) => {
-  const config = await prisma.configuration.findUnique({
-    where: { key: 'landing_page_settings' }
-  });
-
-  const stamp = config?.updatedAt instanceof Date ? config.updatedAt.getTime() : 0;
-  const etag = `W/"landing-page-settings-${stamp}"`;
-  res.set('ETag', etag);
-  res.set('Cache-Control', 'public, max-age=0, must-revalidate');
-  res.set('Vary', 'Accept-Encoding');
-  if (req.headers['if-none-match'] === etag) {
-    return res.status(304).end();
+  let config = null
+  try {
+    config = await prisma.configuration.findUnique({
+      where: { key: 'landing_page_settings' }
+    })
+  } catch {
+    config = null
   }
 
-  let settings = null;
+  const stamp = config?.updatedAt instanceof Date ? config.updatedAt.getTime() : 0
+  const etag = `W/"landing-page-settings-${stamp}"`
+  res.set('ETag', etag)
+  res.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  res.set('Vary', 'Accept-Encoding')
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end()
+  }
+
+  let settings = null
   if (config?.value) {
     try {
-      settings = JSON.parse(config.value);
+      settings = JSON.parse(config.value)
     } catch {
-      settings = null;
+      settings = null
     }
   }
 
-  return ResponseFormatter.success(res, { settings }, 'Landing page settings retrieved successfully');
-});
+  return ResponseFormatter.success(res, { settings }, 'Landing page settings retrieved successfully')
+})
 
 exports.getLoginPageSettings = asyncHandler(async (req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.set('Pragma', 'no-cache');
-  res.set('Expires', '0');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.set('Pragma', 'no-cache')
+  res.set('Expires', '0')
 
-  const config = await prisma.configuration.findUnique({
-    where: { key: 'login_page_settings' }
-  });
+  let config = null
+  try {
+    config = await prisma.configuration.findUnique({
+      where: { key: 'login_page_settings' }
+    })
+  } catch {
+    config = null
+  }
 
-  let settings = null;
+  let settings = null
   if (config?.value) {
     try {
-      settings = JSON.parse(config.value);
+      settings = JSON.parse(config.value)
     } catch {
-      settings = null;
+      settings = null
     }
   }
 
-  return ResponseFormatter.success(res, { settings }, 'Login page settings retrieved successfully');
-});
+  return ResponseFormatter.success(res, { settings }, 'Login page settings retrieved successfully')
+})
 
 exports.getBranding = asyncHandler(async (req, res) => {
-  const [companyConfig, themeConfig] = await Promise.all([
-    prisma.configuration.findUnique({ where: { key: 'company_info' } }),
-    prisma.configuration.findUnique({ where: { key: 'theme_settings' } })
-  ]);
+  let companyConfig = null
+  let themeConfig = null
+  try {
+    ;[companyConfig, themeConfig] = await Promise.all([
+      prisma.configuration.findUnique({ where: { key: 'company_info' } }),
+      prisma.configuration.findUnique({ where: { key: 'theme_settings' } })
+    ])
+  } catch {
+    companyConfig = null
+    themeConfig = null
+  }
 
-  const companyStamp = companyConfig?.updatedAt instanceof Date ? companyConfig.updatedAt.getTime() : 0;
-  const themeStamp = themeConfig?.updatedAt instanceof Date ? themeConfig.updatedAt.getTime() : 0;
-  const etag = `W/"branding-${companyStamp}-${themeStamp}"`;
+  const companyStamp = companyConfig?.updatedAt instanceof Date ? companyConfig.updatedAt.getTime() : 0
+  const themeStamp = themeConfig?.updatedAt instanceof Date ? themeConfig.updatedAt.getTime() : 0
+  const etag = `W/"branding-${companyStamp}-${themeStamp}"`
 
-  res.set('ETag', etag);
-  res.set('Cache-Control', 'public, max-age=0, must-revalidate');
-  res.set('Vary', 'Accept-Encoding');
+  res.set('ETag', etag)
+  res.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  res.set('Vary', 'Accept-Encoding')
 
   if (req.headers['if-none-match'] === etag) {
-    return res.status(304).end();
+    return res.status(304).end()
   }
 
-  let companyInfo = null;
+  let companyInfo = null
   if (companyConfig?.value) {
     try {
-      companyInfo = JSON.parse(companyConfig.value);
+      companyInfo = JSON.parse(companyConfig.value)
     } catch {
-      companyInfo = null;
+      companyInfo = null
     }
   }
 
-  let theme = null;
+  let theme = null
   if (themeConfig?.value) {
     try {
-      theme = JSON.parse(themeConfig.value);
+      theme = JSON.parse(themeConfig.value)
     } catch {
-      theme = null;
+      theme = null
     }
   }
 
-  return ResponseFormatter.success(res, { companyInfo, theme }, 'Branding retrieved successfully');
-});
+  return ResponseFormatter.success(res, { companyInfo, theme }, 'Branding retrieved successfully')
+})
+
+exports.getMaintenanceStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.set('Pragma', 'no-cache')
+  res.set('Expires', '0')
+
+  let config = null
+  try {
+    config = await prisma.configuration.findUnique({
+      where: { key: 'maintenance_settings' }
+    })
+  } catch {
+    config = null
+  }
+
+  let parsed = null
+  if (config?.value) {
+    try {
+      parsed = JSON.parse(config.value)
+    } catch {
+      parsed = null
+    }
+  }
+
+  const enabled = Boolean(parsed?.enabled)
+  const message =
+    typeof parsed?.message === 'string' && parsed.message.trim()
+      ? parsed.message.trim()
+      : 'System is under maintenance'
+
+  return ResponseFormatter.success(res, { enabled, message }, 'Maintenance status retrieved successfully')
+})
+
+exports.getSmartDocumentStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.set('Pragma', 'no-cache')
+  res.set('Expires', '0')
+
+  let config = null
+  try {
+    config = await prisma.configuration.findUnique({
+      where: { key: 'smart_document_settings' }
+    })
+  } catch {
+    config = null
+  }
+
+  let parsed = null
+  if (config?.value) {
+    try {
+      parsed = JSON.parse(config.value)
+    } catch {
+      parsed = null
+    }
+  }
+
+  const enabled = parsed?.enabled === undefined ? true : Boolean(parsed.enabled)
+
+  return ResponseFormatter.success(res, { enabled }, 'Smart Document status retrieved successfully')
+})

@@ -55,7 +55,7 @@ export default function BrandLogoImage({
       className={className}
       loading="eager"
       decoding="async"
-      fetchPriority="high"
+      fetchpriority="high"
       style={{
         ...style,
         transition: 'filter 180ms ease, opacity 180ms ease',

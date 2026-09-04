@@ -1,0 +1,93 @@
+==== RESTART 2026-08-26T03:42:04.706Z ====
+{"timestamp":"2026-08-26T03:42:17.945Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+Upload directories verified
+Backend listening on http://localhost:4001
+Retention policy cleanup scheduled (runs every 24 hours)
+Retention policy scheduler initialized
+Expiry tracking scheduler initialized
+Review and approval reminder scheduler initialized
+[2026-08-26T03:42:18.344Z] GET /api/notifications
+✅ Database connected successfully
+Expiry tracking daily processor completed
+Review and approval reminder processor completed
+[2026-08-26T03:42:21.149Z] GET /api/notifications
+[2026-08-26T03:42:26.141Z] GET /api/notifications
+[2026-08-26T03:42:31.143Z] GET /api/notifications
+[2026-08-26T03:42:36.138Z] GET /api/notifications
+[2026-08-26T03:42:41.137Z] GET /api/notifications
+[2026-08-26T03:42:46.136Z] GET /api/notifications
+[2026-08-26T03:42:51.137Z] GET /api/notifications
+[2026-08-26T03:42:56.141Z] GET /api/notifications
+[2026-08-26T03:42:56.439Z] GET /api/ai/config
+[2026-08-26T03:43:01.134Z] GET /api/notifications
+[2026-08-26T03:43:06.134Z] GET /api/notifications
+[2026-08-26T03:43:11.134Z] GET /api/notifications
+[2026-08-26T03:43:16.132Z] GET /api/notifications
+Starting retention policy cleanup...
+Cleaned up 0 old draft documents (older than 30 days)
+Cleaned up 0 old archived documents (older than 365 days)
+Soft-delete cleanup skipped - not implemented in current schema
+Deleted 0 audit logs older than 90 days
+Audit log cleanup: 0 deleted, 0 archived
+Retention cleanup completed. Total documents deleted: 0
+[2026-08-26T03:43:21.147Z] GET /api/notifications
+[2026-08-26T03:43:25.541Z] POST /api/ai/chat
+{"timestamp":"2026-08-26T03:43:25.624Z","level":"ERROR","message":"[GeminiAIService] chat failed:","value":"[GoogleGenerativeAI Error]: First content should be with role 'user', got model"}
+[Error ERROR] POST /api/ai/chat
+Error: AI chat failed: [GoogleGenerativeAI Error]: First content should be with role 'user', got model
+    at GeminiAIService.chat (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\geminiAIService.js:457:13)
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\controllers\aiController.js:198:33
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\utils\asyncHandler.js:8:21
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\layer.js:95:5)
+    at next (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\route.js:149:13)
+    at authenticate (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\middleware\auth.js:120:5)
+[2026-08-26T03:43:26.130Z] GET /api/notifications
+[2026-08-26T03:43:31.132Z] GET /api/notifications
+[2026-08-26T03:43:36.136Z] GET /api/notifications
+[2026-08-26T03:43:41.131Z] GET /api/notifications
+[2026-08-26T03:43:46.147Z] GET /api/notifications
+[2026-08-26T03:43:51.156Z] GET /api/notifications
+[2026-08-26T03:43:56.141Z] GET /api/notifications
+[2026-08-26T03:43:59.964Z] GET /api/ai/health
+[2026-08-26T03:44:01.174Z] GET /api/notifications
+{"timestamp":"2026-08-26T03:44:01.412Z","level":"WARN","message":"[GeminiAIService] generateContent attempt 1/1 failed","errMessage":"[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit","errName":"Error","errStatus":429,"retryable":true,"retryAfterSec":60,"nextAttempt":null}
+{"timestamp":"2026-08-26T03:44:01.412Z","level":"ERROR","message":"[GeminiAIService] generateContent FAILED after all 1 attempts","errMessage":"[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent: [429 Too Many Requests] You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_request","errName":"Error","errStatus":429}
+[2026-08-26T03:44:02.306Z] GET /api/ai/health
+[2026-08-26T03:44:02.514Z] GET /api/ai/health
+[2026-08-26T03:44:02.866Z] GET /api/ai/health
+[2026-08-26T03:44:03.431Z] GET /api/ai/health
+[2026-08-26T03:44:03.516Z] GET /api/ai/health
+[2026-08-26T03:44:03.587Z] GET /api/ai/health
+[2026-08-26T03:44:03.633Z] GET /api/ai/health
+[2026-08-26T03:44:03.678Z] GET /api/ai/health
+[2026-08-26T03:44:03.715Z] GET /api/ai/health
+[2026-08-26T03:44:03.750Z] GET /api/ai/health
+[2026-08-26T03:44:06.131Z] GET /api/notifications
+[2026-08-26T03:44:11.137Z] GET /api/notifications
+[2026-08-26T03:44:16.142Z] GET /api/notifications
+[2026-08-26T03:44:21.140Z] GET /api/notifications
+[2026-08-26T03:44:26.131Z] GET /api/notifications
+[2026-08-26T03:44:31.142Z] GET /api/notifications
+[2026-08-26T03:44:36.129Z] GET /api/notifications
+[2026-08-26T03:44:41.135Z] GET /api/notifications
+[2026-08-26T03:44:46.134Z] GET /api/notifications
+[2026-08-26T03:44:51.143Z] GET /api/notifications
+[2026-08-26T03:44:56.137Z] GET /api/notifications
+[2026-08-26T03:45:01.148Z] GET /api/notifications
+[2026-08-26T03:45:06.136Z] GET /api/notifications
+[2026-08-26T03:45:11.139Z] GET /api/notifications
+[2026-08-26T03:45:16.134Z] GET /api/notifications
+[2026-08-26T03:45:21.136Z] GET /api/notifications
+[2026-08-26T03:45:26.133Z] GET /api/notifications
+[2026-08-26T03:45:31.134Z] GET /api/notifications
+[2026-08-26T03:45:36.141Z] GET /api/notifications
+[2026-08-26T03:45:41.137Z] GET /api/notifications
+[2026-08-26T03:45:46.145Z] GET /api/notifications
+[2026-08-26T03:45:51.136Z] GET /api/notifications
+[2026-08-26T03:45:56.136Z] GET /api/notifications
+[2026-08-26T03:46:01.163Z] GET /api/notifications
+[2026-08-26T03:46:06.138Z] GET /api/notifications
+[2026-08-26T03:46:11.371Z] GET /api/notifications
+[2026-08-26T03:46:16.162Z] GET /api/notifications
+[2026-08-26T03:46:21.221Z] GET /api/notifications
+[2026-08-26T03:46:26.146Z] GET /api/notifications

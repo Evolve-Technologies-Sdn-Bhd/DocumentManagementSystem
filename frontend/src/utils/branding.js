@@ -1,3 +1,5 @@
+import { resolveBackendAssetUrl } from './normalizeUrl'
+
 export const BRANDING_UPDATED_EVENT = 'brandingUpdated'
 export const LANDING_SETTINGS_UPDATED_EVENT = 'landingPageSettingsUpdated'
 export const LOGIN_SETTINGS_UPDATED_EVENT = 'loginPageSettingsUpdated'
@@ -140,7 +142,7 @@ export function readBranding() {
     companyInfo,
     logo: theme?.mainLogo || null,
     logoPlaceholder: theme?.mainLogoPlaceholder || null,
-    companyName: companyInfo?.companyName || 'FileNix',
+    companyName: companyInfo?.companyName || 'Zora Pro DMS',
     welcomeMessage: theme?.loginWelcomeMessage || 'Welcome to {companyName}'
   }
 }
@@ -309,22 +311,25 @@ export function applyTheme(themeObj) {
   if (themeObj.borderRadiusMedium) root.style.setProperty('--dms-border-radius', themeObj.borderRadiusMedium)
   if (themeObj.cardPadding) root.style.setProperty('--dms-card-padding', themeObj.cardPadding)
 
-  if (!isDark && themeObj.bgImage) {
-    root.style.setProperty('--dms-bg-image', `url('${themeObj.bgImage}')`)
+  const resolvedBgImage = resolveBackendAssetUrl(themeObj.bgImage)
+  const resolvedFavicon = resolveBackendAssetUrl(themeObj.favicon)
+
+  if (!isDark && resolvedBgImage) {
+    root.style.setProperty('--dms-bg-image', `url('${resolvedBgImage}')`)
     if (themeObj.mainBgColor) root.style.setProperty('--dms-main-bg', themeObj.mainBgColor + 'cc')
   } else {
     root.style.setProperty('--dms-bg-image', 'none')
     if (!isDark && themeObj.mainBgColor) root.style.setProperty('--dms-main-bg', themeObj.mainBgColor)
   }
 
-  if (themeObj.favicon) {
+  if (resolvedFavicon) {
     let link = document.querySelector("link[rel~='icon']")
     if (!link) {
       link = document.createElement('link')
       link.rel = 'icon'
       document.head.appendChild(link)
     }
-    link.href = themeObj.favicon
+    link.href = resolvedFavicon
   }
 
   if (themeObj.landingNavBg) root.style.setProperty('--dms-landing-nav-bg', themeObj.landingNavBg)

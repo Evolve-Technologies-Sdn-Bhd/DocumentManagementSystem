@@ -1,5 +1,6 @@
-import React, { useState, Component } from 'react'
+import React, { useEffect, useMemo, useState, Component } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { usePermissions } from '../hooks/usePermissions'
 import AuditLogsViewer from '../components/AuditLogsViewer'
 import UserActivityLogs from '../components/UserActivityLogs'
 import SystemReports from '../components/SystemReports'
@@ -55,14 +56,8 @@ class ErrorBoundary extends Component {
 }
 
 // Tab Navigation Component
-function TabNavigation({ activeTab, onTabChange }) {
+function TabNavigation({ activeTab, onTabChange, tabs }) {
   const { t } = usePreferences()
-  const tabs = [
-    { id: 'activity', label: t('lr_activity_logs') },
-    { id: 'users', label: t('lr_user_activity') },
-    { id: 'reports', label: t('lr_system_reports') },
-    { id: 'analytics', label: t('lr_analytics') }
-  ]
 
   return (
     <AppSurface
@@ -93,8 +88,34 @@ function TabNavigation({ activeTab, onTabChange }) {
 
 // Main Logs & Reports Page Component
 export default function LogsReports() {
-  const [activeTab, setActiveTab] = useState('activity')
   const { t } = usePreferences()
+  const { hasAnyPermission } = usePermissions()
+  const availableTabs = useMemo(() => {
+    const tabs = []
+
+    if (hasAnyPermission('logsReport.activityLogs')) {
+      tabs.push({ id: 'activity', label: t('lr_activity_logs') })
+    }
+    if (hasAnyPermission('logsReport.userActivity')) {
+      tabs.push({ id: 'users', label: t('lr_user_activity') })
+    }
+    if (hasAnyPermission('logsReport.reports')) {
+      tabs.push({ id: 'reports', label: t('lr_system_reports') })
+    }
+    if (hasAnyPermission('logsReport.analytics')) {
+      tabs.push({ id: 'analytics', label: t('lr_analytics') })
+    }
+
+    return tabs
+  }, [hasAnyPermission, t])
+  const [activeTab, setActiveTab] = useState(availableTabs[0]?.id || 'activity')
+
+  useEffect(() => {
+    if (!availableTabs.length) return
+    if (!availableTabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(availableTabs[0].id)
+    }
+  }, [activeTab, availableTabs])
 
   return (
     <div className="space-y-6">
@@ -103,7 +124,7 @@ export default function LogsReports() {
         subtitle={t('lr_desc')}
       />
 
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} tabs={availableTabs} />
 
       <div className="mt-6">
         <ErrorBoundary>

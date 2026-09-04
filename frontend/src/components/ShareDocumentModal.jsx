@@ -215,36 +215,38 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-2xl rounded-dms-lg border border-border bg-surface shadow-dms-lg">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
+      <div className="w-full max-w-2xl rounded-lg shadow-xl border border-gray-200 bg-white max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sticky top-0 bg-white">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-ink">Share Document</h3>
-            <div className="mt-1 truncate text-sm text-ink-muted">{docLabel || 'Document'}</div>
+            <h3 className="text-xl font-bold text-gray-900">Share Document</h3>
+            <div className="mt-2 truncate text-sm text-gray-600">{docLabel || 'Document'}</div>
           </div>
-          <IconButton size="sm" onClick={onClose} aria-label="Close">
-            <span className="text-lg leading-none">×</span>
-          </IconButton>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        <div className="max-h-[85vh] overflow-y-auto p-6 space-y-6">
+        <div className="max-h-[85vh] overflow-y-auto px-6 py-4 space-y-6">
           {error ? (
-            <div className="rounded-2xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)]/40 px-4 py-3 text-sm text-[var(--dms-color-danger-ink)]">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}
             </div>
           ) : null}
 
           {flash ? (
-            <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-ink-secondary">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800">
               {flash}
             </div>
           ) : null}
 
           <div className="space-y-3">
-            <SectionHeader
-              title="Internal (Login Required)"
-              subtitle="Recipients must sign in. Permissions and confidential access rules still apply."
-            />
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">Internal (Login Required)</h4>
+              <p className="text-xs text-gray-500 mt-1">Recipients must sign in. Permissions and confidential access rules still apply.</p>
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex-1 min-w-0">
                 <TextInput value={internalLink} readOnly />
@@ -271,29 +273,29 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
           </div>
 
           <div className="space-y-3">
-            <SectionHeader
-              title="Public (Expiring)"
-              subtitle="Preview only. Default expiry is 7 days. Document must be Published and non-confidential."
-            />
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">Public (Expiring)</h4>
+              <p className="text-xs text-gray-500 mt-1">Preview only. Default expiry is 7 days. Document must be Published and non-confidential.</p>
+            </div>
 
             {!canUsePublicShare ? (
-              <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-ink-muted">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
                 Public sharing is only available for Published documents that are not Confidential.
               </div>
             ) : null}
 
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-ink-muted">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
                 <InlineSpinner />
                 <span>Loading links…</span>
               </div>
             ) : null}
 
             {canUsePublicShare && activePublicLink ? (
-              <div className="space-y-3 rounded-dms-lg border border-border bg-surface-muted px-4 py-4">
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm text-ink-secondary">
-                    <span className="font-medium text-ink">Expires:</span> {formatDateTimeLabel(activePublicLink.expiresAt)}
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium text-gray-900">Expires:</span> {formatDateTimeLabel(activePublicLink.expiresAt)}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="secondary" size="sm" onClick={handleGenerate} disabled={generating}>
@@ -320,7 +322,7 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
                     <TextInput value={publicViewUrl} readOnly />
                   </>
                 ) : (
-                  <div className="text-sm text-ink-muted">
+                  <div className="text-sm text-gray-500">
                     The public link is only shown at creation time. If you need it again, generate a new link.
                   </div>
                 )}
@@ -344,13 +346,13 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
                 ) : null}
               </div>
             ) : canUsePublicShare ? (
-              <div className="space-y-3 rounded-dms-lg border border-border bg-surface-muted px-4 py-4">
-                <div className="text-sm text-ink-secondary">
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-4">
+                <div className="text-sm text-gray-700">
                   No active public link yet.
                 </div>
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-ink-muted">Custom expiry (optional)</div>
+                    <div className="text-xs font-medium text-gray-500">Custom expiry (optional)</div>
                     <TextInput
                       type="datetime-local"
                       value={expiryInput}

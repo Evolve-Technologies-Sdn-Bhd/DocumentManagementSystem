@@ -378,6 +378,12 @@ class ExpiryTrackingService {
       reminder3Days: settings.reminder3Days,
       reminder4Days: settings.reminder4Days,
       remarks: input.remarks !== undefined ? input.remarks : (existingProfile?.remarks || null),
+      renewalUrl: input.renewalUrl !== undefined
+        ? (input.renewalUrl || null)
+        : (existingProfile?.renewalUrl || document.documentType?.renewalUrl || null),
+      defaultChecklistItems: input.defaultChecklistItems !== undefined
+        ? input.defaultChecklistItems
+        : (existingProfile?.defaultChecklistItems || document.documentType?.defaultRenewalChecklist || null),
       companySnapshot,
       departmentSnapshot: document.owner?.department || null,
       folderSnapshotName: document.folder?.name || null,
@@ -424,6 +430,8 @@ class ExpiryTrackingService {
             reminder3Days: profileData.reminder3Days,
             reminder4Days: profileData.reminder4Days,
             remarks: profileData.remarks,
+            renewalUrl: profileData.renewalUrl,
+            defaultChecklistItems: profileData.defaultChecklistItems,
             companySnapshot: profileData.companySnapshot,
             departmentSnapshot: profileData.departmentSnapshot,
             folderSnapshotName: profileData.folderSnapshotName,
@@ -454,6 +462,8 @@ class ExpiryTrackingService {
             reminder3Days: profileData.reminder3Days,
             reminder4Days: profileData.reminder4Days,
             remarks: profileData.remarks,
+            renewalUrl: profileData.renewalUrl,
+            defaultChecklistItems: profileData.defaultChecklistItems,
             companySnapshot: profileData.companySnapshot,
             departmentSnapshot: profileData.departmentSnapshot,
             folderSnapshotName: profileData.folderSnapshotName,
@@ -494,6 +504,10 @@ class ExpiryTrackingService {
       renewalStatus: profile.renewalStatus,
       daysLeft,
       remarks: profile.remarks,
+      renewalUrl: profile.renewalUrl,
+      defaultChecklistItems: profile.defaultChecklistItems,
+      documentTypeRenewalUrl: profile.document?.documentType?.renewalUrl || null,
+      documentTypeDefaultChecklist: profile.document?.documentType?.defaultRenewalChecklist || null,
       expiringSoonDays: profile.expiringSoonDays,
       reminderRule: {
         reminder1Days: profile.reminder1Days,
@@ -550,6 +564,8 @@ class ExpiryTrackingService {
         renewedBy: entry.renewedBy,
         renewedAt: entry.renewedAt,
         remarks: entry.remarks,
+        renewalUrl: entry.renewalUrl,
+        checklistItems: entry.checklistItems,
         fileName: entry.documentVersion?.fileName || null
       })) : []
     }
@@ -572,7 +588,7 @@ class ExpiryTrackingService {
     }
 
     if (filters.company) {
-      and.push({ companySnapshot: { contains: String(filters.company), mode: 'insensitive' } })
+      and.push({ companySnapshot: { contains: String(filters.company) } })
     }
 
     if (filters.expiryDateFrom || filters.expiryDateTo) {
@@ -587,7 +603,7 @@ class ExpiryTrackingService {
     if (filters.documentTypeId) documentWhere.documentTypeId = parseInt(filters.documentTypeId, 10)
     if (filters.department) {
       documentWhere.owner = {
-        department: { contains: String(filters.department), mode: 'insensitive' }
+        department: { contains: String(filters.department) }
       }
     }
 
@@ -599,8 +615,8 @@ class ExpiryTrackingService {
       const keyword = String(filters.search).trim()
       and.push({
         OR: [
-          { document: { title: { contains: keyword, mode: 'insensitive' } } },
-          { document: { fileCode: { contains: keyword, mode: 'insensitive' } } }
+          { document: { title: { contains: keyword } } },
+          { document: { fileCode: { contains: keyword } } }
         ]
       })
     }
@@ -1111,6 +1127,16 @@ class ExpiryTrackingService {
       throw new BadRequestError('Expiry tracking is disabled for this document')
     }
 
+    let checklistItems = input.checklistItems
+    if (typeof checklistItems === 'string' && checklistItems.trim()) {
+      try {
+        checklistItems = JSON.parse(checklistItems)
+      } catch {
+        checklistItems = null
+      }
+    }
+    input.checklistItems = checklistItems
+
     const newExpiryDate = this.normalizeDate(input.newExpiryDate || input.expiryDate)
     if (!newExpiryDate) {
       throw new BadRequestError('New expiry date is required')
@@ -1199,6 +1225,8 @@ class ExpiryTrackingService {
         renewalStatusBefore: profile.renewalStatus,
         renewalStatusAfter: 'COMPLETED',
         remarks: input.remarks || null,
+        renewalUrl: input.renewalUrl || null,
+        checklistItems: input.checklistItems || null,
         renewedBy: userId,
         renewedAt
       }

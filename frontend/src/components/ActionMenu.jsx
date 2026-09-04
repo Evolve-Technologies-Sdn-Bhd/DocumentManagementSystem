@@ -6,7 +6,7 @@ import * as ReactDOM from 'react-dom'
  * A reusable dropdown menu with 3-dot icon for table actions
  * 
  * @param {Array} actions - Array of action objects with shape:
- *   { label: string, onClick: function, variant: 'default'|'destructive', dividerAfter: boolean }
+ *   { label: string, onClick: function, variant: 'default'|'destructive', dividerAfter: boolean, disabled: boolean }
  */
 export default function ActionMenu({ actions, dataTourId }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -61,28 +61,33 @@ export default function ActionMenu({ actions, dataTourId }) {
   const dropdown = isOpen && (
     <>
       <div 
-        className="fixed inset-0 z-[9998]" 
+        className="fixed inset-0 z-[70]" 
         onClick={() => setIsOpen(false)} 
       />
       <div 
         ref={dropdownRef}
-        className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[9999]"
+        className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[71]"
         style={{
           top: `${dropdownPosition.top}px`,
           left: `${dropdownPosition.left}px`
         }}
       >
         {actions.map((action, index) => (
-          <React.Fragment key={action.label}>
+          <React.Fragment key={action.label || index}>
             <button
               onClick={() => { 
-                action.onClick()
-                setIsOpen(false) 
+                if (!action.disabled) {
+                  action.onClick()
+                  setIsOpen(false) 
+                }
               }}
+              disabled={!!action.disabled}
               className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                action.variant === 'destructive'
-                  ? 'hover:bg-red-50 text-red-600'
-                  : 'hover:bg-gray-50 text-gray-700'
+                action.disabled
+                  ? 'text-gray-400 cursor-not-allowed hover:bg-white'
+                  : action.variant === 'destructive'
+                    ? 'hover:bg-red-50 text-red-600'
+                    : 'hover:bg-gray-50 text-gray-700'
               }`}
             >
               {action.label}
@@ -101,7 +106,7 @@ export default function ActionMenu({ actions, dataTourId }) {
 
   return (
     <>
-      <div className="relative">
+      <div className="relative inline-flex items-center justify-end w-full">
         <button
           ref={buttonRef}
           onClick={() => setIsOpen(!isOpen)}

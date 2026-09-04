@@ -9,6 +9,7 @@ router.use(authenticate);
 
 const requirePermission = (moduleKey, action) => {
   return (req, res, next) => {
+    if (req.user?.permissions?.all === true) return next()
     const allowed = !!req.user?.permissions?.[moduleKey]?.[action];
     if (!allowed) {
       return next(new ForbiddenError("You don't have permission to perform this action"));
@@ -19,6 +20,7 @@ const requirePermission = (moduleKey, action) => {
 
 const requireAnyPermission = (moduleKey, actions) => {
   return (req, res, next) => {
+    if (req.user?.permissions?.all === true) return next()
     const allowed = (actions || []).some((action) => !!req.user?.permissions?.[moduleKey]?.[action])
     if (!allowed) {
       return next(new ForbiddenError("You don't have permission to perform this action"))
@@ -30,11 +32,14 @@ const requireAnyPermission = (moduleKey, actions) => {
 router.get('/projects', requireAnyPermission('projectTracking', ['searchProject', 'projectSetup']), projectTrackingController.listProjects);
 router.post('/projects', requirePermission('projectTracking', 'create'), projectTrackingController.createProject);
 router.get('/projects/:projectId', requirePermission('projectTracking', 'view'), projectTrackingController.getProject);
+router.get('/projects/:projectId/required-documents', requirePermission('projectTracking', 'view'), projectTrackingController.listProjectRequiredDocuments)
+router.post('/projects/:projectId/required-documents/pic', requirePermission('projectTracking', 'view'), projectTrackingController.setProjectRequiredDocumentPic)
 router.get('/projects/:projectId/activity-logs', requireAnyPermission('projectTracking', ['view', 'activityLogs']), projectTrackingController.getProjectActivityLogs);
 router.get('/projects/:projectId/change-requests', requireAnyPermission('projectTracking', ['view', 'keyInChangeRequest']), projectTrackingController.listProjectChangeRequests);
 router.post('/projects/:projectId/change-requests', requireAnyPermission('projectTracking', ['create', 'keyInChangeRequest']), projectTrackingController.createProjectChangeRequest);
 router.post('/projects/:projectId/iterations', requireAnyPermission('projectTracking', ['create', 'addNextPhase']), projectTrackingController.createIteration);
 router.put('/iterations/:iterationId', requirePermission('projectTracking', 'edit'), projectTrackingController.updateIteration);
+router.put('/projects/:projectId/assign-division', projectTrackingController.assignProjectDivision);
 router.put('/projects/:projectId', requireAnyPermission('projectTracking', ['edit', 'editProject']), projectTrackingController.updateProject);
 router.delete('/projects/:projectId', requirePermission('projectTracking', 'delete'), projectTrackingController.deleteProject);
 router.put('/change-requests/:changeRequestId', requireAnyPermission('projectTracking', ['edit', 'keyInChangeRequest']), projectTrackingController.updateProjectChangeRequest);

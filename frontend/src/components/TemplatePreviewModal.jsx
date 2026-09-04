@@ -29,7 +29,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
         setContentType(null)
         setDocxZoomMode('fit')
         const token = localStorage.getItem('token')
-        const baseURL = import.meta.env.VITE_API_URL || '/api'
+        const baseURL = String(import.meta.env.VITE_API_URL || '').trim() || 'http://localhost:4001/api'
         
         // Fetch the file
         const response = await fetch(`${baseURL}/templates/${template.id}/preview`, {
@@ -116,7 +116,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('token')
-      const baseURL = import.meta.env.VITE_API_URL || '/api'
+      const baseURL = String(import.meta.env.VITE_API_URL || '').trim() || 'http://localhost:4000/api'
       
       const response = await fetch(`${baseURL}/templates/${template.id}/download`, {
         headers: {
@@ -144,7 +144,7 @@ export default function TemplatePreviewModal({ template, onClose }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">

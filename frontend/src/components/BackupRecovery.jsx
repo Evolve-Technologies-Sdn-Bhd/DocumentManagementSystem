@@ -3,6 +3,7 @@ import api from '../api/axios'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 
 export default function BackupRecovery() {
   const { t } = usePreferences()
@@ -224,7 +225,7 @@ export default function BackupRecovery() {
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_created_on')}</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('size')}</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('actions')}</th>
+                <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -251,7 +252,7 @@ export default function BackupRecovery() {
                 </tr>
               ) : (
                 pageItems.map((backup) => (
-                  <tr key={backup.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={backup.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +277,7 @@ export default function BackupRecovery() {
                         {backup.status || 'completed'}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleDownloadBackup(backup)}
@@ -396,12 +397,17 @@ export default function BackupRecovery() {
 
       {/* Create Backup Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{t('br_create_backup')}</h3>
-            </div>
-            <div className="px-6 py-4">
+        <Modal
+          onClose={() => {
+            if (isCreatingBackup) return
+            setShowCreateModal(false)
+            setBackupName('')
+          }}
+          closeOnBackdrop={!isCreatingBackup}
+          size="sm"
+        >
+          <ModalHeader title={t('br_create_backup')} />
+          <ModalBody>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('br_backup_name')}
               </label>
@@ -417,8 +423,8 @@ export default function BackupRecovery() {
               <p className="mt-2 text-sm text-gray-500">
                 Give your backup a descriptive name to help identify it later.
               </p>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+          </ModalBody>
+          <ModalFooter className="bg-gray-50 border-t border-gray-200">
               <button
                 onClick={() => {
                   setShowCreateModal(false)
@@ -443,9 +449,8 @@ export default function BackupRecovery() {
                   t('br_create_backup')
                 )}
               </button>
-            </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   )

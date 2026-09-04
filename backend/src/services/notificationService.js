@@ -16,6 +16,73 @@ class NotificationService {
     return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || ''
   }
 
+  async resolveDivisionScopedRecipientIds(folderId) {
+    const normalizedFolderId = Number.parseInt(folderId, 10)
+    if (Number.isNaN(normalizedFolderId)) return { recipientIds: [], usedDivisionScope: false }
+
+    const resolveDivisionIdsAtFolder = async (targetFolderId) => {
+      const rows = await prisma.folderDivision.findMany({
+        where: { folderId: targetFolderId },
+        select: { divisionId: true }
+      })
+      return [...new Set(rows.map((entry) => entry.divisionId).filter(Boolean))]
+    }
+
+    let currentFolderId = normalizedFolderId
+    let divisionIds = await resolveDivisionIdsAtFolder(currentFolderId)
+
+    if (!divisionIds.length) {
+      const visited = new Set()
+      while (!divisionIds.length) {
+        if (visited.has(currentFolderId)) break
+        visited.add(currentFolderId)
+
+        const folder = await prisma.folder.findUnique({
+          where: { id: currentFolderId },
+          select: { parentId: true, inheritPermissions: true }
+        })
+
+        if (!folder?.inheritPermissions) break
+        if (!folder.parentId) break
+
+        currentFolderId = folder.parentId
+        divisionIds = await resolveDivisionIdsAtFolder(currentFolderId)
+      }
+    }
+
+    if (!divisionIds.length) return { recipientIds: [], usedDivisionScope: false }
+
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        divisions: { some: { divisionId: { in: divisionIds } } }
+      },
+      select: { id: true }
+    })
+
+    return { recipientIds: users.map((u) => u.id), usedDivisionScope: true }
+  }
+
+  async resolveBroadcastRecipientIds({ documentId, document }) {
+    const folderIdFromDoc = document?.folderId
+    const folderId = Number.isFinite(Number(folderIdFromDoc))
+      ? Number(folderIdFromDoc)
+      : (await prisma.document.findUnique({
+          where: { id: Number.parseInt(documentId, 10) },
+          select: { folderId: true }
+        }))?.folderId
+
+    const scoped = await this.resolveDivisionScopedRecipientIds(folderId)
+    if (scoped.usedDivisionScope) return scoped.recipientIds
+
+    const legacyAllUsers = await prisma.user.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true }
+    })
+
+    return legacyAllUsers.map((u) => u.id)
+  }
+
   async resolveUserDisplayName(userId) {
     const normalizedUserId = Number.parseInt(userId, 10)
     if (Number.isNaN(normalizedUserId)) return ''
@@ -498,11 +565,7 @@ class NotificationService {
    * This is a broadcast notification to all active users
    */
   async notifyDocumentPublished(documentId, document) {
-    // Get all active users
-    const allUsers = await prisma.user.findMany({
-      where: { status: 'ACTIVE' },
-      select: { id: true }
-    });
+    const recipientIds = await this.resolveBroadcastRecipientIds({ documentId, document })
 
     const title = 'Document Published';
     const message = `Document "${document.title}" (${document.fileCode}) has been published`;
@@ -519,7 +582,7 @@ class NotificationService {
     }
 
     await this.sendBulkNotifications(
-      allUsers.map(u => u.id),
+      recipientIds,
       'documentPublished',
       title,
       message,
@@ -527,8 +590,8 @@ class NotificationService {
       emailData
     )
 
-    console.log(`[Notification] Published document notification sent to ${allUsers.length} users`);
-    return allUsers.length;
+    console.log(`[Notification] Published document notification sent to ${recipientIds.length} users`);
+    return recipientIds.length;
   }
 
   /**
@@ -536,11 +599,7 @@ class NotificationService {
    * This is a broadcast notification to all active users
    */
   async notifyDocumentSuperseded(documentId, document, supersedingDoc) {
-    // Get all active users
-    const allUsers = await prisma.user.findMany({
-      where: { status: 'ACTIVE' },
-      select: { id: true }
-    });
+    const recipientIds = await this.resolveBroadcastRecipientIds({ documentId, document })
 
     const title = 'Document Superseded';
     const message = `Document "${document.title}" (${document.fileCode}) has been superseded by ${supersedingDoc.fileCode}`;
@@ -554,7 +613,7 @@ class NotificationService {
     }
 
     await this.sendBulkNotifications(
-      allUsers.map(u => u.id),
+      recipientIds,
       'documentSuperseded',
       title,
       message,
@@ -562,8 +621,8 @@ class NotificationService {
       emailData
     )
 
-    console.log(`[Notification] Superseded document notification sent to ${allUsers.length} users`);
-    return allUsers.length;
+    console.log(`[Notification] Superseded document notification sent to ${recipientIds.length} users`);
+    return recipientIds.length;
   }
 
   /**
@@ -571,11 +630,7 @@ class NotificationService {
    * This is a broadcast notification to all active users
    */
   async notifyDocumentObsolete(documentId, document, reason) {
-    // Get all active users
-    const allUsers = await prisma.user.findMany({
-      where: { status: 'ACTIVE' },
-      select: { id: true }
-    });
+    const recipientIds = await this.resolveBroadcastRecipientIds({ documentId, document })
 
     const title = 'Document Marked Obsolete';
     const message = `Document "${document.title}" (${document.fileCode}) has been marked as obsolete. Reason: ${reason}`;
@@ -589,7 +644,7 @@ class NotificationService {
     }
 
     await this.sendBulkNotifications(
-      allUsers.map(u => u.id),
+      recipientIds,
       'documentObsoleted',
       title,
       message,
@@ -597,8 +652,8 @@ class NotificationService {
       emailData
     )
 
-    console.log(`[Notification] Obsolete document notification sent to ${allUsers.length} users`);
-    return allUsers.length;
+    console.log(`[Notification] Obsolete document notification sent to ${recipientIds.length} users`);
+    return recipientIds.length;
   }
 
   /**

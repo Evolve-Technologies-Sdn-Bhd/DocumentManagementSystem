@@ -1,12 +1,37 @@
-export function normalizeAppPath(urlOrPath) {
-  if (!urlOrPath || typeof urlOrPath !== 'string') return urlOrPath
-  if (urlOrPath.startsWith('data:') || urlOrPath.startsWith('blob:') || urlOrPath.startsWith('/')) {
-    return urlOrPath
-  }
+function getWindowOrigin() {
+  if (typeof window === 'undefined' || !window.location?.origin) return null
+  return window.location.origin
+}
+
+function getApiOrigin() {
+  const fallbackOrigin = getWindowOrigin()
+  const rawBaseUrl = import.meta.env.VITE_API_URL
+  if (!rawBaseUrl) return fallbackOrigin
+
   try {
-    const u = new URL(urlOrPath)
-    return `${u.pathname}${u.search}${u.hash}`
+    return new URL(rawBaseUrl, fallbackOrigin || undefined).origin
   } catch {
-    return urlOrPath
+    return fallbackOrigin
   }
+}
+
+export function resolveBackendAssetUrl(urlOrPath) {
+  if (!urlOrPath || typeof urlOrPath !== 'string') return urlOrPath
+
+  const value = urlOrPath.trim()
+  if (!value || value.startsWith('data:') || value.startsWith('blob:')) return value
+
+  try {
+    return new URL(value).toString()
+  } catch {}
+
+  if (value.startsWith('/uploads/')) {
+    return value
+  }
+
+  return value
+}
+
+export function normalizeAppPath(urlOrPath) {
+  return resolveBackendAssetUrl(urlOrPath)
 }

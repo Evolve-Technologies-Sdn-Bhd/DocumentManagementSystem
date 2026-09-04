@@ -11,7 +11,8 @@ const DEFAULT_PREFERENCES = {
   timeFormat: '24h',
   itemsPerPage: 15,
   defaultView: 'list',
-  themeMode: 'light'
+  themeMode: 'light',
+  smartDocumentEnabled: true
 }
 
 const translations = {
@@ -32,6 +33,8 @@ const translations = {
     'master_record': 'Master Record',
     'profile_settings': 'Profile Settings',
     'rfid_epc_encoder': 'RFID EPC Encoder',
+    'tender_book_register': 'Tender Book Register',
+    'fb_enquiry_register': 'FB Enquiry Register',
     
     // Dashboard
     'dashboard_overview': 'Dashboard Overview',
@@ -303,8 +306,17 @@ const translations = {
 
     // Statuses
     'status_draft': 'Draft',
+    'status_submitted': 'Submitted',
     'status_drafting': 'Drafting',
     'status_in_progress': 'In Progress',
+    'status_won': 'Won',
+    'status_lost': 'Lost',
+    'status_in_pipeline': 'In Pipeline',
+    'status_contacted': 'Contacted',
+    'status_qualified': 'Qualified',
+    'status_quotation_provided': 'Quotation Provided',
+    'status_converted': 'Converted',
+    'status_new': 'New',
     'status_waiting_review': 'Waiting for Review',
     'status_in_review': 'In Review',
     'status_ready_review': 'Ready for Review',
@@ -316,6 +328,7 @@ const translations = {
     'status_ready_publish': 'Ready to Publish',
     'status_needs_revision': 'Needs Revision',
     'status_pending': 'Pending',
+    'status_kiv': 'KIV',
     'status_pending_ack': 'Pending Acknowledgment',
     'status_in_process': 'In Process',
     'status_acknowledged': 'Acknowledged',
@@ -345,7 +358,7 @@ const translations = {
     'enter_username': 'Enter your username',
     'enter_password': 'Enter your password',
     'remember_me': 'Remember Me',
-    'forgot_password_q': 'Change Password?',
+    'forgot_password_q': 'Forgot Password?',
     'login_btn': 'Login',
     'logging_in': 'Logging in...',
     'verify_code': 'Verify Code',
@@ -766,11 +779,15 @@ const translations = {
     'remove_file': 'Remove file',
     'assign_reviewer_label': 'Assign Reviewer',
     'search_file_codes': 'Search file codes...',
+    'search_doc_type': 'Search document type...',
+    'search_reviewer': 'Search reviewer...',
     'select_doc_type': 'Select document type',
     'select_doc_type_first': 'Please select a document type first',
+    'no_doc_type_found': 'No document type found',
     'no_file_codes_found': 'No documents with file codes found',
     'loading_reviewers': 'Loading reviewers...',
     'no_reviewers': 'No reviewers available',
+    'no_reviewer_found': 'No reviewer found',
     'reviewer_selected': '1 reviewer selected',
     'select_reviewer': 'Please select a reviewer',
     'save_as_draft': 'Save as Draft',
@@ -1024,16 +1041,19 @@ const translations = {
 
     // Master Data Management
     'mdm_title': 'Master Data Management',
-    'mdm_title_desc': 'Manage document types, project categories, and departments',
+    'mdm_title_desc': 'Manage document types, project categories, departments, and divisions',
     'mdm_doc_types': 'Document Types',
     'mdm_project_categories': 'Project Categories',
     'mdm_departments': 'Departments',
+    'mdm_divisions': 'Divisions',
     'mdm_add_doc_type': 'Add Document Type',
     'mdm_edit_doc_type': 'Edit Document Type',
     'mdm_add_project_cat': 'Add Project Category',
     'mdm_edit_project_cat': 'Edit Project Category',
     'mdm_add_dept': 'Add Department',
     'mdm_edit_dept': 'Edit Department',
+    'mdm_add_division': 'Add Division',
+    'mdm_edit_division': 'Edit Division',
     'mdm_name': 'Name',
     'mdm_prefix': 'Prefix',
     'mdm_code': 'Code',
@@ -1042,19 +1062,38 @@ const translations = {
     'mdm_doc_types_desc': 'Manage document types used throughout the system',
     'mdm_project_cat_desc': 'Manage project categories used for document classification',
     'mdm_dept_desc': 'Manage departments used for user assignment',
+    'mdm_division_desc': 'Manage division groups used to scope shared notifications across users and folders',
+    'mdm_division_help': 'Assign users and root folders to each division. Child folders inherit the nearest parent division scope when inherit permissions is enabled.',
     'mdm_search_name_prefix': 'Search by name or prefix...',
     'mdm_search_name_code': 'Search by name or code...',
     'mdm_no_doc_types': 'No document types found',
     'mdm_no_project_cats': 'No project categories found',
     'mdm_no_depts': 'No departments found',
+    'mdm_no_divisions': 'No divisions found',
     'mdm_prefix_help': 'This prefix will be used in document codes',
     'mdm_code_project_help': 'This code will be used for project classification',
     'mdm_code_dept_help': 'Short code for the department',
+    'mdm_code_division_help': 'Short code for the division',
     'mdm_optional_desc': 'Optional description',
     'mdm_confirm_delete': 'Confirm Delete',
     'mdm_confirm_delete_doc_type': 'Are you sure you want to delete this document type?',
     'mdm_confirm_delete_project_cat': 'Are you sure you want to delete this project category?',
     'mdm_confirm_delete_dept': 'Are you sure you want to delete this department?',
+    'mdm_confirm_delete_division': 'Are you sure you want to delete this division?',
+    'mdm_division_active_help': 'Inactive divisions stay in history but cannot be assigned for new notification scope changes.',
+    'mdm_assign_users': 'Assign Users',
+    'mdm_assign_folders': 'Assign Folders',
+    'mdm_assign_users_desc': 'Choose which users belong to the {division} division.',
+    'mdm_assign_folders_desc': 'Choose which folders belong to the {division} division scope.',
+    'mdm_search_user': 'Search user by name, email, or department...',
+    'mdm_search_folder': 'Search folder by path or name...',
+    'mdm_selected_count': '{count} selected',
+    'mdm_select_filtered': 'Select filtered',
+    'mdm_select_all': 'Select all',
+    'mdm_clear_all': 'Clear all',
+    'mdm_save_assignments': 'Save Assignments',
+    'users': 'Users',
+    'folders': 'Folders',
     'mdm_active': 'Active',
     'mdm_inactive': 'Inactive',
     'show_inactive': 'Show inactive',
@@ -1291,6 +1330,8 @@ const translations = {
     'master_record': 'Rekod Induk',
     'profile_settings': 'Tetapan Profil',
     'rfid_epc_encoder': 'RFID EPC Encoder',
+    'tender_book_register': 'Daftar Buku Tender',
+    'fb_enquiry_register': 'Daftar Pertanyaan FB',
     
     // Dashboard
     'dashboard_overview': 'Gambaran Keseluruhan',
@@ -1549,8 +1590,17 @@ const translations = {
 
     // Statuses
     'status_draft': 'Draf',
+    'status_submitted': 'Dihantar',
     'status_drafting': 'Mendraf',
     'status_in_progress': 'Sedang Diproses',
+    'status_won': 'Menang',
+    'status_lost': 'Kalah',
+    'status_in_pipeline': 'Dalam Pipeline',
+    'status_contacted': 'Dihubungi',
+    'status_qualified': 'Layak',
+    'status_quotation_provided': 'Sebutharga Diberikan',
+    'status_converted': 'Ditukar',
+    'status_new': 'Baharu',
     'status_waiting_review': 'Menunggu Semakan',
     'status_in_review': 'Dalam Semakan',
     'status_ready_review': 'Sedia untuk Semakan',
@@ -1562,6 +1612,7 @@ const translations = {
     'status_ready_publish': 'Sedia untuk Diterbitkan',
     'status_needs_revision': 'Perlu Semakan Semula',
     'status_pending': 'Menunggu',
+    'status_kiv': 'KIV',
     'status_pending_ack': 'Menunggu Pengakuan',
     'status_in_process': 'Dalam Proses',
     'status_acknowledged': 'Diakui',
@@ -1591,7 +1642,7 @@ const translations = {
     'enter_username': 'Masukkan nama pengguna anda',
     'enter_password': 'Masukkan kata laluan anda',
     'remember_me': 'Ingat Saya',
-    'forgot_password_q': 'Tukar Kata Laluan?',
+    'forgot_password_q': 'Lupa Kata Laluan?',
     'login_btn': 'Log Masuk',
     'logging_in': 'Sedang Log Masuk...',
     'verify_code': 'Sahkan Kod',
@@ -2012,11 +2063,15 @@ const translations = {
     'remove_file': 'Buang fail',
     'assign_reviewer_label': 'Tetapkan Penyemak',
     'search_file_codes': 'Cari kod fail...',
+    'search_doc_type': 'Cari jenis dokumen...',
+    'search_reviewer': 'Cari penyemak...',
     'select_doc_type': 'Pilih jenis dokumen',
     'select_doc_type_first': 'Sila pilih jenis dokumen terlebih dahulu',
+    'no_doc_type_found': 'Tiada jenis dokumen dijumpai',
     'no_file_codes_found': 'Tiada dokumen dengan kod fail dijumpai',
     'loading_reviewers': 'Memuatkan penyemak...',
     'no_reviewers': 'Tiada penyemak tersedia',
+    'no_reviewer_found': 'Tiada penyemak dijumpai',
     'reviewer_selected': '1 penyemak dipilih',
     'select_reviewer': 'Sila pilih penyemak',
     'save_as_draft': 'Simpan sebagai Draf',
@@ -2270,16 +2325,19 @@ const translations = {
 
     // Master Data Management
     'mdm_title': 'Pengurusan Data Induk',
-    'mdm_title_desc': 'Urus jenis dokumen, kategori projek, dan jabatan',
+    'mdm_title_desc': 'Urus jenis dokumen, kategori projek, jabatan, dan divisi',
     'mdm_doc_types': 'Jenis Dokumen',
     'mdm_project_categories': 'Kategori Projek',
     'mdm_departments': 'Jabatan',
+    'mdm_divisions': 'Divisi',
     'mdm_add_doc_type': 'Tambah Jenis Dokumen',
     'mdm_edit_doc_type': 'Edit Jenis Dokumen',
     'mdm_add_project_cat': 'Tambah Kategori Projek',
     'mdm_edit_project_cat': 'Edit Kategori Projek',
     'mdm_add_dept': 'Tambah Jabatan',
     'mdm_edit_dept': 'Edit Jabatan',
+    'mdm_add_division': 'Tambah Divisi',
+    'mdm_edit_division': 'Edit Divisi',
     'mdm_name': 'Nama',
     'mdm_prefix': 'Awalan',
     'mdm_code': 'Kod',
@@ -2288,19 +2346,38 @@ const translations = {
     'mdm_doc_types_desc': 'Urus jenis dokumen yang digunakan di seluruh sistem',
     'mdm_project_cat_desc': 'Urus kategori projek untuk pengelasan dokumen',
     'mdm_dept_desc': 'Urus jabatan untuk tugasan pengguna',
+    'mdm_division_desc': 'Urus kumpulan divisi untuk skop notifikasi dikongsi merentas pengguna dan folder',
+    'mdm_division_help': 'Tetapkan pengguna dan root folder kepada setiap divisi. Child folder akan mewarisi skop divisi parent terdekat bila inheritance permissions dihidupkan.',
     'mdm_search_name_prefix': 'Cari mengikut nama atau awalan...',
     'mdm_search_name_code': 'Cari mengikut nama atau kod...',
     'mdm_no_doc_types': 'Tiada jenis dokumen dijumpai',
     'mdm_no_project_cats': 'Tiada kategori projek dijumpai',
     'mdm_no_depts': 'Tiada jabatan dijumpai',
+    'mdm_no_divisions': 'Tiada divisi dijumpai',
     'mdm_prefix_help': 'Awalan ini akan digunakan dalam kod dokumen',
     'mdm_code_project_help': 'Kod ini akan digunakan untuk pengelasan projek',
     'mdm_code_dept_help': 'Kod pendek untuk jabatan',
+    'mdm_code_division_help': 'Kod pendek untuk divisi',
     'mdm_optional_desc': 'Penerangan pilihan',
     'mdm_confirm_delete': 'Sahkan Padam',
     'mdm_confirm_delete_doc_type': 'Adakah anda pasti mahu memadam jenis dokumen ini?',
     'mdm_confirm_delete_project_cat': 'Adakah anda pasti mahu memadam kategori projek ini?',
     'mdm_confirm_delete_dept': 'Adakah anda pasti mahu memadam jabatan ini?',
+    'mdm_confirm_delete_division': 'Adakah anda pasti mahu memadam divisi ini?',
+    'mdm_division_active_help': 'Divisi tidak aktif akan kekal dalam sejarah tetapi tidak boleh digunakan untuk perubahan skop notifikasi baharu.',
+    'mdm_assign_users': 'Tetapkan Pengguna',
+    'mdm_assign_folders': 'Tetapkan Folder',
+    'mdm_assign_users_desc': 'Pilih pengguna yang berada di dalam divisi {division}.',
+    'mdm_assign_folders_desc': 'Pilih folder yang berada di dalam skop divisi {division}.',
+    'mdm_search_user': 'Cari pengguna ikut nama, emel, atau jabatan...',
+    'mdm_search_folder': 'Cari folder ikut path atau nama...',
+    'mdm_selected_count': '{count} dipilih',
+    'mdm_select_filtered': 'Pilih yang ditapis',
+    'mdm_select_all': 'Pilih semua',
+    'mdm_clear_all': 'Kosongkan semua',
+    'mdm_save_assignments': 'Simpan Tetapan',
+    'users': 'Pengguna',
+    'folders': 'Folder',
     'mdm_active': 'Aktif',
     'mdm_inactive': 'Tidak Aktif',
     'show_inactive': 'Papar rekod tidak aktif',
@@ -2785,6 +2862,7 @@ const translations = {
 
     // Statuses
     'status_draft': '草稿',
+    'status_submitted': '已提交',
     'status_drafting': '起草中',
     'status_in_progress': '进行中',
     'status_waiting_review': '等待审核',
@@ -2798,6 +2876,7 @@ const translations = {
     'status_ready_publish': '准备发布',
     'status_needs_revision': '需要修订',
     'status_pending': '待定',
+    'status_kiv': '保留观察',
     'status_pending_ack': '待确认',
     'status_in_process': '处理中',
     'status_acknowledged': '已确认',
@@ -2827,7 +2906,7 @@ const translations = {
     'enter_username': '输入您的用户名',
     'enter_password': '输入您的密码',
     'remember_me': '记住我',
-    'forgot_password_q': '更改密码？',
+    'forgot_password_q': '忘记密码？',
     'login_btn': '登录',
     'logging_in': '正在登录...',
     'verify_code': '验证代码',
@@ -3245,11 +3324,15 @@ const translations = {
     'remove_file': '移除文件',
     'assign_reviewer_label': '指定审核员',
     'search_file_codes': '搜索文件代码...',
+    'search_doc_type': '搜索文件类型...',
+    'search_reviewer': '搜索审核员...',
     'select_doc_type': '选择文件类型',
     'select_doc_type_first': '请先选择文件类型',
+    'no_doc_type_found': '未找到文件类型',
     'no_file_codes_found': '未找到带文件代码的文件',
     'loading_reviewers': '正在加载审核员...',
     'no_reviewers': '没有可用的审核员',
+    'no_reviewer_found': '未找到审核员',
     'reviewer_selected': '已选择 1 名审核员',
     'select_reviewer': '请选择审核员',
     'save_as_draft': '保存为草稿',
@@ -3506,16 +3589,19 @@ const translations = {
 
     // Master Data Management
     'mdm_title': '主数据管理',
-    'mdm_title_desc': '管理文件类型、项目类别和部门',
+    'mdm_title_desc': '管理文件类型、项目类别、部门和分组',
     'mdm_doc_types': '文件类型',
     'mdm_project_categories': '项目类别',
     'mdm_departments': '部门',
+    'mdm_divisions': '分组',
     'mdm_add_doc_type': '添加文件类型',
     'mdm_edit_doc_type': '编辑文件类型',
     'mdm_add_project_cat': '添加项目类别',
     'mdm_edit_project_cat': '编辑项目类别',
     'mdm_add_dept': '添加部门',
     'mdm_edit_dept': '编辑部门',
+    'mdm_add_division': '添加分组',
+    'mdm_edit_division': '编辑分组',
     'mdm_name': '名称',
     'mdm_prefix': '前缀',
     'mdm_code': '代码',
@@ -3524,19 +3610,38 @@ const translations = {
     'mdm_doc_types_desc': '管理整个系统中使用的文件类型',
     'mdm_project_cat_desc': '管理用于文件分类的项目类别',
     'mdm_dept_desc': '管理用于用户分配的部门',
+    'mdm_division_desc': '管理用于跨用户与文件夹共享通知范围的分组',
+    'mdm_division_help': '为每个分组分配用户和根文件夹。启用继承权限时，子文件夹会继承最近父级的分组范围。',
     'mdm_search_name_prefix': '按名称或前缀搜索...',
     'mdm_search_name_code': '按名称或代码搜索...',
     'mdm_no_doc_types': '未找到文件类型',
     'mdm_no_project_cats': '未找到项目类别',
     'mdm_no_depts': '未找到部门',
+    'mdm_no_divisions': '未找到分组',
     'mdm_prefix_help': '此前缀将用于文件代码',
     'mdm_code_project_help': '此代码将用于项目分类',
     'mdm_code_dept_help': '部门的简短代码',
+    'mdm_code_division_help': '分组的简短代码',
     'mdm_optional_desc': '可选描述',
     'mdm_confirm_delete': '确认删除',
     'mdm_confirm_delete_doc_type': '您确定要删除此文件类型吗？',
     'mdm_confirm_delete_project_cat': '您确定要删除此项目类别吗？',
     'mdm_confirm_delete_dept': '您确定要删除此部门吗？',
+    'mdm_confirm_delete_division': '您确定要删除此分组吗？',
+    'mdm_division_active_help': '停用后的分组会保留在历史记录中，但不能再用于新的通知范围变更。',
+    'mdm_assign_users': '分配用户',
+    'mdm_assign_folders': '分配文件夹',
+    'mdm_assign_users_desc': '选择属于 {division} 分组的用户。',
+    'mdm_assign_folders_desc': '选择属于 {division} 分组范围的文件夹。',
+    'mdm_search_user': '按姓名、邮箱或部门搜索用户...',
+    'mdm_search_folder': '按路径或名称搜索文件夹...',
+    'mdm_selected_count': '已选择 {count}',
+    'mdm_select_filtered': '选择筛选结果',
+    'mdm_select_all': '全选',
+    'mdm_clear_all': '清除全部',
+    'mdm_save_assignments': '保存分配',
+    'users': '用户',
+    'folders': '文件夹',
     'mdm_active': '活跃',
     'mdm_inactive': '未启用',
     'show_inactive': '显示未启用',
@@ -3773,6 +3878,48 @@ export function PreferencesProvider({ children }) {
   })
   const [loading, setLoading] = useState(true)
 
+  const [systemFeatureFlags, setSystemFeatureFlags] = useState(() => {
+    const saved = localStorage.getItem('systemFeatureFlags')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return {
+          smartDocumentEnabled: parsed.smartDocumentEnabled === undefined ? true : Boolean(parsed.smartDocumentEnabled)
+        }
+      } catch {}
+    }
+    return { smartDocumentEnabled: true }
+  })
+
+  const refreshSystemFeatureFlags = useCallback(async () => {
+    const cached = localStorage.getItem('systemFeatureFlags')
+    const ageKey = 'systemFeatureFlags_age'
+    const now = Date.now()
+    const storedAge = parseInt(localStorage.getItem(ageKey) || '0', 10)
+    if (cached && storedAge && now - storedAge < 2 * 60 * 1000) {
+      try {
+        const parsed = JSON.parse(cached)
+        setSystemFeatureFlags({
+          smartDocumentEnabled: parsed.smartDocumentEnabled === undefined ? true : Boolean(parsed.smartDocumentEnabled)
+        })
+        return
+      } catch {}
+    }
+    try {
+      const res = await api.get('/public/smart-document-status', { timeout: 5000, skipGlobalLoading: true, _retryAttempt: 0 })
+      const enabled = res?.data?.data?.enabled === undefined ? true : Boolean(res.data.data.enabled)
+      setSystemFeatureFlags({ smartDocumentEnabled: enabled })
+      try {
+        localStorage.setItem('systemFeatureFlags', JSON.stringify({ smartDocumentEnabled: enabled }))
+        localStorage.setItem(ageKey, String(now))
+      } catch {}
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    refreshSystemFeatureFlags()
+  }, [refreshSystemFeatureFlags])
+
   // Load preferences from API on mount
   useEffect(() => {
     const loadPreferences = async () => {
@@ -3790,7 +3937,16 @@ export function PreferencesProvider({ children }) {
           localStorage.setItem('userPreferences', JSON.stringify(prefs))
         }
       } catch (error) {
-        console.error('Failed to load preferences:', error)
+        const status = error?.response?.status
+        if (status === 401 || status === 403) return
+        try {
+          const saved = localStorage.getItem('userPreferences')
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            setPreferences({ ...DEFAULT_PREFERENCES, ...parsed })
+          }
+        } catch {}
+        console.warn('Using cached preferences – server temporarily unavailable.')
       } finally {
         setLoading(false)
       }
@@ -3808,7 +3964,9 @@ export function PreferencesProvider({ children }) {
     try {
       await api.put('/user/preferences', updated)
     } catch (error) {
-      console.error('Failed to save preferences:', error)
+      const status = error?.response?.status
+      if (status === 401 || status === 403) return
+      console.warn('Preferences not saved to server – will retry next session.')
     }
   }, [preferences])
 
@@ -3902,9 +4060,13 @@ export function PreferencesProvider({ children }) {
   }, [formatDate])
 
   // Simple translation helper
-  const t = useCallback((key) => {
+  const t = useCallback((key, params = null) => {
     const lang = preferences.language || 'en'
-    return translations[lang]?.[key] || translations['en']?.[key] || key
+    const template = translations[lang]?.[key] || translations['en']?.[key] || key
+    if (!params || typeof template !== 'string') return template
+    return Object.entries(params).reduce((result, [paramKey, value]) => {
+      return result.replaceAll(`{${paramKey}}`, String(value))
+    }, template)
   }, [preferences.language])
 
   const setThemeMode = useCallback((themeMode) => {
@@ -3928,7 +4090,10 @@ export function PreferencesProvider({ children }) {
     timeFormat: preferences.timeFormat,
     language: preferences.language,
     timezone: preferences.timezone,
-    themeMode: preferences.themeMode
+    themeMode: preferences.themeMode,
+    // System-wide feature flags
+    smartDocumentEnabled: systemFeatureFlags.smartDocumentEnabled,
+    refreshSystemFeatureFlags
   }
 
   return (
@@ -3971,7 +4136,9 @@ export function usePreferences() {
       timeFormat: '24h',
       language: 'en',
       timezone: 'Asia/Kuala_Lumpur',
-      themeMode: 'light'
+      themeMode: 'light',
+      smartDocumentEnabled: true,
+      refreshSystemFeatureFlags: async () => {}
     }
   }
   return context

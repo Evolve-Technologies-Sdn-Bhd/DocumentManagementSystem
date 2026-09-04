@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
+import { getUserPermissions } from '../utils/permissions'
 import MarkdownEditor from './MarkdownEditor'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
@@ -569,7 +571,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('heroImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.heroImage && (
@@ -643,7 +645,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('aboutImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.aboutImage && (
@@ -719,7 +721,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="image/*" 
                       onChange={(e) => handleIconImageUpload(idx, e)} 
-                      className="w-full rounded-2xl border border-border bg-surface px-2 py-1.5 text-xs text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface file:px-3 file:py-1 file:text-xs file:text-ink-secondary hover:file:bg-surface-muted"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 outline-none file:mr-2 file:rounded-lg file:border-0 file:bg-gray-200 file:px-3 file:py-1 file:text-xs file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                     />
                     <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                   </div>
@@ -899,7 +901,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('workflowImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.workflowImage && (
@@ -988,7 +990,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('contactImage', e)} 
-                  className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.contactImage && (
@@ -1063,7 +1065,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="application/pdf" 
                       onChange={(e) => handleFooterPdfUpload(idx, e)} 
-                      className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface-muted"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
                     />
                     {link.pdf && (
                       <Button
@@ -1136,7 +1138,7 @@ function ThemeAssetField({
             type="file"
             accept={accept}
             onChange={onChange}
-            className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none file:mr-2 file:rounded-xl file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:text-ink-secondary hover:file:bg-surface"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
           />
           <p className="mt-1 text-xs text-ink-muted">{hint}</p>
         </div>
@@ -3514,7 +3516,7 @@ const ThemeBranding = () => {
 
 // Tab 4: Document Settings
 function DocumentSettings() {
-  const { t } = usePreferences()
+  const { t, refreshSystemFeatureFlags } = usePreferences()
   const [settings, setSettings] = useState({
     maxFileSize: 50,
     allowedTypes: {
@@ -3583,7 +3585,8 @@ function DocumentSettings() {
     reminder2Days: 60,
     reminder3Days: 30,
     reminder4Days: 7,
-    rfidEpcRegistryEnabled: false
+    rfidEpcRegistryEnabled: false,
+    smartDocumentEnabled: true
   })
   const [saving, setSaving] = useState(false)
   const [applyingExpirySettings, setApplyingExpirySettings] = useState(false)
@@ -3603,13 +3606,14 @@ function DocumentSettings() {
   const loadSettings = async () => {
     try {
       // Load all settings from backend
-      const [numberingRes, fileUploadRes, versionRes, retentionRes, expiryRes, rfidRes] = await Promise.all([
+      const [numberingRes, fileUploadRes, versionRes, retentionRes, expiryRes, rfidRes, smartDocRes] = await Promise.all([
         api.get('/system/config/document-numbering').catch(err => ({ data: { success: false } })),
         api.get('/system/config/file-upload').catch(err => ({ data: { success: false } })),
         api.get('/system/config/version-control').catch(err => ({ data: { success: false } })),
         api.get('/system/config/retention-policy').catch(err => ({ data: { success: false } })),
         api.get('/system/config/expiry-tracking').catch(err => ({ data: { success: false } })),
-        api.get('/system/config/rfid-epc-registry').catch(err => ({ data: { success: false } }))
+        api.get('/system/config/rfid-epc-registry').catch(err => ({ data: { success: false } })),
+        api.get('/system/config/smart-document').catch(err => ({ data: { success: false } }))
       ])
 
       const loadedSettings = { ...settings }
@@ -3663,6 +3667,11 @@ function DocumentSettings() {
       if (rfidRes.data.success && rfidRes.data.data.settings) {
         const rfidSettings = rfidRes.data.data.settings
         loadedSettings.rfidEpcRegistryEnabled = Boolean(rfidSettings.enabled)
+      }
+
+      if (smartDocRes.data.success && smartDocRes.data.data.settings) {
+        const smartDocSettings = smartDocRes.data.data.settings
+        loadedSettings.smartDocumentEnabled = smartDocSettings.enabled === undefined ? true : Boolean(smartDocSettings.enabled)
       }
 
       setSettings(loadedSettings)
@@ -3807,10 +3816,24 @@ function DocumentSettings() {
         console.error('Failed to save RFID EPC registry settings:', error)
         saveErrors.push('rfid epc registry')
       }
+
+      try {
+        const payload = {
+          enabled: settings.smartDocumentEnabled === undefined ? true : Boolean(settings.smartDocumentEnabled)
+        }
+        await api.put('/system/config/smart-document', payload)
+      } catch (error) {
+        console.error('Failed to save Smart Document settings:', error)
+        saveErrors.push('smart document')
+      }
       
       // Always save to localStorage for backward compatibility and NDR preview
       localStorage.setItem('dms_document_settings', JSON.stringify(settings))
       window.dispatchEvent(new Event('documentSettingsChanged'))
+
+      try {
+        await refreshSystemFeatureFlags()
+      } catch (_) { /* ignore refresh error */ }
       
       if (saveErrors.length > 0) {
         alert(`Warning: Failed to save ${saveErrors.join(', ')} settings to server. Other settings were saved successfully.`)
@@ -4286,6 +4309,38 @@ function DocumentSettings() {
         </div>
       </div>
 
+      <div className="border border-border rounded-lg overflow-hidden bg-surface">
+        <div className="bg-surface border-b border-border px-6 py-4">
+          <h4 className="font-semibold text-ink text-base">Smart Documents</h4>
+          <p className="text-sm text-ink-secondary mt-1">Enable Smart Document editor with dynamic forms, field mapping, and PDF generation</p>
+        </div>
+        <div className="p-6 space-y-6">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.smartDocumentEnabled}
+              onChange={(e) => setSettings((prev) => ({ ...prev, smartDocumentEnabled: e.target.checked }))}
+              className="mt-1 w-4 h-4 text-brand rounded focus:ring-2 focus:ring-brand/20"
+            />
+            <div>
+              <span className="text-sm font-medium text-ink">Enable Smart Document Feature</span>
+              <p className="text-sm text-ink-secondary mt-0.5">
+                When enabled, users can design Smart Templates with custom form sections, map fields to Word placeholders, and use the Smart Document editor for data-driven PDF generation.
+              </p>
+            </div>
+          </label>
+          <div className="rounded-lg border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)] p-4">
+            <p className="text-sm font-medium text-[var(--dms-color-warning-ink)]">Impact</p>
+            <ul className="mt-2 space-y-1 text-sm text-[var(--dms-color-warning-ink)]">
+              <li>• When disabled: Smart Templates tab, Document Style Profiles, and the Smart Document editor are hidden.</li>
+              <li>• Existing documents created with Smart Templates remain accessible for download as normal PDFs.</li>
+              <li>• The "Edit Smart Document" action in Draft Documents will redirect to standard file upload instead.</li>
+              <li>• Toggle takes effect immediately across all active user sessions.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <button 
           onClick={handleSave} 
@@ -4342,7 +4397,9 @@ function NotificationSettings() {
   const [saving, setSaving] = useState(false)
   const [testingEmail, setTestingEmail] = useState(false)
   const [showPasswordField, setShowPasswordField] = useState(false)
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false)
   const [testEmail, setTestEmail] = useState('')
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:text-ink focus:outline-none'
 
   const extractNotificationSettings = (body) => {
     const first = body?.data?.settings ?? body?.settings ?? body
@@ -4411,6 +4468,7 @@ function NotificationSettings() {
         }
         alert('Notification settings saved successfully!')
         setShowPasswordField(false)
+        setShowSmtpPassword(false)
         await loadSettings() // Reload to get masked password
       } else {
         const error = await response.json()
@@ -4488,15 +4546,33 @@ function NotificationSettings() {
             <label className="block text-sm font-medium text-ink mb-2">SMTP Password</label>
             {showPasswordField ? (
               <div className="flex gap-2">
-                <input 
-                  type="password" 
-                  value={settings.smtpPassword} 
-                  onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))} 
-                  placeholder="Enter new password"
-                  className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type={showSmtpPassword ? 'text' : 'password'}
+                    value={settings.smtpPassword}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))}
+                    placeholder="Enter new password"
+                    className="w-full px-3 py-2 pr-10 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSmtpPassword((prev) => !prev)}
+                    className={passwordToggleClass}
+                    aria-label={showSmtpPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSmtpPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
                 <button 
-                  onClick={() => setShowPasswordField(false)}
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordField(false)
+                    setShowSmtpPassword(false)
+                  }}
                   className="px-3 py-2 text-sm text-ink-secondary border border-border rounded-lg hover:bg-surface-muted hover:text-ink"
                 >
                   Cancel
@@ -4512,9 +4588,11 @@ function NotificationSettings() {
                   placeholder="No password set"
                 />
                 <button 
+                  type="button"
                   onClick={() => {
                     setSettings(prev => ({ ...prev, smtpPassword: '' }))
                     setShowPasswordField(true)
+                    setShowSmtpPassword(false)
                   }}
                   className="px-3 py-2 text-sm text-brand border border-brand rounded-lg hover:bg-surface-muted"
                 >
@@ -4678,6 +4756,11 @@ function SecuritySettings() {
     encryptDocuments: true,
     encryptDatabase: true
   })
+  const canManageMaintenance = getUserPermissions()?.all === true
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    message: 'System is under maintenance'
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -4708,6 +4791,20 @@ function SecuritySettings() {
             encryptDocuments: data.encryptDocuments ?? false,
             encryptDatabase: data.encryptDatabase ?? false
           }))
+        }
+
+        if (canManageMaintenance) {
+          const mRes = await fetch('/api/system/config/maintenance-settings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          if (mRes.ok) {
+            const mBody = await mRes.json()
+            const mData = mBody?.data?.settings || mBody?.settings || mBody
+            setMaintenance({
+              enabled: Boolean(mData?.enabled),
+              message: mData?.message || 'System is under maintenance'
+            })
+          }
         }
       } catch (error) {
         console.error('Failed to load security settings:', error)
@@ -4751,6 +4848,24 @@ function SecuritySettings() {
         })
       })
       if (response.ok) {
+        if (canManageMaintenance) {
+          const mResponse = await fetch('/api/system/config/maintenance-settings', {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              enabled: Boolean(maintenance.enabled),
+              message: maintenance.message
+            })
+          })
+          if (!mResponse.ok) {
+            const mErr = await mResponse.json().catch(() => null)
+            alert(`Security settings saved, but maintenance settings failed: ${mErr?.message || 'Unknown error'}`)
+            return
+          }
+        }
         alert('Security settings saved successfully!')
       } else {
         const error = await response.json()
@@ -4843,6 +4958,33 @@ function SecuritySettings() {
           </div>
         )}
       </div>
+
+      {canManageMaintenance ? (
+        <div className="border border-gray-200 rounded-lg p-4">
+          <h4 className="font-medium text-gray-900 mb-4">Maintenance Mode</h4>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={maintenance.enabled}
+                onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm font-medium text-gray-900">Enable maintenance mode (System Admin only)</span>
+            </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Message</label>
+              <textarea
+                value={maintenance.message}
+                onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
+                rows={3}
+                disabled={!maintenance.enabled}
+                className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none disabled:bg-gray-50"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Audit Logging */}
       <div className="border border-gray-200 rounded-lg p-4">

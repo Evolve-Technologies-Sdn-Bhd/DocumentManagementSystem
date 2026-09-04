@@ -1,0 +1,6 @@
+PORT4000_LISTEN=
+PORT3000_LISTEN=
+PORT3001_LISTEN=0
+BACKEND_ERR=The remote server returned an error: (401) Unauthorized.
+FRONTEND_HTTP=200
+

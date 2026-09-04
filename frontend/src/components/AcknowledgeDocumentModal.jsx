@@ -39,14 +39,14 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
         <ModalBody className="space-y-4">
             {/* File Code */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 {t('file_code')}
               </label>
               <TextInput
                 type="text"
                 name="fileCode"
                 value={formData.fileCode}
-                className="bg-surface-muted text-ink-secondary"
+                className="bg-gray-50 text-gray-700"
                 readOnly
               />
             </div>
@@ -54,7 +54,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
             {/* Document Title & Version */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t('document_title_col')}
                 </label>
                 <TextInput
@@ -63,11 +63,11 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
                   value={formData.documentTitle}
                   onChange={handleInputChange}
                   placeholder="Input text"
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t('version_revision')}
                 </label>
                 <TextInput
@@ -76,7 +76,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
                   value={formData.versionNo}
                   onChange={handleInputChange}
                   placeholder="Input text"
-                  className="bg-surface-muted text-ink-secondary"
+                  className="bg-gray-50 text-gray-700"
                 />
               </div>
             </div>
@@ -84,7 +84,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
             {/* Document Type & Comments */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t('doc_type')}
                 </label>
                 <TextInput
@@ -96,7 +96,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-secondary mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   {t('comments_notes')}
                 </label>
                 <TextArea
@@ -112,7 +112,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
 
             {/* Acknowledgement Date */}
             <div>
-              <label className="block text-sm font-medium text-ink-secondary mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 {t('acknowledgement_date')}
               </label>
               <TextInput
@@ -120,7 +120,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
                 name="acknowledgementDate"
                 value={formData.acknowledgementDate}
                 onChange={handleInputChange}
-                className="bg-surface-muted text-ink-secondary"
+                className="bg-gray-50 text-gray-700"
               />
             </div>
         </ModalBody>

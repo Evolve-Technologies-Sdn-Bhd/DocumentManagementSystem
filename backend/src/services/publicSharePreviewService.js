@@ -1,11 +1,10 @@
 const fs = require('fs').promises
-const fsSync = require('fs')
 const path = require('path')
 const os = require('os')
 const config = require('../config/app')
-const libreOfficeConvertService = require('./libreOfficeConvertService')
+const docxToPdfService = require('./docxToPdfService')
 const encryptionService = require('./encryptionService')
-const { NotFoundError } = require('../utils/errors')
+const { NotFoundError, BadRequestError } = require('../utils/errors')
 
 class PublicSharePreviewService {
   ensureSafeFileName(name) {
@@ -89,7 +88,7 @@ class PublicSharePreviewService {
       return { mimeType, absolutePath }
     }
 
-    const { outDir, pdfPath } = this.resolveCachePaths({ documentId, versionId: version?.id })
+    const { pdfPath } = this.resolveCachePaths({ documentId, versionId: version?.id })
     if (await this.fileExists(pdfPath)) {
       return { mimeType: 'application/pdf', absolutePath: pdfPath }
     }
@@ -97,24 +96,16 @@ class PublicSharePreviewService {
     let temp = null
     try {
       temp = await this.writeTempInput({ version, absolutePath })
+      const tempBuf = await fs.readFile(temp.tempPath)
 
-      const convertedCandidate = await libreOfficeConvertService.convertToPdf({
-        inputPath: temp.tempPath,
-        outputDir: outDir
-      })
-
-      if (convertedCandidate !== pdfPath) {
-        if (await this.fileExists(convertedCandidate)) {
-          await fs.mkdir(path.dirname(pdfPath), { recursive: true })
-          await fs.rename(convertedCandidate, pdfPath)
-        }
+      const result = await docxToPdfService.convertDocxBufferToPdf(tempBuf)
+      if (result && result.pdfBuffer && result.pdfBuffer.length > 0) {
+        await fs.mkdir(path.dirname(pdfPath), { recursive: true })
+        await fs.writeFile(pdfPath, result.pdfBuffer)
+        return { mimeType: 'application/pdf', absolutePath: pdfPath }
       }
 
-      if (!fsSync.existsSync(pdfPath)) {
-        throw new NotFoundError('Preview')
-      }
-
-      return { mimeType: 'application/pdf', absolutePath: pdfPath }
+      throw new NotFoundError('Preview')
     } finally {
       await this.cleanupTempDir(temp?.tempDir)
     }

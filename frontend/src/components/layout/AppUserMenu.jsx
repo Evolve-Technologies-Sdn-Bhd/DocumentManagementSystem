@@ -46,8 +46,8 @@ export default function AppUserMenu({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={onClose} />
-          <div className="absolute right-0 z-20 mt-2 w-72 overflow-hidden rounded-[18px] border border-border bg-surface shadow-dms-lg">
+          <div className="fixed inset-0 z-[49]" onClick={onClose} />
+          <div className="absolute right-0 z-[51] mt-2 w-72 overflow-hidden rounded-[18px] border border-border bg-surface shadow-dms-lg">
             <div className="border-b border-border bg-surface-muted px-4 py-4">
               <div className="font-semibold text-ink">{currentUser.name}</div>
               <div className="mt-1 text-xs text-ink-muted">{currentUser.email}</div>

@@ -9,7 +9,7 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-overlay">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>

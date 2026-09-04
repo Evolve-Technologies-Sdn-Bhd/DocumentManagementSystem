@@ -28,7 +28,7 @@ exports.getDocumentTypes = asyncHandler(async (req, res) => {
  * @access  Private (Admin only)
  */
 exports.createDocumentType = asyncHandler(async (req, res) => {
-  const { name, prefix, description, requiresExpiryTracking, allowRenewal } = req.body;
+  const { name, prefix, description, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = req.body;
 
   // Validation
   if (!name || !prefix) {
@@ -37,6 +37,11 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
 
   const normalizedName = String(name).trim();
   const normalizedPrefix = String(prefix).trim();
+  const normalizedRenewalUrl = renewalUrl !== undefined ? (String(renewalUrl).trim() || null) : null;
+  const parsedChecklist = Array.isArray(defaultRenewalChecklist)
+    ? defaultRenewalChecklist.map((x) => String(typeof x === 'object' ? (x?.name || '') : x).trim()).filter(Boolean)
+    : (defaultRenewalChecklist || null);
+
   if (!normalizedName || !normalizedPrefix) {
     throw new ValidationError('Name and prefix are required');
   }
@@ -63,7 +68,9 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
     prefix: normalizedPrefix,
     description,
     requiresExpiryTracking,
-    allowRenewal
+    allowRenewal,
+    renewalUrl: normalizedRenewalUrl,
+    defaultRenewalChecklist: parsedChecklist
   });
 
   return ResponseFormatter.success(
@@ -81,7 +88,14 @@ exports.createDocumentType = asyncHandler(async (req, res) => {
  */
 exports.updateDocumentType = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal } = req.body;
+  const { name, prefix, description, isActive, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = req.body;
+
+  const normalizedRenewalUrl = renewalUrl !== undefined ? (String(renewalUrl).trim() || null) : undefined;
+  const parsedChecklist = defaultRenewalChecklist !== undefined
+    ? (Array.isArray(defaultRenewalChecklist)
+        ? defaultRenewalChecklist.map((x) => String(typeof x === 'object' ? (x?.name || '') : x).trim()).filter(Boolean)
+        : (defaultRenewalChecklist || null))
+    : undefined;
 
   const documentType = await configService.updateDocumentType(id, {
     name: typeof name === 'string' ? name.trim() : name,
@@ -89,7 +103,9 @@ exports.updateDocumentType = asyncHandler(async (req, res) => {
     description,
     isActive,
     requiresExpiryTracking,
-    allowRenewal
+    allowRenewal,
+    renewalUrl: normalizedRenewalUrl,
+    defaultRenewalChecklist: parsedChecklist
   });
 
   return ResponseFormatter.success(
@@ -646,6 +662,34 @@ exports.getLoginPageSettings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get CRM FB enquiry lookup values
+ * @route   GET /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.getCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.getCrmFbEnquiryLookups()
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups retrieved successfully'
+  )
+})
+
+/**
+ * @desc    Update CRM FB enquiry lookup values
+ * @route   PUT /api/system/config/crm-fb-enquiry-lookups
+ * @access  Private
+ */
+exports.updateCrmFbEnquiryLookups = asyncHandler(async (req, res) => {
+  const lookups = await configService.updateCrmFbEnquiryLookups(req.body || {})
+  return ResponseFormatter.success(
+    res,
+    { lookups },
+    'CRM FB enquiry lookups updated successfully'
+  )
+})
+
+/**
  * @desc    Update login page settings (global)
  * @route   PUT /api/system/config/login-page-settings
  * @access  Private (Admin)
@@ -707,3 +751,31 @@ exports.updateThemeSettings = asyncHandler(async (req, res) => {
   const updatedTheme = await configService.updateThemeSettings(theme);
   return ResponseFormatter.success(res, { theme: updatedTheme }, 'Theme settings updated successfully');
 });
+
+exports.getMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = await configService.getMaintenanceSettings();
+  return ResponseFormatter.success(res, { settings }, 'Maintenance settings retrieved successfully');
+});
+
+exports.updateMaintenanceSettings = asyncHandler(async (req, res) => {
+  const settings = req.body;
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid maintenance settings data');
+  }
+  const updatedSettings = await configService.updateMaintenanceSettings(settings);
+  return ResponseFormatter.success(res, { settings: updatedSettings }, 'Maintenance settings updated successfully');
+});
+
+exports.getSmartDocumentSettings = asyncHandler(async (_req, res) => {
+  const settings = await configService.getSmartDocumentSettings()
+  return ResponseFormatter.success(res, { settings }, 'Smart Document settings retrieved successfully')
+})
+
+exports.updateSmartDocumentSettings = asyncHandler(async (req, res) => {
+  const settings = req.body
+  if (!settings || typeof settings !== 'object') {
+    throw new ValidationError('Invalid settings data')
+  }
+  const updatedSettings = await configService.updateSmartDocumentSettings(settings)
+  return ResponseFormatter.success(res, { settings: updatedSettings }, 'Smart Document settings updated successfully')
+})

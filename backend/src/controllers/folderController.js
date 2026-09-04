@@ -8,6 +8,7 @@ const archiver = require('archiver')
 const fs = require('fs')
 const path = require('path')
 const encryptionService = require('../services/encryptionService')
+const divisionScopeService = require('../services/divisionScopeService')
 
 class FolderController {
   /**
@@ -15,7 +16,7 @@ class FolderController {
    * GET /api/folders
    */
   listFolders = asyncHandler(async (req, res) => {
-    const folders = await folderService.listFolders();
+    const folders = await folderService.listFolders(req.user);
     const roleIds = await folderPermissionService.getRoleIdsByNames(req.user?.roles || [])
     const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || [])
     const flat = []
@@ -28,6 +29,11 @@ class FolderController {
     walk(folders)
     const permMap = await folderPermissionService.getEffectivePermissionsMap(flat.map((f) => f.id), req.user?.id, roleIds)
     const byId = new Map(flat.map((f) => [f.id, f]))
+    const folderGraph = await divisionScopeService.getFolderGraph()
+    const effectiveDivisionCache = new Map()
+    const getDirectDivisionIds = (folderId) => folderGraph.get(folderId)?.divisionIds || []
+    const getEffectiveDivisionIds = (folderId) =>
+      divisionScopeService.resolveEffectiveFolderDivisionIds(folderId, folderGraph, effectiveDivisionCache)
 
     const canViewCache = new Map()
     const canViewFolder = (folderId) => {
@@ -102,6 +108,8 @@ class FolderController {
         canEdit: canActionFolder(node.id, 'edit'),
         canDelete: canActionFolder(node.id, 'delete'),
         canDownload: canActionFolder(node.id, 'download'),
+        divisionIds: getDirectDivisionIds(node.id),
+        effectiveDivisionIds: getEffectiveDivisionIds(node.id),
         children: (node.children || []).map(decorate).filter((c) => canSeeFolderNode(c.id))
       }
     }

@@ -44,6 +44,7 @@ model User {
   roles                     UserRole[]
   sessions                  UserSession[]
   trustedDevices            TrustedDevice[]
+  passwordResetCode         PasswordResetCode?
   preferences               UserPreference?
   createdDocuments          Document[]                 @relation("DocumentCreator")
   ownedDocuments            Document[]                 @relation("DocumentOwner")
@@ -83,9 +84,46 @@ model User {
   expiryWatchers            DocumentExpiryWatcher[]
   expiryReminderRecipients  DocumentExpiryReminderRecipient[]
   createdDocumentShareLinks DocumentShareLink[] @relation("DocumentShareLinkCreator")
+  divisions                  UserDivision[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicUser")
+  projectRequiredDocumentPicAssignedActions ProjectRequiredDocumentPicAssignment[] @relation("ProjectRequiredDocumentPicAssignedBy")
+  crmTenderEntriesCreated    CrmTenderEntry[]   @relation("CrmTenderCreatedBy")
+  crmFbEnquiryEntriesCreated CrmFbEnquiryEntry[] @relation("CrmFbEnquiryCreatedBy")
+  crmFbEnquiryAssigneeEntries CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeUser")
+  crmFbEnquiryAssigneeEntriesCreated CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssigneeCreatedBy")
+  crmFbEnquiryFollowUpLogsAssigned CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpAssignedTo")
+  crmFbEnquiryFollowUpLogsCreated CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUpCreatedBy")
+  crmTenderAssigneeEntries CrmTenderAssignee[] @relation("CrmTenderAssigneeUser")
+  crmTenderAssigneeEntriesCreated CrmTenderAssignee[] @relation("CrmTenderAssigneeCreatedBy")
+  crmTenderFollowUpLogsAssigned CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpAssignedTo")
+  crmTenderFollowUpLogsCreated CrmTenderFollowUpLog[] @relation("CrmTenderFollowUpCreatedBy")
+  // Smart Document — additive relations
+  createdSmartDocumentStyleProfiles SmartDocumentStyleProfile[]
+  createdSmartTemplates SmartTemplate[] @relation("SmartTemplateCreator")
+  createdSmartTemplateVersions SmartTemplateVersion[] @relation("SmartTemplateVersionCreator")
+  publishedSmartTemplateVersions SmartTemplateVersion[] @relation("SmartTemplateVersionPublisher")
+  createdSmartDocumentContents SmartDocumentContent[] @relation("SmartDocContentCreator")
+  changedSmartDocumentFields SmartDocumentFieldChange[] @relation("SmartDocFieldChangedBy")
 
   @@index([email])
   @@index([employeeId])
+}
+
+model PasswordResetCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @unique
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  lastSentAt DateTime  @default(now())
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([consumedAt])
 }
 
 enum UserStatus {
@@ -214,6 +252,12 @@ model DocumentType {
   isActive    Boolean  @default(true)
   requiresExpiryTracking Boolean @default(false)
   allowRenewal Boolean @default(true)
+  renewalUrl  String?
+  defaultRenewalChecklist Json?
+  // Smart Document — ADDITIVE fields
+  creationMode CreationMode @default(FILE_BASED) // FILE_BASED or SMART_DOCUMENT
+  // Points to DEFAULT SmartTemplate. DocumentType can have only 1 default active template.
+  smartTemplateId Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -227,6 +271,10 @@ model DocumentType {
   projectItems        ProjectIterationDocumentItem[]
   projectSetupDefaultRequirements ProjectSetupDocumentRequirementDefault[]
   projectSetupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
+  projectRequiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
+  // Smart Document relation — one DocumentType can have many SmartTemplates configured over time
+  smartTemplates        SmartTemplate[] @relation("DocTypeSmartTemplates")
+  smartDefaultTemplate SmartTemplate?  @relation("DocTypeDefaultSmartTemplate", fields: [smartTemplateId], references: [id], onDelete: SetNull)
 }
 
 model ProjectCategory {
@@ -256,6 +304,34 @@ model Department {
   updatedAt   DateTime @updatedAt
 }
 
+model Division {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   UserDivision[]
+  folders FolderDivision[]
+  documents Document[]
+  projects Project[]
+}
+
+model UserDivision {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, divisionId])
+  @@index([userId])
+  @@index([divisionId])
+}
+
 model Folder {
   id                 Int      @id @default(autoincrement())
   name               String
@@ -272,9 +348,24 @@ model Folder {
   documents   Document[]
   createdBy   User               @relation("FolderCreator", fields: [createdById], references: [id])
   permissions FolderPermission[]
+  divisions   FolderDivision[]
 
   @@index([parentId])
   @@index([createdById])
+}
+
+model FolderDivision {
+  id         Int      @id @default(autoincrement())
+  folderId   Int
+  divisionId Int
+  createdAt  DateTime @default(now())
+
+  folder   Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, divisionId])
+  @@index([folderId])
+  @@index([divisionId])
 }
 
 model FolderPermission {
@@ -306,14 +397,19 @@ model Document {
   fileCode          String        // e.g., DOC-2025-001
   isClientDocument  Boolean       @default(false)
   isConfidential    Boolean       @default(false)
+  contentFormat     ContentFormat @default(FILE)
+  contentData       Json?         // Structured content for RICH_TEXT, CHECKLIST, FORM, LINK, TABLE
+  contentText       String?       @db.Text // Plain text extract for search/previews
   title             String
   description       String?       @db.Text
   documentTypeId    Int
   projectCategoryId Int?
+  divisionId        Int?
   folderId          Int? // Folder assignment
   status            DocStatus     @default(DRAFT)
   stage             WorkflowStage @default(DRAFT)
   version           String        @default("1.0")
+  creationMode      CreationMode  @default(FILE_BASED) // FILE_BASED or SMART_DOCUMENT
 
   // User references
   createdById      Int
@@ -347,6 +443,7 @@ model Document {
   // Relations
   documentType           DocumentType               @relation(fields: [documentTypeId], references: [id])
   projectCategory        ProjectCategory?           @relation(fields: [projectCategoryId], references: [id], onDelete: SetNull)
+  division               Division?                  @relation(fields: [divisionId], references: [id], onDelete: SetNull)
   folder                 Folder?                    @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdBy              User                       @relation("DocumentCreator", fields: [createdById], references: [id])
   owner                  User                       @relation("DocumentOwner", fields: [ownerId], references: [id])
@@ -370,6 +467,12 @@ model Document {
   shareLinks             DocumentShareLink[]
   expiryProfile          DocumentExpiryProfile?
   expiryRenewalHistory   DocumentExpiryRenewalHistory[]
+  // Smart Document — additive relations
+  smartDocumentContents  SmartDocumentContent[]
+  smartDocumentFieldChanges SmartDocumentFieldChange[]
+  // Per-document style profile override (null = inherit from template)
+  smartDocumentStyleProfileId Int?
+  smartDocumentStyleProfile   SmartDocumentStyleProfile? @relation("DocStyleProfile", fields: [smartDocumentStyleProfileId], references: [id], onDelete: SetNull)
 
   @@unique([fileCode, projectCategoryId])
   @@index([fileCode])
@@ -377,10 +480,20 @@ model Document {
   @@index([stage])
   @@index([documentTypeId])
   @@index([projectCategoryId])
+  @@index([divisionId])
   @@index([folderId])
   @@index([createdById])
   @@index([ownerId])
   @@index([createdAt])
+}
+
+enum ContentFormat {
+  FILE
+  RICH_TEXT
+  CHECKLIST
+  FORM
+  LINK
+  TABLE
 }
 
 enum AccessSubjectType {
@@ -496,6 +609,7 @@ model Project {
   code              String        @unique
   name              String
   description       String?       @db.Text
+  divisionId        Int?
   clientName        String?
   clientPic         String?
   teamMembers       String?       @db.Text
@@ -512,6 +626,7 @@ model Project {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  division        Division?        @relation(fields: [divisionId], references: [id], onDelete: Restrict)
   projectCategory ProjectCategory  @relation(fields: [projectCategoryId], references: [id], onDelete: Restrict)
   manager         User             @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
   createdBy       User             @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
@@ -519,7 +634,9 @@ model Project {
   setupStageOverrides ProjectSetupStageOverride[]
   setupRequirementOverrides ProjectSetupDocumentRequirementOverride[]
   changeRequests  ProjectChangeRequest[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
+  @@index([divisionId])
   @@index([projectCategoryId])
   @@index([managerId])
   @@index([createdById])
@@ -602,6 +719,7 @@ model ProjectStageDefinition {
   setupOverrideRequirements ProjectSetupDocumentRequirementOverride[]
   items               ProjectIterationDocumentItem[]
   links               ProjectDocumentLink[]
+  requiredDocumentPicAssignments ProjectRequiredDocumentPicAssignment[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -848,6 +966,31 @@ model ProjectDocumentLink {
   @@index([linkedById])
 }
 
+model ProjectRequiredDocumentPicAssignment {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  stageId        Int
+  documentTypeId Int
+  picUserId      Int
+  assignedById   Int
+  assignedAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage        ProjectStageDefinition @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  documentType DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  picUser      User         @relation("ProjectRequiredDocumentPicUser", fields: [picUserId], references: [id], onDelete: Restrict)
+  assignedBy   User         @relation("ProjectRequiredDocumentPicAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, stageId, documentTypeId], map: "PRDPICA_pid_sid_dtid_key")
+  @@index([projectId])
+  @@index([stageId])
+  @@index([documentTypeId])
+  @@index([picUserId])
+  @@index([assignedById])
+  @@index([assignedAt])
+}
+
 model DocumentVersion {
   id           Int      @id @default(autoincrement())
   documentId   Int
@@ -856,19 +999,36 @@ model DocumentVersion {
   fileName     String
   mimeType     String
   fileSize     Int // in bytes
+  contentData  Json?    // Structured versioned content for non-FILE formats
+  contentText  String?  @db.Text // Plain text extract of versioned content
   uploadedById Int
   isPublished  Boolean  @default(false)
   isEncrypted  Boolean  @default(false) // Whether file is AES-256 encrypted
   uploadedAt   DateTime @default(now())
+  // Smart Document — ADDITIVE fields
+  // Tracks the exact Smart Template Version snapshot used for this revision
+  // Published revisions retain the template version even if the template is updated later
+  smartTemplateVersionId Int?
+  // When true: this revision is locked from direct edits (APPROVED/PUBLISHED/PENDING_APPROVAL states)
+  smartContentIsLocked   Boolean  @default(false)
+  // For final PDF generated at approval/publish time (document-quality PDF)
+  smartFinalPdfPath      String?
+  smartFinalPdfFileSize  Int?
+  smartFinalPdfGeneratedAt DateTime?
 
   // Relations
   document          Document                  @relation(fields: [documentId], references: [id], onDelete: Cascade)
   uploadedBy        User                      @relation("VersionUploader", fields: [uploadedById], references: [id])
   epcRegistryRecord DocumentEpcRegistryRecord?
   expiryRenewalHistory DocumentExpiryRenewalHistory[]
+  // Smart Document relations (additive)
+  smartTemplateVersion SmartTemplateVersion? @relation(fields: [smartTemplateVersionId], references: [id], onDelete: SetNull)
+  smartDocumentContent SmartDocumentContent?
+  smartFieldChanges    SmartDocumentFieldChange[]
 
   @@index([documentId])
   @@index([version])
+  @@index([smartTemplateVersionId])
 }
 
 model DocumentExpiryProfile {
@@ -889,6 +1049,8 @@ model DocumentExpiryProfile {
   lastReminder3SentAt  DateTime?
   lastReminder4SentAt  DateTime?
   remarks              String?       @db.Text
+  renewalUrl           String?
+  defaultChecklistItems Json?
   companySnapshot      String?
   departmentSnapshot   String?
   folderSnapshotName   String?
@@ -924,6 +1086,8 @@ model DocumentExpiryRenewalHistory {
   renewalStatusBefore RenewalStatus?
   renewalStatusAfter  RenewalStatus?
   remarks             String?       @db.Text
+  renewalUrl          String?
+  checklistItems      Json?
   renewedBy           Int?
   renewedAt           DateTime      @default(now())
 
@@ -1275,7 +1439,7 @@ model Template {
   updatedAt      DateTime @updatedAt
 
   // Relations
-  documentType     DocumentType      @relation(fields: [documentTypeId], references: [id])
+  documentType     DocumentType           @relation(fields: [documentTypeId], references: [id])
   templateRequests TemplateRequest[]
 
   @@index([documentTypeId])
@@ -1557,4 +1721,579 @@ model Inquiry {
   @@index([email])
   @@index([status])
   @@index([submittedAt])
+}
+
+enum CrmTenderStatus {
+  DRAFT
+  SUBMITTED
+  PENDING
+  KIV
+  WON
+  LOST
+}
+
+model CrmTenderEntry {
+  id                   Int             @id @default(autoincrement())
+  tenderRefNo          String?
+  title                String
+  clientName           String?
+  contactPerson        String?
+  submissionDeadline   DateTime?
+  status               CrmTenderStatus @default(DRAFT)
+  tenderValueCents     Int             @default(0)
+  estimatedProfitCents Int             @default(0)
+  source               String?
+  documentLink         String?
+  followUpNotes        String?         @db.Text
+  nextFollowUpAt       DateTime?
+  createdById          Int
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  createdBy User @relation("CrmTenderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  fbEnquiry CrmFbEnquiryEntry? @relation("CrmTenderFromFbEnquiry")
+  assignees CrmTenderAssignee[] @relation("CrmTenderAssignees")
+  followUpLogs CrmTenderFollowUpLog[] @relation("CrmTenderFollowUps")
+
+  @@index([tenderRefNo])
+  @@index([status])
+  @@index([submissionDeadline])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmTenderAssignee {
+  id         Int @id @default(autoincrement())
+  tenderId   Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  tender    CrmTenderEntry @relation("CrmTenderAssignees", fields: [tenderId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmTenderAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmTenderAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([tenderId, userId])
+  @@index([tenderId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmTenderFollowUpLog {
+  id           Int @id @default(autoincrement())
+  tenderId     Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  tender     CrmTenderEntry @relation("CrmTenderFollowUps", fields: [tenderId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmTenderFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmTenderFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenderId])
+  @@index([assignedToId])
+  @@index([followUpAt])
+  @@index([createdAt])
+}
+
+model CrmTenderSequence {
+  year       Int      @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
+enum CrmFbEnquiryStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  NO_RESPONSE
+  QUOTATION_ISSUED
+}
+
+model CrmFbEnquiryEntry {
+  id                  Int                @id @default(autoincrement())
+  name                String?
+  enquiryDate         DateTime
+  email               String?
+  company             String?
+  contact             String             @unique
+  address             String?            @map("location")
+  state               String?
+  channel             String?
+  industryType        String?
+  interestedProduct   String?
+  painPoint           String?            @db.Text
+  status              CrmFbEnquiryStatus @default(NEW)
+  potentialValueCents Int                @default(0)
+  documentLink        String?
+  followUpNotes       String?            @db.Text
+  nextFollowUpAt      DateTime?
+  tenderEntryId       Int?               @unique
+  createdById         Int
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  createdBy User @relation("CrmFbEnquiryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  assignees CrmFbEnquiryAssignee[] @relation("CrmFbEnquiryAssignees")
+  followUpLogs CrmFbEnquiryFollowUpLog[] @relation("CrmFbEnquiryFollowUps")
+  tenderEntry CrmTenderEntry? @relation("CrmTenderFromFbEnquiry", fields: [tenderEntryId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([enquiryDate])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryAssignee {
+  id         Int @id @default(autoincrement())
+  enquiryId  Int
+  userId     Int
+  createdById Int
+  createdAt  DateTime @default(now())
+
+  enquiry   CrmFbEnquiryEntry @relation("CrmFbEnquiryAssignees", fields: [enquiryId], references: [id], onDelete: Cascade)
+  user      User @relation("CrmFbEnquiryAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("CrmFbEnquiryAssigneeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([enquiryId, userId])
+  @@index([enquiryId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CrmFbEnquiryFollowUpLog {
+  id           Int @id @default(autoincrement())
+  enquiryId    Int
+  followUpAt   DateTime?
+  assignedToId Int?
+  note         String? @db.Text
+  createdById  Int
+  createdAt    DateTime @default(now())
+
+  enquiry    CrmFbEnquiryEntry @relation("CrmFbEnquiryFollowUps", fields: [enquiryId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("CrmFbEnquiryFollowUpAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User @relation("CrmFbEnquiryFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([enquiryId])
+  @@index([assignedToId])
+  @@index([followUpAt])
+  @@index([createdAt])
+}
+
+// ============================================
+// SMART DOCUMENT (ADDITIVE - Phase 1)
+// ============================================
+
+enum CreationMode {
+  FILE_BASED
+  SMART_DOCUMENT
+}
+
+enum SmartFieldInputType {
+  TEXT
+  TEXTAREA
+  RICH_TEXT
+  NUMBER
+  DATE
+  DATETIME
+  DROPDOWN
+  SINGLE_SELECT
+  MULTI_SELECT
+  CHECKBOX
+  USER_LOOKUP
+  TABLE
+  IMAGE
+  ATTACHMENT
+  REPEATER
+  SYSTEM_GENERATED
+}
+
+enum SmartPlaceholderType {
+  SIMPLE_VALUE
+  RICH_TEXT_CONTENT
+  TABLE_ROWS
+  IMAGE
+  REPEATED_SECTION
+  HEADER_FIELD
+  FOOTER_FIELD
+}
+
+enum SmartPageOrientation {
+  PORTRAIT
+  LANDSCAPE
+}
+
+enum SmartPageSize {
+  A4
+  LETTER
+  LEGAL
+  CUSTOM
+}
+
+model SmartDocumentStyleProfile {
+  id               Int      @id @default(autoincrement())
+  profileName      String   @unique
+  description      String?  @db.Text
+  isActive         Boolean  @default(true)
+  isDefault        Boolean  @default(false)
+
+  // Page settings
+  pageSize         SmartPageSize   @default(A4)
+  pageOrientation  SmartPageOrientation @default(PORTRAIT)
+  pageWidthMm      Decimal?  @db.Decimal(10, 2)
+  pageHeightMm     Decimal?  @db.Decimal(10, 2)
+  marginTopMm      Decimal   @db.Decimal(10, 2) @default(25.4)
+  marginBottomMm   Decimal   @db.Decimal(10, 2) @default(25.4)
+  marginLeftMm     Decimal   @db.Decimal(10, 2) @default(25.4)
+  marginRightMm    Decimal   @db.Decimal(10, 2) @default(25.4)
+
+  // Font defaults (kept as fallbacks — full structured overrides in typographyJson below)
+  bodyFontFamily   String   @default("Arial")
+  bodyFontSizePt   Int      @default(11)
+  heading1FontSizePt Int    @default(16)
+  heading2FontSizePt Int    @default(14)
+  heading3FontSizePt Int    @default(12)
+  heading4FontSizePt Int    @default(11)
+  headingFontFamily String  @default("Arial")
+  headingFontBold  Boolean  @default(true)
+  tableFontFamily  String   @default("Arial")
+  tableFontSizePt  Int      @default(10)
+
+  // ===== Full Professional Typography Overrides =====
+  // Per-category: heading1-4, body, tableHeader, tableCell, listItem, headerText, footerText, caption
+  // Keys: fontFamily, fontSizePt, bold, italic, underline, color, spacingBeforePt, spacingAfterPt, lineSpacingMultiplier, indentMm, bulletStyle, fillColor, verticalAlign, position
+  typographyJson   Json?
+
+  // Spacing
+  lineSpacing      Decimal  @db.Decimal(4, 2) @default(1.15)
+  paragraphSpacingBeforePt Int @default(0)
+  paragraphSpacingAfterPt  Int @default(6)
+
+  // Header configuration
+  headerEnabled    Boolean  @default(true)
+  headerHeightMm   Decimal? @db.Decimal(10, 2)
+  headerLogoPath   String?
+  // ===== Professional Evolve-style Header (logo + name/regno + address + tel + email + line) =====
+  headerUseProfessionalLayout Boolean  @default(true)
+  // Logo size in millimetres (aspect ratio preserved if only one set)
+  logoWidthMm      Decimal? @db.Decimal(10, 2)
+  logoHeightMm     Decimal? @db.Decimal(10, 2)
+  // Company Identity line (bold + underline + reg number)
+  headerCompanyName   String?
+  headerCompanyRegNo  String?
+  headerCompanyNameUnderline Boolean @default(true)
+  headerCompanyNameColor  String?  @default("#1F2937")
+  // Multi-line address (stored as JSON array of strings, one line per element)
+  headerCompanyAddressJson Json?
+  // Contact lines
+  headerCompanyPhone String?
+  headerCompanyEmail String?
+  headerCompanyEmailColor String? @default("#0563C1") // Microsoft Word hyperlink blue
+  // Divider line under full header (Evolve format = thick black line across full width)
+  headerBottomDividerEnabled    Boolean  @default(true)
+  headerBottomDividerWidthPt    Decimal  @db.Decimal(4, 2) @default(1.5)
+  headerBottomDividerColor      String?  @default("#000000")
+  // Legacy simple layout fallbacks if headerUseProfessionalLayout = false
+  headerLeftText   String?  @db.Text
+  headerCenterText String?  @db.Text
+  headerRightText  String?  @db.Text
+  headerBorderBottomStyle String? @default("single")
+
+  // Footer configuration
+  footerEnabled    Boolean  @default(true)
+  footerHeightMm   Decimal? @db.Decimal(10, 2)
+  // ===== Professional Footer Standards (pro-controlled documentation) =====
+  footerUseProfessionalLayout Boolean  @default(true)
+  // Confidentiality / classification line (e.g. "CONFIDENTIAL - Property of Evolve Technology Platform Sdn. Bhd.")
+  footerConfidentialText   String?
+  footerClassificationMark String? // e.g. "INTERNAL / SOP / RESTRICTED"
+  // Auto-doc metadata display toggles
+  footerShowDocCodeAndRev Boolean @default(true)
+  footerShowEffectiveDate Boolean @default(true)
+  footerShowPreparedBy    Boolean @default(true)
+  footerShowApprovedBy    Boolean @default(false)
+  footerDisclaimerText    String? // Copyright or legal disclaimer line
+  // Top divider above footer
+  footerTopDividerEnabled  Boolean  @default(true)
+  footerTopDividerWidthPt  Decimal  @db.Decimal(4, 2) @default(0.75)
+  footerTopDividerColor    String?  @default("#6B7280")
+  // Legacy simple layout fallbacks
+  footerLeftText   String?  @db.Text
+  footerCenterText String?  @db.Text
+  footerRightText  String?  @db.Text
+  showPageNumbers  Boolean  @default(true)
+  pageNumberFormat String?  @default("Page X of Y")
+  showDocumentInfo Boolean  @default(true)
+  footerBorderTopStyle String? @default("single")
+
+  // Table formatting
+  tableBorderStyle  String  @default("single")
+  tableBorderWidthPt Decimal @db.Decimal(4, 2) @default(0.5)
+  tableHeaderFillColor String? @default("#F2F2F2")
+  tableHeaderFontBold Boolean @default(true)
+  tableCellPaddingPt Int    @default(4)
+  tableAlignment    String  @default("left")
+
+  // Pagination
+  pageBreakBeforeHeadings Boolean @default(true)
+  widowOrphanControl  Boolean @default(true)
+  firstPageNumber   Int      @default(1)
+  restartOnEachSection Boolean @default(false)
+  useHybridPageNumbering Boolean @default(false)
+  frontMatterThreshold Int?  @default(4)
+  frontMatterFormat  String?  @default("lowerRoman")
+
+  createdById      Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  createdBy        User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  smartTemplates   SmartTemplate[]
+  documents        Document[]     @relation("DocStyleProfile")
+
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+model SmartTemplate {
+  id                 Int      @id @default(autoincrement())
+  templateName       String
+  templateCode       String   @unique
+  description        String?  @db.Text
+  isActive           Boolean  @default(true)
+  documentTypeId     Int
+  createdById        Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Style profile linkage (centralized header/footer/formatting)
+  styleProfileId     Int?
+
+  // Auto-populated field config
+  includeRevisionInDoc  Boolean @default(true)
+  includeFileCodeInDoc  Boolean @default(true)
+  includePreparedBy     Boolean @default(true)
+  includeDates          Boolean @default(true)
+
+  // Relations
+  documentType     DocumentType        @relation("DocTypeSmartTemplates", fields: [documentTypeId], references: [id], onDelete: Restrict)
+  createdBy        User?               @relation("SmartTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  styleProfile     SmartDocumentStyleProfile? @relation(fields: [styleProfileId], references: [id], onDelete: SetNull)
+  versions         SmartTemplateVersion[]
+  defaultForDocTypes DocumentType[]    @relation("DocTypeDefaultSmartTemplate")
+
+  @@index([documentTypeId])
+  @@index([isActive])
+  @@index([templateCode])
+}
+
+model SmartTemplateVersion {
+  id                 Int      @id @default(autoincrement())
+  smartTemplateId    Int
+  versionNo          String   // e.g., "1.0", "1.1", "2.0"
+  versionLabel       String?  // Optional friendly name
+
+  // Source DOCX template file
+  templateFilePath   String?
+  templateFileName   String?
+  templateFileSize   Int? // bytes
+  templateFileHash   String? // integrity check
+  templateUploadedAt DateTime?
+
+  // Extracted placeholders (snapshot at version time)
+  placeholdersJson   Json? // List of {{placeholders}} detected in DOCX
+
+  // Formatting snapshot (immutable once docs published using this version)
+  formattingSnapshot Json? // Copy of styleProfile at publish time
+
+  changeNotes        String?  @db.Text
+  isCurrent          Boolean  @default(false)
+  isLocked           Boolean  @default(false) // Locked once published docs reference it
+  publishedById      Int?
+  publishedAt        DateTime?
+  createdById        Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  smartTemplate      SmartTemplate        @relation(fields: [smartTemplateId], references: [id], onDelete: Cascade)
+  createdBy          User?                @relation("SmartTemplateVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  publishedBy        User?                @relation("SmartTemplateVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  formFields         SmartFormField[]
+  fieldMappings      SmartFieldMapping[]
+  sections           SmartTemplateSection[]
+  documentVersions   DocumentVersion[]
+  smartDocumentContents SmartDocumentContent[]
+
+  @@unique([smartTemplateId, versionNo])
+  @@index([smartTemplateId])
+  @@index([isCurrent])
+  @@index([isLocked])
+}
+
+model SmartTemplateSection {
+  id                    Int      @id @default(autoincrement())
+  smartTemplateVersionId Int
+  sectionKey            String   // Machine key, e.g. "purpose", "scope", "procedure"
+  sectionName           String   // Display name
+  sectionDescription    String?  @db.Text
+  sortOrder             Int      @default(0)
+  isRequired            Boolean  @default(true)
+  isCollapsible         Boolean  @default(true)
+  isSystemSection       Boolean  @default(false) // Purpose/Scope/Responsibility etc. may be standard
+  sectionHelpText       String?  @db.Text
+  parentSectionId       Int?
+  layoutConfig          Json?    // Column layout, section styling
+
+  createdById           Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  smartTemplateVersion  SmartTemplateVersion @relation(fields: [smartTemplateVersionId], references: [id], onDelete: Cascade)
+  parentSection         SmartTemplateSection? @relation("SectionHierarchy", fields: [parentSectionId], references: [id], onDelete: SetNull)
+  childSections         SmartTemplateSection[] @relation("SectionHierarchy")
+  fields                SmartFormField[]
+
+  @@index([smartTemplateVersionId])
+  @@index([parentSectionId])
+  @@index([sortOrder])
+  @@unique([smartTemplateVersionId, sectionKey])
+}
+
+model SmartFormField {
+  id                       Int      @id @default(autoincrement())
+  smartTemplateVersionId   Int
+  smartTemplateSectionId   Int?
+  fieldKey                 String   // Machine key, e.g. "purpose_text", "review_date"
+  fieldLabel               String   // Display label
+  fieldHelpText            String?  @db.Text
+  placeholderHint          String?  // Input placeholder
+  inputType                SmartFieldInputType @default(TEXT)
+
+  // Field configuration (dynamic depending on inputType)
+  optionsJson              Json?    // For DROPDOWN: { options: [{value, label}], allowMultiple? }
+  validationRulesJson      Json?    // { required, minLength, maxLength, regex, min, max, custom? }
+  defaultValueJson         Json?    // Default value based on type
+  tableSchemaJson          Json?    // For TABLE type: { columns: [{key, label, type, width, required}] }
+  repeaterSchemaJson       Json?    // For REPEATER type: { rowFields: [...], minOccurrences, maxOccurrences }
+  imageConfigJson          Json?    // For IMAGE: { maxSizeKb, formats:[], widthLimit, heightLimit }
+  attachmentConfigJson     Json?    // For ATTACHMENT: { maxSizeKb, formats:[] }
+  systemFieldConfigJson    Json?    // For SYSTEM_GENERATED: { sourceType: "REFERENCE_CODE"|"REVISION"|"USER"|"DATE"|..., autoPopulate: true }
+  visibilityRulesJson      Json?    // Conditional field visibility: { enabled, match: "ALL"|"ANY", rules: [{ fieldKey, operator: "equals"|"notEquals"|"contains"|"isEmpty"|"isNotEmpty", value }] }
+
+  // Permissions
+  isMandatory              Boolean  @default(false)
+  isEditableAuthor         Boolean  @default(true)
+  isEditableReviewer       Boolean  @default(false)
+  isVisibleInForm          Boolean  @default(true)
+  isVisibleInPreview       Boolean  @default(true)
+  isSearchable             Boolean  @default(false)
+  isSupportingField        Boolean  @default(false)
+
+  sortOrder                Int      @default(0)
+  createdById              Int?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  smartTemplateVersion     SmartTemplateVersion @relation(fields: [smartTemplateVersionId], references: [id], onDelete: Cascade)
+  smartTemplateSection     SmartTemplateSection? @relation(fields: [smartTemplateSectionId], references: [id], onDelete: SetNull)
+  fieldMapping             SmartFieldMapping?
+
+  @@unique([smartTemplateVersionId, fieldKey])
+  @@index([smartTemplateVersionId])
+  @@index([smartTemplateSectionId])
+  @@index([sortOrder])
+  @@index([inputType])
+}
+
+model SmartFieldMapping {
+  id                       Int      @id @default(autoincrement())
+  smartTemplateVersionId   Int
+  smartFormFieldId         Int      @unique
+
+  // Which {{placeholder}} in DOCX this field maps to
+  placeholderName          String   // e.g., "{{purpose}}" — the exact string
+  placeholderType          SmartPlaceholderType @default(SIMPLE_VALUE)
+
+  // Advanced mapping options
+  outputFormatJson         Json?    // Formatting: { dateFormat, numberFormat, textTransform, tableCellRange, imageSize?, font? }
+  targetSectionName        String?  // For section-based rendering
+  repeatParentTag          String?  // For table rows / repeated sections: parent tag to clone
+
+  sortOrder                Int      @default(0)
+  createdById              Int?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  smartTemplateVersion     SmartTemplateVersion @relation(fields: [smartTemplateVersionId], references: [id], onDelete: Cascade)
+  smartFormField           SmartFormField       @relation(fields: [smartFormFieldId], references: [id], onDelete: Cascade)
+
+  @@unique([smartTemplateVersionId, placeholderName])
+  @@index([smartTemplateVersionId])
+  @@index([smartFormFieldId])
+}
+
+model SmartDocumentContent {
+  id                  Int      @id @default(autoincrement())
+  documentId          Int
+  documentVersionId   Int?     // Links to DocumentVersion for additive integration
+
+  // CRITICAL: Immutable link to the EXACT template version used
+  smartTemplateVersionId Int
+
+  // Form field values — DYNAMIC keys reference SmartFormField.fieldKey
+  fieldValuesJson     Json?    // { [fieldKey]: value | richText | {rows:[...]} | {files:[...]} }
+
+  // Snapshots for rendering (immutable once revision is locked)
+  autoFieldSnapshotJson Json?  // Reference Code, file code, dates, users at save time
+  contentChecksum     String?  // Hash for change detection / audit
+
+  // Audit trail snapshots — drafter baseline, reviewer edits, approver minor tweaks
+  fieldAuditTrailJson Json?    // [ { action: 'REVIEWER_DIRECT_EDIT'|'APPROVER_MINOR_TWEAK'|'DRAFTER_BASELINE', userId, timestamp, snapshot: {[fieldKey]: value} } ]
+                                 // OR legacy object: { drafterSnapshot: {...}, reviewerSnapshot: {...} }
+
+  // Tracking
+  createdById         Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  documentVersion     DocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  document            Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  smartTemplateVersion SmartTemplateVersion @relation(fields: [smartTemplateVersionId], references: [id], onDelete: Restrict)
+  createdBy           User?            @relation("SmartDocContentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([documentVersionId])
+  @@index([documentId])
+  @@index([documentVersionId])
+  @@index([smartTemplateVersionId])
+}
+
+// Per-field change history for Smart Documents
+model SmartDocumentFieldChange {
+  id                    Int      @id @default(autoincrement())
+  documentId            Int
+  documentVersionId     Int?
+  smartFormFieldKey     String
+  changedById           Int?
+  changedAt             DateTime @default(now())
+  oldValueSnapshot      Json?    // Value before change (or null if new)
+  newValueSnapshot      Json?    // Value after change
+  changeReason          String?  @db.Text // Optional note / review comment
+
+  // Context
+  workflowAction        String?  // "DRAFT_EDIT" | "REVIEWER_SUGGESTION" | "REVIEWER_DIRECT_EDIT" | "AUTHOR_REVISION" | etc.
+  sourceCommentId       Int?     // Optional link to DocumentComment
+
+  changedBy             User?    @relation("SmartDocFieldChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  document              Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersionRef    DocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: SetNull)
+
+  @@index([documentId])
+  @@index([documentVersionId])
+  @@index([smartFormFieldKey])
+  @@index([changedById])
+  @@index([changedAt])
 }
