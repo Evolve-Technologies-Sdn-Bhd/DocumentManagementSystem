@@ -1129,11 +1129,21 @@ function ThemeAssetField({
   onRemove
 }) {
   const [previewError, setPreviewError] = useState(false)
+  const [attemptKey, setAttemptKey] = useState(0)
   const safePreview = preview && !previewError ? preview : null
   const handleImgError = () => setPreviewError(true)
+  const handleRetry = () => {
+    setAttemptKey((k) => k + 1)
+    setPreviewError(false)
+  }
   useEffect(() => {
     setPreviewError(false)
+    setAttemptKey((k) => k + 1)
   }, [preview])
+  useEffect(() => {
+    setPreviewError(false)
+    setAttemptKey((k) => k + 1)
+  }, [])
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-ink">{label}</label>
@@ -1151,7 +1161,13 @@ function ThemeAssetField({
         {safePreview ? (
           <div className="flex flex-col gap-2">
             <div className={`${previewBoxClassName} flex items-center justify-center rounded-lg border border-border bg-surface p-2`}>
-              <img src={safePreview} alt={previewAlt} className={previewImageClassName} onError={handleImgError} />
+              <img
+                key={`${attemptKey}-${preview}`}
+                src={safePreview}
+                alt={previewAlt}
+                className={previewImageClassName}
+                onError={handleImgError}
+              />
             </div>
             <Button type="button" variant="danger" size="sm" onClick={onRemove}>
               Remove
@@ -1161,6 +1177,13 @@ function ThemeAssetField({
           <div className="flex flex-col gap-2">
             <div className={`${previewBoxClassName} flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface-muted p-2 text-xs text-ink-muted`}>
               <span className="mb-1 font-medium">File missing</span>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mb-1 cursor-pointer text-[11px] font-medium underline underline-offset-2 text-[#003366] hover:text-[#0b57a8]"
+              >
+                Retry
+              </button>
               <span>Upload a new one</span>
             </div>
             <Button type="button" variant="danger" size="sm" onClick={onRemove}>
@@ -1322,31 +1345,75 @@ const ThemeBranding = () => {
 
   useEffect(() => {
     // Load saved theme or get current CSS variables
+    // #region debug-point A,C:themeBrandingLoad
+    console.log(`%c[DEBUG-THEMEBRAND] ===== ThemeBranding useEffect[load] RUN =====`, 'color:#7C2D12;font-weight:bold')
+    console.log(`[DEBUG-THEMEBRAND] INITIAL logoPreview=`, logoPreview, `| theme.mainLogo (initial state)=`, theme.mainLogo)
+    // #endregion
     let mounted = true
 
     const applyLoadedTheme = (savedTheme) => {
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`[DEBUG-THEMEBRAND] --- applyLoadedTheme() called ---`)
+      console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogo (RAW from param)=`, savedTheme?.mainLogo, typeof savedTheme?.mainLogo)
+      console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogoPlaceholder=`, savedTheme?.mainLogoPlaceholder)
+      console.log(`[DEBUG-THEMEBRAND]   CURRENT theme.mainLogo (stale closure)=`, theme.mainLogo)
+      // #endregion
       const mergedTheme = { ...theme, ...(savedTheme && typeof savedTheme === 'object' ? savedTheme : {}) }
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`[DEBUG-THEMEBRAND]   mergedTheme.mainLogo (AFTER merge with stale theme)=`, mergedTheme.mainLogo)
+      // #endregion
       setTheme(mergedTheme)
       setOriginalTheme(mergedTheme)
       applyTheme(mergedTheme)
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`%c[DEBUG-THEMEBRAND]   📌 setLogoPreview(${mergedTheme.mainLogo ?? null}) — LOGO PREVIEW STATE WILL CHANGE TO THIS`, mergedTheme.mainLogo ? 'color:#065F46' : 'color:#DC2626;font-weight:bold')
+      if (!mergedTheme.mainLogo) {
+        console.log(`%c[DEBUG-THEMEBRAND]   ⚠️ mergedTheme.mainLogo IS NULL — THIS WILL CAUSE LOGO TO DISAPPEAR FROM PREVIEW!`, 'color:#DC2626;font-weight:bold')
+      }
+      // #endregion
       setLogoPreview(mergedTheme.mainLogo ?? null)
       setFaviconPreview(mergedTheme.favicon ?? null)
       setBgImagePreview(mergedTheme.bgImage ?? null)
     }
 
     const load = async () => {
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`[DEBUG-THEMEBRAND] load() → fetching /system/config/theme-settings...`)
+      // #endregion
       try {
         const res = await api.get('/system/config/theme-settings')
         const savedTheme = res.data?.data?.theme
+        // #region debug-point A,C:themeBrandingLoad
+        console.log(`[DEBUG-THEMEBRAND] ✅ API response received!`)
+        console.log(`[DEBUG-THEMEBRAND]   res.data.data=`, res.data?.data)
+        console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogo (FROM SERVER)=`, savedTheme?.mainLogo, typeof savedTheme?.mainLogo)
+        console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogoPlaceholder (FROM SERVER)=`, savedTheme?.mainLogoPlaceholder)
+        if (!savedTheme?.mainLogo) {
+          console.log(`%c[DEBUG-THEMEBRAND]   ⚠️⚠️⚠️ SERVER RETURNED mainLogo=null/undefined! THIS MEANS resolveBrandingFile IN BACKEND FAILED TO FIND THE FILE!`, 'color:#DC2626;font-weight:bold')
+        }
+        // #endregion
         if (savedTheme && typeof savedTheme === 'object') {
+          // #region debug-point A,C:themeBrandingLoad
+          console.log(`[DEBUG-THEMEBRAND]   calling persistBranding({ theme: savedTheme })...`)
+          // #endregion
           persistBranding({ theme: savedTheme })
           if (!mounted) return
           applyLoadedTheme(savedTheme)
           return
         }
-      } catch {}
+      } catch (err) {
+        // #region debug-point A,C:themeBrandingLoad
+        console.log(`%c[DEBUG-THEMEBRAND] ❌ API fetch ERROR:`, 'color:#DC2626', err?.message || err)
+        // #endregion
+      }
 
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`[DEBUG-THEMEBRAND] ⬇️ FALLBACK to readThemeSettings() from localStorage/inMemoryBranding`)
+      // #endregion
       const savedTheme = readThemeSettings()
+      // #region debug-point A,C:themeBrandingLoad
+      console.log(`[DEBUG-THEMEBRAND]   readThemeSettings returned → mainLogo=`, savedTheme?.mainLogo)
+      // #endregion
       if (savedTheme) {
         if (!mounted) return
         applyLoadedTheme(savedTheme)
