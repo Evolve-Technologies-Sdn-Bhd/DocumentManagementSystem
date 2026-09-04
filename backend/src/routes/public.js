@@ -25,6 +25,9 @@ router.get('/login-page-settings', publicController.getLoginPageSettings);
 // GET /api/public/branding - Get global branding (company info + theme)
 router.get('/branding', publicController.getBranding);
 
+// GET /api/public/branding-file/:type/:fileName - Serve uploaded file from ANY alt dir (bypasses Nginx static interception)
+router.get('/branding-file/:type/:fileName', publicController.serveBrandingFile);
+
 router.get('/maintenance-status', publicController.getMaintenanceStatus);
 
 router.get('/smart-document-status', publicController.getSmartDocumentStatus);

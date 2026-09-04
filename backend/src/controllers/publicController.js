@@ -113,9 +113,11 @@ const resolveBrandingFile = async (pathOrUrl) => {
         try {
           await fs.access(altPath, fsConst.R_OK);
           // #region debug-point E:publicResolveBrandingFile
-          console.log(`[DEBUG-PUB-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /uploads/branding/${fileName}`)
+          console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /api/public/branding-file/branding/${fileName} (Nginx static INTERCEPTION AVOIDED via /api/ prefix)`, 'color:#065F46;font-weight:bold');
           // #endregion
-          foundPath = `/uploads/branding/${fileName}`;
+          // ⭐ KEY FIX: Use /api/ URL — guaranteed to hit Node backend, bypasses
+          // Nginx static serving which returns 404 when file not in Nginx docroot.
+          foundPath = `/api/public/branding-file/branding/${fileName}`;
           break;
         } catch (e2) {
           // #region debug-point E:publicResolveBrandingFile
@@ -501,3 +503,116 @@ exports.getSmartDocumentStatus = asyncHandler(async (req, res) => {
 
   return ResponseFormatter.success(res, { enabled }, 'Smart Document status retrieved successfully')
 })
+
+const ALLOWED_BRANDING_TYPES = Object.freeze(['branding', 'landing', 'profiles'])
+
+const _buildServeAltDirs = (subDir) => {
+  const processCwd = process.cwd()
+  let osHomedir = processCwd
+  try { osHomedir = require('os').homedir() } catch {}
+  const baseDir = appConfig && appConfig.uploadDir ? appConfig.uploadDir : path.resolve(processCwd, 'uploads')
+  const primary = path.join(baseDir, subDir)
+  const out = []
+  const candidates = [
+    primary,
+    path.resolve(processCwd, 'uploads', subDir),
+    path.resolve(processCwd, '..', 'uploads', subDir),
+    path.resolve(processCwd, 'public', 'uploads', subDir),
+    path.resolve(processCwd, '..', 'backend', 'uploads', subDir),
+    path.resolve(processCwd, 'backend', 'uploads', subDir),
+    `/www/wwwroot/dms.demo.clbgroups.com/backend/uploads/${subDir}`,
+    `/www/wwwroot/dms.demo.clbgroups.com/uploads/${subDir}`,
+    `/www/wwwroot/dms.demo.clbgroups.com/backend/public/uploads/${subDir}`,
+    `/www/wwwroot/dms.demo.clbgroups.com/public/uploads/${subDir}`,
+    `/www/wwwroot/default/backend/uploads/${subDir}`,
+    `/www/wwwroot/default/uploads/${subDir}`,
+    `/var/www/html/backend/uploads/${subDir}`,
+    `/var/www/html/uploads/${subDir}`,
+    `/app/backend/uploads/${subDir}`,
+    `/app/uploads/${subDir}`,
+    `/data/backend/uploads/${subDir}`,
+    `/data/uploads/${subDir}`
+  ]
+  if (osHomedir) {
+    candidates.push(path.resolve(osHomedir, 'dms', 'uploads', subDir))
+    candidates.push(path.resolve(osHomedir, 'dms', 'backend', 'uploads', subDir))
+  }
+  const seen = new Set()
+  for (const d of candidates) {
+    if (!d || seen.has(d)) continue
+    seen.add(d)
+    out.push(d)
+  }
+  return out
+}
+
+const _safeBasename = (name) => {
+  if (!name) return null
+  const base = String(name).split(/[?#]/)[0]
+  if (!/^[A-Za-z0-9._-]+$/.test(base)) return null
+  return base
+}
+
+const _detectContentType = (fileName) => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase()
+  switch (ext) {
+    case 'png': return 'image/png'
+    case 'jpg': case 'jpeg': return 'image/jpeg'
+    case 'gif': return 'image/gif'
+    case 'webp': return 'image/webp'
+    case 'svg': return 'image/svg+xml'
+    case 'ico': return 'image/x-icon'
+    case 'bmp': return 'image/bmp'
+    default: return 'application/octet-stream'
+  }
+}
+
+/**
+ * GET /api/public/branding-file/:type/:fileName
+ * Direct backend-served branding/upload file endpoint.
+ * Bypasses Nginx static interception (since it has /api/ prefix, Nginx proxies it to Node).
+ * Scans all 20 altDirs (aaPanel / Docker / homedir) and serves via sendFile if found anywhere.
+ * No auth required (public).
+ */
+exports.serveBrandingFile = asyncHandler(async (req, res) => {
+  const traceId = `bf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  const rawType = req.params?.type
+  const rawFileName = req.params?.fileName
+  console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ===== /api/public/branding-file/:type/:fileName HIT =====`, 'color:#1D4ED8;font-weight:bold')
+  console.log(`[DEBUG-BRANDING-FILE:${traceId}] rawType=${JSON.stringify(rawType)} rawFileName=${JSON.stringify(rawFileName)}`)
+
+  if (!ALLOWED_BRANDING_TYPES.includes(rawType)) {
+    console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ type not allowed -> 400`)
+    return ResponseFormatter.error(res, `Invalid branding type. Allowed: ${ALLOWED_BRANDING_TYPES.join(', ')}`, 400)
+  }
+  const fileName = _safeBasename(rawFileName)
+  if (!fileName) {
+    console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ fileName failed sanitize -> 400`)
+    return ResponseFormatter.error(res, 'Invalid file name', 400)
+  }
+
+  const dirs = _buildServeAltDirs(rawType)
+  const fsSync = require('fs')
+  for (const dir of dirs) {
+    try {
+      const candidate = path.join(dir, fileName)
+      if (!fsSync.existsSync(candidate)) continue
+      const stat = fsSync.statSync(candidate)
+      if (!stat.isFile()) continue
+      const contentType = _detectContentType(fileName)
+      console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ✅ Found in altDir: ${candidate} -> sendFile, Content-Type=${contentType}`, 'color:#065F46;font-weight:bold')
+      res.setHeader('X-DMS-BrandingFile-Served', 'true')
+      res.setHeader('X-DMS-AltDir', dir)
+      res.setHeader('Cache-Control', rawType === 'branding' ? 'public, max-age=2592000, immutable' : 'public, max-age=86400')
+      return res.type(contentType).sendFile(candidate)
+    } catch (err) {
+      console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ dir=${dir} err=${err.message}`)
+    }
+  }
+
+  console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ❌ NOT FOUND in ANY of dirs.count=${dirs.length} for fileName=${fileName} -> 404`, 'color:#DC2626;font-weight:bold')
+  return ResponseFormatter.error(res, 'File not found', 404)
+})
+
+exports.ALLOWED_BRANDING_TYPES = ALLOWED_BRANDING_TYPES
+exports._buildServeAltDirs = _buildServeAltDirs

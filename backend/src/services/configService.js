@@ -1081,9 +1081,12 @@ class ConfigService {
           try {
             await fs.access(altPath, require('fs').constants.R_OK);
             // #region debug-point E:resolveBrandingFile
-            console.log(`[DEBUG-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /uploads/branding/${fileName}`)
+            console.log(`%c[DEBUG-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /api/public/branding-file/branding/${fileName} (Nginx static INTERCEPTION AVOIDED via /api/ prefix)`, 'color:#065F46;font-weight:bold')
             // #endregion
-            foundPath = `/uploads/branding/${fileName}`;
+            // ⭐ KEY FIX: Use /api/ URL (guaranteed to hit Node backend) instead of
+            // /uploads/ static URL which Nginx aaPanel serves from its own docroot and 404s
+            // when file is saved in backend upload dir.
+            foundPath = `/api/public/branding-file/branding/${fileName}`;
             break;
           } catch (e2) {
             // #region debug-point E:resolveBrandingFile
