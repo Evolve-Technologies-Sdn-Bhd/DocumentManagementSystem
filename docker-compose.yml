@@ -1,3 +1,18 @@
+# -----------------------------------------------------------------------------
+# DMS On-Prem Docker Compose
+#
+# Staggered Deploy (NO spike) – run INI instead of `docker compose up --build`:
+#   1) docker compose build mysql caddy
+#   2) docker compose build backend
+#   3) docker compose build frontend
+#   4) docker compose up -d
+#
+# Or shorter, BuildKit 1-job parallelism:
+#   DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker compose build \
+#       --parallelism 1 --progress=plain
+#   docker compose up -d
+# -----------------------------------------------------------------------------
+
 services:
   mysql:
     image: mysql:8.0
@@ -6,8 +21,13 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --innodb_buffer_pool_size=1G
-      - --max_connections=200
+      - --innodb_buffer_pool_size=512M
+      - --innodb-flush-method=O_DIRECT
+      - --max_connections=150
+      - --performance-schema=OFF
+    mem_limit: 1536m
+    mem_reservation: 768m
+    cpus: "1.5"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -35,10 +55,15 @@ services:
       mysql:
         condition: service_healthy
     shm_size: "1gb"
+    mem_limit: 2560m
+    mem_reservation: 1280m
+    cpus: "2.0"
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      NODE_OPTIONS: --max-old-space-size=1536 --optimize-for-size
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?connection_limit=10&pool_timeout=10
+      PRISMA_CLIENT_ENGINE_TYPE: library
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       CORS_ORIGIN: ${CORS_ORIGIN}
@@ -75,6 +100,12 @@ services:
       - dms_backups:/app/backups
     networks:
       - dms-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').request({method:'GET',host:'127.0.0.1',port:4000,path:'/healthz',timeout:2000},(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1)).end()"]
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 40s
 
   frontend:
     build:
@@ -83,7 +114,11 @@ services:
     container_name: dms-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
+    mem_reservation: 192m
+    cpus: "0.75"
     expose:
       - "80"
     volumes:
@@ -98,8 +133,13 @@ services:
     container_name: dms-caddy
     restart: unless-stopped
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
+    mem_reservation: 192m
+    cpus: "0.75"
     ports:
       - "80:80"
       - "443:443"

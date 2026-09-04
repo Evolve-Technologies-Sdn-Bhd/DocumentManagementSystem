@@ -12,6 +12,12 @@ const inMemoryBranding = {
 const HEAVY_THEME_ASSET_KEYS = ['favicon', 'bgImage']
 const BASE_DOCUMENT_TITLE = 'Document Management System'
 
+const LOCAL_BRANDING_REF_RE = /^\/uploads\/(branding|landing|profiles)\//i
+
+const isLocalFileRef = (value) =>
+  typeof value === 'string' &&
+  (LOCAL_BRANDING_REF_RE.test(value) || value.startsWith('data:'))
+
 function cloneValue(value) {
   if (!value || typeof value !== 'object') return value ?? null
   if (Array.isArray(value)) return value.map((item) => cloneValue(item))
@@ -24,8 +30,11 @@ function sanitizeThemeForStorage(theme) {
   for (const key of HEAVY_THEME_ASSET_KEYS) {
     delete sanitizedTheme[key]
   }
-  if (typeof sanitizedTheme.mainLogo === 'string' && sanitizedTheme.mainLogo.startsWith('data:')) {
+  if (isLocalFileRef(sanitizedTheme.mainLogo)) {
     delete sanitizedTheme.mainLogo
+  }
+  if (isLocalFileRef(sanitizedTheme.mainLogoPlaceholder)) {
+    delete sanitizedTheme.mainLogoPlaceholder
   }
   return sanitizedTheme
 }
@@ -106,13 +115,29 @@ export function readStoredJson(key) {
 
 export function readThemeSettings() {
   let storedTheme = readStoredJson('dms_theme_settings')
-  if (storedTheme && typeof storedTheme === 'object' && typeof storedTheme.mainLogo === 'string' && storedTheme.mainLogo.startsWith('data:')) {
+  let dirty = false
+  if (storedTheme && typeof storedTheme === 'object') {
     const cleaned = { ...storedTheme }
-    delete cleaned.mainLogo
+    if (isLocalFileRef(cleaned.mainLogo)) {
+      delete cleaned.mainLogo
+      dirty = true
+    }
+    if (isLocalFileRef(cleaned.mainLogoPlaceholder)) {
+      delete cleaned.mainLogoPlaceholder
+      dirty = true
+    }
+    for (const key of HEAVY_THEME_ASSET_KEYS) {
+      if (isLocalFileRef(cleaned[key])) {
+        delete cleaned[key]
+        dirty = true
+      }
+    }
     storedTheme = cleaned
-    try {
-      localStorage.setItem('dms_theme_settings', JSON.stringify(cleaned))
-    } catch {}
+    if (dirty) {
+      try {
+        localStorage.setItem('dms_theme_settings', JSON.stringify(cleaned))
+      } catch {}
+    }
   }
   const inMemoryTheme = inMemoryBranding.theme
   if (!storedTheme) return cloneValue(inMemoryTheme)
@@ -121,6 +146,8 @@ export function readThemeSettings() {
   for (const key of HEAVY_THEME_ASSET_KEYS) {
     if (inMemoryTheme[key]) merged[key] = inMemoryTheme[key]
   }
+  if (inMemoryTheme.mainLogo) merged.mainLogo = inMemoryTheme.mainLogo
+  if (inMemoryTheme.mainLogoPlaceholder) merged.mainLogoPlaceholder = inMemoryTheme.mainLogoPlaceholder
   return merged
 }
 

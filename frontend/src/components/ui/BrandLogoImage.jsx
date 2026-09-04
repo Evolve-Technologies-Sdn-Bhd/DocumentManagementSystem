@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeAppPath } from '../../utils/normalizeUrl'
+
+const IN_MEMORY_FAILED = new Set()
 
 export default function BrandLogoImage({
   src,
@@ -12,15 +14,18 @@ export default function BrandLogoImage({
   const normalizedPlaceholder = useMemo(() => normalizeAppPath(placeholderSrc), [placeholderSrc])
   const [displaySrc, setDisplaySrc] = useState(() => normalizedPlaceholder || normalizedSrc || null)
   const [loadedFull, setLoadedFull] = useState(() => !normalizedPlaceholder || normalizedPlaceholder === normalizedSrc)
+  const imgRef = useRef(null)
+  const attemptedRef = useRef(null)
 
   const handleImgError = useCallback(() => {
-    if (normalizedPlaceholder && normalizedPlaceholder !== displaySrc) {
-      setDisplaySrc(normalizedPlaceholder)
-    } else {
-      setDisplaySrc(null)
-    }
+    setDisplaySrc((prev) => {
+      if (normalizedPlaceholder && normalizedPlaceholder !== prev) {
+        return normalizedPlaceholder
+      }
+      return null
+    })
     setLoadedFull(true)
-  }, [normalizedPlaceholder, displaySrc])
+  }, [normalizedPlaceholder])
 
   useEffect(() => {
     if (!normalizedSrc) {
@@ -29,28 +34,33 @@ export default function BrandLogoImage({
       return
     }
 
-    if (!normalizedPlaceholder || normalizedPlaceholder === normalizedSrc) {
-      setDisplaySrc(normalizedSrc)
-      setLoadedFull(false)
-      const image = new Image()
-      image.onload = () => setLoadedFull(true)
-      image.onerror = handleImgError
-      image.src = normalizedSrc
-      return () => {
-        image.onload = null
-        image.onerror = null
-      }
+    const cacheKey = normalizedSrc + '||' + (normalizedPlaceholder || '')
+    if (attemptedRef.current === cacheKey) return
+    attemptedRef.current = cacheKey
+
+    if (IN_MEMORY_FAILED.has(normalizedSrc)) {
+      handleImgError()
+      return
     }
 
-    setDisplaySrc(normalizedPlaceholder)
-    setLoadedFull(false)
+    const preferPlaceholder = Boolean(normalizedPlaceholder && normalizedPlaceholder !== normalizedSrc)
+    if (preferPlaceholder) {
+      setDisplaySrc(normalizedPlaceholder)
+      setLoadedFull(false)
+    } else {
+      setDisplaySrc(normalizedSrc)
+      setLoadedFull(false)
+    }
 
     const image = new Image()
     image.onload = () => {
       setDisplaySrc(normalizedSrc)
       setLoadedFull(true)
     }
-    image.onerror = handleImgError
+    image.onerror = () => {
+      IN_MEMORY_FAILED.add(normalizedSrc)
+      handleImgError()
+    }
     image.src = normalizedSrc
 
     return () => {
@@ -63,6 +73,7 @@ export default function BrandLogoImage({
 
   return (
     <img
+      ref={imgRef}
       src={displaySrc}
       alt={alt}
       className={className}
