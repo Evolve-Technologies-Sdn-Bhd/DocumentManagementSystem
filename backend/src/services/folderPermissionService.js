@@ -8,8 +8,12 @@ class FolderPermissionService {
     return roles.some((r) => {
       const name = String(r || '').toLowerCase()
       if (!name) return false
-      if (['admin', 'administrator', 'system administrator', 'system_admin', 'system-admin'].includes(name)) return true
+      if ([
+        'admin', 'administrator', 'system administrator', 'system_admin', 'system-admin',
+        'document_controller', 'reviewer', 'approver'
+      ].includes(name)) return true
       return name.includes('administrator') || name.includes('admin')
+        || name.includes('document_controller') || name.includes('controller')
     })
   }
 

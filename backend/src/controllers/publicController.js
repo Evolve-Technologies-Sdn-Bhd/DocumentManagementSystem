@@ -72,9 +72,10 @@ const resolveBrandingFile = async (pathOrUrl) => {
   try {
     await fs.access(filePath, fsConst.R_OK);
     // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] ✅ baseDir FOUND, return /uploads/branding/${fileName}`)
+    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ✅ baseDir FOUND at ${JSON.stringify(filePath)} → return /api/public/branding-file/branding/${fileName} (Nginx /uploads/ static configs OFTEN miss this; /api/ always hits Node)`, 'color:#065F46;font-weight:bold');
     // #endregion
-    return `/uploads/branding/${fileName}`;
+    // ⭐⭐⭐ FINAL FIX: Always use /api/public/branding-file/ URL for branding.
+    return `/api/public/branding-file/branding/${fileName}`;
   } catch (err) {
     // #region debug-point E:publicResolveBrandingFile
     console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ baseDir NOT FOUND (${err.code}), trying altDirs...`)
@@ -131,13 +132,14 @@ const resolveBrandingFile = async (pathOrUrl) => {
       // #endregion
     }
     if (foundPath) return foundPath;
-    // 🌟 CRITICAL FALLBACK (same as configService): return RELATIVE PATH instead of NULL
-    // This prevents frontend global state null override race.
-    const relativeReturn = `/uploads/branding/${fileName}`;
+    // 🌟 CRITICAL FALLBACK: ALL DIRS FAILED but fileName extracted.
+    // Still return /api/public/branding-file URL (NOT /uploads/ static NOT NULL).
+    // Worst case: frontend gets 404 from /api/ endpoint (not Nginx intercepted) and still shows placeholder.
+    const apiReturn = `/api/public/branding-file/branding/${fileName}`;
     // #region debug-point E:publicResolveBrandingFile
-    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning RELATIVE PATH FALLBACK: ${JSON.stringify(relativeReturn)} INSTEAD OF NULL (prevents global state null override)`, 'color:#B45309;font-weight:bold');
+    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning API FALLBACK: ${JSON.stringify(apiReturn)} (will hit /api endpoint, no Nginx interception; frontend shows placeholder on 404)`, 'color:#B45309;font-weight:bold');
     // #endregion
-    return relativeReturn;
+    return apiReturn;
   }
 };
 

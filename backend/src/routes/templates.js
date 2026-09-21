@@ -206,7 +206,7 @@ router.get('/', asyncHandler(async (req, res) => {
  * Create new template (admin only)
  * POST /api/templates
  */
-router.post('/', authorize('admin'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
+router.post('/', authorize('admin', 'document_controller'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
   console.log('Template upload request body:', req.body);
   console.log('Template upload file:', req.file);
   
@@ -382,7 +382,7 @@ router.get('/by-document-type/:documentTypeId/download', async (req, res) => {
  * Update template (admin only)
  * PUT /api/templates/:id
  */
-router.put('/:id', authorize('admin'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
+router.put('/:id', authorize('admin', 'document_controller'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
   console.log('Template update request body:', req.body);
   console.log('Template update file:', req.file);
   console.log('Template ID:', req.params.id);
@@ -568,7 +568,7 @@ router.get('/:id/download', async (req, res) => {
  * Delete template (admin only)
  * DELETE /api/templates/:id
  */
-router.delete('/:id', authorize('admin'), asyncHandler(async (req, res) => {
+router.delete('/:id', authorize('admin', 'document_controller'), asyncHandler(async (req, res) => {
   const templateId = parseInt(req.params.id);
 
   const template = await prisma.template.findUnique({

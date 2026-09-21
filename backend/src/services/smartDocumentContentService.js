@@ -243,11 +243,12 @@ class SmartDocumentContentService {
         where: { id: Number(changedByUserId) },
         include: { roles: { include: { role: true } } }
       });
+      const adminPattern = /admin|controller|document_controller|reviewer|approver/i;
       const isAdmin =
         changer &&
         changer.roles &&
         changer.roles.some(
-          (ur) => ur.role && (ur.role.isSystem || ur.role.name === 'ADMIN' || /admin/i.test(ur.role.name))
+          (ur) => ur.role && (ur.role.isSystem || adminPattern.test(ur.role.name || ''))
         );
 
       if (LOCKED_STATUSES.includes(status) && !isAdmin) {

@@ -57,14 +57,14 @@ router.get('/superseded-obsolete', documentController.getSupersededObsoleteDocum
 router.get('/my-status', documentController.getMyDocuments);
 router.get('/my-status/:status', documentController.getMyDocumentsByStatus);
 router.get('/code/:fileCode', documentController.getDocumentByCode);
-router.delete('/code/:fileCode/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), documentController.purgeDocumentByCode);
+router.delete('/code/:fileCode/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN', 'document_controller'), documentController.purgeDocumentByCode);
 router.get('/:id/remarks', documentController.getDocumentRemarks);
 router.get('/:id/confidential-access', documentController.getConfidentialAccess);
 router.get('/:id', documentController.getDocument);
 router.put('/:id/confidential-access', documentController.updateConfidentialAccess);
 router.put('/:id', documentController.updateDocument);
 router.put('/:id/rename', documentController.renameDocument);
-router.delete('/:id/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN'), documentController.purgeDocument);
+router.delete('/:id/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN', 'document_controller'), documentController.purgeDocument);
 router.delete('/:id', documentController.deleteDocument);
 
 router.get('/:id/share-links', documentController.listShareLinks)

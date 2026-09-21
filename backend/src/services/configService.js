@@ -1040,9 +1040,14 @@ class ConfigService {
     try {
       await fs.access(filePath, require('fs').constants.R_OK);
       // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] ✅ baseDir FOUND, return /uploads/branding/${fileName}`)
+      console.log(`%c[DEBUG-BRANDING:${traceId}] ✅ baseDir FOUND at ${JSON.stringify(filePath)} → return /api/public/branding-file/branding/${fileName} (Nginx /uploads/ static configs OFTEN miss this; /api/ always hits Node)`, 'color:#065F46;font-weight:bold')
       // #endregion
-      return `/uploads/branding/${fileName}`;
+      // ⭐⭐⭐ FINAL FIX: Always use /api/public/branding-file/ URL for branding files.
+      // Static /uploads/branding/ served by Nginx uses its own docroot which is OFTEN
+      // (demo aaPanel, Docker on-prem with no volume share, etc.) different from Node's
+      // baseDir/altDirs causing phantom 404s regardless of where the file physically lives.
+      // /api/* is GUARANTEED by convention to be proxied to Node backend.
+      return `/api/public/branding-file/branding/${fileName}`;
     } catch (err) {
       // #region debug-point E:resolveBrandingFile
       console.log(`[DEBUG-BRANDING:${traceId}] ❌ baseDir NOT FOUND (${err.code}), trying altDirs...`)
@@ -1102,16 +1107,14 @@ class ConfigService {
       if (foundPath) {
         return foundPath;
       }
-      // 🌟 CRITICAL FALLBACK — PREVENTS NULL OVERRIDE:
-      // DB record has valid branding file reference. This means user uploaded before.
-      // Even if physical file is missing, return RELATIVE PATH instead of NULL.
-      // This prevents frontend from GLOBALLY overwriting in-memory cached logo to NULL.
-      // Frontend BrandLogoImage onerror + ThemeAssetField will show "File missing" correctly.
-      const relativeReturn = `/uploads/branding/${fileName}`;
+      // 🌟 CRITICAL FALLBACK — ALL DIRS FAILED but fileName extracted.
+      // Return /api/public/branding-file URL (NOT /uploads/ static NOT NULL):
+      // /api/* always hits Node backend; frontend BrandLogoImage onerror will show placeholder.
+      const apiReturn = `/api/public/branding-file/branding/${fileName}`;
       // #region debug-point E:resolveBrandingFile
-      console.log(`%c[DEBUG-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning RELATIVE PATH FALLBACK: ${JSON.stringify(relativeReturn)} INSTEAD OF NULL (prevents global state null override)`, 'color:#B45309;font-weight:bold');
+      console.log(`%c[DEBUG-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning API FALLBACK: ${JSON.stringify(apiReturn)} (bypasses Nginx /uploads/ 404; guaranteed hits Node backend)`, 'color:#B45309;font-weight:bold');
       // #endregion
-      return relativeReturn;
+      return apiReturn;
     }
   }
 

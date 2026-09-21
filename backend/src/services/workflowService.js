@@ -1069,21 +1069,21 @@ class WorkflowService {
     // Build where conditions based on user roles
     const whereClauses = [];
 
-    if (userRoles.includes('reviewer') || userRoles.includes('admin')) {
+    if (userRoles.includes('reviewer') || userRoles.includes('admin') || userRoles.includes('document_controller')) {
       whereClauses.push({
         stage: 'REVIEW',
         status: { in: ['PENDING_REVIEW', 'IN_REVIEW'] }
       });
     }
 
-    if (userRoles.includes('approver') || userRoles.includes('admin')) {
+    if (userRoles.includes('approver') || userRoles.includes('admin') || userRoles.includes('document_controller')) {
       whereClauses.push({
         stage: 'APPROVAL',
         status: { in: ['PENDING_APPROVAL', 'IN_APPROVAL'] }
       });
     }
 
-    if (userRoles.includes('acknowledger') || userRoles.includes('admin')) {
+    if (userRoles.includes('acknowledger') || userRoles.includes('admin') || userRoles.includes('document_controller')) {
       whereClauses.push({
         stage: 'ACKNOWLEDGMENT',
         status: 'PENDING_ACKNOWLEDGMENT'
