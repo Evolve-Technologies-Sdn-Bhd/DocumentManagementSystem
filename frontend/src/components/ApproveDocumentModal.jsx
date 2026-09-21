@@ -206,7 +206,6 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
           status === 404 ||
           (status === 400 && msg.toLowerCase().includes('does not contain smart document content'))
         if (!isExpected) {
-          console.debug('Smart document detection skipped:', msg)
         }
       } finally {
         setSmartContentLoading(false)

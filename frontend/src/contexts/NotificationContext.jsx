@@ -209,7 +209,6 @@ export const NotificationProvider = ({ children }) => {
     
     // Check if this type should be shown
     if (!shouldShowNotification(type, 'inApp')) {
-      console.log('Notification type disabled by user:', type)
       return
     }
 
@@ -323,8 +322,6 @@ export const NotificationProvider = ({ children }) => {
     try {
       await silentApi.put('/user/notification-settings', normalizedPreferences)
     } catch (error) {
-      // Backend endpoint doesn't exist yet, already saved to localStorage
-      console.log('Notification preferences saved to localStorage (backend not available)')
     }
   }, [])
 

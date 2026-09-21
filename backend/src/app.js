@@ -100,7 +100,6 @@ app.use(cors(corsOptionsDelegate));
 // Request logging middleware (development only)
 if (config.nodeEnv === 'development') {
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
   });
 }
@@ -192,7 +191,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
       const wildcard = req.params && req.params[0] ? String(req.params[0]) : '';
       const fname = safeBasename(path.basename(wildcard));
       if (!fname) return next();
-      const traceId = Math.random().toString(36).slice(2, 8);
       let served = false;
       for (const dir of dirs) {
         try {
@@ -200,7 +198,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
           if (!fs.existsSync(candidate)) continue;
           const stat = fs.statSync(candidate);
           if (!stat.isFile()) continue;
-          console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ✅ Found ${fname} in altDir: ${dir} → serving via sendFile (mountPath=${mountPath})`, 'color:#065F46;font-weight:bold');
           served = true;
           res.sendFile(candidate, {
             maxAge: mountPath === '/uploads/branding' ? '30d' : mountPath === '/uploads/landing' ? '30d' : '1d',
@@ -212,9 +209,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
           });
           return;
         } catch (_e) { /* continue scanning */ }
-      }
-      if (!served) {
-        console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ❌ ${fname} NOT FOUND in ANY dir (mountPath=${mountPath}, dirs count=${dirs.length}) → next() 404`, 'color:#DC2626;font-weight:bold');
       }
       next();
     });

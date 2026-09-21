@@ -35,25 +35,19 @@ const ROUTE_PRIORITY = [
 export const getDefaultRoute = () => {
   const permissions = getUserPermissions()
   
-  // Debug logging
-  console.log('Getting default route for user with permissions:', permissions)
-  
   // If user has no permissions at all, return profile (every user should access this)
   if (Object.keys(permissions).length === 0) {
-    console.warn('User has no permissions, defaulting to /profile')
     return '/profile'
   }
   
   // Find first route user has access to
   for (const route of ROUTE_PRIORITY) {
     if (hasAnyPermission(route.module)) {
-      console.log(`Default route determined: ${route.path} (module: ${route.module})`)
       return route.path
     }
   }
   
   // Fallback to profile if no other route is accessible
-  console.warn('No accessible routes found, defaulting to /profile')
   return '/profile'
 }
 

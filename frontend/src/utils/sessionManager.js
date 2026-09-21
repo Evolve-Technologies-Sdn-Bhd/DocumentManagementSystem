@@ -57,8 +57,6 @@ class SessionManager {
 
     // Listen for HMR (Hot Module Replacement) events
     this.setupHMRDetection()
-
-    console.log('Session manager initialized')
   }
 
   /**
@@ -103,14 +101,12 @@ class SessionManager {
 
     // Check absolute timeout (8 hours maximum)
     if (totalSessionTime >= SESSION_CONFIG.ABSOLUTE_TIMEOUT) {
-      console.log('Session expired: Absolute timeout reached')
       this.logout('Your session has expired after 8 hours. Please log in again.')
       return
     }
 
     // Check idle timeout (30 minutes of inactivity)
     if (idleTime >= SESSION_CONFIG.IDLE_TIMEOUT) {
-      console.log('Session expired: Idle timeout reached')
       this.logout('You have been logged out due to inactivity.')
       return
     }
@@ -178,15 +174,12 @@ class SessionManager {
       const shouldLogout = sessionStorage.getItem('hmrUpdate')
       if (shouldLogout === 'true') {
         sessionStorage.removeItem('hmrUpdate')
-        console.log('Code change detected, logging out...')
         this.logout('Application has been updated. Please log in again.')
         return
       }
 
       // Listen for Vite HMR events
       import.meta.hot.on('vite:beforeUpdate', () => {
-        console.log('HMR update detected, flagging for logout')
-        // Flag that an update is happening - will logout on next init
         sessionStorage.setItem('hmrUpdate', 'true')
       })
     }

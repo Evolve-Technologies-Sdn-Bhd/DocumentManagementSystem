@@ -173,7 +173,6 @@ class DocxToPdfService {
       bottom: Math.max(bottom, minBottom),
       left
     }
-    console.log('[docxToPdfService] MARGINS resolve: raw profile( T=' + JSON.stringify(sp.marginTopMm) + ' R=' + JSON.stringify(sp.marginRightMm) + ' B=' + JSON.stringify(sp.marginBottomMm) + ' L=' + JSON.stringify(sp.marginLeftMm) + ' ) → used values ( T=' + result.top.toFixed(2) + ' R=' + result.right.toFixed(2) + ' B=' + result.bottom.toFixed(2) + ' L=' + result.left.toFixed(2) + ' ) | minTop=' + minTop.toFixed(2) + ' minBottom=' + minBottom.toFixed(2))
     return result
   }
 
@@ -302,7 +301,6 @@ class DocxToPdfService {
       }
 
       if (!absolutePath) {
-        console.warn('[docxToPdfService] Logo file not found on disk (profile path=' + raw + '); tried candidates:', absoluteCandidates.slice(0, 5).join(' | '))
         return null
       }
       const ext = path.extname(absolutePath).toLowerCase().replace('.', '')
@@ -311,7 +309,6 @@ class DocxToPdfService {
       const buf = await fs.readFile(absolutePath)
       return `data:${mime};base64,${buf.toString('base64')}`
     } catch (e) {
-      console.warn('[docxToPdfService] Failed to load logo base64:', e?.message || e)
       return null
     }
   }
@@ -330,8 +327,6 @@ class DocxToPdfService {
     let rightPadMm = _num(sp.marginRightMm)
     if (!Number.isFinite(leftPadMm) || leftPadMm <= 0) leftPadMm = 25.4
     if (!Number.isFinite(rightPadMm) || rightPadMm <= 0) rightPadMm = 25.4
-
-    console.log('[docxToPdfService] HEADER PADDING: leftPadMm=' + leftPadMm + ' rightPadMm=' + rightPadMm + ' (raw marginLeftMm=' + JSON.stringify(sp.marginLeftMm) + ' marginRightMm=' + JSON.stringify(sp.marginRightMm) + ')')
 
     const _wrapWithMargins = (innerHtml) => {
       return `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100%; border-collapse:collapse; border-spacing:0; table-layout:fixed; margin:0; padding:0;">
@@ -358,7 +353,6 @@ class DocxToPdfService {
           : `<div style="width:100%; padding:1mm 0; border-bottom:1px dashed #ccc; text-align:center; color:#999; font-size:9px;">[Header image not found]</div>`
         return `<div style="width:100%; font-family:${fontFamily}; padding:0; box-sizing:border-box; margin:0;">${_wrapWithMargins(inner)}</div>`
       } catch (e) {
-        console.warn('[docxToPdfService] Custom header image build failed (fallback to pro/simple):', e?.message || e)
       }
     }
 
@@ -522,7 +516,6 @@ class DocxToPdfService {
           : `<div style="width:100%; padding:1mm 0; border-top:1px dashed #ccc; text-align:center; color:#999; font-size:9px;">[Footer image not found]</div>`
         return `<div style="width:100%; font-family:${fontFamily}; padding:0; box-sizing:border-box; margin:0;">${_wrapWithMargins(inner)}</div>`
       } catch (e) {
-        console.warn('[docxToPdfService] Custom footer image build failed (fallback to pro/simple):', e?.message || e)
       }
     }
 
@@ -592,7 +585,6 @@ class DocxToPdfService {
           ${_wrapWithMargins(`${topRowInner}${pageRowInner}`)}
         </div>`
       } catch (e) {
-        console.warn('[docxToPdfService] Pro footer build failed (fallback to simple):', e?.message || e)
       }
     }
 
@@ -653,32 +645,6 @@ class DocxToPdfService {
 
     const styleProfile = opts.styleProfile || null
     const systemValues = opts.systemValues || opts.headerValues || opts.footerValues || null
-
-    if (styleProfile) {
-      const pageFmt0 = this._resolvePageFormat(styleProfile)
-      const margins0 = this._resolveMarginsMm(styleProfile, pageFmt0)
-      console.log('[docxToPdfService] PDF PREV CONFIG: margins(mm)=' + JSON.stringify(margins0) +
-        ' | headerEnabled=' + !!styleProfile.headerEnabled +
-        ' headerUsePro=' + !!styleProfile.headerUseProfessionalLayout +
-        ' headerLogoPath=' + (styleProfile.headerLogoPath || 'NONE') +
-        ' | footerEnabled=' + !!styleProfile.footerEnabled +
-        ' footerUsePro=' + !!styleProfile.footerUseProfessionalLayout +
-        ' footerLeft=' + JSON.stringify(styleProfile.footerLeftText || '') +
-        ' footerCenter=' + JSON.stringify(styleProfile.footerCenterText || '') +
-        ' footerRight=' + JSON.stringify(styleProfile.footerRightText || '') +
-        ' showPageNumbers=' + !!styleProfile.showPageNumbers +
-        ' pageNumberFormat=' + JSON.stringify(styleProfile.pageNumberFormat || 'None')
-      )
-      if (systemValues) {
-        console.log('[docxToPdfService] PDF PREV SYSVALUES: ' + JSON.stringify({
-          referenceCode: systemValues.referenceCode || systemValues.docCode || '',
-          version: systemValues.version || systemValues.revision || '',
-          preparedByName: systemValues.preparedByName || systemValues.preparedByFullName || '',
-          approvedByName: systemValues.approvedByName || systemValues.approvedByFullName || '',
-          effectiveDate: systemValues.effectiveDate || ''
-        }))
-      }
-    }
 
     const mammothResult = await mammoth.convertToHtml(
       { buffer: docxBuffer },

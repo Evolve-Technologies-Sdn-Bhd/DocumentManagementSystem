@@ -6,80 +6,37 @@ const path = require('path');
 const appConfig = require('../config/app');
 
 const resolveBrandingFile = async (pathOrUrl) => {
-  // #region debug-point E:publicResolveBrandingFile
-  const traceId = `pub-logo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] ===== resolveBrandingFile (publicController) START =====`)
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] raw input:`, JSON.stringify(pathOrUrl), typeof pathOrUrl)
-  // #endregion
   if (!pathOrUrl || typeof pathOrUrl !== 'string') {
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] early return null (empty/invalid)`)
-    // #endregion
     return null;
   }
   const trimmed = pathOrUrl.trim();
   if (!trimmed) {
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] early return null (trimmed empty)`)
-    // #endregion
     return null;
   }
   if (trimmed.startsWith('data:')) {
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] is data: URL, return as-is (len=${trimmed.length})`)
-    // #endregion
     return trimmed;
   }
   const normalized = trimmed
     .replace(/^https?:\/\/[^/]+/i, '')
     .replace(/^\/+/, '');
-  // #region debug-point E:publicResolveBrandingFile
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] trimmed:`, JSON.stringify(trimmed))
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] normalized (strip domain/leading slashes):`, JSON.stringify(normalized))
-  // #endregion
   const match = normalized.match(/^uploads\/branding\/([^/?#]+)(?:[?#].*)?$/i);
-  // #region debug-point E:publicResolveBrandingFile
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] match (uploads/branding regex):`, match ? `OK -> fileName=${match[1]}` : 'NO MATCH')
-  // #endregion
   if (!match) {
     const legacyMatch = trimmed.match(/(?:^|\/)branding\/([^/?#]+)(?:[?#].*)?$/i);
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] legacyMatch (branding regex):`, legacyMatch ? `OK -> fileName=${legacyMatch[1]}` : 'NO MATCH')
-    // #endregion
     if (!legacyMatch) {
-      // #region debug-point E:publicResolveBrandingFile
-      console.log(`[DEBUG-PUB-BRANDING:${traceId}] NO MATCH either regex, returning trimmed=`, JSON.stringify(trimmed))
-      // #endregion
       return trimmed;
     }
   }
   const fileName = (match ? match[1] : null) || (trimmed.match(/(?:^|\/)([^\/?#]+)(?:[?#].*)?$/) || [])[1] || null;
   if (!fileName) {
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] fileName extraction FAILED, return null`)
-    // #endregion
     return null;
   }
-  // #region debug-point E:publicResolveBrandingFile
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] FINAL fileName=`, JSON.stringify(fileName))
-  // #endregion
   const baseDir = appConfig && appConfig.uploadDir ? appConfig.uploadDir : path.resolve(process.cwd(), 'uploads');
   const filePath = path.join(baseDir, 'branding', fileName);
   const fsConst = require('fs').constants;
-  // #region debug-point E:publicResolveBrandingFile
-  console.log(`[DEBUG-PUB-BRANDING:${traceId}] baseDir=`, JSON.stringify(baseDir), `checking filePath=`, JSON.stringify(filePath))
-  // #endregion
   try {
     await fs.access(filePath, fsConst.R_OK);
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ✅ baseDir FOUND at ${JSON.stringify(filePath)} → return /api/public/branding-file/branding/${fileName} (Nginx /uploads/ static configs OFTEN miss this; /api/ always hits Node)`, 'color:#065F46;font-weight:bold');
-    // #endregion
-    // ⭐⭐⭐ FINAL FIX: Always use /api/public/branding-file/ URL for branding.
     return `/api/public/branding-file/branding/${fileName}`;
   } catch (err) {
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ baseDir NOT FOUND (${err.code}), trying altDirs...`)
-    // #endregion
     let foundPath = null;
     try {
       const processCwd = process.cwd();
@@ -91,21 +48,18 @@ const resolveBrandingFile = async (pathOrUrl) => {
         path.resolve(processCwd, 'public', 'uploads'),
         path.resolve(processCwd, '..', 'backend', 'uploads'),
         path.resolve(processCwd, 'backend', 'uploads'),
-        // aaPanel standard paths (demo + generic)
         '/www/wwwroot/dms.demo.clbgroups.com/backend/uploads',
         '/www/wwwroot/dms.demo.clbgroups.com/uploads',
         '/www/wwwroot/dms.demo.clbgroups.com/backend/public/uploads',
         '/www/wwwroot/dms.demo.clbgroups.com/public/uploads',
         '/www/wwwroot/default/backend/uploads',
         '/www/wwwroot/default/uploads',
-        // Docker on-prem bind mount paths
         '/var/www/html/backend/uploads',
         '/var/www/html/uploads',
         '/app/backend/uploads',
         '/app/uploads',
         '/data/backend/uploads',
         '/data/uploads',
-        // Home dir fallback
         path.resolve(osHomedir, 'dms', 'uploads'),
         path.resolve(osHomedir, 'dms', 'backend', 'uploads')
       ];
@@ -113,32 +67,15 @@ const resolveBrandingFile = async (pathOrUrl) => {
         const altPath = path.join(dir, 'branding', fileName);
         try {
           await fs.access(altPath, fsConst.R_OK);
-          // #region debug-point E:publicResolveBrandingFile
-          console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /api/public/branding-file/branding/${fileName} (Nginx static INTERCEPTION AVOIDED via /api/ prefix)`, 'color:#065F46;font-weight:bold');
-          // #endregion
-          // ⭐ KEY FIX: Use /api/ URL — guaranteed to hit Node backend, bypasses
-          // Nginx static serving which returns 404 when file not in Nginx docroot.
           foundPath = `/api/public/branding-file/branding/${fileName}`;
           break;
         } catch (e2) {
-          // #region debug-point E:publicResolveBrandingFile
-          console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ altDir MISS: dir=${JSON.stringify(dir)} (${e2.code})`)
-          // #endregion
         }
       }
     } catch (outerErr) {
-      // #region debug-point E:publicResolveBrandingFile
-      console.log(`[DEBUG-PUB-BRANDING:${traceId}] ❌ altDirs loop EXCEPTION:`, outerErr.message)
-      // #endregion
     }
     if (foundPath) return foundPath;
-    // 🌟 CRITICAL FALLBACK: ALL DIRS FAILED but fileName extracted.
-    // Still return /api/public/branding-file URL (NOT /uploads/ static NOT NULL).
-    // Worst case: frontend gets 404 from /api/ endpoint (not Nginx intercepted) and still shows placeholder.
     const apiReturn = `/api/public/branding-file/branding/${fileName}`;
-    // #region debug-point E:publicResolveBrandingFile
-    console.log(`%c[DEBUG-PUB-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning API FALLBACK: ${JSON.stringify(apiReturn)} (will hit /api endpoint, no Nginx interception; frontend shows placeholder on 404)`, 'color:#B45309;font-weight:bold');
-    // #endregion
     return apiReturn;
   }
 };
@@ -577,19 +514,14 @@ const _detectContentType = (fileName) => {
  * No auth required (public).
  */
 exports.serveBrandingFile = asyncHandler(async (req, res) => {
-  const traceId = `bf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   const rawType = req.params?.type
   const rawFileName = req.params?.fileName
-  console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ===== /api/public/branding-file/:type/:fileName HIT =====`, 'color:#1D4ED8;font-weight:bold')
-  console.log(`[DEBUG-BRANDING-FILE:${traceId}] rawType=${JSON.stringify(rawType)} rawFileName=${JSON.stringify(rawFileName)}`)
 
   if (!ALLOWED_BRANDING_TYPES.includes(rawType)) {
-    console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ type not allowed -> 400`)
     return ResponseFormatter.error(res, `Invalid branding type. Allowed: ${ALLOWED_BRANDING_TYPES.join(', ')}`, 400)
   }
   const fileName = _safeBasename(rawFileName)
   if (!fileName) {
-    console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ fileName failed sanitize -> 400`)
     return ResponseFormatter.error(res, 'Invalid file name', 400)
   }
 
@@ -602,17 +534,14 @@ exports.serveBrandingFile = asyncHandler(async (req, res) => {
       const stat = fsSync.statSync(candidate)
       if (!stat.isFile()) continue
       const contentType = _detectContentType(fileName)
-      console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ✅ Found in altDir: ${candidate} -> sendFile, Content-Type=${contentType}`, 'color:#065F46;font-weight:bold')
       res.setHeader('X-DMS-BrandingFile-Served', 'true')
       res.setHeader('X-DMS-AltDir', dir)
       res.setHeader('Cache-Control', rawType === 'branding' ? 'public, max-age=2592000, immutable' : 'public, max-age=86400')
       return res.type(contentType).sendFile(candidate)
     } catch (err) {
-      console.log(`[DEBUG-BRANDING-FILE:${traceId}] ❌ dir=${dir} err=${err.message}`)
     }
   }
 
-  console.log(`%c[DEBUG-BRANDING-FILE:${traceId}] ❌ NOT FOUND in ANY of dirs.count=${dirs.length} for fileName=${fileName} -> 404`, 'color:#DC2626;font-weight:bold')
   return ResponseFormatter.error(res, 'File not found', 404)
 })
 

@@ -12,7 +12,6 @@ export const notifyUserDataChanged = () => {
     detail: { timestamp: Date.now() }
   })
   window.dispatchEvent(event)
-  console.log('User data change event dispatched')
 }
 
 /**

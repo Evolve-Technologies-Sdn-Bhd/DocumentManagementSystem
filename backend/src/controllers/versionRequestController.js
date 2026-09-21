@@ -65,9 +65,7 @@ class VersionRequestController {
         sortOrder: sortOrder || 'desc'
       };
 
-      console.log('[VR Controller] Fetching version requests with filters:', filters);
       const result = await versionRequestService.listRequests(filters, pagination);
-      console.log('[VR Controller] Found', result.requests.length, 'version requests');
       
       // Format for frontend (matching NDR format)
       const requests = result.requests.map((req, index) => {
@@ -105,7 +103,6 @@ class VersionRequestController {
         }
       });
 
-      console.log('[VR Controller] Successfully formatted', requests.length, 'requests');
       return ResponseFormatter.success(
         res,
         { 

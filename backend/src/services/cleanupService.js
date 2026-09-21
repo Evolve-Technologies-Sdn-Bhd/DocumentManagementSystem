@@ -8,8 +8,6 @@ class CleanupService {
    * Verify admin password before allowing cleanup
    */
   async verifyAdminPassword(userId, password) {
-    console.log('[CLEANUP] Verifying admin password for userId:', userId);
-    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -23,18 +21,12 @@ class CleanupService {
       }
     });
 
-    console.log('[CLEANUP] User found:', user ? 'YES' : 'NO');
-    if (user) {
-      console.log('[CLEANUP] User roles:', user.roles.map(ur => ur.role.name));
-    }
-
     if (!user) {
       throw new Error('User not found');
     }
 
     // Only admin can perform cleanup
     const hasAdminRole = user.roles.some(ur => ur.role.name === 'admin');
-    console.log('[CLEANUP] Has admin role:', hasAdminRole);
     
     if (!hasAdminRole) {
       throw new Error('Only administrators can perform database cleanup');

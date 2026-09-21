@@ -207,9 +207,6 @@ router.get('/', asyncHandler(async (req, res) => {
  * POST /api/templates
  */
 router.post('/', authorize('admin', 'document_controller'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
-  console.log('Template upload request body:', req.body);
-  console.log('Template upload file:', req.file);
-  
   const { documentTypeId, templateName, version, uploadedBy } = req.body;
 
   // Validate required fields
@@ -256,8 +253,6 @@ router.post('/', authorize('admin', 'document_controller'), uploadTemplate.singl
         documentType: true
       }
     });
-
-    console.log('Template created successfully:', template);
 
     return ResponseFormatter.success(
       res,
@@ -340,14 +335,6 @@ router.get('/by-document-type/:documentTypeId/download', async (req, res) => {
     // Get file stats for content-length
     const stat = fs.statSync(filePath);
     
-    // Log for debugging
-    console.log('Downloading template:');
-    console.log('  Document Type ID:', documentTypeId);
-    console.log('  Template ID:', template.id);
-    console.log('  File Name:', template.fileName);
-    console.log('  File Path:', filePath);
-    console.log('  Content-Disposition:', `attachment; filename="${template.fileName}"`);
-    
     // Set headers for file download
     res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -383,10 +370,6 @@ router.get('/by-document-type/:documentTypeId/download', async (req, res) => {
  * PUT /api/templates/:id
  */
 router.put('/:id', authorize('admin', 'document_controller'), uploadTemplate.single('files'), asyncHandler(async (req, res) => {
-  console.log('Template update request body:', req.body);
-  console.log('Template update file:', req.file);
-  console.log('Template ID:', req.params.id);
-  
   const templateId = parseInt(req.params.id);
   const { documentTypeId, templateName, version, uploadedBy } = req.body;
 
@@ -432,8 +415,6 @@ router.put('/:id', authorize('admin', 'document_controller'), uploadTemplate.sin
         documentType: true
       }
     });
-
-    console.log('Template updated successfully:', template);
 
     return ResponseFormatter.success(
       res,

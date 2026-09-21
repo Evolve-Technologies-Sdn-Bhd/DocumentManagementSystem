@@ -140,7 +140,6 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
           status === 404 ||
           (status === 400 && msg.toLowerCase().includes('does not contain smart document content'))
         if (!isExpected) {
-          console.debug('Smart document detection skipped:', msg)
         }
       } finally {
         setSmartContentLoading(false)
