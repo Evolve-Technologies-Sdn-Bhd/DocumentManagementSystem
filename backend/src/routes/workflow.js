@@ -11,12 +11,12 @@ router.use(authenticate);
 // ============================================
 // WORKFLOW CONFIGURATION MANAGEMENT (Admin only)
 // ============================================
-router.get('/workflows', authorize('admin'), workflowController.getAllWorkflows);
-router.get('/workflows/:id', authorize('admin'), workflowController.getWorkflowByIdController);
-router.post('/workflows', authorize('admin'), workflowController.createWorkflow);
-router.put('/workflows/:id', authorize('admin'), workflowController.updateWorkflow);
-router.delete('/workflows/:id', authorize('admin'), workflowController.deleteWorkflow);
-router.patch('/workflows/:id/toggle', authorize('admin'), workflowController.toggleWorkflowStatus);
+router.get('/workflows', authorize('admin', 'document_controller'), workflowController.getAllWorkflows);
+router.get('/workflows/:id', authorize('admin', 'document_controller'), workflowController.getWorkflowByIdController);
+router.post('/workflows', authorize('admin', 'document_controller'), workflowController.createWorkflow);
+router.put('/workflows/:id', authorize('admin', 'document_controller'), workflowController.updateWorkflow);
+router.delete('/workflows/:id', authorize('admin', 'document_controller'), workflowController.deleteWorkflow);
+router.patch('/workflows/:id/toggle', authorize('admin', 'document_controller'), workflowController.toggleWorkflowStatus);
 
 // Document workflow actions
 router.post('/submit/:documentId', workflowController.submitForReview);
@@ -63,13 +63,13 @@ router.get('/config/:documentTypeId', workflowController.getWorkflowConfig);
 // Document lifecycle management (admin only)
 router.post(
   '/supersede/:documentId',
-  authorize('admin'),
+  authorize('admin', 'document_controller'),
   workflowController.markAsSuperseded
 );
 
 router.post(
   '/obsolete/:documentId',
-  authorize('admin'),
+  authorize('admin', 'document_controller'),
   workflowController.markAsObsolete
 );
 

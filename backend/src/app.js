@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const config = require('./config/app');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const ResponseFormatter = require('./utils/responseFormatter');
@@ -131,6 +133,97 @@ app.use((req, res, next) => {
 app.use('/uploads/branding', express.static(path.join(config.uploadDir, 'branding'), { maxAge: '30d', immutable: true }));
 app.use('/uploads/landing', express.static(path.join(config.uploadDir, 'landing'), { maxAge: '30d' }));
 app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profiles'), { maxAge: '1d' }));
+
+// 🌟 FALLBACK CATCH-ALL: Serve branding/landing/profiles files when they exist
+// in alternative directories (fixes aaPanel volume not shared / backend save path
+// differs from web server docroot — the L4 "root root" of demo logo 404)
+(function installUploadsFallbackServe() {
+  const buildAltDirs = (subDir) => {
+    const processCwd = process.cwd();
+    const osHomedir = os.homedir ? os.homedir() : '';
+    const baseDir = config && config.uploadDir ? config.uploadDir : path.resolve(processCwd, 'uploads');
+    const primary = path.join(baseDir, subDir);
+    const dirs = [];
+    const dirCandidates = [
+      primary,
+      path.resolve(processCwd, 'uploads', subDir),
+      path.resolve(processCwd, '..', 'uploads', subDir),
+      path.resolve(processCwd, 'public', 'uploads', subDir),
+      path.resolve(processCwd, '..', 'backend', 'uploads', subDir),
+      path.resolve(processCwd, 'backend', 'uploads', subDir),
+      `/www/wwwroot/dms.demo.clbgroups.com/backend/uploads/${subDir}`,
+      `/www/wwwroot/dms.demo.clbgroups.com/uploads/${subDir}`,
+      `/www/wwwroot/dms.demo.clbgroups.com/backend/public/uploads/${subDir}`,
+      `/www/wwwroot/dms.demo.clbgroups.com/public/uploads/${subDir}`,
+      `/www/wwwroot/default/backend/uploads/${subDir}`,
+      `/www/wwwroot/default/uploads/${subDir}`,
+      `/var/www/html/backend/uploads/${subDir}`,
+      `/var/www/html/uploads/${subDir}`,
+      `/app/backend/uploads/${subDir}`,
+      `/app/uploads/${subDir}`,
+      `/data/backend/uploads/${subDir}`,
+      `/data/uploads/${subDir}`
+    ];
+    if (osHomedir) {
+      dirCandidates.push(path.resolve(osHomedir, 'dms', 'uploads', subDir));
+      dirCandidates.push(path.resolve(osHomedir, 'dms', 'backend', 'uploads', subDir));
+    }
+    // De-duplicate while preserving order
+    const seen = new Set();
+    for (const d of dirCandidates) {
+      if (!d || seen.has(d)) continue;
+      seen.add(d);
+      dirs.push(d);
+    }
+    return dirs;
+  };
+
+  const safeBasename = (name) => {
+    if (!name) return null;
+    const base = String(name).split(/[?#]/)[0];
+    if (!/^[A-Za-z0-9._-]+$/.test(base)) return null;
+    return base;
+  };
+
+  const makeFallbackRoute = (mountPath, subDir) => {
+    const dirs = buildAltDirs(subDir);
+    app.get(`${mountPath}/*`, (req, res, next) => {
+      // express.static already served if file existed in primary dir; reach here means 404
+      const wildcard = req.params && req.params[0] ? String(req.params[0]) : '';
+      const fname = safeBasename(path.basename(wildcard));
+      if (!fname) return next();
+      const traceId = Math.random().toString(36).slice(2, 8);
+      let served = false;
+      for (const dir of dirs) {
+        try {
+          const candidate = path.join(dir, fname);
+          if (!fs.existsSync(candidate)) continue;
+          const stat = fs.statSync(candidate);
+          if (!stat.isFile()) continue;
+          console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ✅ Found ${fname} in altDir: ${dir} → serving via sendFile (mountPath=${mountPath})`, 'color:#065F46;font-weight:bold');
+          served = true;
+          res.sendFile(candidate, {
+            maxAge: mountPath === '/uploads/branding' ? '30d' : mountPath === '/uploads/landing' ? '30d' : '1d',
+            immutable: mountPath === '/uploads/branding',
+            headers: {
+              'X-DMS-Uploads-Fallback': 'true',
+              'X-DMS-AltDir': dir
+            }
+          });
+          return;
+        } catch (_e) { /* continue scanning */ }
+      }
+      if (!served) {
+        console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ❌ ${fname} NOT FOUND in ANY dir (mountPath=${mountPath}, dirs count=${dirs.length}) → next() 404`, 'color:#DC2626;font-weight:bold');
+      }
+      next();
+    });
+  };
+
+  makeFallbackRoute('/uploads/branding', 'branding');
+  makeFallbackRoute('/uploads/landing', 'landing');
+  makeFallbackRoute('/uploads/profiles', 'profiles');
+})();
 
 // Health check
 app.get(['/healthz', '/readyz'], (req, res) => { res.status(200).type('text/plain').send('ok'); });

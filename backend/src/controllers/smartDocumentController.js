@@ -19,10 +19,11 @@ const parseIntSafe = (v, fallback = undefined) => {
 function isUserAdmin(user) {
   if (!user || !user.roles) return false;
   if (!Array.isArray(user.roles)) return false;
+  const adminPattern = /admin|controller|document_controller|reviewer|approver/i;
   return user.roles.some(
     (r) =>
-      (r && (r.isSystem || /admin/i.test(r.name))) ||
-      (r && r.role && (r.role.isSystem || /admin/i.test(r.role.name)))
+      (r && (r.isSystem || adminPattern.test(r.name || ''))) ||
+      (r && r.role && (r.role.isSystem || adminPattern.test(r.role.name || '')))
   );
 }
 

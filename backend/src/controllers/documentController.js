@@ -1724,9 +1724,7 @@ class DocumentController {
       return ResponseFormatter.notFound(res, 'Document')
     }
 
-    const isAdmin = req.user?.roles?.some((roleName) =>
-      ['Admin', 'Administrator', 'ADMIN', 'admin'].includes(roleName)
-    ) || false
+    const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || []) || false
 
     if (existing.folderId) {
       await folderPermissionService.assertCan(existing.folderId, req.user, 'edit')
@@ -1789,9 +1787,7 @@ class DocumentController {
     const document = await documentService.getDocumentById(documentId, req.user);
     
     // Check if user is admin (roles is an array of role name strings)
-    const isAdmin = req.user.roles?.some(roleName => 
-      ['Admin', 'Administrator', 'ADMIN', 'admin'].includes(roleName)
-    ) || false;
+    const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || []) || false;
 
     // Log deletion before actually deleting
     await auditLogService.logDocument(req.user.id, 'DELETE', document, req, {
@@ -3050,9 +3046,7 @@ class DocumentController {
       throw new UnauthorizedError('Incorrect password. Deletion cancelled.')
     }
 
-    const isAdmin = Boolean(req.user?.roles?.some(roleName =>
-      ['Admin', 'Administrator', 'ADMIN', 'admin'].includes(String(roleName || ''))
-    ))
+    const isAdmin = folderPermissionService.isAdminRoleNames(req.user?.roles || [])
 
     let draftInfo = null
     try {
