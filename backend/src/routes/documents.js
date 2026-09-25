@@ -50,7 +50,6 @@ router.get('/my-stats', documentController.getMyStats);
 router.get('/drafts', documentController.getUserDrafts);
 router.get(
   '/review-approval',
-  authorizePermission('documents.review', 'view', 'read', 'review', 'approve', 'reject'),
   documentController.getReviewApprovalDocuments
 );
 router.get('/superseded-obsolete', documentController.getSupersededObsoleteDocuments);

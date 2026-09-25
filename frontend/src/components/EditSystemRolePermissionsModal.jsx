@@ -70,6 +70,12 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
       actions: ['view', 'edit', 'renew', 'export']
     },
     {
+      id: 'calendar',
+      name: 'Calendar',
+      description: 'Unified calendar view for events, deadlines, expiries, and custom reminders',
+      actions: ['view', 'create', 'edit', 'delete']
+    },
+    {
       id: 'crm',
       name: 'CRM Registers',
       description: 'Tender book and enquiry registers',
