@@ -106,38 +106,77 @@ async function getEventsInRange(userId, from, to, opts = {}) {
   };
 
   const results = [];
-  const customEvents = await prisma.calendarEvent.findMany({
-    where: {
-      isSynthetic: false,
-      AND: [
-        { startDateTime: { lte: toDate } },
-        {
-          OR: [
-            { endDateTime: null },
-            { endDateTime: { gte: fromDate } },
-            { startDateTime: { gte: fromDate } }
-          ]
-        },
-        {
-          OR: [
-            { userId: null },
-            { userId },
-            { assigneeId: userId },
-            { viewers: { some: { userId } } }
-          ]
-        }
-      ]
-    },
-    include: {
-      customEvent: true,
-      user: true,
-      assignee: true,
-      viewers: {
-        include: { user: true }
+  let customEvents = [];
+  const baseWhere = {
+    isSynthetic: false,
+    AND: [
+      { startDateTime: { lte: toDate } },
+      {
+        OR: [
+          { endDateTime: null },
+          { endDateTime: { gte: fromDate } },
+          { startDateTime: { gte: fromDate } }
+        ]
+      },
+      {
+        OR: [
+          { userId: null },
+          { userId },
+          { assigneeId: userId },
+          { viewers: { some: { userId } } }
+        ]
       }
-    },
-    orderBy: { startDateTime: 'asc' }
-  });
+    ]
+  };
+  const legacyWhere = {
+    isSynthetic: false,
+    AND: [
+      { startDateTime: { lte: toDate } },
+      {
+        OR: [
+          { endDateTime: null },
+          { endDateTime: { gte: fromDate } },
+          { startDateTime: { gte: fromDate } }
+        ]
+      },
+      {
+        OR: [
+          { userId: null },
+          { userId },
+          { assigneeId: userId }
+        ]
+      }
+    ]
+  };
+  try {
+    customEvents = await prisma.calendarEvent.findMany({
+      where: baseWhere,
+      include: {
+        customEvent: true,
+        user: true,
+        assignee: true,
+        viewers: {
+          include: { user: true }
+        }
+      },
+      orderBy: { startDateTime: 'asc' }
+    });
+  } catch (e) {
+    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
+      logger.warn('Calendar viewers relation missing, falling back to legacy query. Please run prisma db push on server.');
+      customEvents = await prisma.calendarEvent.findMany({
+        where: legacyWhere,
+        include: {
+          customEvent: true,
+          user: true,
+          assignee: true
+        },
+        orderBy: { startDateTime: 'asc' }
+      });
+    } else {
+      throw e;
+    }
+  }
 
   for (const ce of customEvents) {
     results.push({
@@ -643,15 +682,34 @@ async function createCustomEvent(userId, payload) {
     };
   }
 
-  const result = await prisma.calendarEvent.create({
-    data: eventCreateData,
-    include: {
-      customEvent: true,
-      user: true,
-      assignee: true,
-      viewers: { include: { user: true } }
+  let result;
+  try {
+    result = await prisma.calendarEvent.create({
+      data: eventCreateData,
+      include: {
+        customEvent: true,
+        user: true,
+        assignee: true,
+        viewers: { include: { user: true } }
+      }
+    });
+  } catch (e) {
+    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
+      logger.warn('Calendar viewers create failed, retrying without viewers relation. Please run prisma db push.');
+      const cleanCreate = { ...eventCreateData };
+      delete cleanCreate.viewers;
+      result = await prisma.calendarEvent.create({
+        data: cleanCreate,
+        include: {
+          customEvent: true,
+          user: true,
+          assignee: true
+        }
+      });
+    } else {
+      throw e;
     }
-  });
+  }
 
   const offsetMins = parseReminderOffsetToMinutes(reminderOffset);
   if (offsetMins != null) {
@@ -688,10 +746,23 @@ async function createCustomEvent(userId, payload) {
 }
 
 async function updateCustomEvent(userId, eventId, payload) {
-  const existing = await prisma.calendarEvent.findUnique({
-    where: { id: Number(eventId) },
-    include: { customEvent: true, viewers: true }
-  });
+  let existing;
+  try {
+    existing = await prisma.calendarEvent.findUnique({
+      where: { id: Number(eventId) },
+      include: { customEvent: true, viewers: true }
+    });
+  } catch (e) {
+    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
+      logger.warn('Calendar viewers missing in update fetch, fallback legacy include.');
+      existing = await prisma.calendarEvent.findUnique({
+        where: { id: Number(eventId) },
+        include: { customEvent: true }
+      });
+    } else {
+      throw e;
+    }
+  }
   if (!existing) throw new Error('Event not found');
   if (existing.isSynthetic) throw new Error('Synthetic events cannot be edited');
   if (existing.userId !== userId && existing.assigneeId !== userId) {
@@ -750,16 +821,36 @@ async function updateCustomEvent(userId, eventId, payload) {
     };
   }
 
-  const updated = await prisma.calendarEvent.update({
-    where: { id: Number(eventId) },
-    data: eventUpdateData,
-    include: {
-      customEvent: true,
-      user: true,
-      assignee: true,
-      viewers: { include: { user: true } }
+  let updated;
+  try {
+    updated = await prisma.calendarEvent.update({
+      where: { id: Number(eventId) },
+      data: eventUpdateData,
+      include: {
+        customEvent: true,
+        user: true,
+        assignee: true,
+        viewers: { include: { user: true } }
+      }
+    });
+  } catch (e) {
+    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
+      logger.warn('Calendar viewers update failed, fallback legacy update.');
+      const cleanUpdate = { ...eventUpdateData };
+      delete cleanUpdate.viewers;
+      updated = await prisma.calendarEvent.update({
+        where: { id: Number(eventId) },
+        data: cleanUpdate,
+        include: {
+          customEvent: true,
+          user: true,
+          assignee: true
+        }
+      });
+    } else {
+      throw e;
     }
-  });
+  }
 
   const offsetMins = parseReminderOffsetToMinutes(reminderOffset);
   if (offsetMins != null) {
@@ -815,16 +906,34 @@ async function getEventDetail(userId, eventId) {
   if (String(eventId).startsWith('syn_')) {
     return null;
   }
-  const evt = await prisma.calendarEvent.findUnique({
-    where: { id: Number(eventId) },
-    include: {
-      customEvent: true,
-      user: true,
-      assignee: true,
-      reminders: true,
-      viewers: { include: { user: true } }
+  let evt;
+  try {
+    evt = await prisma.calendarEvent.findUnique({
+      where: { id: Number(eventId) },
+      include: {
+        customEvent: true,
+        user: true,
+        assignee: true,
+        reminders: true,
+        viewers: { include: { user: true } }
+      }
+    });
+  } catch (e) {
+    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
+      logger.warn('Calendar viewers relation missing in getEventDetail, fallback to legacy include.');
+      evt = await prisma.calendarEvent.findUnique({
+        where: { id: Number(eventId) },
+        include: {
+          customEvent: true,
+          user: true,
+          assignee: true,
+          reminders: true
+        }
+      });
+    } else {
+      throw e;
     }
-  });
+  }
   if (!evt) return null;
   return evt;
 }
