@@ -1,0 +1,1 @@
+C:\xampp\mysql\bin\mysqld.exe  Ver 10.4.32-MariaDB for Win64 on AMD64 (mariadb.org binary distribution)

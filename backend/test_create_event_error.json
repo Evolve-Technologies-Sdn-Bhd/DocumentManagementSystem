@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-09-22T06:31:16.873Z",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:4001/api/calendar",
+    "headers": {
+      "Authorization": "Bearer <token hidden>",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "title": "Test Event",
+      "startDateTime": "2026-09-22T00:00:00.000Z",
+      "endDateTime": "2026-09-22T23:59:00.000Z",
+      "isAllDay": true,
+      "category": "CUSTOM",
+      "location": "Room 1",
+      "description": "test"
+    }
+  },
+  "response": {
+    "statusCode": 401,
+    "statusText": "Unauthorized",
+    "headers": {
+      "x-powered-by": "Express",
+      "vary": "Origin",
+      "access-control-allow-credentials": "true",
+      "access-control-expose-headers": "Content-Disposition,Content-Type,Content-Length",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "45",
+      "etag": "W/\"2d-PFbEcTVLVnbpb+tZkzFjjhcy/yE\"",
+      "date": "Tue, 22 Sep 2026 06:31:16 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5"
+    },
+    "body": {
+      "success": false,
+      "message": "Invalid session"
+    }
+  }
+}

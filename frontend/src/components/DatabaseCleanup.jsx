@@ -21,7 +21,7 @@ export default function DatabaseCleanup() {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
-  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400 transition-colors hover:text-gray-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
+  const passwordToggleClass = 'absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-ink-muted transition-colors hover:text-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50';
   
   // Result states
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -206,22 +206,22 @@ export default function DatabaseCleanup() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">{t('dc_loading_stats')}</div>;
+    return <div className="text-ink-muted font-medium">{t('dc_loading_stats')}</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">{t('dc_title')}</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-xl font-semibold text-ink">{t('dc_title')}</h2>
+        <p className="text-sm text-ink-secondary mt-1">
           {t('dc_desc')}
         </p>
       </div>
 
       {/* Current Statistics */}
       <div className="card p-5">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">{t('dc_current_stats')}</h3>
+        <h3 className="text-base font-semibold text-ink mb-4">{t('dc_current_stats')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard label="Users" value={stats?.users || 0} icon="👥" />
           <StatCard label="Documents" value={stats?.documents || 0} icon="📄" />
@@ -251,9 +251,9 @@ export default function DatabaseCleanup() {
 
       {/* Cleanup Result */}
       {cleanupResult && (
-        <div className="card p-5 bg-green-50 border-green-200">
-          <h3 className="text-base font-semibold text-green-900 mb-3">✅ {t('dc_cleanup_completed')}</h3>
-          <div className="text-sm text-green-800 space-y-1">
+        <div className="card p-5 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] border-[var(--dms-color-success-ink)]/20">
+          <h3 className="text-base font-semibold text-[var(--dms-color-success-ink)] mb-3">✅ {t('dc_cleanup_completed')}</h3>
+          <div className="text-sm text-[var(--dms-color-success-ink)] space-y-1">
             <p><strong>Timestamp:</strong> {new Date(cleanupResult.timestamp).toLocaleString()}</p>
             <p><strong>Records Cleaned:</strong></p>
             <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
@@ -279,7 +279,7 @@ export default function DatabaseCleanup() {
             <p className="text-sm text-red-800 mb-3">
               {t('dc_warning_desc')}
             </p>
-            <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+            <ul className="text-sm text-[var(--dms-color-danger-ink)] font-medium space-y-1 list-disc list-inside">
               <li>Database Cleanup: Removes all data but <strong>preserves master data</strong> (Document Types, Project Categories)</li>
               <li>Testing Data Cleanup: Removes test data while <strong>preserving configuration</strong> (Folders, Templates, Workflows, Master Data)</li>
               <li>Full System Reset: Removes <strong>ALL data including master data</strong></li>
@@ -294,8 +294,8 @@ export default function DatabaseCleanup() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Database Cleanup */}
         <div className="card p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-2">Database Cleanup</h3>
-          <p className="text-sm text-gray-600 mb-4">
+          <h3 className="text-base font-semibold text-ink mb-2">Database Cleanup</h3>
+          <p className="text-sm text-ink-secondary mb-4">
             Remove all documents, users, and activity data while preserving master data (Document Types, Project Categories).
           </p>
           <button
@@ -309,8 +309,8 @@ export default function DatabaseCleanup() {
 
         {/* Testing Data Cleanup */}
         <div className="card p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-2">Testing Data Cleanup</h3>
-          <p className="text-sm text-gray-600 mb-4">
+          <h3 className="text-base font-semibold text-ink mb-2">Testing Data Cleanup</h3>
+          <p className="text-sm text-ink-secondary mb-4">
             Delete test data while keeping configuration (Folders, Templates, Workflows, Master Data). Keeps only your admin account.
           </p>
           <button
@@ -330,7 +330,7 @@ export default function DatabaseCleanup() {
           </p>
           <button
             onClick={openResetModal}
-            className="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-md transition-colors w-full font-medium"
+            className="rounded-xl border-2 border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-ink)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity w-full"
             disabled={!isAdminUser}
           >
             ⚠️ Full System Reset
@@ -346,16 +346,16 @@ export default function DatabaseCleanup() {
           danger
         >
           <div className="space-y-4">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-ink-secondary">
               This will permanently delete all documents, users, workflows, and activity data.
             </p>
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-ink">
               ✅ Preserved: Document Types, Project Categories, Your Admin Account
             </p>
             
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm text-[var(--dms-color-danger-ink)] font-medium">{error}</p>
               </div>
             )}
 
@@ -366,7 +366,7 @@ export default function DatabaseCleanup() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input pr-10"
+                  className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 w-full pr-10"
                   placeholder="Enter your admin password"
                   disabled={processing}
                 />
@@ -395,7 +395,7 @@ export default function DatabaseCleanup() {
                 disabled={processing}
                 className="rounded"
               />
-              <label htmlFor="includeFiles" className="text-sm text-gray-700">
+              <label htmlFor="includeFiles" className="text-sm text-ink-secondary font-medium">
                 Also delete uploaded files from storage
               </label>
             </div>
@@ -428,16 +428,16 @@ export default function DatabaseCleanup() {
           danger
         >
           <div className="space-y-4">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-ink-secondary">
               This will permanently delete all documents and activity data, and remove all users except your admin account.
             </p>
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-ink">
               ✅ Preserved: Folders, Templates, Workflows, Document Types, Project Categories, Your Admin Account
             </p>
             
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm text-[var(--dms-color-danger-ink)] font-medium">{error}</p>
               </div>
             )}
 
@@ -448,7 +448,7 @@ export default function DatabaseCleanup() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input pr-10"
+                  className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 w-full pr-10"
                   placeholder="Enter your admin password"
                   disabled={processing}
                 />
@@ -477,7 +477,7 @@ export default function DatabaseCleanup() {
                 disabled={processing}
                 className="rounded"
               />
-              <label htmlFor="includeFilesTesting" className="text-sm text-gray-700">
+              <label htmlFor="includeFilesTesting" className="text-sm text-ink-secondary font-medium">
                 Also delete uploaded document files from storage (keeps templates)
               </label>
             </div>
@@ -521,7 +521,7 @@ export default function DatabaseCleanup() {
             
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-sm text-[var(--dms-color-danger-ink)] font-medium">{error}</p>
               </div>
             )}
 
@@ -532,7 +532,7 @@ export default function DatabaseCleanup() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input pr-10"
+                  className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 w-full pr-10"
                   placeholder="Enter your admin password"
                   disabled={processing}
                 />
@@ -558,11 +558,11 @@ export default function DatabaseCleanup() {
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                className="input"
+                className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 w-full"
                 placeholder="RESET EVERYTHING"
                 disabled={processing}
               />
-              <p className="text-xs text-gray-500 mt-1">Must match exactly (case sensitive)</p>
+              <p className="text-xs text-ink-muted mt-1">Must match exactly (case sensitive)</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -574,7 +574,7 @@ export default function DatabaseCleanup() {
                 disabled={processing}
                 className="rounded"
               />
-              <label htmlFor="includeFilesReset" className="text-sm text-gray-700">
+              <label htmlFor="includeFilesReset" className="text-sm text-ink-secondary font-medium">
                 Also delete uploaded files from storage
               </label>
             </div>
@@ -589,7 +589,7 @@ export default function DatabaseCleanup() {
               </button>
               <button
                 onClick={handleFullReset}
-                className="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-md transition-colors flex-1 font-medium"
+                className="rounded-xl border-2 border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-ink)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity flex-1"
                 disabled={processing}
               >
                 {processing ? 'Processing...' : 'Confirm Full Reset'}
@@ -605,12 +605,12 @@ export default function DatabaseCleanup() {
 // Helper Components
 function StatCard({ label, value, icon, highlight }) {
   return (
-    <div className={`p-4 rounded-lg border ${highlight ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+    <div className={`p-5 rounded-[16px] border-2 ${highlight ? 'border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_90%,var(--dms-color-info-soft))]' : 'border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_90%,var(--dms-color-bg-card))]'}`}>
       <div className="text-2xl mb-2">{icon}</div>
-      <div className="text-2xl font-bold text-gray-900">
+      <div className="text-2xl font-bold text-ink">
         {value.toLocaleString()}
       </div>
-      <div className="text-xs text-gray-600 mt-1">
+      <div className="text-xs font-medium text-ink-secondary mt-1">
         {label}
       </div>
     </div>

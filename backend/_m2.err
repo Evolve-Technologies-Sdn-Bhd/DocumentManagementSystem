@@ -1,0 +1,21 @@
+2026-09-22 11:54:46 0 [Note] Using unique option prefix 'key_buffer' is error-prone and can break in the future. Please use the full name 'key_buffer_size' instead.
+2026-09-22 11:54:46 0 [Warning] Can't create test file 'C:\xampp\mysql\data\Tech11.lower-test' (Errcode: 13 "Permission denied")
+2026-09-22 11:54:46 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 18016
+2026-09-22 11:54:46 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-22 11:54:46 0 [Note] InnoDB: Uses event mutexes
+2026-09-22 11:54:46 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-22 11:54:46 0 [Note] InnoDB: Number of pools: 1
+2026-09-22 11:54:46 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-22 11:54:46 0 [Note] InnoDB: Initializing buffer pool, total size = 16M, instances = 1, chunk size = 16M
+2026-09-22 11:54:46 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-22 11:54:46 0 [ERROR] InnoDB: Operating system error number 5 in a file operation.
+2026-09-22 11:54:46 0 [ERROR] InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.
+2026-09-22 11:54:46 0x2824  InnoDB: Assertion failure in file D:\winx64-packages\build\src\storage\innobase\fil\fil0fil.cc line 4301
+InnoDB: Failing assertion: req_type.is_dblwr_recover() || err == DB_SUCCESS
+InnoDB: We intentionally generate a memory trap.
+InnoDB: Submit a detailed bug report to https://jira.mariadb.org/
+InnoDB: If you get repeated assertion failures or crashes, even
+InnoDB: immediately after the mysqld startup, there may be
+InnoDB: corruption in the InnoDB tablespace. Please refer to
+InnoDB: https://mariadb.com/kb/en/library/innodb-recovery-modes/
+InnoDB: about forcing recovery.

@@ -1,0 +1,28 @@
+⚠️  [AI_ROUTES] Skipping AI mount: aiRoutes missing /health or /config public endpoint (undefined callback risk)
+[OPERATIONAL ERROR] GET /api/calendar?from=2026-09-01&to=2026-09-30
+Error: No token provided
+    at authenticate (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\middleware\auth.js:17:13)
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:280:10)
+    at router.handle (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:175:3)
+    at router (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:47:12)
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:280:10)
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\app.js:130:3
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:280:10)
+    at urlencodedParser (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\body-parser\lib\types\urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\express\lib\router\index.js:328:13)
+[OPERATIONAL ERROR] POST /api/calendar
+Error: Invalid session
+    at authenticate (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\middleware\auth.js:42:13)

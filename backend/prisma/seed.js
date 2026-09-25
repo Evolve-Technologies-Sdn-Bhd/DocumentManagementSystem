@@ -58,6 +58,9 @@ async function main() {
 
     // Expiry Tracking (4 permissions)
     expiryTracking: { view: true, edit: true, renew: true, export: true },
+
+    // Calendar (4 permissions)
+    calendar: { view: true, create: true, edit: true, delete: true },
     
     // Profile Settings (3 permissions)
     profileSettings: { view: true, edit: true, changePassword: true }
@@ -88,6 +91,9 @@ async function main() {
         'logsReport.activityLogs': { view: true, filter: true, export: true },
         masterRecord: { view: true, search: true, filter: true, export: true, download: true },
         'documents.rfidRegistry': { view: true, export: true },
+        projectTracking: { view: true },
+        expiryTracking: { view: true },
+        calendar: { view: true, create: true, edit: true, delete: true },
         profileSettings: { view: true, edit: true, changePassword: true }
       })
     },

@@ -1,0 +1,15 @@
+{
+    "mysqlListening": true,
+    "backendListening": true,
+    "frontendListening": true,
+    "backendBrandingStatusCode": 200,
+    "frontendHomeStatusCode": 200,
+    "mysqlPid": 9184,
+    "backendPid": 15280,
+    "vitePid": 6880,
+    "nodePids": [
+        15280,
+        6880
+    ],
+    "timestamp": "2026-09-22T14:52:00+08:00"
+}

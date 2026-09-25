@@ -8,102 +8,109 @@ import IconButton from './ui/IconButton'
 
 const menuItems = [
   { 
-    name: 'Dashboard', 
-    translationKey: 'dashboard',
+    name: 'Overview', 
+    translationKey: 'dashboard_overview',
     path: '/dashboard',
     module: 'dashboard',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+    hideIcon: true
+  },
+  { 
+    name: 'Calendar', 
+    translationKey: 'calendar',
+    path: '/calendar',
+    module: 'calendar',
+    hideIcon: true
   },
   { 
     name: 'New Document Request', 
     translationKey: 'new_document_request',
     path: '/new-document-request',
     module: 'newDocumentRequest',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'My Documents Status', 
     translationKey: 'my_documents_status',
     path: '/documents/my-documents',
     module: 'myDocumentsStatus',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Draft Documents', 
     translationKey: 'draft_documents',
     path: '/documents/drafts',
     module: 'documents.draft',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Project Tracking', 
     translationKey: 'project_tracking',
     path: '/project-tracking',
     module: 'projectTracking',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-6 4h6m-6 4h6m-6 4h6M9 5a2 2 0 114 0h-4z" /></svg>
+    hideIcon: true
   },
   {
     name: 'EPC Registry',
     translationKey: 'rfid_epc_registry',
     path: '/rfid-epc-registry',
     module: 'documents.rfidRegistry',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2h-3M4 11v6a2 2 0 002 2h3m5-14h-4m0 14h4m-5-9h6m-6 4h6M7 7h.01M17 17h.01" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Review and Approval', 
     translationKey: 'review_approval',
     path: '/documents/review-approval',
     module: 'documents.review',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Published Documents', 
     translationKey: 'published_documents',
     path: '/documents/published',
     module: 'documents.published',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    hideIcon: true
   },
   {
     name: 'Expiry Tracking',
     translationKey: 'expiry_tracking',
     path: '/expiry-tracking',
     module: 'expiryTracking',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2zm7-5h.01M12 15h.01M9 15h.01" /></svg>
+    hideIcon: true
   },
   {
     name: 'Tender Book Register',
     translationKey: 'tender_book_register',
     path: '/tender-book',
     module: 'crm.tenderBook',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M6 4h12a2 2 0 012 2v15l-3-2-3 2-3-2-3 2-3-2V6a2 2 0 012-2z" /></svg>
+    hideIcon: true
   },
   {
     name: 'FB Enquiry Register',
     translationKey: 'fb_enquiry_register',
     path: '/fb-enquiries',
     module: 'crm.fbEnquiry',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h6m-6 4h10M5 6a2 2 0 012-2h10a2 2 0 012 2v14l-3-2-3 2-3-2-3 2-3-2V6z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Superseded & Obsolete', 
     translationKey: 'superseded_obsolete',
     path: '/documents/archived',
     module: 'documents.superseded',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Master Record', 
     translationKey: 'master_record',
     path: '/master-record',
     module: 'masterRecord',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Logs & Report', 
     translationKey: 'logs_report',
     path: '/logs',
     module: 'logsReport.activityLogs',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Configuration', 
@@ -121,18 +128,24 @@ const menuItems = [
       'configuration.cleanup',
       'configuration.auditSettings'
     ],
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+    hideIcon: true
   },
   { 
     name: 'Profile Settings', 
     translationKey: 'profile_settings',
     path: '/profile',
     module: null, // Always show - no permission required
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+    hideIcon: true
   }
 ]
 
 const menuSections = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+    paths: ['/dashboard', '/calendar']
+  },
   {
     key: 'workspace',
     label: 'Workspace',
@@ -183,7 +196,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
   const [tourTargetPath, setTourTargetPath] = useState('')
   const [expandedSections, setExpandedSections] = useState(() => (
     menuSections.reduce((acc, section) => {
-      acc[section.key] = false
+      if (section.key === 'dashboard') {
+        acc[section.key] = true
+      } else {
+        acc[section.key] = false
+      }
       return acc
     }, {})
   ))
@@ -299,8 +316,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
       return acc
     }, {})
 
-    const dashboard = itemByPath['/dashboard'] || null
-
     const sections = menuSections
       .map(section => {
         const items = section.paths.map(path => itemByPath[path]).filter(Boolean)
@@ -308,7 +323,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
       })
       .filter(section => section.items.length > 0)
 
-    return { dashboard, sections }
+    return { sections }
   }, [visibleMenuItems])
 
   const toggleSection = (sectionKey) => {
@@ -328,79 +343,74 @@ export default function Sidebar({ isOpen, onClose, isCollapsed }) {
 
     return (
       <nav className="space-y-3">
-        {groupedMenu.dashboard && (
-          <div className={sectionContainerClass}>
-            {collapsed ? (
-              <AppNavItem
-                key={groupedMenu.dashboard.path}
-                item={{...groupedMenu.dashboard, name: t(groupedMenu.dashboard.translationKey), tourId: pathToTourId(groupedMenu.dashboard.path)}}
-                active={isItemActive(groupedMenu.dashboard.path)}
-                isTourTarget={tourTargetPath === groupedMenu.dashboard.path}
-                onClick={onItemClick}
-                collapsed
-              />
-            ) : (
-              <Link
-                to={groupedMenu.dashboard.path}
-                onClick={onItemClick}
-                data-tour-id={pathToTourId(groupedMenu.dashboard.path)}
-                className={[
-                  sectionHeaderClass,
-                  isItemActive(groupedMenu.dashboard.path) ? 'bg-sidebar-hover opacity-100' : ''
-                ].filter(Boolean).join(' ')}
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/8 text-sidebar-text">
-                  {groupedMenu.dashboard.icon}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{t(groupedMenu.dashboard.translationKey)}</span>
-                <svg className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            )}
-          </div>
-        )}
-
-        {groupedMenu.sections.map(section => (
-          <div
-            key={section.key}
-            className={sectionContainerClass}
-          >
-            {!collapsed && (
-              <button
-                type="button"
-                onClick={() => toggleSection(section.key)}
-                className={sectionHeaderClass}
-                aria-expanded={expandedSections[section.key] !== false}
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/8 text-sidebar-text">
-                  {section.icon}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{section.labelKey ? t(section.labelKey) : section.label}</span>
-                <svg
-                  className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${expandedSections[section.key] !== false ? 'rotate-0' : '-rotate-90'}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        {groupedMenu.sections.map(section => {
+          const isDashboardSection = section.key === 'dashboard'
+          const hasActiveChild = section.items.some(item => isItemActive(item.path))
+          
+          return (
+            <div
+              key={section.key}
+              className={sectionContainerClass}
+            >
+              {!collapsed ? (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.key)}
+                  className={[
+                    sectionHeaderClass,
+                    hasActiveChild ? 'bg-sidebar-hover opacity-100' : ''
+                  ].filter(Boolean).join(' ')}
+                  aria-expanded={expandedSections[section.key] !== false}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            )}
-            <div className={`${collapsed || expandedSections[section.key] !== false ? 'space-y-1 pt-0' : 'hidden'}`}>
-              {section.items.map((item) => (
-                <AppNavItem
-                  key={item.path}
-                  item={{...item, hideIcon: true, name: t(item.translationKey), tourId: pathToTourId(item.path)}}
-                  active={isItemActive(item.path)}
-                  isTourTarget={tourTargetPath === item.path}
-                  onClick={onItemClick}
-                  collapsed={Boolean(collapsed)}
-                />
-              ))}
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/8 text-sidebar-text">
+                    {section.icon}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{section.labelKey ? t(section.labelKey) : section.label}</span>
+                  <svg
+                    className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${expandedSections[section.key] !== false ? 'rotate-0' : '-rotate-90'}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              ) : (
+                <>
+                  {section.items.slice(0, 1).map((item) => (
+                    <AppNavItem
+                      key={item.path}
+                      item={{...item, name: section.labelKey ? t(section.labelKey) : section.label, icon: section.icon, tourId: pathToTourId(item.path)}}
+                      active={hasActiveChild}
+                      isTourTarget={tourTargetPath === item.path}
+                      onClick={onItemClick}
+                      collapsed
+                    />
+                  ))}
+                </>
+              )}
+              <div className={`${collapsed || expandedSections[section.key] !== false ? 'space-y-1 pt-0' : 'hidden'}`}>
+                {section.items.map((item) => (
+                  <AppNavItem
+                    key={item.path}
+                    item={{
+                      ...item, 
+                      hideIcon: !isDashboardSection, 
+                      name: isDashboardSection
+                        ? (item.path === '/dashboard' ? 'Overview' : (item.path === '/calendar' ? 'Calendar' : (item.translationKey ? t(item.translationKey) : item.name)))
+                        : t(item.translationKey), 
+                      tourId: pathToTourId(item.path)
+                    }}
+                    active={isItemActive(item.path)}
+                    isTourTarget={tourTargetPath === item.path}
+                    onClick={onItemClick}
+                    collapsed={Boolean(collapsed)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
     )
   }

@@ -27,7 +27,6 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
 
   const roles = (availableRoles && availableRoles.length > 0) ? availableRoles : defaultRoles
   
-  // Load departments from API
   useEffect(() => {
     const loadDepartments = async () => {
       try {
@@ -35,7 +34,6 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
         setDepartments(res.data.data.departments || [])
       } catch (error) {
         console.error('Failed to load departments:', error)
-        // Fallback to empty array if API fails
         setDepartments([])
       }
     }
@@ -116,35 +114,32 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90]">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
+      <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-[var(--dms-color-border-default)]">
+        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] sticky top-0 bg-[var(--dms-color-bg-surface)]">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900">
+            <h3 className="text-xl font-bold text-ink">
               {initialData ? 'Edit User' : 'Add New User'}
             </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button onClick={onClose} className="text-ink-muted hover:text-ink-secondary transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-ink-secondary mt-2">
             Create user account and assign roles
           </p>
         </div>
 
-        {/* Form Content */}
         <div className="px-6 py-4 space-y-6">
-          {/* Basic Information */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-gray-900">Basic Information</h4>
+            <h4 className="font-semibold text-ink">Basic Information</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  User Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  User Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
                 </label>
                 <input
                   type="text"
@@ -152,13 +147,13 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   value={formData.userName}
                   onChange={handleInputChange}
                   placeholder="Enter full name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Email <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Email <span className="text-[var(--dms-color-danger-ink)]">*</span>
                 </label>
                 <input
                   type="email"
@@ -166,19 +161,19 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="user@company.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Department
                 </label>
                 <select
                   name="department"
                   value={formData.department}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 >
                   <option value="">Select department</option>
                   {departments.map((dept) => (
@@ -188,14 +183,14 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Status
                 </label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -204,29 +199,30 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
             </div>
           </div>
 
-          {/* Role Assignment */}
           <div className="space-y-4">
             <div>
-              <h4 className="font-semibold text-gray-900">Role Assignment <span className="text-red-500">*</span></h4>
-              <p className="text-sm text-gray-600 mt-1">Select one or more roles for this user</p>
+              <h4 className="font-semibold text-ink">Role Assignment <span className="text-[var(--dms-color-danger-ink)]">*</span></h4>
+              <p className="text-sm text-ink-secondary mt-1">Select one or more roles for this user</p>
             </div>
 
-            <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-3">
+            <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-4 bg-[var(--dms-color-bg-surface-muted)] space-y-3">
               {roles.map((role) => (
                 <label 
                   key={`role-${role.id}`} 
-                  className="flex items-start gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  className="flex items-start gap-3 cursor-pointer hover:bg-[var(--dms-color-bg-surface)] p-2 rounded-lg transition-colors"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedRoles.includes(role.id)}
-                    onChange={() => handleRoleToggle(role.id)}
-                    className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  />
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)] mt-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedRoles.includes(role.id)}
+                      onChange={() => handleRoleToggle(role.id)}
+                      className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer border-0 focus:ring-0"
+                    />
+                  </span>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900">{role.name}</div>
+                    <div className="font-medium text-ink">{role.name}</div>
                     {role.description && (
-                      <div className="text-sm text-gray-600">{role.description}</div>
+                      <div className="text-sm text-ink-secondary">{role.description}</div>
                     )}
                   </div>
                 </label>
@@ -234,12 +230,12 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
             </div>
             
             {selectedRoles.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
                 <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-[var(--dms-color-info-ink)] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-[var(--dms-color-info-ink)]">
                     <strong>{selectedRoles.length}</strong> role{selectedRoles.length > 1 ? 's' : ''} selected: {selectedRoles.map(roleId => roles.find(r => r.id === roleId)?.name).join(', ')}
                   </p>
                 </div>
@@ -250,50 +246,52 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           {!initialData && (
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold text-gray-900">Division Assignment <span className="text-red-500">*</span></h4>
-                <p className="text-sm text-gray-600 mt-1">
+                <h4 className="font-semibold text-ink">Division Assignment <span className="text-[var(--dms-color-danger-ink)]">*</span></h4>
+                <p className="text-sm text-ink-secondary mt-1">
                   Select one or more divisions for this user
                 </p>
               </div>
 
-              <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-3">
+              <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-4 bg-[var(--dms-color-bg-surface-muted)] space-y-3">
                 {loadingDivisions ? (
-                  <div className="text-sm text-gray-600">Loading divisions...</div>
+                  <div className="text-sm text-ink-secondary">Loading divisions...</div>
                 ) : divisions.length > 0 ? (
                   divisions.map((division) => (
                     <label
                       key={`division-${division.id}`}
-                      className="flex items-start gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                      className="flex items-start gap-3 cursor-pointer hover:bg-[var(--dms-color-bg-surface)] p-2 rounded-lg transition-colors"
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedDivisions.includes(division.id)}
-                        onChange={() => {
-                          setSelectedDivisions((prev) => {
-                            if (prev.includes(division.id)) return prev.filter((id) => id !== division.id)
-                            return [...prev, division.id]
-                          })
-                        }}
-                        className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      />
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)] mt-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedDivisions.includes(division.id)}
+                          onChange={() => {
+                            setSelectedDivisions((prev) => {
+                              if (prev.includes(division.id)) return prev.filter((id) => id !== division.id)
+                              return [...prev, division.id]
+                            })
+                          }}
+                          className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer border-0 focus:ring-0"
+                        />
+                      </span>
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">{division.name}</div>
-                        <div className="text-sm text-gray-600">{division.code}</div>
+                        <div className="font-medium text-ink">{division.name}</div>
+                        <div className="text-sm text-ink-secondary">{division.code}</div>
                       </div>
                     </label>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-600">No divisions available</div>
+                  <div className="text-sm text-ink-secondary">No divisions available</div>
                 )}
               </div>
 
               {selectedDivisions.length > 0 ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
                   <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-[var(--dms-color-info-ink)] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-sm text-blue-800">
+                    <p className="text-sm text-[var(--dms-color-info-ink)]">
                       <strong>{selectedDivisions.length}</strong> division{selectedDivisions.length > 1 ? 's' : ''} selected: {selectedDivisions.map((divisionId) => divisions.find((d) => d.id === divisionId)?.code || divisionId).join(', ')}
                     </p>
                   </div>
@@ -303,12 +301,12 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           )}
 
           {!initialData && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="rounded-[16px] border-2 border-[var(--dms-color-warning-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_70%,var(--dms-color-bg-card))] p-4">
               <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-[var(--dms-color-warning-ink)] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <p className="text-sm text-yellow-800">
+                <p className="text-sm text-[var(--dms-color-warning-ink)]">
                   A temporary password will be generated and sent to the user's email address.
                 </p>
               </div>
@@ -316,17 +314,16 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+        <div className="px-6 py-4 bg-[var(--dms-color-bg-surface-muted)] border-t-2 border-[var(--dms-color-border-default)] flex justify-end gap-3 sticky bottom-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
+            className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold transition-all hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_90%,black)] text-sm"
           >
             {initialData ? 'Update User' : 'Create User'}
           </button>

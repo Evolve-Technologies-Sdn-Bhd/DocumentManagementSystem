@@ -1,0 +1,5 @@
+{"timestamp":"2026-09-22T10:08:24.038Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+{"timestamp":"2026-09-22T10:08:25.177Z","level":"WARN","message":"[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env"}
+{"timestamp":"2026-09-22T10:08:25.178Z","level":"INFO","message":"[aiService] Using AI provider: gemini (default)"}
+⚠️  [AI_ROUTES] Skipping AI mount: aiRoutes missing /health or /config public endpoint (undefined callback risk)
+✅ Database connected successfully (pool=20)

@@ -141,10 +141,10 @@ function StageFilterBar({ documents, stageFilter, onStageFilterChange, onClear }
             >
               <span className="px-2 text-center">
                 {stage.label}
-                <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
                   isActive
-                    ? 'bg-white/20 text-ink-inverse'
-                    : 'bg-white/70 text-[var(--dms-color-info-ink)]'
+                    ? 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_20%,var(--dms-color-brand-primary))] text-[var(--dms-color-text-inverse)] ring-white/20'
+                    : 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_70%,var(--dms-color-info-soft))] text-[var(--dms-color-info-ink)] ring-[var(--dms-color-border-default)]'
                 }`}>
                   {stageCounts[stage.id] ?? 0}
                 </span>
@@ -170,7 +170,7 @@ function StageFilterBar({ documents, stageFilter, onStageFilterChange, onClear }
               }`}
             >
               <div>{stage.label}</div>
-              <div className={`mt-1 text-xs ${isActive ? 'text-white/80' : 'text-[var(--dms-color-info-ink)]/80'}`}>
+              <div className={`mt-1 text-xs font-medium ${isActive ? 'text-[color-mix(in_srgb,var(--dms-color-text-inverse)_85%,white)]' : 'text-[var(--dms-color-info-ink)]/85'}`}>
                 {stageCounts[stage.id] ?? 0} docs
               </div>
             </button>
@@ -402,14 +402,15 @@ export default function MyDocumentsStatus() {
       accessor: 'projectCategory',
       label: t('project_category'),
       sortable: true,
-      render: (value) => <span>{value || '-'}</span>
+      render: (value) => <span className="text-ink-secondary">{value || '-'}</span>
     },
     {
       id: 'version',
       key: 'version',
       accessor: 'version',
       label: t('version'),
-      sortable: true
+      sortable: true,
+      render: (value) => <span className="font-semibold text-ink">{value || '-'}</span>
     },
     {
       id: 'lastUpdated',
@@ -900,7 +901,7 @@ export default function MyDocumentsStatus() {
             <TableContainer>
               <Table>
                 <thead>
-                  <tr>
+                  <Tr>
                     {visibleColumns.map((col, idx) => {
                       const id = col.id || col.key
                       const canDrag = !col.stickyRight
@@ -927,29 +928,29 @@ export default function MyDocumentsStatus() {
                         </Th>
                       )
                     })}
-                  </tr>
+                  </Tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-10">
+                    <Tr>
+                      <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-10">
                         <div className="flex items-center justify-center gap-2 text-sm text-ink-muted">
                           <InlineSpinner />
                           <span>{t('loading_docs')}</span>
                         </div>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ) : currentDocuments.length === 0 ? (
-                    <tr>
-                      <td colSpan={Math.max(visibleColumns.length, 1)} className="px-4 py-4">
+                    <Tr>
+                      <Td colSpan={Math.max(visibleColumns.length, 1)} className="py-4">
                         <EmptyState
                           message={t('no_docs_found')}
                           description={searchQuery || statusFilter !== 'All' || stageFilter !== 'all' ? t('try_adjusting') : t('no_docs_yet')}
                           actionLabel={searchQuery ? t('clear_search') : ((statusFilter !== 'All' || stageFilter !== 'all') ? t('clear_filter') : null)}
                           onAction={searchQuery ? () => setSearchQuery('') : ((statusFilter !== 'All' || stageFilter !== 'all') ? clearListFilters : null)}
                         />
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ) : (
                     currentDocuments.map((doc) => (
                       <Tr

@@ -32,6 +32,7 @@ const smartTemplatesRoutes = require('./routes/smartTemplates');
 const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
 const smartDocumentsRoutes = require('./routes/smartDocuments');
 const aiRoutes = require('./routes/ai');
+const calendarRoutes = require('./routes/calendar');
 const notificationService = require('./services/notificationService');
 const configService = require('./services/configService');
 
@@ -277,6 +278,7 @@ app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Alias routes helpers (require BEFORE first use to avoid TDZ)
 const { authenticate, authorizePermission } = require('./middleware/auth');

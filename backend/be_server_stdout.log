@@ -1,0 +1,9 @@
+{"timestamp":"2026-09-23T00:58:54.902Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+{"timestamp":"2026-09-23T00:58:55.842Z","level":"WARN","message":"[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env"}
+{"timestamp":"2026-09-23T00:58:55.843Z","level":"INFO","message":"[aiService] Using AI provider: gemini (default)"}
+Upload directories verified
+Backend listening on http://localhost:4001
+Retention policy cleanup scheduled (runs every 24 hours)
+Retention policy scheduler initialized
+Expiry tracking scheduler initialized
+Review and approval reminder scheduler initialized

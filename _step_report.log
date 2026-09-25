@@ -1,0 +1,4 @@
+[2026-09-22T13:41:18] ===== STEP 0: KILL ALL mysqld / node =====
+[2026-09-22T13:41:23] Killed: mysqld:2708, node:12040 (count=2)
+[2026-09-22T13:41:23] Port PIDs: 3306= 4001= 5173=
+[2026-09-22T13:41:25] DONE step0

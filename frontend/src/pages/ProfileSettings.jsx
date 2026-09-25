@@ -4,6 +4,7 @@ import { CheckCircleIcon, EyeIcon, EyeSlashIcon, XCircleIcon } from '@heroicons/
 import api from '../api/axios'
 import ConfirmModal, { AlertModal } from '../components/ConfirmModal'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { applyThemeMode } from '../utils/branding'
 import { createDefaultNotificationPreferences, normalizeNotificationPreferences, notificationEventCategories } from '../constants/notificationEvents'
 import { normalizeAppPath } from '../utils/normalizeUrl'
 import PageHeader from '../components/ui/PageHeader'
@@ -64,8 +65,8 @@ function ProfileSubNav({ activeTab, onTabChange, t }) {
               className={[
                 'group relative flex shrink-0 items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-medium transition-all duration-150',
                 active
-                  ? 'text-brand bg-white shadow-[0_-1px_0_0_var(--dms-primary)_inset] border-x border-t border-ink-muted/10'
-                  : 'text-ink-muted hover:text-ink hover:bg-white/60',
+                  ? 'text-[var(--dms-color-brand-primary)] bg-[var(--dms-color-bg-surface)] shadow-[0_-1px_0_0_var(--dms-color-brand-primary)_inset] border-x border-t border-[var(--dms-color-border-default)]'
+                  : 'text-ink-muted hover:text-ink hover:bg-[var(--dms-color-bg-surface-muted)]',
               ].filter(Boolean).join(' ')}
               aria-current={active ? 'page' : undefined}
             >
@@ -290,7 +291,7 @@ function ProfileInformation() {
               type="text"
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
           <div>
@@ -301,7 +302,7 @@ function ProfileInformation() {
               type="text"
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
           <div>
@@ -312,7 +313,7 @@ function ProfileInformation() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
           <div>
@@ -323,7 +324,7 @@ function ProfileInformation() {
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
         </div>
@@ -338,7 +339,7 @@ function ProfileInformation() {
               type="text"
               value={formData.employeeId}
               disabled
-              className="w-full cursor-not-allowed rounded-lg border border-border bg-surface-muted px-3 py-2 text-ink-muted outline-none"
+              className="w-full cursor-not-allowed rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] px-4 py-3 text-ink-muted outline-none"
             />
           </div>
           <div>
@@ -346,7 +347,7 @@ function ProfileInformation() {
             <select
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             >
               <option value="">{t('select_department')}</option>
               {departments.map(dept => (
@@ -360,7 +361,7 @@ function ProfileInformation() {
               type="text"
               value={formData.position}
               onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
           <div>
@@ -369,7 +370,7 @@ function ProfileInformation() {
               type="date"
               value={formData.dateJoined}
               disabled
-              className="w-full cursor-not-allowed rounded-lg border border-border bg-surface-muted px-3 py-2 text-ink-muted outline-none"
+              className="w-full cursor-not-allowed rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] px-4 py-3 text-ink-muted outline-none"
             />
           </div>
         </div>
@@ -705,7 +706,7 @@ function SecuritySettings() {
                 type={passwordVisibility.current ? 'text' : 'password'}
                 value={passwords.current}
                 onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 pr-10 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
               />
               <button
                 type="button"
@@ -730,7 +731,7 @@ function SecuritySettings() {
                 type={passwordVisibility.new ? 'text' : 'password'}
                 value={passwords.new}
                 onChange={(e) => handleNewPasswordChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 pr-10 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
               />
               <button
                 type="button"
@@ -759,11 +760,11 @@ function SecuritySettings() {
                       style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                     ></div>
                   </div>
-                  <span className={`text-xs font-medium ${
-                    passwordStrength.score <= 2 ? 'text-red-600' :
-                    passwordStrength.score === 3 ? 'text-yellow-600' :
-                    passwordStrength.score === 4 ? 'text-blue-600' :
-                    'text-green-600'
+                  <span className={`text-xs font-semibold ${
+                    passwordStrength.score <= 2 ? 'text-[var(--dms-color-danger-ink)]' :
+                    passwordStrength.score === 3 ? 'text-[var(--dms-color-warning-ink)]' :
+                    passwordStrength.score === 4 ? 'text-[var(--dms-color-info-ink)]' :
+                    'text-[var(--dms-color-success-ink)]'
                   }`}>
                     {passwordStrength.score <= 2 ? t('weak') :
                       passwordStrength.score === 3 ? t('fair') :
@@ -776,41 +777,41 @@ function SecuritySettings() {
                   <p className="mb-2 text-xs font-medium text-ink-secondary">{t('pass_req_title')}</p>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasMinLength ?
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-red-500" />}
-                    <span className={`text-xs ${passwordStrength.hasMinLength ? 'text-green-700' : 'text-red-700'}`}>
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--dms-color-success-ink)]" /> :
+                      <XCircleIcon className="h-4 w-4 text-[var(--dms-color-danger-ink)]" />}
+                    <span className={`text-xs font-medium ${passwordStrength.hasMinLength ? 'text-[var(--dms-color-success-ink)]' : 'text-[var(--dms-color-danger-ink)]'}`}>
                       {t('pass_req_min_len')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasUpperCase ?
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-red-500" />}
-                    <span className={`text-xs ${passwordStrength.hasUpperCase ? 'text-green-700' : 'text-red-700'}`}>
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--dms-color-success-ink)]" /> :
+                      <XCircleIcon className="h-4 w-4 text-[var(--dms-color-danger-ink)]" />}
+                    <span className={`text-xs font-medium ${passwordStrength.hasUpperCase ? 'text-[var(--dms-color-success-ink)]' : 'text-[var(--dms-color-danger-ink)]'}`}>
                       {t('pass_req_upper')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasLowerCase ?
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-red-500" />}
-                    <span className={`text-xs ${passwordStrength.hasLowerCase ? 'text-green-700' : 'text-red-700'}`}>
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--dms-color-success-ink)]" /> :
+                      <XCircleIcon className="h-4 w-4 text-[var(--dms-color-danger-ink)]" />}
+                    <span className={`text-xs font-medium ${passwordStrength.hasLowerCase ? 'text-[var(--dms-color-success-ink)]' : 'text-[var(--dms-color-danger-ink)]'}`}>
                       {t('pass_req_lower')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasNumber ?
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-red-500" />}
-                    <span className={`text-xs ${passwordStrength.hasNumber ? 'text-green-700' : 'text-red-700'}`}>
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--dms-color-success-ink)]" /> :
+                      <XCircleIcon className="h-4 w-4 text-[var(--dms-color-danger-ink)]" />}
+                    <span className={`text-xs font-medium ${passwordStrength.hasNumber ? 'text-[var(--dms-color-success-ink)]' : 'text-[var(--dms-color-danger-ink)]'}`}>
                       {t('pass_req_number')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasSpecialChar ?
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" /> :
-                      <XCircleIcon className="h-4 w-4 text-red-500" />}
-                    <span className={`text-xs ${passwordStrength.hasSpecialChar ? 'text-green-700' : 'text-red-700'}`}>
+                      <CheckCircleIcon className="h-4 w-4 text-[var(--dms-color-success-ink)]" /> :
+                      <XCircleIcon className="h-4 w-4 text-[var(--dms-color-danger-ink)]" />}
+                    <span className={`text-xs font-medium ${passwordStrength.hasSpecialChar ? 'text-[var(--dms-color-success-ink)]' : 'text-[var(--dms-color-danger-ink)]'}`}>
                       {t('pass_req_special')}
                     </span>
                   </div>
@@ -827,7 +828,7 @@ function SecuritySettings() {
                 type={passwordVisibility.confirm ? 'text' : 'password'}
                 value={passwords.confirm}
                 onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-10 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 pr-10 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
               />
               <button
                 type="button"
@@ -907,7 +908,7 @@ function SecuritySettings() {
           </div>
 
           {hasAuthenticator && (
-            <span className="inline-block mt-3 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+            <span className="inline-block mt-3 px-3 py-1 text-xs font-semibold rounded-lg border-2 border-[var(--dms-color-success-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)]">
               Authenticator configured
             </span>
           )}
@@ -929,7 +930,7 @@ function SecuritySettings() {
                   value={authenticatorCode}
                   onChange={(e) => setAuthenticatorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="Enter 6-digit code"
-                  className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  className="flex-1 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
                 <Button
                   onClick={handleVerifyAuthenticator}
@@ -1114,24 +1115,28 @@ function NotificationSettings() {
           </div>
           <div className="flex gap-4 ml-4">
             <label className={`flex items-center gap-1.5 ${emailDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-              <input
-                type="checkbox"
-                checked={emailChecked}
-                onChange={onEmailChange}
-                disabled={emailDisabledByAdmin}
-                className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
-              />
-              <span className="text-xs text-ink-secondary">Email</span>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                <input
+                  type="checkbox"
+                  checked={emailChecked}
+                  onChange={onEmailChange}
+                  disabled={emailDisabledByAdmin}
+                  className="h-4 w-4 cursor-pointer text-brand rounded border-[var(--dms-color-border-default)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+                />
+              </span>
+              <span className="text-xs font-medium text-ink-secondary">Email</span>
             </label>
             <label className={`flex items-center gap-1.5 ${inAppDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-              <input
-                type="checkbox"
-                checked={inAppChecked}
-                onChange={onInAppChange}
-                disabled={inAppDisabledByAdmin}
-                className="w-4 h-4 text-brand border-border rounded focus:ring-brand/20"
-              />
-              <span className="text-xs text-ink-secondary">In-App</span>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                <input
+                  type="checkbox"
+                  checked={inAppChecked}
+                  onChange={onInAppChange}
+                  disabled={inAppDisabledByAdmin}
+                  className="h-4 w-4 cursor-pointer text-brand rounded border-[var(--dms-color-border-default)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+                />
+              </span>
+              <span className="text-xs font-medium text-ink-secondary">In-App</span>
             </label>
           </div>
         </div>
@@ -1207,7 +1212,7 @@ function NotificationSettings() {
         <select
           value={settings.digestFrequency}
           onChange={(e) => setSettings({ ...settings, digestFrequency: e.target.value })}
-          className="w-full max-w-xs px-3 py-2 border border-border rounded-lg outline-none text-sm bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+          className="w-full max-w-xs rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
         >
           <option value="realtime">Real-time (Send immediately)</option>
           <option value="hourly">Hourly Digest</option>
@@ -1240,7 +1245,7 @@ function NotificationSettings() {
 
 // Preferences Tab
 function PreferencesSettings() {
-  const { updatePreferences, t } = usePreferences()
+  const { updatePreferences, t, themeMode: currentThemeMode } = usePreferences()
   const [alertModal, setAlertModal] = useState({ show: false, title: '', message: '', type: 'info' })
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null })
   const [loading, setLoading] = useState(true)
@@ -1251,7 +1256,8 @@ function PreferencesSettings() {
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
     itemsPerPage: 15,
-    defaultView: 'list'
+    defaultView: 'list',
+    themeMode: currentThemeMode || 'light'
   })
 
   // Load preferences on mount
@@ -1276,6 +1282,7 @@ function PreferencesSettings() {
     setSaving(true)
     try {
       await updatePreferences(preferences)
+      applyThemeMode(preferences.themeMode)
       setAlertModal({ show: true, title: 'Success', message: 'Preferences saved successfully!', type: 'success' })
     } catch (error) {
       setAlertModal({ show: true, title: 'Error', message: 'Failed to save preferences', type: 'error' })
@@ -1316,7 +1323,7 @@ function PreferencesSettings() {
             <select
               value={preferences.language}
               onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             >
               <option value="en">English</option>
               <option value="ms">Bahasa Malaysia</option>
@@ -1328,7 +1335,7 @@ function PreferencesSettings() {
             <select
               value={preferences.timezone}
               onChange={(e) => setPreferences({ ...preferences, timezone: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             >
               <option value="Asia/Kuala_Lumpur">Kuala Lumpur (GMT+8)</option>
               <option value="Asia/Singapore">Singapore (GMT+8)</option>
@@ -1341,7 +1348,7 @@ function PreferencesSettings() {
             <select
               value={preferences.dateFormat}
               onChange={(e) => setPreferences({ ...preferences, dateFormat: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             >
               <option value="DD/MM/YYYY">DD/MM/YYYY (20/11/2025)</option>
               <option value="MM/DD/YYYY">MM/DD/YYYY (11/20/2025)</option>
@@ -1353,7 +1360,7 @@ function PreferencesSettings() {
             <select
               value={preferences.timeFormat}
               onChange={(e) => setPreferences({ ...preferences, timeFormat: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             >
               <option value="24h">24-hour (14:30)</option>
               <option value="12h">12-hour (2:30 PM)</option>
@@ -1364,32 +1371,98 @@ function PreferencesSettings() {
 
       <AppSurface variant="panel" padding="lg">
         <h3 className="text-lg font-semibold text-ink mb-4">{t('display_preferences')}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('items_per_page')}</label>
-            <select
-              value={preferences.itemsPerPage}
-              onChange={(e) => setPreferences({ ...preferences, itemsPerPage: parseInt(e.target.value) })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-            >
-              <option value={10}>10 items</option>
-              <option value={15}>15 items</option>
-              <option value={25}>25 items</option>
-              <option value={50}>50 items</option>
-              <option value={100}>100 items</option>
-            </select>
+            <label className="block text-sm font-medium text-ink-secondary mb-3">Theme Mode</label>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setPreferences({ ...preferences, themeMode: 'light' })}
+                className={`group flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-all ${
+                  preferences.themeMode === 'light'
+                    ? 'border-brand shadow-dms-soft bg-surface-strong'
+                    : 'border-border bg-surface hover:border-brand/50'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] shadow-sm flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  preferences.themeMode === 'light' ? 'text-brand' : 'text-ink-secondary group-hover:text-ink'
+                }`}>Light</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreferences({ ...preferences, themeMode: 'dark' })}
+                className={`group flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-all ${
+                  preferences.themeMode === 'dark'
+                    ? 'border-brand shadow-dms-soft bg-surface-strong'
+                    : 'border-border bg-surface hover:border-brand/50'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg border border-slate-700 bg-slate-900 shadow-sm flex items-center justify-center">
+                  <svg className="w-4 h-4 text-slate-300" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                  </svg>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  preferences.themeMode === 'dark' ? 'text-brand' : 'text-ink-secondary group-hover:text-ink'
+                }`}>Dark</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreferences({ ...preferences, themeMode: 'zorapro' })}
+                className={`group flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-all ${
+                  preferences.themeMode === 'zorapro'
+                    ? 'border-[#14b8a6] shadow-dms-soft bg-surface-strong'
+                    : 'border-border bg-surface hover:border-[#14b8a6]/60'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg border border-[#14b8a6]/30 shadow-sm flex items-center justify-center"
+                     style={{ background: 'linear-gradient(135deg, #121936, #1b2449)' }}>
+                  <svg className="w-4 h-4 text-[#14b8a6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <span className={`text-sm font-bold ${
+                  preferences.themeMode === 'zorapro' ? 'text-[#14b8a6]' : 'text-ink-secondary group-hover:text-[#14b8a6]'
+                }`}>Zora Pro</span>
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-ink-muted">Zora Pro — Premium dark navy &amp; matte teal theme. Comfortable for extended viewing sessions.</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('default_view')}</label>
-            <select
-              value={preferences.defaultView}
-              onChange={(e) => setPreferences({ ...preferences, defaultView: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-            >
-              <option value="list">List View</option>
-              <option value="grid">Grid View</option>
-              <option value="compact">Compact View</option>
-            </select>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('items_per_page')}</label>
+              <select
+                value={preferences.itemsPerPage}
+                onChange={(e) => setPreferences({ ...preferences, itemsPerPage: parseInt(e.target.value) })}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+              >
+                <option value={10}>10 items</option>
+                <option value={15}>15 items</option>
+                <option value={25}>25 items</option>
+                <option value={50}>50 items</option>
+                <option value={100}>100 items</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink-secondary mb-1.5">{t('default_view')}</label>
+              <select
+                value={preferences.defaultView}
+                onChange={(e) => setPreferences({ ...preferences, defaultView: e.target.value })}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+              >
+                <option value="list">List View</option>
+                <option value="grid">Grid View</option>
+                <option value="compact">Compact View</option>
+              </select>
+            </div>
           </div>
         </div>
       </AppSurface>

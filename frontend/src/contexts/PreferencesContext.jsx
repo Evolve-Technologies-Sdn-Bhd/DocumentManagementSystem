@@ -4070,7 +4070,11 @@ export function PreferencesProvider({ children }) {
   }, [preferences.language])
 
   const setThemeMode = useCallback((themeMode) => {
-    updatePreferences({ themeMode: themeMode === 'dark' ? 'dark' : 'light' })
+    let resolved
+    if (themeMode === 'zorapro') resolved = 'zorapro'
+    else if (themeMode === 'dark') resolved = 'dark'
+    else resolved = 'light'
+    updatePreferences({ themeMode: resolved })
   }, [updatePreferences])
 
   const value = {

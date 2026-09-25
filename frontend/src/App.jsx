@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-
 import HomePage from './components/HomePage'
 import DiagnosticPage from './components/DiagnosticPage'
 import Dashboard from './components/Dashboard'
+import CalendarPage from './components/CalendarPage'
 import NewDocumentRequest from './components/NewDocumentRequest'
 import MyDocumentsStatus from './components/MyDocumentsStatus'
 import DraftDocuments from './components/DraftDocuments'
@@ -175,6 +176,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute module="calendar" action="view">
+              <Layout>
+                <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading calendar...</div>}>
+                  <CalendarPage />
+                </Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/project-tracking"
           element={

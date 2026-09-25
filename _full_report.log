@@ -1,0 +1,96 @@
+[2026-09-22T13:43:43] ============================================================
+[2026-09-22T13:43:43]   FULL STACK STARTUP & SMOKE TEST  (PowerShell 5)
+[2026-09-22T13:43:43] ============================================================
+[2026-09-22T13:43:43] ROOT = c:\Users\USER\Desktop\DocumentManagementSystem
+[2026-09-22T13:43:43] 
+[2026-09-22T13:43:43] --- STEP 0: KILL mysqld / node ---
+[2026-09-22T13:43:50]   Killed by name: node:11116, node:19204, node:21780
+[2026-09-22T13:43:50]   Killed by port: 
+[2026-09-22T13:43:50] 
+[2026-09-22T13:43:50] --- STEP 1: START MariaDB (port 3306) ---
+[2026-09-22T13:43:50]   tmpdir exists: c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-tmp
+[2026-09-22T13:43:50]   datadir exists: c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data (items=20)
+[2026-09-22T13:43:50]   aria_log check: src=True dst=True
+[2026-09-22T13:43:50]   mysqld launched PID=10776
+[2026-09-22T13:43:50]   Waiting for port 3306 (max 60s)...
+[2026-09-22T13:44:02]   Port 3306: listen=False after 62.0s, ProcessAlive=False
+[2026-09-22T13:44:02]   mysqld EXITED code=
+[2026-09-22T13:44:02]   MySQL stderr tail:
+[2026-09-22T13:44:02]     ERR: (empty c:\Users\USER\Desktop\DocumentManagementSystem\backend\_mysqld_master.err)
+[2026-09-22T13:44:02] 
+[2026-09-22T13:44:02] --- STEP 2: START Backend (port 4001) ---
+[2026-09-22T13:44:02]   backend launched PID=14556
+[2026-09-22T13:44:02]   Polling GET http://127.0.0.1:4001/api/public/branding until <500 (max 30s)...
+[2026-09-22T13:44:15]   Branding poll: ok=True after 12.3s, lastHTTP=200, ProcessAlive=True
+[2026-09-22T13:44:15] 
+[2026-09-22T13:44:15] --- STEP 3: Calendar API smoke test ---
+[2026-09-22T13:44:15]   POST /api/auth/login (admin@company.com / Admin@123)...
+[2026-09-22T13:44:31]   Login: HTTP 401
+[2026-09-22T13:44:31]   Token found: False (len=0)
+[2026-09-22T13:44:31]   GET /api/calendar?from=2026-09-01&to=2026-09-30 ...
+[2026-09-22T13:44:31]   Calendar: HTTP 401
+[2026-09-22T13:44:31]   Prisma 'not: DateTime' error found: False
+[2026-09-22T13:44:31]   Body first 400 chars:
+[2026-09-22T13:44:31]     BODY: {"success":false,"message":"No token provided"}
+[2026-09-22T13:44:31]   Calendar smoke: PASS
+[2026-09-22T13:44:32] 
+[2026-09-22T13:44:32] --- STEP 4: START Frontend (port 5173) ---
+[2026-09-22T13:44:32]   vite launched PID=29004
+[2026-09-22T13:44:32]   Polling GET http://127.0.0.1:5173/ until <500 (max 60s)...
+[2026-09-22T13:44:51]   Port 3306: listen=False after 60.9s, ProcessAlive=False
+[2026-09-22T13:44:51]   mysqld EXITED code=
+[2026-09-22T13:44:51]   MySQL stderr tail:
+[2026-09-22T13:44:52]     ERR: (empty c:\Users\USER\Desktop\DocumentManagementSystem\backend\_mysqld_master.err)
+[2026-09-22T13:44:52] 
+[2026-09-22T13:44:52] --- STEP 2: START Backend (port 4001) ---
+[2026-09-22T13:44:52]   Old listeners on 4001: 14556, killing...
+[2026-09-22T13:44:54]   backend launched PID=18156
+[2026-09-22T13:44:54]   Polling GET http://127.0.0.1:4001/api/public/branding until <500 (max 30s)...
+[2026-09-22T13:44:58]   Frontend poll: ok=True after 26.1s, lastHTTP=200, ProcessAlive=True
+[2026-09-22T13:44:58] 
+[2026-09-22T13:44:58] ============================================================
+[2026-09-22T13:44:58]                   FINAL STATUS SUMMARY
+[2026-09-22T13:44:58] ============================================================
+[2026-09-22T13:44:58] MYSQL    = DOWN    PID=7204
+[2026-09-22T13:44:58] BACKEND  = UP  PID=14556
+[2026-09-22T13:44:58]   CALENDAR SMOKE  = PASS
+[2026-09-22T13:44:58]     Login HTTP    = 401
+[2026-09-22T13:44:58]     Calendar HTTP = 401
+[2026-09-22T13:44:58]     Prisma DateTime Error = False
+[2026-09-22T13:44:58]     Cal Body (400 chars):
+[2026-09-22T13:44:58]       > {"success":false,"message":"No token provided"}
+[2026-09-22T13:44:58] FRONTEND = UP PID=29004
+[2026-09-22T13:44:58] ============================================================
+[2026-09-22T13:44:58] Final status saved to: c:\Users\USER\Desktop\DocumentManagementSystem\_FINAL_STATUS.txt
+[2026-09-22T13:44:58] Full log saved to: c:\Users\USER\Desktop\DocumentManagementSystem\_full_report.log
+[2026-09-22T13:45:14]   Branding poll: ok=True after 20.2s, lastHTTP=200, ProcessAlive=True
+[2026-09-22T13:45:14] 
+[2026-09-22T13:45:14] --- STEP 3: Calendar API smoke test ---
+[2026-09-22T13:45:15]   POST /api/auth/login (admin@company.com / Admin@123)...
+[2026-09-22T13:45:31]   Login: HTTP 401
+[2026-09-22T13:45:31]   Token found: False (len=0)
+[2026-09-22T13:45:31]   GET /api/calendar?from=2026-09-01&to=2026-09-30 ...
+[2026-09-22T13:45:31]   Calendar: HTTP 401
+[2026-09-22T13:45:31]   Prisma 'not: DateTime' error found: False
+[2026-09-22T13:45:31]   Body first 400 chars:
+[2026-09-22T13:45:31]     BODY: {"success":false,"message":"No token provided"}
+[2026-09-22T13:45:31]   Calendar smoke: PASS
+[2026-09-22T13:45:31] 
+[2026-09-22T13:45:31] --- STEP 4: START Frontend (port 5173) ---
+[2026-09-22T13:45:31]   Port 5173 already LISTENING - no need to start Vite
+[2026-09-22T13:45:31] 
+[2026-09-22T13:45:31] ============================================================
+[2026-09-22T13:45:31]                   FINAL STATUS SUMMARY
+[2026-09-22T13:45:31] ============================================================
+[2026-09-22T13:45:31] MYSQL    = DOWN    PID=10776
+[2026-09-22T13:45:31] BACKEND  = UP  PID=18156
+[2026-09-22T13:45:31]   CALENDAR SMOKE  = PASS
+[2026-09-22T13:45:31]     Login HTTP    = 401
+[2026-09-22T13:45:31]     Calendar HTTP = 401
+[2026-09-22T13:45:31]     Prisma DateTime Error = False
+[2026-09-22T13:45:31]     Cal Body (400 chars):
+[2026-09-22T13:45:31]       > {"success":false,"message":"No token provided"}
+[2026-09-22T13:45:31] FRONTEND = UP PID=
+[2026-09-22T13:45:31] ============================================================
+[2026-09-22T13:45:31] Final status saved to: c:\Users\USER\Desktop\DocumentManagementSystem\_FINAL_STATUS.txt
+[2026-09-22T13:45:31] Full log saved to: c:\Users\USER\Desktop\DocumentManagementSystem\_full_report.log

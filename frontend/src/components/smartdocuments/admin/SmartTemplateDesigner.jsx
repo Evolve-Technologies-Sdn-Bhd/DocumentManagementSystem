@@ -3600,15 +3600,15 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
           <div className="flex items-center gap-2 flex-nowrap justify-end">
             {saveStatus !== 'idle' && (
               <span className={[
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border flex-shrink-0',
-                saveStatus === 'saving' ? 'bg-sky-50 text-sky-700 border-sky-200' : '',
-                saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : '',
-                saveStatus === 'dirty' ? 'bg-amber-50 text-amber-700 border-amber-200' : '',
-                saveStatus === 'error' ? 'bg-red-50 text-red-700 border-red-200' : ''
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ring-1 flex-shrink-0 shadow-[0_2px_8px_rgba(15,23,42,0.08)]',
+                saveStatus === 'saving' ? 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-[var(--dms-color-info-ink)]/20' : '',
+                saveStatus === 'saved' ? 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-[var(--dms-color-success-ink)]/20' : '',
+                saveStatus === 'dirty' ? 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-[var(--dms-color-warning-ink)]/25' : '',
+                saveStatus === 'error' ? 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-[var(--dms-color-danger-ink)]/20' : ''
               ].filter(Boolean).join(' ')}>
-                {saveStatus === 'saving' && <><svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg> Saving...</>}
+                {saveStatus === 'saving' && <><svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg> Saving…</>}
                 {saveStatus === 'saved' && <><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg> Saved</>}
-                {saveStatus === 'dirty' && <><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Unsaved changes — click Next to save</>}
+                {saveStatus === 'dirty' && <><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Unsaved changes</>}
                 {saveStatus === 'error' && <><svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Save failed</>}
               </span>
             )}
@@ -3801,8 +3801,8 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-gray-700 font-sans">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                    <th className="w-10 px-3 py-2.5 text-center">
+                  <Tr>
+                    <Th align="center" className="w-10 px-2">
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-[#003366]"
@@ -3811,19 +3811,19 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
                         onChange={toggleSelectAll}
                         title={allSelected ? 'Deselect all' : 'Select all visible'}
                       />
-                    </th>
-                    <th className="px-3 py-2.5 text-left">#</th>
-                    <th className="px-3 py-2.5 text-left">Key</th>
-                    <th className="px-3 py-2.5 text-left">Type</th>
-                    <th className="px-3 py-2.5 text-left">Section</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Required">Req</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Author Editable">Auth</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Reviewer Editable">Rev</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Visible in Form">Vis</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Searchable">Src</th>
-                    <th className="px-3 py-2.5 text-center w-12" title="Supporting Field (auto-renders via {{supporting_data}} block)">Sup</th>
-                    <th className="px-3 py-2.5 w-20 text-right">Actions</th>
-                  </tr>
+                    </Th>
+                    <Th className="px-3">#</Th>
+                    <Th className="px-3">Key</Th>
+                    <Th className="px-3">Type</Th>
+                    <Th className="px-3">Section</Th>
+                    <Th align="center" className="w-12 px-3" title="Required">Req</Th>
+                    <Th align="center" className="w-12 px-3" title="Author Editable">Auth</Th>
+                    <Th align="center" className="w-12 px-3" title="Reviewer Editable">Rev</Th>
+                    <Th align="center" className="w-12 px-3" title="Visible in Form">Vis</Th>
+                    <Th align="center" className="w-12 px-3" title="Searchable">Src</Th>
+                    <Th align="center" className="w-12 px-3" title="Supporting Field (auto-renders via {{supporting_data}} block)">Sup</Th>
+                    <Th align="right" className="w-20 px-3">Actions</Th>
+                  </Tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredFields.length === 0 ? (
@@ -5937,15 +5937,15 @@ const PlaceholderMappingTab = forwardRef(function PlaceholderMappingTab({ templa
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm text-gray-700 font-sans">
                             <thead>
-                              <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                                <th className="w-10 px-3 py-2.5 text-center"></th>
-                                <th className="w-14 px-3 py-2.5 text-left">#</th>
-                                <th className="px-3 py-2.5 text-left">Placeholder</th>
-                                <th className="w-24 px-3 py-2.5 text-left">Status</th>
-                                <th className="px-3 py-2.5 text-left">Mapped Form Field</th>
-                                <th className="w-32 px-3 py-2.5 text-left">Input Type</th>
-                                <th className="w-20 px-3 py-2.5 text-right">Actions</th>
-                              </tr>
+                              <Tr>
+                                <Th align="center" className="w-10 px-2"></Th>
+                                <Th align="left" className="w-14 px-3">#</Th>
+                                <Th className="px-3">Placeholder</Th>
+                                <Th align="left" className="w-24 px-3">Status</Th>
+                                <Th className="px-3">Mapped Form Field</Th>
+                                <Th align="left" className="w-32 px-3">Input Type</Th>
+                                <Th align="right" className="w-20 px-3">Actions</Th>
+                              </Tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                               {group.length === 0 ? (

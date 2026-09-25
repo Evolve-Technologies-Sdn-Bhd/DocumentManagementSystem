@@ -253,64 +253,58 @@ export default function AuditLogsViewer() {
 
   const getActionBadge = (action) => {
     const colors = {
-      // Document actions
-      CREATE: 'bg-blue-100 text-blue-800',
-      UPDATE: 'bg-yellow-100 text-yellow-800',
-      DELETE: 'bg-red-100 text-red-800',
-      UPLOAD: 'bg-purple-100 text-purple-800',
-      DRAFT_UPLOAD: 'bg-purple-100 text-purple-800',
-      DOWNLOAD: 'bg-green-100 text-green-800',
-      VIEW: 'bg-gray-100 text-gray-800',
-      ACKNOWLEDGE: 'bg-green-100 text-green-800',
-      REJECT: 'bg-orange-100 text-orange-800',
-      // Workflow actions
-      SUBMIT_FOR_REVIEW: 'bg-blue-100 text-blue-800',
-      APPROVE: 'bg-teal-100 text-teal-800',
-      REVIEW_APPROVE: 'bg-teal-100 text-teal-800',
-      REVIEW_RETURN: 'bg-orange-100 text-orange-800',
-      FIRST_APPROVE: 'bg-teal-100 text-teal-800',
-      FIRST_RETURN: 'bg-orange-100 text-orange-800',
-      SECOND_APPROVE: 'bg-teal-100 text-teal-800',
-      SECOND_RETURN: 'bg-orange-100 text-orange-800',
-      PUBLISH: 'bg-emerald-100 text-emerald-800',
-      ARCHIVE: 'bg-slate-100 text-slate-800',
-      // Supersede/Obsolete actions
-      SUPERSEDE: 'bg-amber-100 text-amber-800',
-      OBSOLETE: 'bg-gray-100 text-gray-800',
-      SUPERSEDE_REQUEST: 'bg-amber-100 text-amber-800',
-      SUPERSEDE_REVIEW_APPROVE: 'bg-teal-100 text-teal-800',
-      SUPERSEDE_REVIEW_REJECT: 'bg-orange-100 text-orange-800',
-      SUPERSEDE_FINAL_APPROVE: 'bg-emerald-100 text-emerald-800',
-      SUPERSEDE_REJECT: 'bg-red-100 text-red-800',
-      // Version request actions
-      VERSION_REQUEST: 'bg-blue-100 text-blue-800',
-      VERSION_ACKNOWLEDGE: 'bg-green-100 text-green-800',
-      VERSION_REVIEW_APPROVE: 'bg-teal-100 text-teal-800',
-      VERSION_REVIEW_REJECT: 'bg-orange-100 text-orange-800',
-      VERSION_FINAL_APPROVE: 'bg-emerald-100 text-emerald-800',
-      VERSION_REJECT: 'bg-red-100 text-red-800',
-      // Auth actions
-      LOGIN: 'bg-indigo-100 text-indigo-800',
-      LOGOUT: 'bg-gray-100 text-gray-800',
-      PASSWORD_CHANGE: 'bg-purple-100 text-purple-800',
-      PASSWORD_RESET: 'bg-purple-100 text-purple-800',
-      // User management
-      ACTIVATE: 'bg-green-100 text-green-800',
-      DEACTIVATE: 'bg-red-100 text-red-800',
-      ROLE_ASSIGN: 'bg-blue-100 text-blue-800',
-      ROLE_REMOVE: 'bg-orange-100 text-orange-800',
-      // Role management
-      ROLE_CREATE: 'bg-blue-100 text-blue-800',
-      ROLE_UPDATE: 'bg-yellow-100 text-yellow-800',
-      ROLE_DELETE: 'bg-red-100 text-red-800',
-      ROLE_PERMISSION_UPDATE: 'bg-yellow-100 text-yellow-800',
-      // Folder management
-      FOLDER_CREATE: 'bg-blue-100 text-blue-800',
-      FOLDER_UPDATE: 'bg-yellow-100 text-yellow-800',
-      FOLDER_DELETE: 'bg-red-100 text-red-800',
+      CREATE: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      UPDATE: 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      DELETE: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
+      UPLOAD: 'bg-[color-mix(in_srgb,var(--dms-color-purple-soft,_var(--dms-color-brand-primary-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-brand-primary)] ring-1 ring-[var(--dms-color-brand-primary)]/15',
+      DRAFT_UPLOAD: 'bg-[color-mix(in_srgb,var(--dms-color-purple-soft,_var(--dms-color-brand-primary-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-brand-primary)] ring-1 ring-[var(--dms-color-brand-primary)]/15',
+      DOWNLOAD: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      VIEW: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_90%,var(--dms-color-bg-surface))] text-ink-secondary ring-1 ring-border-default',
+      ACKNOWLEDGE: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      REJECT: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      SUBMIT_FOR_REVIEW: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      REVIEW_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      REVIEW_RETURN: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      FIRST_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      FIRST_RETURN: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      SECOND_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      SECOND_RETURN: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      PUBLISH: 'bg-[color-mix(in_srgb,var(--dms-color-emerald-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      ARCHIVE: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_90%,var(--dms-color-bg-surface))] text-ink-secondary ring-1 ring-border-default',
+      SUPERSEDE: 'bg-[color-mix(in_srgb,var(--dms-color-amber-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      OBSOLETE: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_90%,var(--dms-color-bg-surface))] text-ink-secondary ring-1 ring-border-default',
+      SUPERSEDE_REQUEST: 'bg-[color-mix(in_srgb,var(--dms-color-amber-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      SUPERSEDE_REVIEW_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      SUPERSEDE_REVIEW_REJECT: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      SUPERSEDE_FINAL_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-emerald-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      SUPERSEDE_REJECT: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
+      VERSION_REQUEST: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      VERSION_ACKNOWLEDGE: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      VERSION_REVIEW_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-teal-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      VERSION_REVIEW_REJECT: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      VERSION_FINAL_APPROVE: 'bg-[color-mix(in_srgb,var(--dms-color-emerald-soft,_var(--dms-color-success-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      VERSION_REJECT: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
+      LOGIN: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/20',
+      LOGIN_FAILED: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/20',
+      ACCOUNT_LOCKED: 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/20',
+      LOGOUT: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_90%,var(--dms-color-bg-surface))] text-ink-secondary ring-1 ring-border-default',
+      PASSWORD_CHANGE: 'bg-[color-mix(in_srgb,var(--dms-color-purple-soft,_var(--dms-color-brand-primary-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-brand-primary)] ring-1 ring-[var(--dms-color-brand-primary)]/15',
+      PASSWORD_RESET: 'bg-[color-mix(in_srgb,var(--dms-color-purple-soft,_var(--dms-color-brand-primary-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-brand-primary)] ring-1 ring-[var(--dms-color-brand-primary)]/15',
+      ACTIVATE: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/15',
+      DEACTIVATE: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
+      ROLE_ASSIGN: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      ROLE_REMOVE: 'bg-[color-mix(in_srgb,var(--dms-color-orange-soft,_var(--dms-color-warning-soft))_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      ROLE_CREATE: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      ROLE_UPDATE: 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      ROLE_DELETE: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
+      ROLE_PERMISSION_UPDATE: 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      FOLDER_CREATE: 'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15',
+      FOLDER_UPDATE: 'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/15',
+      FOLDER_DELETE: 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_60%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)] ring-1 ring-[var(--dms-color-danger-ink)]/15',
     }
-    const colorClass = colors[action] || 'bg-gray-100 text-gray-800'
-    return <span className={`px-2 py-1 text-xs font-medium rounded ${colorClass}`}>{action}</span>
+    const colorClass = colors[action] || 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_90%,var(--dms-color-bg-surface))] text-ink-secondary ring-1 ring-border-default'
+    return <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-full ${colorClass}`}>{action}</span>
   }
 
   const auditLogsColumns = useMemo(() => [
@@ -339,7 +333,13 @@ export default function AuditLogsViewer() {
       key: 'module',
       accessor: 'module',
       label: t('alv_module'),
-      sortable: true
+      sortable: true,
+      render: (value) => (
+        <span className="inline-flex items-center gap-2 font-semibold text-ink">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--dms-color-brand-primary)]/60" />
+          {value || '-'}
+        </span>
+      )
     },
     {
       id: 'action',
@@ -356,7 +356,7 @@ export default function AuditLogsViewer() {
       label: t('description'),
       sortable: true,
       render: (value) => (
-        <div className="max-w-xs truncate" title={value}>{value || '-'}</div>
+        <div className="max-w-xs truncate text-sm text-ink-secondary" title={value}>{value || '-'}</div>
       )
     },
     {
@@ -371,6 +371,7 @@ export default function AuditLogsViewer() {
           onClick={() => setSelectedLog(row)}
           variant="ghost"
           size="sm"
+          className="text-[var(--dms-color-brand-primary)] font-semibold hover:underline hover:bg-[var(--dms-color-brand-primary-soft)]/40 ring-0"
         >
           {t('alv_view')}
         </Button>

@@ -1,0 +1,14 @@
+MYSQL PROCESSES:
+
+  Id ProcessName       WS     CPU
+  -- -----------       --     ---
+3296 mysqld      79826944 0.90625
+
+
+
+PORT 3306 LISTENING:
+
+  TCP    127.0.0.1:3306         0.0.0.0:0              LISTENING       3296
+
+
+

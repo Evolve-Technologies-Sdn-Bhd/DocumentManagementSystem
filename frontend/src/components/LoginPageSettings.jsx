@@ -203,8 +203,8 @@ function HeroCropPreview({ heroImage, focalX, focalY, onChange, presetKey, defau
         <div className="text-xs text-ink-muted">
           Preview: {size.width}×{size.height}px
         </div>
-        <label className="flex items-center gap-2 text-xs font-semibold text-ink">
-          <input type="checkbox" checked={lockAspectRatio} onChange={(e) => setLockAspectRatio(e.target.checked)} />
+        <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-1.5 text-xs font-semibold text-ink transition-all duration-150 hover:border-[var(--dms-color-border-strong)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+          <input type="checkbox" checked={lockAspectRatio} onChange={(e) => setLockAspectRatio(e.target.checked)} className="h-[16px] w-[16px] cursor-pointer accent-[var(--dms-color-brand-primary)] rounded border border-[var(--dms-color-border-default)] bg-white focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/25" />
           Lock ratio
         </label>
         <Button
@@ -373,22 +373,22 @@ export default function LoginPageSettings() {
         />
 
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
+          <label className="group flex cursor-pointer items-center justify-between rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 transition-all duration-150 hover:border-[var(--dms-color-border-strong)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
             <span className="text-sm font-medium text-ink">Show topbar</span>
             <input
               type="checkbox"
               checked={settings.showTopbar}
               onChange={(e) => updateRoot('showTopbar', e.target.checked)}
-              className="h-4 w-4"
+              className="h-[18px] w-[18px] cursor-pointer accent-[var(--dms-color-brand-primary)] rounded border border-[var(--dms-color-border-default)] bg-white focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/25"
             />
           </label>
-          <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3">
+          <label className="group flex cursor-pointer items-center justify-between rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 transition-all duration-150 hover:border-[var(--dms-color-border-strong)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
             <span className="text-sm font-medium text-ink">Show footer</span>
             <input
               type="checkbox"
               checked={settings.showFooter}
               onChange={(e) => updateRoot('showFooter', e.target.checked)}
-              className="h-4 w-4"
+              className="h-[18px] w-[18px] cursor-pointer accent-[var(--dms-color-brand-primary)] rounded border border-[var(--dms-color-border-default)] bg-white focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/25"
             />
           </label>
         </div>
@@ -402,21 +402,33 @@ export default function LoginPageSettings() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Page background">
-            <div className="flex gap-2">
-              <input type="color" value={settings.pageBackground} onChange={(e) => updateRoot('pageBackground', e.target.value)} className="h-10 w-14 rounded-xl border border-border" />
-              <TextInput value={settings.pageBackground} onChange={(e) => updateRoot('pageBackground', e.target.value)} />
+            <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+              <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                <input type="color" value={settings.pageBackground} onChange={(e) => updateRoot('pageBackground', e.target.value)} className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TextInput value={settings.pageBackground} onChange={(e) => updateRoot('pageBackground', e.target.value)} className="!border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0" />
+              </div>
             </div>
           </Field>
           <Field label="Form card background">
-            <div className="flex gap-2">
-              <input type="color" value={settings.formCardBackground} onChange={(e) => updateRoot('formCardBackground', e.target.value)} className="h-10 w-14 rounded-xl border border-border" />
-              <TextInput value={settings.formCardBackground} onChange={(e) => updateRoot('formCardBackground', e.target.value)} />
+            <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+              <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                <input type="color" value={settings.formCardBackground} onChange={(e) => updateRoot('formCardBackground', e.target.value)} className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TextInput value={settings.formCardBackground} onChange={(e) => updateRoot('formCardBackground', e.target.value)} className="!border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0" />
+              </div>
             </div>
           </Field>
           <Field label="Form card border">
-            <div className="flex gap-2">
-              <input type="color" value={settings.formCardBorderColor} onChange={(e) => updateRoot('formCardBorderColor', e.target.value)} className="h-10 w-14 rounded-xl border border-border" />
-              <TextInput value={settings.formCardBorderColor} onChange={(e) => updateRoot('formCardBorderColor', e.target.value)} />
+            <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+              <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                <input type="color" value={settings.formCardBorderColor} onChange={(e) => updateRoot('formCardBorderColor', e.target.value)} className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TextInput value={settings.formCardBorderColor} onChange={(e) => updateRoot('formCardBorderColor', e.target.value)} className="!border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0" />
+              </div>
             </div>
           </Field>
         </div>
@@ -450,7 +462,7 @@ export default function LoginPageSettings() {
                 value={settings.heroSection.description}
                 onChange={(e) => updateHero('description', e.target.value)}
                 rows={4}
-                className="w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150 resize-y"
               />
             </Field>
           </div>
@@ -505,14 +517,16 @@ export default function LoginPageSettings() {
             </Field>
 
             <Field label="Preview size" hint="Desktop matches the left hero panel (50% screen width x 100vh).">
-              <select
-                value={heroPreviewMode}
-                onChange={(e) => setHeroPreviewMode(e.target.value)}
-                className="block w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink"
-              >
-                <option value="desktop">Desktop (Recommended)</option>
-                <option value="widescreen">Widescreen (16:9)</option>
-              </select>
+              <div className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                <select
+                  value={heroPreviewMode}
+                  onChange={(e) => setHeroPreviewMode(e.target.value)}
+                  className="block w-full rounded-xl bg-transparent px-4 py-3 text-sm text-ink outline-none"
+                >
+                  <option value="desktop">Desktop (Recommended)</option>
+                  <option value="widescreen">Widescreen (16:9)</option>
+                </select>
+              </div>
             </Field>
           </div>
 
@@ -596,13 +610,13 @@ export default function LoginPageSettings() {
               />
             </Field>
 
-            <label className="flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3 md:col-span-2">
+            <label className="group md:col-span-2 flex cursor-pointer items-center justify-between rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 transition-all duration-150 hover:border-[var(--dms-color-border-strong)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
               <span className="text-sm font-medium text-ink">Enable text shadow</span>
               <input
                 type="checkbox"
                 checked={settings.heroSection.heroTextShadowEnabled !== false}
                 onChange={(e) => updateHero('heroTextShadowEnabled', e.target.checked)}
-                className="h-4 w-4"
+                className="h-[18px] w-[18px] cursor-pointer accent-[var(--dms-color-brand-primary)] rounded border border-[var(--dms-color-border-default)] bg-white focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/25"
               />
             </label>
 
@@ -678,14 +692,18 @@ export default function LoginPageSettings() {
             </Field>
 
             <Field label="Highlight color">
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={settings.heroSection.heroHighlightColor || '#F6AA3B'}
-                  onChange={(e) => updateHero('heroHighlightColor', e.target.value)}
-                  className="h-10 w-14 rounded-xl border border-border"
-                />
-                <TextInput value={settings.heroSection.heroHighlightColor || ''} onChange={(e) => updateHero('heroHighlightColor', e.target.value)} />
+              <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                  <input
+                    type="color"
+                    value={settings.heroSection.heroHighlightColor || '#F6AA3B'}
+                    onChange={(e) => updateHero('heroHighlightColor', e.target.value)}
+                    className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <TextInput value={settings.heroSection.heroHighlightColor || ''} onChange={(e) => updateHero('heroHighlightColor', e.target.value)} className="!border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0" />
+                </div>
               </div>
             </Field>
 

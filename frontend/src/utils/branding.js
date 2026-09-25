@@ -153,7 +153,9 @@ export function readThemeSettings() {
 
 export function readThemeMode() {
   const preferences = readStoredJson('userPreferences')
-  return preferences?.themeMode === 'dark' ? 'dark' : 'light'
+  const mode = preferences?.themeMode
+  if (mode === 'zorapro') return 'zorapro'
+  return mode === 'dark' ? 'dark' : 'light'
 }
 
 export function readCompanyInfo() {
@@ -234,7 +236,7 @@ export function applyTheme(themeObj) {
   if (!themeObj || typeof themeObj !== 'object') return
   inMemoryBranding.theme = cloneValue(themeObj)
   const root = document.documentElement
-  const isDark = root.dataset.theme === 'dark'
+  const isDark = root.dataset.theme === 'dark' || root.dataset.theme === 'zorapro'
   const computed = getComputedStyle(root)
   const surfaceBg = computed.getPropertyValue('--dms-color-bg-surface').trim() || getComputedStyle(document.body).backgroundColor
   if (!isDark) {
@@ -389,10 +391,17 @@ export function applyTheme(themeObj) {
 
 export function applyThemeMode(mode = 'light') {
   const root = document.documentElement
-  const nextMode = mode === 'dark' ? 'dark' : 'light'
+  let nextMode
+  if (mode === 'zorapro') {
+    nextMode = 'zorapro'
+  } else if (mode === 'dark') {
+    nextMode = 'dark'
+  } else {
+    nextMode = 'light'
+  }
   root.dataset.theme = nextMode
-  root.style.colorScheme = nextMode
-  if (nextMode === 'dark') {
+  root.style.colorScheme = nextMode === 'light' ? 'light' : 'dark'
+  if (nextMode === 'dark' || nextMode === 'zorapro') {
     const clearVars = [
       '--dms-sidebar-bg',
       '--dms-sidebar-text',

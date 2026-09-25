@@ -166,6 +166,652 @@ button, input, select, textarea {
   --dms-shadow-lg: 0 18px 38px rgba(2, 6, 23, 0.5);
 }
 
+:root[data-theme='zorapro'] {
+  /* ═══════════════════════════════════════════════════════
+     ZORA PRO — ACCESSIBILITY-FRIENDLY FOR MATURE EYES
+     - NO pure black (avoids OLED flicker / eye burn)
+     - MATTE cyan/teal (no retina-burning neon)
+     - Font +1px, line-height 1.6 min, spacing +25%
+     - Secondary text WCAG AA (4.5:1 min contrast)
+     - Basic semantic slate/gray/white for neutral elements
+     ═══════════════════════════════════════════════════════ */
+
+  /* — Brand/accents: muted matte cyan+teal, NOT neon — */
+  --dms-primary: #0ea5b7;
+  --dms-primary-dark: #0f766e;
+  --dms-secondary: #0d9488;
+  --dms-accent: #14b8a6;
+  --dms-success: #10b981;
+  --dms-warning: #d97706;
+  --dms-error: #dc2626;
+  --dms-info: #0891b2;
+
+  /* — Backgrounds: SOFT DARK NAVY (NOT pure black = OLED friendly) — */
+  --dms-sidebar-bg: #121936;
+  --dms-sidebar-text: #e2e8f0;
+  --dms-main-bg: #151e3f;
+  --dms-tab-text: #a8b3cf;
+  --dms-tab-active: #22d3ee;
+  --dms-muted: #a8b3cf;
+  --dms-card-bg: #1b2449;
+  --dms-panel-bg: #182143;
+
+  --dms-color-bg-canvas: #151e3f;
+  --dms-color-bg-surface: rgba(27, 36, 73, 0.985);
+  --dms-color-bg-surface-muted: #182143;
+  --dms-color-bg-surface-strong: #1e2a55;
+  --dms-color-bg-overlay: rgba(10, 15, 35, 0.78);
+
+  --dms-color-bg-topbar: #121936;
+  --dms-color-border-topbar: rgba(34, 211, 238, 0.10);
+  --dms-color-bg-topbar-surface: rgba(27, 36, 73, 0.72);
+  --dms-color-bg-topbar-surface-hover: rgba(20, 184, 166, 0.08);
+
+  --dms-color-bg-sidebar: #121936;
+  --dms-color-bg-sidebar-hover: rgba(34, 211, 238, 0.06);
+  --dms-color-bg-sidebar-active: #0ea5b7;
+  --dms-sidebar-text: #e2e8f0;
+
+  /* — Branding matte shades, hover gradient subtle — */
+  --dms-color-brand-primary: #0ea5b7;
+  --dms-color-brand-primary-hover: #2dd4bf;
+  --dms-color-brand-secondary: #0d9488;
+  --dms-color-accent: #14b8a6;
+
+  /* — TEXT: Higher contrast, less pure white (less glare) — */
+  --dms-color-text-primary: #f1f5f9;         /* slate-100 (not pure #fff) = eye-friendly */
+  --dms-color-text-secondary: #cbd5e1;       /* slate-300 (WCAG 4.5+:1 vs bg) */
+  --dms-color-text-muted: #a8b3cf;           /* custom raised contrast from #94a3b8 */
+  --dms-color-text-soft: #97a3c3;            /* slightly above 4.5:1 on #1b2449 */
+  --dms-color-text-meta: #8894b6;            /* still readable, not muddy */
+  --dms-color-text-inverse: #f8fafc;
+  --dms-color-text-on-brand: #0a0f24;        /* dark navy text on buttons */
+  --dms-color-text-on-danger: #0a0f24;
+
+  /* — Borders: subtle, not aggressive, consistent slate tint — */
+  --dms-color-border-default: rgba(148, 163, 184, 0.22);  /* slate tint, not always cyan */
+  --dms-color-border-strong: rgba(148, 163, 184, 0.42);
+
+  /* — Semantic basic colors (slate / gray / white neutrals) — */
+  --dms-color-success-default: #10b981;
+  --dms-color-success-soft: rgba(16, 185, 129, 0.14);
+  --dms-color-success-ink: #6ee7b7;
+
+  --dms-color-warning-default: #d97706;
+  --dms-color-warning-soft: rgba(217, 119, 6, 0.16);
+  --dms-color-warning-ink: #fcd34d;
+
+  --dms-color-danger-default: #dc2626;
+  --dms-color-danger-soft: rgba(220, 38, 38, 0.16);
+  --dms-color-danger-ink: #fca5a5;
+
+  --dms-color-info-default: #0891b2;
+  --dms-color-info-soft: rgba(8, 145, 178, 0.14);
+  --dms-color-info-ink: #7dd3fc;
+
+  /* — SPACING +25% (from default DMS 4/8/12/16/20/24/32) — */
+  --dms-space-1: 5px;
+  --dms-space-2: 10px;
+  --dms-space-3: 15px;
+  --dms-space-4: 20px;
+  --dms-space-5: 26px;
+  --dms-space-6: 32px;
+  --dms-space-8: 42px;
+
+  /* — RADIUS: softer rounder (mature eyes = less sharp corners) — */
+  --dms-radius-sm: 12px;
+  --dms-radius-md: 16px;
+  --dms-radius-lg: 20px;
+  --dms-radius-pill: 999px;
+
+  /* — SHADOW: softer matte shadows, no harsh blacks — */
+  --dms-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.22);
+  --dms-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --dms-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.34);
+
+  /* — FONT SIZES: +1px base, +1~2px others (mature eyes read bigger easier) — */
+  --dms-font-size-xs: 13px;
+  --dms-font-size-sm: 14px;
+  --dms-font-size-md: 15px;
+  --dms-font-size-lg: 17px;
+  --dms-font-size-xl: 22px;
+  --dms-font-size-2xl: 30px;
+
+  /* — LAYOUT: gutters wider (content not cramped) — */
+  --dms-layout-topbar-height: 62px;
+  --dms-layout-sidebar-width: 236px;
+  --dms-layout-sidebar-width-lg: 252px;
+  --dms-layout-sidebar-collapsed: 80px;
+  --dms-layout-rightpanel-width: 340px;
+  --dms-layout-page-max: 1440px;
+  --dms-layout-page-gutter-mobile: 16px;
+  --dms-layout-page-gutter-tablet: 22px;
+  --dms-layout-page-gutter-desktop: 28px;
+}
+
+:root[data-theme='zorapro'] .card,
+:root[data-theme='zorapro'] .dms-surface {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(155deg, rgba(14, 165, 183, 0.025) 0%, var(--dms-color-bg-surface) 60%, rgba(13, 148, 136, 0.02) 100%);
+}
+
+:root[data-theme='zorapro'] .card::after,
+:root[data-theme='zorapro'] .dms-surface::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, #0ea5b7 0%, #0d9488 55%, rgba(13, 148, 136, 0) 100%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+:root[data-theme='zorapro'] .app-sidebar {
+  background: linear-gradient(180deg, #121936 0%, #151e3f 100%);
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 3px 0 18px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme='zorapro'] .app-topbar {
+  background: linear-gradient(90deg, #121936 0%, #151e3f 100%);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+:root[data-theme='zorapro'] body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(14, 165, 183, 0.04), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(13, 148, 136, 0.03), transparent);
+  line-height: 1.6 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Smooth color-transition, prevents flicker when toggling (eye-friendly) */
+:root[data-theme='zorapro'] *:not(.no-transition),
+:root[data-theme='zorapro'] *:not(.no-transition)::before,
+:root[data-theme='zorapro'] *:not(.no-transition)::after {
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out,
+    box-shadow 140ms ease-out,
+    fill 140ms ease-out,
+    stroke 140ms ease-out !important;
+  transition-delay: 0 !important;
+}
+
+:root[data-theme='zorapro'] .app-sidebar [class*="sidebar-active"],
+:root[data-theme='zorapro'] .app-sidebar [data-active="true"],
+:root[data-theme='zorapro'] .app-sidebar .bg-sidebar-active,
+:root[data-theme='zorapro'] .app-sidebar a.active {
+  color: #0a0f24 !important;
+  font-weight: 600;
+  border-radius: 12px !important;
+}
+
+:root[data-theme='zorapro'] .app-sidebar [class*="sidebar-active"] svg,
+:root[data-theme='zorapro'] .app-sidebar .bg-sidebar-active svg,
+:root[data-theme='zorapro'] .app-sidebar a.active svg {
+  color: #0a0f24 !important;
+}
+
+:root[data-theme='zorapro'] .modal-uniform,
+:root[data-theme='zorapro'] .modal-uniform * {
+  --dms-color-bg-surface: #1b2449 !important;
+  --dms-color-bg-surface-muted: #182143 !important;
+  --dms-color-bg-surface-strong: #1e2a55 !important;
+  --dms-color-text-primary: #f1f5f9 !important;
+  --dms-color-text-secondary: #cbd5e1 !important;
+  --dms-color-text-muted: #a8b3cf !important;
+  --dms-color-text-soft: #97a3c3 !important;
+  --dms-color-text-meta: #8894b6 !important;
+  --dms-color-text-inverse: #f8fafc !important;
+  --dms-color-text-on-brand: #0a0f24 !important;
+  --dms-color-text-on-danger: #0a0f24 !important;
+  --dms-color-border-default: rgba(148, 163, 184, 0.24) !important;
+  --dms-color-border-strong: rgba(148, 163, 184, 0.42) !important;
+  --dms-color-brand-primary: #0ea5b7 !important;
+  --dms-color-brand-primary-hover: #2dd4bf !important;
+  --dms-color-brand-secondary: #0d9488 !important;
+  --dms-radius-sm: 12px !important;
+  --dms-radius-md: 16px !important;
+  --dms-radius-lg: 20px !important;
+  --dms-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+  --dms-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+  --dms-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.34) !important;
+}
+
+:root[data-theme='zorapro'] .modal-uniform label,
+:root[data-theme='zorapro'] .modal-uniform .text-ink-secondary,
+:root[data-theme='zorapro'] .modal-uniform .text-ink-muted,
+:root[data-theme='zorapro'] .modal-uniform .text-ink-soft {
+  color: #ffffff !important;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+:root[data-theme='zorapro'] .modal-uniform .text-ink-muted,
+:root[data-theme='zorapro'] .modal-uniform .text-ink-soft {
+  color: #94a3b8 !important;
+  font-weight: 400;
+}
+:root[data-theme='zorapro'] .modal-uniform .dms-surface,
+:root[data-theme='zorapro'] .modal-uniform .dms-surface-muted {
+  background: #141d3a !important;
+  border-color: rgba(34, 211, 238, 0.22) !important;
+  border-radius: 14px !important;
+}
+:root[data-theme='zorapro'] .modal-uniform [class~="bg-brand"],
+:root[data-theme='zorapro'] .modal-uniform [class~="bg-blue-600"],
+:root[data-theme='zorapro'] .modal-uniform [class~="bg-brand-primary"] {
+  background-color: #22d3ee !important;
+  color: #0a0e20 !important;
+}
+:root[data-theme='zorapro'] .modal-uniform [class~="bg-brand"]:hover,
+:root[data-theme='zorapro'] .modal-uniform [class~="bg-blue-600"]:hover {
+  background-color: #06b6d4 !important;
+}
+:root[data-theme='zorapro'] .ui-table-wrapper thead > tr {
+  background-color: rgba(17, 24, 51, 0.6) !important;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.2) !important;
+}
+:root[data-theme='zorapro'] .ui-table-wrapper tbody > tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08) !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ZORA PRO — GLOBAL BLUE → CYAN/TEAL/GREEN RECOLORING
+   Only affects Zora Pro theme, leaves light/dark intact
+   ═══════════════════════════════════════════════════════ */
+
+/* 1) Background blue shades → MATTE teal/cyan (no retina burn) */
+:root[data-theme='zorapro'] [class*="bg-blue-50"]  { background-color: rgba(14, 165, 183, 0.08) !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-100"] { background-color: rgba(13, 148, 136, 0.12) !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-200"] { background-color: #14b8a6 !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-300"] { background-color: #0ea5b7 !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-400"] { background-color: #0891b2 !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-500"] { background-color: #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-600"] { background-color: #0f766e !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-700"] { background-color: #115e59 !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-800"] { background-color: #134e4a !important; }
+:root[data-theme='zorapro'] [class*="bg-blue-900"] { background-color: #164e63 !important; }
+
+/* 2) Text blue shades → matte teal ink (high contrast, not neon) */
+:root[data-theme='zorapro'] [class*="text-blue-400"] { color: #2dd4bf !important; }
+:root[data-theme='zorapro'] [class*="text-blue-500"] { color: #0ea5b7 !important; }
+:root[data-theme='zorapro'] [class*="text-blue-600"] { color: #14b8a6 !important; }
+:root[data-theme='zorapro'] [class*="text-blue-700"] { color: #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="text-blue-800"] { color: #0891b2 !important; }
+
+/* 3) Border blue → matte teal border (slate-based subtle) */
+:root[data-theme='zorapro'] [class*="border-blue-200"] { border-color: rgba(14, 165, 183, 0.22) !important; }
+:root[data-theme='zorapro'] [class*="border-blue-300"] { border-color: rgba(13, 148, 136, 0.42) !important; }
+:root[data-theme='zorapro'] [class*="border-blue-400"] { border-color: #14b8a6 !important; }
+:root[data-theme='zorapro'] [class*="border-blue-500"] { border-color: #0d9488 !important; }
+
+/* 4) Ring (focus outline) blue → DIM teal ring (sakit mata kalau terlalu cerah) */
+:root[data-theme='zorapro'] [class*="ring-blue-200"],
+:root[data-theme='zorapro'] [class*="ring-blue-300"] {
+  --tw-ring-color: rgba(14, 165, 183, 0.22) !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 183, 0.28) !important;
+}
+:root[data-theme='zorapro'] [class*="ring-blue-400"],
+:root[data-theme='zorapro'] [class*="ring-blue-500"],
+:root[data-theme='zorapro'] [class*="ring-blue-600"] {
+  --tw-ring-color: rgba(13, 148, 136, 0.35) !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.38) !important;
+}
+
+/* 5) Gradient blue stops → matte teal (from-/to-/via-) */
+:root[data-theme='zorapro'] [class*="from-blue-400"] { --tw-gradient-from: #0ea5b7 !important; --tw-gradient-stops: #0ea5b7, #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="from-blue-500"] { --tw-gradient-from: #0d9488 !important; --tw-gradient-stops: #0d9488, #0f766e !important; }
+:root[data-theme='zorapro'] [class*="from-blue-600"] { --tw-gradient-from: #0f766e !important; --tw-gradient-stops: #0f766e, #115e59 !important; }
+:root[data-theme='zorapro'] [class*="to-blue-500"]   { --tw-gradient-to: #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="to-blue-600"]   { --tw-gradient-to: #0f766e !important; }
+:root[data-theme='zorapro'] [class*="via-blue-500"]  { --tw-gradient-via: #14b8a6 !important; }
+
+/* 6) Butang global — gradient matte, glow minimal, border soft
+   NO retina burn buttons */
+:root[data-theme='zorapro'] .ui-button-primary,
+:root[data-theme='zorapro'] [aria-checked="true"],
+:root[data-theme='zorapro'] [type="submit"]:not([class*="text-muted"]):not([class*="bg-surface"]),
+:root[data-theme='zorapro'] button[class*="bg-brand"]:not([class*="bg-brand-subtle"]):not([class*="bg-brand/"]) {
+  background-image: linear-gradient(135deg, #0ea5b7 0%, #0d9488 100%) !important;
+  background-color: #0d9488 !important;
+  color: #f1f5f9 !important;       /* white-ish text for contrast on matte button */
+  border-color: rgba(14, 165, 183, 0.35) !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22) !important;
+  font-weight: 600 !important;
+}
+:root[data-theme='zorapro'] button[class*="bg-brand"]:not([class*="bg-brand-subtle"]):not([class*="bg-brand/"]):hover {
+  background-image: linear-gradient(135deg, #14b8a6 0%, #0ea5b7 100%) !important;
+  background-color: #14b8a6 !important;
+}
+
+/* 7) Butang text-icon (Edit/Back) berwarna biru → matte teal, contrast OK */
+:root[data-theme='zorapro'] a[class*="text-brand"],
+:root[data-theme='zorapro'] button[class*="text-brand"] {
+  color: #14b8a6 !important;
+}
+
+/* 8) Password strength bar → teal/cyan skala kestabilan (leave alone, managed by semantic) */
+
+/* 9) Checkbox / Radio accent → matte teal (WCAG contrast) */
+:root[data-theme='zorapro'] input[type="checkbox"],
+:root[data-theme='zorapro'] input[type="radio"] {
+  accent-color: #14b8a6 !important;
+}
+
+/* 10) Link color default (anchor tag) — matte, underlined, clickable clearly */
+:root[data-theme='zorapro'] a:not([class]) {
+  color: #2dd4bf !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+:root[data-theme='zorapro'] a:not([class]):hover {
+  color: #14b8a6 !important;
+}
+
+/* 11) Focus-visible ring defaults — DIMMED, 1.5px, NO blinding cyan flash */
+:root[data-theme='zorapro'] *:focus-visible {
+  outline: 1.5px solid #14b8a6 !important;
+  outline-offset: 2px !important;
+}
+
+/* 12) Pagination — active page dot/number, subtle solid bg */
+:root[data-theme='zorapro'] [aria-current="page"],
+:root[data-theme='zorapro'] [aria-current="true"] {
+  background-color: #0d9488 !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(14, 165, 183, 0.5) !important;
+  font-weight: 600 !important;
+}
+
+/* 13) Drag & drop highlight (biru→teal) */
+:root[data-theme='zorapro'] [class*="border-dashed"][class*="border-blue-"],
+:root[data-theme='zorapro'] [style*="border-blue"] {
+  border-color: #14b8a6 !important;
+}
+
+/* 14) Toggle switch — ON state, matte linear gradient (no neon) */
+:root[data-theme='zorapro'] .peer:checked ~ * {
+  --tw-bg-opacity: 1;
+}
+:root[data-theme='zorapro'] [class*="peer-checked:bg-brand"],
+:root[data-theme='zorapro'] [class*="peer-checked\\:bg-brand"] {
+  background-image: linear-gradient(90deg, #0ea5b7, #0d9488) !important;
+}
+
+/* 15) Table — ZEBRA rows untuk mature eyes (lebih senang baca panjang) */
+:root[data-theme='zorapro'] tbody > tr:nth-child(odd):not([aria-selected="true"]):not([class*="selected"]) {
+  background-color: rgba(255, 255, 255, 0.012) !important;
+}
+:root[data-theme='zorapro'] tbody > tr:nth-child(even):not([aria-selected="true"]):not([class*="selected"]) {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+:root[data-theme='zorapro'] tr[class*="selected"],
+:root[data-theme='zorapro'] tbody > tr[aria-selected="true"] {
+  background-color: rgba(13, 148, 136, 0.16) !important;
+  box-shadow: inset 2px 0 0 #14b8a6 !important;
+}
+:root[data-theme='zorapro'] tbody > tr:hover {
+  background-color: rgba(14, 165, 183, 0.08) !important;
+}
+
+/* 16) Breadcrumb links and separators — matte teal, larger */
+:root[data-theme='zorapro'] nav[aria-label="breadcrumb"] a,
+:root[data-theme='zorapro'] nav[aria-label="Breadcrumb"] a {
+  color: #2dd4bf !important;
+  font-weight: 500;
+}
+:root[data-theme='zorapro'] nav[aria-label="breadcrumb"] li:last-child,
+:root[data-theme='zorapro'] nav[aria-label="Breadcrumb"] li:last-child {
+  color: #cbd5e1 !important;
+  font-weight: 600;
+}
+
+/* 17) Folder / file tree — selected item accent, LEFT BAR INDICATOR tebal jelas */
+:root[data-theme='zorapro'] [role="treeitem"][aria-selected="true"],
+:root[data-theme='zorapro'] [role="option"][aria-selected="true"],
+:root[data-theme='zorapro'] [role="treeitem"][data-active="true"],
+:root[data-theme='zorapro'] [data-folder-active="true"] {
+  background-color: rgba(14, 165, 183, 0.14) !important;
+  border-left: 3px solid #0d9488 !important;
+  color: #f1f5f9 !important;
+  font-weight: 600 !important;
+}
+
+/* 18) Version / status badges info (biru→matte teal, border clearly slate tinted) */
+:root[data-theme='zorapro'] span[class*="bg-blue"][class*="text-blue"],
+:root[data-theme='zorapro'] .badge-info,
+:root[data-theme='zorapro'] .status-info {
+  background-color: rgba(14, 165, 183, 0.16) !important;
+  color: #5eead4 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  font-weight: 600 !important;
+}
+
+/* 19) Progress bar fill — accent teal */
+:root[data-theme='zorapro'] [role="progressbar"],
+:root[data-theme='zorapro'] [class*="w-"][style*="width"]:not(td):not(tr) {
+  accent-color: #14b8a6;
+}
+
+/* 20) Dropdown / Select active highlight — clear matte teal */
+:root[data-theme='zorapro'] [role="option"]:hover,
+:root[data-theme='zorapro'] [role="option"][aria-selected="true"],
+:root[data-theme='zorapro'] select option:checked {
+  background-color: rgba(13, 148, 136, 0.26) !important;
+  color: #f1f5f9 !important;
+}
+
+/* 21) Info / System alerts — soft teal, border clearly visible */
+:root[data-theme='zorapro'] [class*="alert-info"],
+:root[data-theme='zorapro'] [class*="toast-info"] {
+  background-color: rgba(14, 165, 183, 0.14) !important;
+  border-color: rgba(13, 148, 136, 0.38) !important;
+  color: #a7f3d0 !important;
+}
+
+/* 22) KPI / dashboard trend arrows — emerald 600 soft, not retina */
+:root[data-theme='zorapro'] [class*="trend-up"],
+:root[data-theme='zorapro'] [class*="text-emerald-600"][class*="trend"],
+:root[data-theme='zorapro'] svg[class*="trend-up"] {
+  color: #10b981 !important;
+}
+:root[data-theme='zorapro'] [class*="trend-down"] {
+  color: #f87171 !important;
+}
+
+/* 23) Nav tab / pill active underline accent — matte teal solid */
+:root[data-theme='zorapro'] [role="tab"][aria-selected="true"],
+:root[data-theme='zorapro'] button[class*="border-b-2"][class*="border-brand"] {
+  border-color: #14b8a6 !important;
+  color: #2dd4bf !important;
+  font-weight: 600 !important;
+}
+
+/* 24) Tooltip & Popover pointer / border — slate border, not always cyan */
+:root[data-theme='zorapro'] [role="tooltip"],
+:root[data-theme='zorapro'] [data-popover] {
+  border-color: rgba(148, 163, 184, 0.3) !important;
+}
+
+/* 25) Stepper indicators — matte teal, white text */
+:root[data-theme='zorapro'] [class*="step-"][class*="active"],
+:root[data-theme='zorapro'] [data-step-active="true"] {
+  background-color: #0d9488 !important;
+  border-color: rgba(14, 165, 183, 0.55) !important;
+  color: #f1f5f9 !important;
+  font-weight: 700 !important;
+}
+
+/* 26) Scrollbar theme — MATTE soft teal gradient (no retina neon!) */
+:root[data-theme='zorapro'] .dms-scrollbar::-webkit-scrollbar-thumb,
+:root[data-theme='zorapro'] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0ea5b7, #0d9488) !important;
+  border-radius: 999px !important;
+}
+:root[data-theme='zorapro'] .dms-scrollbar::-webkit-scrollbar-thumb:hover,
+:root[data-theme='zorapro'] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #14b8a6, #0ea5b7) !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ZORA PRO — 27-34. ACCESSIBILITY RECOLOR REFINEMENTS
+   Sky, Purple, Indigo, Calendar, Today, Selection, Charts
+   All MATTE, no retina burn, semantic slate neutrals
+   ═══════════════════════════════════════════════════════ */
+
+/* 27) Sky (biru muda badges → matte teal (AI-minor severity, comment-info) */
+:root[data-theme='zorapro'] [class*="bg-sky-50"],
+:root[data-theme='zorapro'] [class*="bg-sky-100"] {
+  background-color: rgba(14, 165, 183, 0.12) !important;
+}
+:root[data-theme='zorapro'] [class*="bg-sky-200"] { background-color: #14b8a6 !important; }
+:root[data-theme='zorapro'] [class*="bg-sky-300"] { background-color: #0ea5b7 !important; }
+:root[data-theme='zorapro'] [class*="bg-sky-400"] { background-color: #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="bg-sky-500"] { background-color: #0f766e !important; }
+:root[data-theme='zorapro'] [class*="bg-sky-600"] { background-color: #115e59 !important; }
+:root[data-theme='zorapro'] [class*="bg-sky-700"] { background-color: #164e63 !important; }
+:root[data-theme='zorapro'] [class*="text-sky-400"],
+:root[data-theme='zorapro'] [class*="text-sky-500"],
+:root[data-theme='zorapro'] [class*="text-sky-600"],
+:root[data-theme='zorapro'] [class*="text-sky-700"],
+:root[data-theme='zorapro'] [class*="text-sky-800"] {
+  color: #2dd4bf !important;
+}
+:root[data-theme='zorapro'] [class*="border-sky-100"],
+:root[data-theme='zorapro'] [class*="border-sky-200"],
+:root[data-theme='zorapro'] [class*="border-sky-300"] {
+  border-color: rgba(14, 165, 183, 0.32) !important;
+}
+
+/* 28) Purple → matte teal (Calendar Custom category, version tag purple)
+   Avoid purple eye-fatigue; swap for basic semantic teal / slate neutral */
+:root[data-theme='zorapro'] [class*="bg-purple-50"],
+:root[data-theme='zorapro'] [class*="bg-purple-100"] {
+  background-color: rgba(13, 148, 136, 0.14) !important;
+}
+:root[data-theme='zorapro'] [class*="bg-purple-200"],
+:root[data-theme='zorapro'] [class*="bg-purple-300"] { background-color: #14b8a6 !important; }
+:root[data-theme='zorapro'] [class*="bg-purple-400"],
+:root[data-theme='zorapro'] [class*="bg-purple-500"] { background-color: #0ea5b7 !important; }
+:root[data-theme='zorapro'] [class*="bg-purple-600"],
+:root[data-theme='zorapro'] [class*="bg-purple-700"] { background-color: #0d9488 !important; }
+:root[data-theme='zorapro'] [class*="text-purple-400"],
+:root[data-theme='zorapro'] [class*="text-purple-500"],
+:root[data-theme='zorapro'] [class*="text-purple-600"],
+:root[data-theme='zorapro'] [class*="text-purple-700"],
+:root[data-theme='zorapro'] [class*="text-purple-800"] {
+  color: #5eead4 !important;
+}
+:root[data-theme='zorapro'] [class*="border-purple-100"],
+:root[data-theme='zorapro'] [class*="border-purple-200"],
+:root[data-theme='zorapro'] [class*="border-purple-300"] {
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+:root[data-theme='zorapro'] [class*="ring-purple-"] {
+  --tw-ring-color: rgba(13, 148, 136, 0.32) !important;
+}
+
+/* 29) Indigo (biru-ungu) → emerald green basic neutral */
+:root[data-theme='zorapro'] [class*="bg-indigo-"] {
+  background-color: #10b981 !important;
+}
+:root[data-theme='zorapro'] [class*="text-indigo-"] {
+  color: #34d399 !important;
+}
+
+/* 30) Calendar — TODAY marker (SUBTLE 1px + soft gradient bg, NO flashy!)
+   Mature eyes friendly, clear but not retina-burn */
+:root[data-theme='zorapro'] [data-cal-today="true"],
+:root[data-theme='zorapro'] [aria-label*="today" i],
+:root[data-theme='zorapro'] [class*="today-cell"] {
+  box-shadow: inset 0 0 0 1px #14b8a6 !important;
+  background: linear-gradient(145deg, rgba(14, 165, 183, 0.10), rgba(13, 148, 136, 0.06)) !important;
+  border-radius: 14px !important;
+}
+:root[data-theme='zorapro'] [class*="ring-blue"][class*="today"] {
+  --tw-ring-color: #0d9488 !important;
+}
+:root[data-theme='zorapro'] [data-cal-today="true"] > span:first-child,
+:root[data-theme='zorapro'] [class*="today-cell"] .date-num {
+  color: #f1f5f9 !important;
+  font-weight: 700 !important;
+}
+
+/* 31) Calendar — Selected / active date highlight (clear but matte) */
+:root[data-theme='zorapro'] [data-cal-selected="true"],
+:root[data-theme='zorapro'] [aria-pressed="true"][class*="day-cell"],
+:root[data-theme='zorapro'] [class*="bg-brand/20"] {
+  background-color: rgba(14, 165, 183, 0.24) !important;
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.55) !important;
+  border-radius: 14px !important;
+}
+
+/* 32) Calendar Week/Day View — now indicator (matte teal, soft glow) */
+:root[data-theme='zorapro'] [class*="now-indicator"],
+:root[data-theme='zorapro'] [class*="time-now"] {
+  background-color: #0ea5b7 !important;
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.18) !important;
+  height: 2px !important;
+}
+:root[data-theme='zorapro'] [class*="current-time"]::before {
+  background: #0ea5b7 !important;
+}
+
+/* 33) SVG Charts inline stroke/fill — hardcoded blues → matte teal/green/cyan
+   Analytics bar/pie line charts, sparklines */
+:root[data-theme='zorapro'] [class*="progress-fill-brand"] { }
+:root[data-theme='zorapro'] [data-chart-bar] [stroke="#3b82f6"],
+:root[data-theme='zorapro'] svg path[stroke="#3b82f6"],
+:root[data-theme='zorapro'] svg rect[fill="#3b82f6"] {
+  stroke: #0ea5b7 !important;
+  fill: #0ea5b7 !important;
+}
+:root[data-theme='zorapro'] svg path[stroke="#2563eb"],
+:root[data-theme='zorapro'] svg rect[fill="#2563eb"] {
+  stroke: #0d9488 !important;
+  fill: #0d9488 !important;
+}
+:root[data-theme='zorapro'] svg path[stroke="#60a5fa"],
+:root[data-theme='zorapro'] svg rect[fill="#60a5fa"] {
+  stroke: #14b8a6 !important;
+  fill: #14b8a6 !important;
+}
+
+/* 34) Extra global readability — table cell padding & input heights
+   Mature eyes = more click space + bigger touch targets */
+:root[data-theme='zorapro'] th,
+:root[data-theme='zorapro'] td {
+  padding-top: 13px !important;
+  padding-bottom: 13px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+:root[data-theme='zorapro'] input[type="text"],
+:root[data-theme='zorapro'] input[type="email"],
+:root[data-theme='zorapro'] input[type="password"],
+:root[data-theme='zorapro'] input[type="number"],
+:root[data-theme='zorapro'] input[type="search"],
+:root[data-theme='zorapro'] input[type="date"],
+:root[data-theme='zorapro'] textarea,
+:root[data-theme='zorapro'] select {
+  min-height: 44px !important;         /* WCAG 44x44 tap target */
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  font-size: 15px !important;
+}
+:root[data-theme='zorapro'] button {
+  min-height: 40px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
 .card {
   background: var(--dms-color-bg-surface);
   border: 1px solid var(--dms-color-border-default);

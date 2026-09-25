@@ -1533,7 +1533,7 @@ export default function PublishedDocuments() {
     {
       id: 'lastModified', key: 'lastModified', accessor: 'lastModified', label: t('last_modified'), sortable: true, sortType: 'date',
       sortComparer: (a, b) => new Date(a || 0) - new Date(b || 0),
-      className: 'hidden xl:table-cell text-sm'
+      className: 'hidden xl:table-cell'
     },
     {
       id: 'status', key: 'status', accessor: 'status', label: t('status'), sortable: true,

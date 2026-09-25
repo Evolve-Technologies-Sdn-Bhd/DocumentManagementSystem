@@ -1,0 +1,10 @@
+﻿mysqld.exe : 2026-09-22 13:41:46 0 [Note] Using unique option prefix 
+'key_buffer' is error-prone and can break in the future. Please use the full 
+name 'key_buffer_size' instead.
+At line:1 char:226
++ ... ocal-tmp" ; & "C:\xampp\mysql\bin\mysqld.exe" --defaults-file="C:\xam ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-09-22 13:4..._size' instead. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

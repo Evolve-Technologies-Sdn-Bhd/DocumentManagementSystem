@@ -1,0 +1,22 @@
+NODE PROCESSES:
+
+   Id ProcessName       WS StartTime           
+   -- -----------       -- ---------           
+11532 node        71090176 22/9/2026 2:07:09 PM
+
+
+
+MYSQL PROCESS:
+
+  Id ProcessName       WS StartTime           
+  -- -----------       -- ---------           
+3296 mysqld      11198464 22/9/2026 2:03:41 PM
+
+
+
+--- PORTS LISTENING ---
+
+  TCP    127.0.0.1:3306         0.0.0.0:0              LISTENING       3296
+
+
+

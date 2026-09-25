@@ -157,6 +157,13 @@ api.interceptors.response.use(
       }
     }
 
+    const releaseOnce = () => {
+      if (!original.__semaphoreReleased) {
+        original.__semaphoreReleased = true
+        _release()
+      }
+    }
+
     if (status === 503 && maintenanceCode === 'MAINTENANCE_MODE') {
       try {
         localStorage.setItem(
@@ -169,7 +176,7 @@ api.interceptors.response.use(
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
       if (window.location.pathname !== '/maintenance') {
         window.location.href = '/maintenance'
       }
@@ -201,6 +208,7 @@ api.interceptors.response.use(
     }
 
     if (shouldRetry) {
+      releaseOnce()
       original._retryAttempt = attempt
       const delay = retryDelay(attempt)
       await new Promise((r) => setTimeout(r, delay))
@@ -217,7 +225,7 @@ api.interceptors.response.use(
     }
 
     if (!original || status !== 401) {
-      _release()
+      releaseOnce()
       return Promise.reject(error)
     }
 
@@ -226,7 +234,7 @@ api.interceptors.response.use(
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
       return Promise.reject(error)
     }
 
@@ -235,7 +243,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
       return Promise.reject(error)
     }
 
@@ -266,6 +274,7 @@ api.interceptors.response.use(
           })
       }
 
+      releaseOnce()
       const nextAccess = await refreshing
       if (nextAccess) {
         original.headers = original.headers || {}

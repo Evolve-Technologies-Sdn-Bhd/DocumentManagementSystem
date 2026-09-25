@@ -2258,9 +2258,6 @@ function CreateProjectModal({ onClose, onCreated }) {
   return (
     <ModalShell title="Create Project" onClose={onClose} maxWidthClass="max-w-5xl">
       <form onSubmit={submit} className="space-y-4">
-        <AppSurface padding="md" variant="panel" className="border border-[var(--dms-color-border-default)] bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]">
-          Capture the core project brief here. `Project Category` is kept because it drives the workflow stages and document checklist templates.
-        </AppSurface>
         <ProjectFormFields
           form={form}
           setForm={setForm}
@@ -7571,10 +7568,17 @@ function Setup() {
         ) : null}
 
         {hasStageChanges ? (
-          <div className="mt-4 rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35 px-4 py-3">
-            <div className="text-sm font-semibold text-ink">Stage flow has unsaved changes</div>
-            <div className="mt-1 text-xs text-ink-secondary">
-              Save the stage flow before switching scope or handing this setup to end users.
+          <div className="mt-4 rounded-xl border-2 border-[var(--dms-color-warning-ink)]/25 bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] px-4 py-3 ring-1 ring-[var(--dms-color-warning-ink)]/15 shadow-[0_4px_14px_rgba(146,64,14,0.08)]">
+            <div className="flex items-start gap-2.5">
+              <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--dms-color-warning-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold text-[var(--dms-color-warning-ink)] uppercase tracking-wider">Stage flow has unsaved changes</div>
+                <div className="mt-1 text-xs text-ink-secondary">
+                  Save the stage flow before switching scope or handing this setup to end users.
+                </div>
+              </div>
             </div>
           </div>
         ) : null}

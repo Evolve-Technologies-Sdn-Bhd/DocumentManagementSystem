@@ -1,0 +1,21 @@
+[2026-09-22T13:47:06] ===== MySQL Fix Script =====
+[2026-09-22T13:47:06] Killing any mysqld...
+[2026-09-22T13:47:09] Deleting corrupted aria_log files from LOCAL datadir...
+[2026-09-22T13:47:09]   Deleted: aria_log.00000001
+[2026-09-22T13:47:09]   Deleted: aria_log.00000002
+[2026-09-22T13:47:09]   Deleted: aria_log_control
+[2026-09-22T13:47:09]   Deleted: Tech11.err
+[2026-09-22T13:47:09]   Deleted: mysql_error.log
+[2026-09-22T13:47:09]   Deleted: multi-master.info
+[2026-09-22T13:47:09]   Deleted: master-2026@002d09@002d04@0020@00208@003a40@003a59@00200@0020@005bnote@005d@0020added@0020new@0020master_info@0020@0027@0027@0020to@0020hash@0020table@000d.info
+[2026-09-22T13:47:09]   Deleted: master-2026@002d09@002d04@0020@00208@003a40@003a59@00200@0020@005bnote@005d@0020c@003a@005cxampp@005cmysql@005cbin@005cmysqld@002eexe@003a@0020ready@0020for@0020connections@002e@000d.info
+[2026-09-22T13:47:09]   Deleted: master-2026@002d09@002d04@0020@00208@003a40@003a59@00200@0020@005bnote@005d@0020reading@0020of@0020all@0020master_info@0020entries@0020succeeded@000d.info
+[2026-09-22T13:47:09]   Copied fresh aria_log.00000001 from XAMPP
+[2026-09-22T13:47:09] LOCAL mysql DB exists (items=87)
+[2026-09-22T13:47:09] 
+[2026-09-22T13:47:09] Starting mysqld with correct params...
+[2026-09-22T13:47:09]   mysqld launched PID=14404
+[2026-09-22T13:47:09] Waiting for port 3306 (max 90s)...
+[2026-09-22T13:47:12] Port 3306: listen=True after 2.8502173s
+[2026-09-22T13:47:12] 
+[2026-09-22T13:47:12] MYSQL_STATUS=UP PID=14404

@@ -1,0 +1,7 @@
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[2m6:15:12 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/public/branding-file/branding/main-logo-1787551740319.png[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)

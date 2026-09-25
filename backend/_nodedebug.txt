@@ -1,0 +1,10 @@
+Node version: v24.14.1
+Platform: win32
+Arch: x64
+CWD: C:\Users\USER\Desktop\DocumentManagementSystem\backend
+PID: 19228
+argv: ["C:\\Program Files\\nodejs\\node.exe","c:\\Users\\USER\\Desktop\\DocumentManagementSystem\\backend\\_nodedebug.js"]
+WROTE FILE: c:\Users\USER\Desktop\DocumentManagementSystem\backend\_nodedebug.txt
+aria src exists: true
+aria dst exists before: true
+aria dst exists after: true

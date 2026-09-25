@@ -1,0 +1,4 @@
+Source exists: true
+Dest exists before: true
+aria_log already exists at dest
+Dest exists after: true

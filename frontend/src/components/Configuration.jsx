@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../api/axios'
 import AddTemplateModal from './AddTemplateModal'
 import TemplatePreviewModal from './TemplatePreviewModal'
@@ -14,12 +15,12 @@ import { hasPermission, hasAnyPermission } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import Pagination from './Pagination'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
-import { useLocation, useNavigate } from 'react-router-dom'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
 import TextArea from './ui/TextArea'
 import Button from './ui/Button'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 import {
   SmartTemplateAdminList,
   DocumentStyleProfilesAdmin
@@ -569,7 +570,7 @@ function TemplateManagement() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">Request Type <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-semibold text-ink mb-2">Request Type <span className="text-[var(--dms-color-danger-ink)]">*</span></label>
                   <SelectField
                     value={templateRequestForm.requestType}
                     onChange={(e) => {
@@ -588,24 +589,30 @@ function TemplateManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">Document Type</label>
+                  <label className="block text-sm font-semibold text-ink mb-2">Document Type</label>
                   <div className="mb-2 flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="radio"
-                        name="docTypeModeCfg"
-                        checked={templateRequestForm.documentTypeMode === 'existing'}
-                        onChange={() => setTemplateRequestForm((prev) => ({ ...prev, documentTypeMode: 'existing', documentTypeName: '' }))}
-                      />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink-secondary cursor-pointer">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                        <input
+                          type="radio"
+                          name="docTypeModeCfg"
+                          checked={templateRequestForm.documentTypeMode === 'existing'}
+                          onChange={() => setTemplateRequestForm((prev) => ({ ...prev, documentTypeMode: 'existing', documentTypeName: '' }))}
+                          className="h-4 w-4 cursor-pointer accent-[var(--dms-color-brand-primary)]"
+                        />
+                      </span>
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="radio"
-                        name="docTypeModeCfg"
-                        checked={templateRequestForm.documentTypeMode === 'new'}
-                        onChange={() => setTemplateRequestForm((prev) => ({ ...prev, documentTypeMode: 'new', documentTypeId: '' }))}
-                      />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink-secondary cursor-pointer">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                        <input
+                          type="radio"
+                          name="docTypeModeCfg"
+                          checked={templateRequestForm.documentTypeMode === 'new'}
+                          onChange={() => setTemplateRequestForm((prev) => ({ ...prev, documentTypeMode: 'new', documentTypeId: '' }))}
+                          className="h-4 w-4 cursor-pointer accent-[var(--dms-color-brand-primary)]"
+                        />
+                      </span>
                       New
                     </label>
                   </div>
@@ -632,25 +639,31 @@ function TemplateManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">Template</label>
+                <label className="block text-sm font-semibold text-ink mb-2">Template</label>
                 {templateRequestForm.requestType === 'UPDATE' && (
                   <div className="mb-2 flex items-center gap-4">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="radio"
-                        name="tplModeCfg"
-                        checked={templateRequestForm.templateMode === 'existing'}
-                        onChange={() => setTemplateRequestForm((prev) => ({ ...prev, templateMode: 'existing', templateName: '' }))}
-                      />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink-secondary cursor-pointer">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                        <input
+                          type="radio"
+                          name="tplModeCfg"
+                          checked={templateRequestForm.templateMode === 'existing'}
+                          onChange={() => setTemplateRequestForm((prev) => ({ ...prev, templateMode: 'existing', templateName: '' }))}
+                          className="h-4 w-4 cursor-pointer accent-[var(--dms-color-brand-primary)]"
+                        />
+                      </span>
                       Existing
                     </label>
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="radio"
-                        name="tplModeCfg"
-                        checked={templateRequestForm.templateMode === 'new'}
-                        onChange={() => setTemplateRequestForm((prev) => ({ ...prev, templateMode: 'new', templateId: '' }))}
-                      />
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink-secondary cursor-pointer">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+                        <input
+                          type="radio"
+                          name="tplModeCfg"
+                          checked={templateRequestForm.templateMode === 'new'}
+                          onChange={() => setTemplateRequestForm((prev) => ({ ...prev, templateMode: 'new', templateId: '' }))}
+                          className="h-4 w-4 cursor-pointer accent-[var(--dms-color-brand-primary)]"
+                        />
+                      </span>
                       New
                     </label>
                   </div>
@@ -681,12 +694,12 @@ function TemplateManagement() {
                   </SelectField>
                 )}
                 {templateRequestForm.requestType === 'UPDATE' && templateRequestForm.templateMode === 'existing' && templateRequestForm.documentTypeMode !== 'existing' && (
-                  <p className="mt-1.5 text-xs text-gray-500">Select an existing document type to choose an existing template.</p>
+                  <p className="mt-1.5 text-xs font-medium text-ink-muted">Select an existing document type to choose an existing template.</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">Description / Reason</label>
+                <label className="block text-sm font-semibold text-ink mb-2">Description / Reason</label>
                 <TextArea
                   value={templateRequestForm.description}
                   onChange={(e) => setTemplateRequestForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -755,15 +768,15 @@ function TemplateManagement() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-surface-muted">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('document_type')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_template_name')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('version')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_prefix_code')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_by')}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">{t('cfg_uploaded_on')}</th>
-                    <th className="sticky right-0 z-30 bg-surface-muted px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary border-l border-border">{t('action')}</th>
-                  </tr>
+                  <Tr>
+                    <Th>{t('document_type')}</Th>
+                    <Th>{t('cfg_template_name')}</Th>
+                    <Th>{t('version')}</Th>
+                    <Th>{t('cfg_prefix_code')}</Th>
+                    <Th>{t('cfg_uploaded_by')}</Th>
+                    <Th>{t('cfg_uploaded_on')}</Th>
+                    <Th stickyRight>{t('action')}</Th>
+                  </Tr>
                 </thead>
                 <tbody>
                   {loading ? (
@@ -853,7 +866,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'read') && (
                         <button
                           onClick={() => handleView(template)}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                          className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all duration-150 hover:border-[var(--dms-color-border-strong)] hover:text-ink focus:outline-none focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                         >
                           {t('view')}
                         </button>
@@ -861,7 +874,7 @@ function TemplateManagement() {
                       {hasPermission('configuration.templates', 'update') && (
                         <button
                           onClick={(e) => handleReupload(e, template)}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                          className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all duration-150 hover:border-[var(--dms-color-border-strong)] hover:text-ink focus:outline-none focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                         >
                           {t('cfg_reupload')}
                         </button>
@@ -921,19 +934,19 @@ function TemplateManagement() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-surface-muted">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Document Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Template</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Status</th>
+                  <Tr>
+                    <Th>Date</Th>
+                    <Th>Type</Th>
+                    <Th>Document Type</Th>
+                    <Th>Template</Th>
+                    <Th>Status</Th>
                     {hasPermission('configuration.templateRequests', 'update') && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Requested By</th>
+                      <Th>Requested By</Th>
                     )}
                     {hasPermission('configuration.templateRequests', 'update') && (
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-secondary">Action</th>
+                      <Th stickyRight>Action</Th>
                     )}
-                  </tr>
+                  </Tr>
                 </thead>
                 <tbody>
                   {loadingTemplateRequests ? (

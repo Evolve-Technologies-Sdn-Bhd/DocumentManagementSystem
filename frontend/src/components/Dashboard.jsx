@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
+import { hasPermission } from '../utils/permissions'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import DashboardHeader from './dashboard/DashboardHeader'
@@ -10,6 +11,12 @@ import DashboardActivityTable from './dashboard/DashboardActivityTable'
 import DashboardStatusChart from './dashboard/DashboardStatusChart'
 import DashboardExpiryOverview from './dashboard/DashboardExpiryOverview'
 import DashboardSkeleton from './dashboard/DashboardSkeleton'
+import DashboardMiniCalendar from './calendar/DashboardMiniCalendar'
+import UpcomingEventsList from './calendar/UpcomingEventsList'
+import * as calendarApi from '../api/calendar'
+import {
+  formatMonthHeader, MONTH_NAMES_FULL, addDays
+} from '../utils/calendarUtils'
 
 // Inline SVG icons
 const DocumentTextIcon = (props) => (
@@ -38,21 +45,24 @@ function DashboardMetricsPanel({
 }) {
   const isPersonal = tone === 'personal'
   const panelClassName = isPersonal
-    ? 'border border-[var(--dms-color-info-ink)]/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(232,244,255,0.98)_48%,rgba(217,236,255,0.98)_100%)] shadow-[0_18px_40px_rgba(20,81,123,0.14)]'
-    : 'border border-[var(--dms-color-border-strong)]/20 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(242,247,252,0.98)_45%,rgba(229,238,248,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
+    ? 'border border-[var(--dms-color-brand-primary)]/15 bg-[linear-gradient(135deg,var(--dms-color-bg-surface)_0%,color-mix(in_srgb,var(--dms-color-info-soft)_35%,var(--dms-color-bg-surface))_50%,var(--dms-color-bg-surface-muted)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]'
+    : 'border border-[var(--dms-color-brand-primary)]/10 bg-[linear-gradient(135deg,var(--dms-color-bg-surface)_0%,color-mix(in_srgb,var(--dms-color-bg-surface-muted)_40%,var(--dms-color-bg-surface))_50%,color-mix(in_srgb,var(--dms-color-bg-surface-muted)_70%,var(--dms-color-bg-surface-strong))_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]'
   const badgeClassName = isPersonal
-    ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/10'
-    : 'bg-surface text-ink ring-1 ring-[var(--dms-color-border-strong)]/15'
+    ? 'bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15'
+    : 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_70%,var(--dms-color-border-strong))] text-ink ring-1 ring-[var(--dms-color-border-strong)]/20'
   const accentClassName = isPersonal
-    ? 'from-[var(--dms-color-info-default)]/20 via-[var(--dms-color-info-ink)]/10 to-transparent'
-    : 'from-slate-400/20 via-slate-500/10 to-transparent'
-  const secondaryAccentClassName = isPersonal
-    ? 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),rgba(255,255,255,0))]'
-    : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.88),rgba(255,255,255,0))]'
+    ? 'from-[var(--dms-color-info-default)]/12 via-transparent to-transparent'
+    : 'from-[var(--dms-color-border-strong)]/14 via-[var(--dms-color-text-muted)]/06 to-transparent'
+  const secondaryAccentClassName =
+    'bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--dms-color-bg-surface-strong)_85%,white),transparent)]'
   const cardClassName = isPersonal
-    ? 'border border-white/70 bg-white/72 backdrop-blur-sm shadow-[0_12px_30px_rgba(26,87,140,0.10)] hover:border-[var(--dms-color-info-ink)]/15 hover:shadow-[0_16px_34px_rgba(26,87,140,0.15)]'
-    : 'border border-white/70 bg-white/76 backdrop-blur-sm shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:border-[var(--dms-color-border-strong)]/20 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]'
+    ? 'border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]/90 backdrop-blur-sm shadow-[0_12px_30px_rgba(26,87,140,0.10)] hover:border-[var(--dms-color-info-ink)]/25 hover:shadow-[0_16px_34px_rgba(26,87,140,0.15)]'
+    : 'border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]/92 backdrop-blur-sm shadow-[0_12px_30px_rgba(15,23,42,0.08)] hover:border-[var(--dms-color-border-strong)]/35 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]'
   const summaryValueClassName = isPersonal ? 'text-[var(--dms-color-info-ink)]' : 'text-ink'
+  const formattedLabel = String(label ?? '')
+    .trim()
+    .split(/\s+/g)
+    .join(' · ')
 
   return (
     <AppSurface
@@ -63,11 +73,11 @@ function DashboardMetricsPanel({
       <div className={['pointer-events-none absolute inset-0 bg-gradient-to-br', accentClassName].join(' ')} />
       <div className={['pointer-events-none absolute inset-x-8 top-0 h-28 blur-3xl', secondaryAccentClassName].join(' ')} />
 
-      <div className="relative z-10 space-y-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="relative z-10 space-y-6">
+        <div className="mt-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl space-y-2">
-            <span className={['inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', badgeClassName].join(' ')}>
-              {label}
+            <span className={['inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', badgeClassName].join(' ')}>
+              {formattedLabel}
             </span>
             <p className="max-w-2xl text-sm leading-6 text-ink-secondary">
               {description}
@@ -79,7 +89,7 @@ function DashboardMetricsPanel({
               {summaryItems.map((item) => (
                 <div
                   key={item.key}
-                  className="min-w-[132px] rounded-2xl border border-white/60 bg-white/78 px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                  className="min-w-[132px] rounded-2xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-strong)] px-4 py-3 backdrop-blur-sm shadow-[0_10px_24px_rgba(15,23,42,0.10)]"
                 >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                     {item.label}
@@ -93,7 +103,7 @@ function DashboardMetricsPanel({
           )}
         </div>
 
-        <div className="rounded-[24px] border border-white/55 bg-white/38 p-1.5 backdrop-blur-sm">
+        <div className="rounded-[24px] border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]/88 backdrop-blur-sm p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
           <div className={['grid gap-4', gridClassName].join(' ')}>
             {cards.map((card) => (
               <DashboardMetricCard
@@ -193,6 +203,22 @@ export default function Dashboard() {
   const [recent, setRecent] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+
+  const [calendarEvents, setCalendarEvents] = useState([])
+  const [calendarCursor, setCalendarCursor] = useState(new Date())
+  const canViewCalendar = hasPermission('calendar', 'view')
+
+  const loadCalendar = async () => {
+    if (!canViewCalendar) return
+    try {
+      const from = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1)
+      const to = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0)
+      const data = await calendarApi.fetchEvents(from, to)
+      setCalendarEvents(Array.isArray(data) ? data : [])
+    } catch (e) {
+      console.warn('Failed to load dashboard calendar', e)
+    }
+  }
 
   const loadDashboard = async (mountedRef) => {
     try {
@@ -325,8 +351,10 @@ export default function Dashboard() {
   useEffect(() => {
     const mountedRef = { current: true }
     loadDashboard(mountedRef)
+    loadCalendar()
     return () => { mountedRef.current = false }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarCursor])
 
   const draftsCount = myDocuments.filter((doc) => isDraftStatus(doc.status)).length
   const waitingReviewCount = myDocuments.filter((doc) => isWaitingReviewStatus(doc.status)).length
@@ -472,7 +500,10 @@ export default function Dashboard() {
       description: t('dashboard_metric_global_queue_desc'),
       icon: ClockIcon,
       tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      surfaceStyle: {
+        backgroundImage:
+          'linear-gradient(140deg, color-mix(in srgb, var(--dms-color-bg-surface) 96%, var(--dms-color-info-default)) 0%, var(--dms-color-bg-surface) 55%, color-mix(in srgb, var(--dms-color-bg-surface-muted) 92%, var(--dms-color-info-soft)) 100%)'
+      },
       to: '/documents/review-approval'
     },
     {
@@ -481,8 +512,11 @@ export default function Dashboard() {
       value: activeMetrics.published ?? 0,
       description: t('dashboard_metric_global_published_desc'),
       icon: BadgeCheckIcon,
-      tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      tone: 'success',
+      surfaceStyle: {
+        backgroundImage:
+          'linear-gradient(140deg, color-mix(in srgb, var(--dms-color-bg-surface) 96%, var(--dms-color-success-default)) 0%, var(--dms-color-bg-surface) 55%, color-mix(in srgb, var(--dms-color-bg-surface-muted) 92%, var(--dms-color-success-soft)) 100%)'
+      },
       to: '/documents/published'
     },
     {
@@ -491,8 +525,11 @@ export default function Dashboard() {
       value: activeMetrics.superseded ?? 0,
       description: t('archived_desc'),
       icon: ArchiveBoxIcon,
-      tone: 'indigo',
-      surfaceStyle: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
+      tone: 'neutral',
+      surfaceStyle: {
+        backgroundImage:
+          'linear-gradient(140deg, color-mix(in srgb, var(--dms-color-bg-surface) 97%, var(--dms-color-text-muted)) 0%, var(--dms-color-bg-surface) 55%, color-mix(in srgb, var(--dms-color-bg-surface-muted) 90%, var(--dms-color-border-default)) 100%)'
+      },
       to: '/documents/archived'
     }
   ]
@@ -617,6 +654,74 @@ export default function Dashboard() {
               />
             </div>
           </section>
+
+          {canViewCalendar && (
+            <section className="space-y-3" data-tour-id="dashboard-calendar">
+              <AppSurface
+                variant="muted"
+                padding="lg"
+                className="relative overflow-hidden rounded-[28px] border border-[var(--dms-color-brand-primary)]/15 bg-[linear-gradient(135deg,var(--dms-color-bg-surface)_0%,color-mix(in_srgb,var(--dms-color-info-soft)_35%,var(--dms-color-bg-surface))_50%,var(--dms-color-bg-surface-muted)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+              >
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[var(--dms-color-info-default)]/12 via-transparent to-transparent" />
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-28 bg-[radial-gradient(circle_at_top,color-mix(in_srgb,var(--dms-color-bg-surface-strong)_85%,white),transparent)] blur-3xl" />
+
+                <div className="relative z-10 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/15">
+                      Calendar · Snapshot
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-ink leading-tight">
+                          {formatMonthHeader(calendarCursor)}
+                        </h3>
+                        <p className="text-xs text-ink-muted mt-1 max-w-md">
+                          Deadlines, reminders, follow-ups, and custom events across your documents, projects and enquiries.
+                        </p>
+                      </div>
+                      <div className="inline-flex items-center rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
+                        <button
+                          type="button"
+                          onClick={() => setCalendarCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
+                          className="p-2 rounded-l-xl hover:bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary hover:text-ink transition-colors"
+                          aria-label="Previous month"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarCursor(new Date())}
+                          className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider border-x border-[var(--dms-color-border-default)] text-[var(--dms-color-brand-primary)] hover:bg-[var(--dms-color-info-soft)]/40 transition-colors"
+                        >
+                          Today
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
+                          className="p-2 rounded-r-xl hover:bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary hover:text-ink transition-colors"
+                          aria-label="Next month"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-[24px] border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]/90 backdrop-blur-sm p-4 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
+                      <DashboardMiniCalendar events={calendarEvents} cursor={calendarCursor} weekStartsOn={1} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]/92 backdrop-blur-sm p-5 shadow-[0_12px_30px_rgba(15,23,42,0.12)]">
+                    <UpcomingEventsList events={calendarEvents} days={7} />
+                  </div>
+                </div>
+              </AppSurface>
+            </section>
+          )}
 
           <div data-tour-id="dashboard-quick-actions">
             <DashboardQuickActions />

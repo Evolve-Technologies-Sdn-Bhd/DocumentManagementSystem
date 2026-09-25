@@ -459,20 +459,20 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
+      <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border-2 border-[var(--dms-color-border-default)]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] sticky top-0 bg-[var(--dms-color-bg-surface)]">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Edit Permissions</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-xl font-bold text-ink">Edit Permissions</h2>
+              <p className="text-sm text-ink-secondary mt-1">
                 {role?.roleName} - System Role
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-ink-muted hover:text-ink transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -485,16 +485,16 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
             {/* Info Alert */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-[var(--dms-color-info-ink)] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-blue-900">System Role Permissions</h4>
-                      <p className="text-sm text-blue-800 mt-1">
+                      <h4 className="font-medium text-[var(--dms-color-info-ink)]">System Role Permissions</h4>
+                      <p className="text-sm text-[var(--dms-color-info-ink)] mt-1">
                         Configure permissions for this system role. Selected: <span className="font-semibold">{getGrandTotal().selected} / {getGrandTotal().total}</span>
                       </p>
                     </div>
@@ -502,14 +502,14 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                       <button
                         type="button"
                         onClick={handleSelectAllGlobal}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                        className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                       >
                         Select All
                       </button>
                       <button
                         type="button"
                         onClick={handleClearAllGlobal}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                        className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                       >
                         Clear All
                       </button>
@@ -527,23 +527,23 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                 const hasSubmodules = module.submodules && module.submodules.length > 0
                 
                 return (
-                  <div key={module.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={module.id} className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] overflow-hidden bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_95%,var(--dms-color-bg-card))]">
                     {/* Module Header */}
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b border-gray-200">
+                    <div className="bg-[var(--dms-color-bg-surface-muted)] px-4 py-3 border-b-2 border-[var(--dms-color-border-default)]">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
-                            <h3 className="font-bold text-gray-900 text-base">{module.name}</h3>
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                              totalSelected === 0 ? 'bg-gray-300 text-gray-700' :
-                              totalSelected === totalActions ? 'bg-green-600 text-white' :
-                              'bg-blue-600 text-white'
+                            <h3 className="font-bold text-ink text-base">{module.name}</h3>
+                            <span className={`${
+                              totalSelected === 0 ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-ink-secondary bg-[var(--dms-color-bg-surface-muted)] border border-[var(--dms-color-border-default)]' :
+                              totalSelected === totalActions ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-success-ink)] border-2 border-[var(--dms-color-success-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-card))]' :
+                              'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-brand-primary)] border-2 border-[var(--dms-color-brand-primary)]/20 bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-card))]'
                             }`}>
                               {totalSelected} / {totalActions}
                             </span>
                           </div>
                           {module.description && (
-                            <p className="text-xs text-gray-600 mt-1.5">{module.description}</p>
+                            <p className="text-xs text-ink-secondary mt-1.5">{module.description}</p>
                           )}
                         </div>
                       </div>
@@ -551,13 +551,17 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
 
                     {/* Main Module Actions (if any) */}
                     {module.actions && module.actions.length > 0 && (
-                      <div className="bg-white p-4 border-b border-gray-100">
+                      <div className="bg-[var(--dms-color-bg-surface)] p-4 border-b-2 border-[var(--dms-color-border-default)]">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-semibold text-gray-800">
+                            <h4 className="text-sm font-semibold text-ink-secondary">
                               {hasSubmodules ? 'General Permissions' : 'Permissions'}
                             </h4>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                            <span className={`${
+                              getSelectedCount(module.id) === 0 ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-ink-secondary bg-[var(--dms-color-bg-surface-muted)] border border-[var(--dms-color-border-default)]' :
+                              getSelectedCount(module.id) === module.actions.length ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-success-ink)] border-2 border-[var(--dms-color-success-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-card))]' :
+                              'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-brand-primary)] border-2 border-[var(--dms-color-brand-primary)]/20 bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-card))]'
+                            }`}>
                               {getSelectedCount(module.id)} / {module.actions.length}
                             </span>
                           </div>
@@ -565,14 +569,14 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                             <button
                               type="button"
                               onClick={() => handleSelectAll(module.id)}
-                              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                              className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                             >
                               Select All
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeselectAll(module.id)}
-                              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                              className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                             >
                               Clear
                             </button>
@@ -584,18 +588,20 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                               key={action}
                               className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
                                 permissions[module.id]?.[action]
-                                  ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                  : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
+                                  ? 'border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] shadow-sm'
+                                  : 'border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] hover:border-[var(--dms-color-brand-primary)] hover:bg-[var(--dms-color-bg-surface-muted)]'
                               }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={permissions[module.id]?.[action] || false}
-                                onChange={() => handleToggle(module.id, action)}
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                              />
+                              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)]">
+                                <input
+                                  type="checkbox"
+                                  checked={permissions[module.id]?.[action] || false}
+                                  onChange={() => handleToggle(module.id, action)}
+                                  className="h-5 w-5 accent-[var(--dms-color-brand-primary)] rounded cursor-pointer border-0 focus:ring-0"
+                                />
+                              </span>
                               <span className={`text-sm font-medium capitalize ${
-                                permissions[module.id]?.[action] ? 'text-blue-900' : 'text-gray-700'
+                                permissions[module.id]?.[action] ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink-secondary'
                               }`}>
                                 {formatActionLabel(action)}
                               </span>
@@ -607,26 +613,26 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
 
                     {/* Submodules */}
                     {hasSubmodules && (
-                      <div className="bg-gradient-to-b from-gray-50 to-gray-100">
+                      <div className="bg-[var(--dms-color-bg-surface-muted)]">
                         {module.submodules.map((submodule, index) => (
                           <div 
                             key={submodule.id} 
                             className={`p-4 ${
-                              index !== module.submodules.length - 1 ? 'border-b border-gray-200' : ''
+                              index !== module.submodules.length - 1 ? 'border-b-2 border-[var(--dms-color-border-default)]' : ''
                             }`}
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2.5">
-                                <div className="flex items-center justify-center w-5 h-5 rounded bg-white border border-gray-300">
-                                  <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex items-center justify-center w-5 h-5 rounded bg-[var(--dms-color-bg-surface)] border-2 border-[var(--dms-color-border-default)]">
+                                  <svg className="w-3 h-3 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                   </svg>
                                 </div>
-                                <h4 className="text-sm font-semibold text-gray-900">{submodule.name}</h4>
-                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                  getSelectedCount(submodule.id) === 0 ? 'bg-gray-200 text-gray-600' :
-                                  getSelectedCount(submodule.id) === submodule.actions.length ? 'bg-green-100 text-green-700' :
-                                  'bg-blue-100 text-blue-700'
+                                <h4 className="text-sm font-semibold text-ink">{submodule.name}</h4>
+                                <span className={`${
+                                  getSelectedCount(submodule.id) === 0 ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-ink-secondary bg-[var(--dms-color-bg-surface-muted)] border border-[var(--dms-color-border-default)]' :
+                                  getSelectedCount(submodule.id) === submodule.actions.length ? 'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-success-ink)] border-2 border-[var(--dms-color-success-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-card))]' :
+                                  'rounded-full px-2.5 py-1 font-semibold text-xs text-[var(--dms-color-brand-primary)] border-2 border-[var(--dms-color-brand-primary)]/20 bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-card))]'
                                 }`}>
                                   {getSelectedCount(submodule.id)} / {submodule.actions.length}
                                 </span>
@@ -635,14 +641,14 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                                 <button
                                   type="button"
                                   onClick={() => handleSelectAll(submodule.id, submodule.actions)}
-                                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                  className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                                 >
                                   Select All
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDeselectAll(submodule.id)}
-                                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                  className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
                                 >
                                   Clear
                                 </button>
@@ -652,20 +658,22 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
                               {submodule.actions.map(action => (
                                 <label
                                   key={action}
-                                  className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                                  className={`flex items-center gap-2 p-2.5 rounded-md border-2 cursor-pointer transition-all ${
                                     permissions[submodule.id]?.[action]
-                                      ? 'border-blue-400 bg-blue-50 shadow-sm'
-                                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/30'
+                                      ? 'border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] shadow-sm'
+                                      : 'border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] hover:border-[var(--dms-color-brand-primary)] hover:bg-[var(--dms-color-bg-surface-muted)]'
                                   }`}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={permissions[submodule.id]?.[action] || false}
-                                    onChange={() => handleToggle(submodule.id, action)}
-                                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                  />
+                                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)]">
+                                    <input
+                                      type="checkbox"
+                                      checked={permissions[submodule.id]?.[action] || false}
+                                      onChange={() => handleToggle(submodule.id, action)}
+                                      className="h-5 w-5 accent-[var(--dms-color-brand-primary)] rounded cursor-pointer border-0 focus:ring-0"
+                                    />
+                                  </span>
                                   <span className={`text-xs font-medium capitalize ${
-                                    permissions[submodule.id]?.[action] ? 'text-blue-900' : 'text-gray-700'
+                                    permissions[submodule.id]?.[action] ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink-secondary'
                                   }`}>
                                     {formatActionLabel(action)}
                                   </span>
@@ -683,22 +691,22 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
+          <div className="px-6 py-4 border-t-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] flex items-center justify-between sticky bottom-0">
+            <div className="text-sm text-ink-secondary">
               <span className="font-medium">Total Selected:</span> 
-              <span className="ml-1 font-semibold text-gray-900">{getGrandTotal().selected} of {getGrandTotal().total} permissions</span>
+              <span className="ml-1 font-semibold text-ink">{getGrandTotal().selected} of {getGrandTotal().total} permissions</span>
             </div>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
+                className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold transition-all hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_90%,black)] text-sm"
               >
                 Save Permissions
               </button>

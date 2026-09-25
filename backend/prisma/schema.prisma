@@ -104,6 +104,12 @@ model User {
   publishedSmartTemplateVersions SmartTemplateVersion[] @relation("SmartTemplateVersionPublisher")
   createdSmartDocumentContents SmartDocumentContent[] @relation("SmartDocContentCreator")
   changedSmartDocumentFields SmartDocumentFieldChange[] @relation("SmartDocFieldChangedBy")
+  // Calendar — additive relations
+  calendarOwnedEvents CalendarEvent[] @relation("CalendarEventOwner")
+  calendarAssignedEvents CalendarEvent[] @relation("CalendarEventAssignee")
+  createdCustomCalendarEvents CalendarCustomEvent[] @relation("CustomEventCreator")
+  calendarEventReminders CalendarEventReminder[] @relation("ReminderOwner")
+  userCalendarPreference UserCalendarPreference?
 
   @@index([email])
   @@index([employeeId])
@@ -2304,4 +2310,153 @@ model SmartDocumentFieldChange {
   @@index([smartFormFieldKey])
   @@index([changedById])
   @@index([changedAt])
+}
+
+// ============================================
+// CALENDAR MODULE
+// ============================================
+
+enum CalendarEventSource {
+  DOCUMENT_EXPIRY
+  DOCUMENT_EXPIRY_REMINDER
+  DOCUMENT_SHARE_EXPIRY
+  PROJECT_START
+  PROJECT_COMPLETION
+  PROJECT_ITEM_DUE
+  ITERATION_START
+  ITERATION_END
+  CHANGE_REQUEST_APPROVED
+  ASSIGNMENT_CREATED
+  WORKFLOW_SLA_DUE
+  DOCUMENT_DATE
+  PUBLISHED_DATE
+  OBSOLETE_DATE
+  VERSION_REQUEST_TARGET
+  TENDER_SUBMISSION_DEADLINE
+  TENDER_FOLLOW_UP
+  TENDER_FOLLOW_UP_LOG
+  FB_ENQUIRY_DATE
+  FB_FOLLOW_UP
+  FB_FOLLOW_UP_LOG
+  CUSTOM
+}
+
+enum CalendarEventCategory {
+  CRITICAL
+  DEADLINE
+  WARNING
+  TASK
+  MILESTONE
+  INFO
+  CUSTOM
+}
+
+enum ReminderDeliveryType {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+model CalendarCustomEvent {
+  id                Int      @id @default(autoincrement())
+  calendarEventId   Int      @unique
+  recurrenceRule    String?  @db.VarChar(512)
+  colorOverride     String?  @db.VarChar(32)
+  location          String?  @db.VarChar(512)
+  reminderOffset    String?  @db.VarChar(32)
+  categoryMeta      Json?
+  createdById       Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  calendarEvent CalendarEvent @relation("CustomEventToEvent", fields: [calendarEventId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation("CustomEventCreator", fields: [createdById], references: [id])
+}
+
+model CalendarEventReminder {
+  id              Int                 @id @default(autoincrement())
+  calendarEventId Int
+  userId          Int
+  reminderType    ReminderDeliveryType @default(IN_APP)
+  offsetMinutes   Int
+  delivered       Boolean             @default(false)
+  deliveredAt     DateTime?
+  createdAt       DateTime            @default(now())
+
+  calendarEvent CalendarEvent @relation("EventReminders", fields: [calendarEventId], references: [id], onDelete: Cascade)
+  user          User          @relation("ReminderOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarEventId, userId, reminderType, offsetMinutes], map: "cal_rem_evt_user_type_off_uniq")
+  @@index([userId])
+  @@index([delivered])
+  @@index([calendarEventId])
+}
+
+model CalendarEvent {
+  id              Int                   @id @default(autoincrement())
+  title           String                @db.VarChar(512)
+  description     String?               @db.Text
+  startDateTime   DateTime
+  endDateTime     DateTime?
+  isAllDay        Boolean               @default(true)
+
+  sourceType      CalendarEventSource
+  sourceDocumentId        Int?
+  sourceProjectId         Int?
+  sourceProjectItemId     Int?
+  sourceProjectIterationId Int?
+  sourceChangeRequestId   Int?
+  sourceTenderId          Int?
+  sourceTenderFollowUpLogId Int?
+  sourceFbEnquiryId       Int?
+  sourceFbFollowUpLogId   Int?
+  sourceVersionRequestId  Int?
+  sourceShareLinkId       Int?
+  sourceCustomId          Int?
+
+  category        CalendarEventCategory
+  priority        Int                   @default(0)
+
+  userId          Int?
+  assigneeId      Int?
+
+  isSynthetic     Boolean               @default(false)
+  sourceLastHash  String?               @db.VarChar(128)
+  lastSyncedAt    DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  user          User?                   @relation("CalendarEventOwner", fields: [userId], references: [id], onDelete: SetNull)
+  assignee      User?                   @relation("CalendarEventAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reminders     CalendarEventReminder[] @relation("EventReminders")
+  customEvent   CalendarCustomEvent?    @relation("CustomEventToEvent")
+
+  @@index([startDateTime])
+  @@index([endDateTime])
+  @@index([sourceType])
+  @@index([category])
+  @@index([userId])
+  @@index([assigneeId])
+  @@index([sourceDocumentId])
+  @@index([sourceProjectId])
+  @@index([isSynthetic])
+}
+
+model UserCalendarPreference {
+  id                    Int      @id @default(autoincrement())
+  userId                Int      @unique
+  defaultView           String   @default("month") @db.VarChar(16)
+  workdayStart          Int      @default(9)
+  workdayEnd            Int      @default(18)
+  weekendDays           Json?
+  showDeclined          Boolean  @default(false)
+  showPastEvents        Boolean  @default(true)
+  categoryColorOverrides Json?
+  sourceTypeVisibility  Json?
+  hideWeekends          Boolean  @default(false)
+  weekStartsOn          Int      @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
