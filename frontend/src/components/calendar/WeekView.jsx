@@ -89,7 +89,7 @@ export default function WeekView({
           {hours.map((h) => (
             <div
               key={h}
-              className="h-[68px] border-b border-border/50 last:border-b-0 text-[10px] text-ink-muted text-right pr-2 pt-1"
+              className="h-[30px] border-b border-border/50 last:border-b-0 text-[10px] text-ink-muted text-right pr-2 pt-1"
             >
               {pad2(h)}:00
             </div>
@@ -113,7 +113,7 @@ export default function WeekView({
                 return (
                   <div
                     key={h}
-                    className="h-[68px] border-b border-border/50 last:border-b-0 p-1 relative hover:bg-[var(--dms-color-info-soft)]/20 cursor-pointer transition-colors"
+                    className="h-[30px] border-b border-border/50 last:border-b-0 p-1 relative hover:bg-[var(--dms-color-info-soft)]/20 cursor-pointer transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
                       onSelectDate && onSelectDate(new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0), e.currentTarget)

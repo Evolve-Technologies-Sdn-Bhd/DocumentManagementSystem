@@ -228,10 +228,11 @@ export const fetchEvents = async (from, to, filters = {}) => {
     const res = await api.get('/calendar', { params })
     const data = res.data?.data || { events: [], categoryMeta: {} }
     const events = Array.isArray(data.events) ? data.events : []
-    if (events.length > 0) return data
-    return { events: generateMockEvents(from, to), categoryMeta: data.categoryMeta || {} }
+    return { events, categoryMeta: data.categoryMeta || {} }
   } catch (e) {
-    return { events: generateMockEvents(from, to), categoryMeta: {} }
+    console.warn('[calendar.fetchEvents] API failed, falling back to empty list:',
+      e?.response?.status || e?.message || String(e))
+    return { events: [], categoryMeta: {} }
   }
 }
 

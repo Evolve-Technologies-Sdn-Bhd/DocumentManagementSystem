@@ -214,7 +214,7 @@ export default function Dashboard() {
       const from = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1)
       const to = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0)
       const data = await calendarApi.fetchEvents(from, to)
-      setCalendarEvents(Array.isArray(data) ? data : [])
+      setCalendarEvents(Array.isArray(data?.events) ? data.events : [])
     } catch (e) {
       console.warn('Failed to load dashboard calendar', e)
     }
