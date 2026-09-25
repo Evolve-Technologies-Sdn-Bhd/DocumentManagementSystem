@@ -94,7 +94,7 @@ export default function MonthView({
               key={d.toISOString() + '_' + idx}
               onClick={(e) => onSelectDate && onSelectDate(d, e.currentTarget)}
               className={[
-                'group relative h-[30px] border-b border-r border-[var(--dms-color-border-default)] text-left p-1 transition-all duration-200 overflow-hidden',
+                'group relative min-h-[88px] border-b border-r border-[var(--dms-color-border-default)] text-left p-1.5 transition-all duration-200 overflow-hidden',
                 inMonth
                   ? 'bg-[var(--dms-color-bg-surface)]'
                   : outOfMonthBg,

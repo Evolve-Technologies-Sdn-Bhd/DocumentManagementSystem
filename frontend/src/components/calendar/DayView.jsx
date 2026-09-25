@@ -75,7 +75,7 @@ export default function DayView({
           {hours.map((h) => (
             <div
               key={h}
-              className="h-[30px] border-b border-border/50 last:border-b-0 text-[10px] text-ink-muted text-right pr-2 pt-1"
+              className="h-[56px] border-b border-border/50 last:border-b-0 text-[11px] text-ink-muted text-right pr-2.5 pt-2.5 font-medium"
             >
               {pad2(h)}:00
             </div>
@@ -91,7 +91,7 @@ export default function DayView({
                   e.stopPropagation()
                   onSelectDate && onSelectDate(new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, 0), e.currentTarget)
                 }}
-                className="h-[30px] border-b border-border/50 last:border-b-0 p-1.5 hover:bg-[var(--dms-color-info-soft)]/25 cursor-pointer transition-colors"
+                className="h-[56px] border-b border-border/50 last:border-b-0 p-2 hover:bg-[var(--dms-color-info-soft)]/25 cursor-pointer transition-colors"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
                   {hourEvents.map((ev, i) => (
