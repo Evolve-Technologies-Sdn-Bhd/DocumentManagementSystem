@@ -195,6 +195,67 @@ export default function EventDetailsModal({
                   <span className="font-medium">{getNameLabel(event.assignee)}</span>
                 </InfoRow>
               )}
+              <InfoRow label="Visibility" icon={<Icon d={ICONS.user} />}>
+                {event.userId === null ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--dms-color-success-soft)]/80 border border-[var(--dms-color-success-ink)]/20 px-2.5 py-0.5 text-[11px] font-bold text-[var(--dms-color-success-ink)]">
+                    Public · All staff
+                  </span>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--dms-color-brand-primary-soft)]/70 border border-[var(--dms-color-brand-primary)]/20 px-2.5 py-0.5 text-[11px] font-bold text-[var(--dms-color-brand-primary)]">
+                      Private
+                    </span>
+                    <div className="text-[11px] text-ink-muted leading-snug">
+                      {event.user && (
+                        <span>Owner: {getNameLabel(event.user)}</span>
+                      )}
+                      {event.assignee && event.user && <span className="mx-1">·</span>}
+                      {event.assignee && <span>1 assignee</span>}
+                      {(event.user || event.assignee) && event.viewers?.length ? <span className="mx-1">·</span> : ''}
+                      {event.viewers?.length ? (
+                        <span>{event.viewers.length} viewer{event.viewers.length === 1 ? '' : 's'}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </InfoRow>
+              {event.userId !== null && (event.viewers?.length > 0 || event.assignee) && (
+                <div className="col-span-2 space-y-2 pt-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-muted flex items-center gap-1.5">
+                    <Icon d={ICONS.user} className="h-3 w-3" />
+                    People with access
+                  </div>
+                  <div className="flex flex-wrap gap-2 p-3 rounded-2xl bg-[var(--dms-color-bg-surface)] border-2 border-border/70">
+                    {event.user && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-border bg-[var(--dms-color-bg-surface)] font-semibold text-ink text-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--dms-color-success-ink)]" />
+                        {getNameLabel(event.user)}
+                        <span className="ml-1 inline-flex items-center rounded-full bg-[var(--dms-color-success-soft)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--dms-color-success-ink)] border border-[var(--dms-color-success-ink)]/20">
+                          Owner
+                        </span>
+                      </span>
+                    )}
+                    {event.assignee && (
+                      <span key={`assignee-${event.assignee.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-border bg-[var(--dms-color-bg-surface)] font-semibold text-ink text-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--dms-color-brand-primary)]" />
+                        {getNameLabel(event.assignee)}
+                        <span className="ml-1 inline-flex items-center rounded-full bg-[var(--dms-color-brand-primary-soft)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--dms-color-brand-primary)] border border-[var(--dms-color-brand-primary)]/20">
+                          Assignee
+                        </span>
+                      </span>
+                    )}
+                    {(event.viewers || []).map((v) => (
+                      <span key={`viewer-${v.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-border bg-[var(--dms-color-bg-surface)] font-semibold text-ink text-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--dms-color-info-ink)]" />
+                        {getNameLabel(v)}
+                        {v.department && (
+                          <span className="ml-0.5 text-[10px] text-ink-muted">· {v.department}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

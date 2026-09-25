@@ -28,6 +28,7 @@ const path = require('path');
 const retentionService = require('./services/retentionService');
 const expiryReminderService = require('./services/expiryReminderService');
 const reviewApprovalReminderService = require('./services/reviewApprovalReminderService');
+const calendarReminderService = require('./services/calendarReminderService');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -79,4 +80,7 @@ app.listen(port, () => {
 
   reviewApprovalReminderService.scheduleProcessing();
   console.log('Review and approval reminder scheduler initialized');
+
+  calendarReminderService.scheduleProcessing();
+  console.log('Calendar event reminder scheduler initialized');
 });

@@ -4,6 +4,7 @@ import Button from '../ui/Button'
 import TextInput from '../ui/TextInput'
 import SelectField from '../ui/SelectField'
 import TextArea from '../ui/TextArea'
+import api from '../../api/axios'
 import {
   formatDDMMYYYY, formatTime24, getCategoryStyle,
   CATEGORY_OPTIONS, REMINDER_OPTIONS, RECURRENCE_OPTIONS,
@@ -33,15 +34,50 @@ const combineDateTime = (dateStr, timeStr, defaultTime = '09:00') => {
   return d
 }
 
+const formatUserName = (u) => {
+  if (!u) return 'Unknown'
+  const parts = []
+  if (u.firstName) parts.push(u.firstName)
+  if (u.lastName) parts.push(u.lastName)
+  if (parts.length === 0 && u.email) parts.push(u.email)
+  const base = parts.join(' ') || `User #${u.id}`
+  return u.department ? `${base} — ${u.department}` : base
+}
+
 export default function CustomEventModal({
   open, onClose, onSubmit, onDelete,
   existing = null, initialDate = null, deleting = false, saving = false
 }) {
+  const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    const load = async () => {
+      setUsersLoading(true)
+      try {
+        const res = await api.get('/users', { params: { status: 'ACTIVE' } })
+        if (cancelled) return
+        const list = res.data?.data?.users || res.data?.users || []
+        setUsers(Array.isArray(list) ? list : [])
+      } catch (_) {
+        if (!cancelled) setUsers([])
+      } finally {
+        if (!cancelled) setUsersLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [open])
+
   const [form, setForm] = useState(() => {
     const defaultCategoryMeta = {}
     CATEGORY_FIELD_CONFIG.CUSTOM.fields.forEach((f) => { defaultCategoryMeta[f.key] = '' })
     if (existing) {
       const existingMeta = existing.customEvent?.categoryMeta || {}
+      const cat = existing.category || 'CUSTOM'
+      const isAnnouncementOrAlert = cat === 'INFO' || cat === 'WARNING'
       return {
         title: existing.title || '',
         description: existing.description || '',
@@ -50,11 +86,14 @@ export default function CustomEventModal({
         endDate: toInputDate(existing.endDateTime),
         endTime: toInputTime(existing.endDateTime),
         isAllDay: existing.isAllDay === true,
-        category: existing.category || 'CUSTOM',
+        category: cat,
         location: existing.customEvent?.location || '',
         recurrenceRule: existing.customEvent?.recurrenceRule || '',
         reminderOffset: existing.customEvent?.reminderOffset || '',
-        categoryMeta: { ...defaultCategoryMeta, ...existingMeta }
+        categoryMeta: { ...defaultCategoryMeta, ...existingMeta },
+        viewerIds: Array.isArray(existing.viewerIds) ? existing.viewerIds : [],
+        assigneeId: existing.assigneeId || '',
+        isPublic: existing.userId == null ? !isAnnouncementOrAlert : false
       }
     }
     const dt = initialDate ? new Date(initialDate) : new Date()
@@ -72,7 +111,10 @@ export default function CustomEventModal({
       location: '',
       recurrenceRule: '',
       reminderOffset: 'PT15M',
-      categoryMeta: { ...defaultCategoryMeta }
+      categoryMeta: { ...defaultCategoryMeta },
+      viewerIds: [],
+      assigneeId: '',
+      isPublic: false
     }
   })
 
@@ -85,6 +127,8 @@ export default function CustomEventModal({
     ;(CATEGORY_FIELD_CONFIG[initCat]?.fields || []).forEach((f) => { defaultCategoryMeta[f.key] = '' })
     if (existing) {
       const existingMeta = existing.customEvent?.categoryMeta || {}
+      const cat = existing.category || 'CUSTOM'
+      const isAnnouncementOrAlert = cat === 'INFO' || cat === 'WARNING'
       setForm({
         title: existing.title || '',
         description: existing.description || '',
@@ -93,11 +137,14 @@ export default function CustomEventModal({
         endDate: toInputDate(existing.endDateTime),
         endTime: toInputTime(existing.endDateTime),
         isAllDay: existing.isAllDay === true,
-        category: existing.category || 'CUSTOM',
+        category: cat,
         location: existing.customEvent?.location || '',
         recurrenceRule: existing.customEvent?.recurrenceRule || '',
         reminderOffset: existing.customEvent?.reminderOffset || '',
-        categoryMeta: { ...defaultCategoryMeta, ...existingMeta }
+        categoryMeta: { ...defaultCategoryMeta, ...existingMeta },
+        viewerIds: Array.isArray(existing.viewerIds) ? existing.viewerIds : [],
+        assigneeId: existing.assigneeId || '',
+        isPublic: existing.userId == null ? !isAnnouncementOrAlert : false
       })
     } else {
       const dt = initialDate ? new Date(initialDate) : new Date()
@@ -115,7 +162,10 @@ export default function CustomEventModal({
         location: '',
         recurrenceRule: '',
         reminderOffset: 'PT15M',
-        categoryMeta: { ...defaultCategoryMeta }
+        categoryMeta: { ...defaultCategoryMeta },
+        viewerIds: [],
+        assigneeId: '',
+        isPublic: false
       })
     }
     setErrors({})
@@ -123,6 +173,18 @@ export default function CustomEventModal({
 
   const currentStyle = useMemo(() => getCategoryStyle(form.category), [form.category])
   const currentCatConfig = useMemo(() => CATEGORY_FIELD_CONFIG[form.category], [form.category])
+  const isAnnouncementOrAlert = form.category === 'INFO' || form.category === 'WARNING'
+  const effectiveIsPublic = isAnnouncementOrAlert || form.isPublic === true
+
+  const toggleViewerId = (id) => {
+    const nid = Number(id)
+    setForm((p) => {
+      const set = new Set(p.viewerIds || [])
+      if (set.has(nid)) set.delete(nid)
+      else set.add(nid)
+      return { ...p, viewerIds: [...set] }
+    })
+  }
 
   const handleChange = (field, value) => {
     setForm((p) => {
@@ -168,6 +230,10 @@ export default function CustomEventModal({
       return
     }
     setErrors({})
+    const assigneeIdNum = form.assigneeId ? Number(form.assigneeId) : null
+    const cleanViewerIds = (form.viewerIds || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id !== assigneeIdNum)
     onSubmit && onSubmit({
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -178,7 +244,10 @@ export default function CustomEventModal({
       location: form.location.trim() || null,
       recurrenceRule: form.recurrenceRule || null,
       reminderOffset: form.reminderOffset || null,
-      categoryMeta: (form.categoryMeta && Object.keys(form.categoryMeta).length > 0) ? form.categoryMeta : null
+      categoryMeta: (form.categoryMeta && Object.keys(form.categoryMeta).length > 0) ? form.categoryMeta : null,
+      assigneeId: assigneeIdNum,
+      viewerIds: cleanViewerIds,
+      isPublic: effectiveIsPublic
     })
   }
 
@@ -385,6 +454,117 @@ export default function CustomEventModal({
                 placeholder="Conference Room / Google Meet link"
               />
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/80 bg-[var(--dms-color-bg-surface-muted)]/50 p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full shrink-0 bg-[var(--dms-color-info-default)]" />
+              <div className="text-[11px] font-semibold uppercase tracking-[0.20em] text-ink">
+                Visibility & Assignment
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Assignee
+                </label>
+                <SelectField
+                  value={String(form.assigneeId || '')}
+                  onChange={(e) => handleChange('assigneeId', e.target.value)}
+                >
+                  <option value="">— No assignee —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={String(u.id)}>{formatUserName(u)}</option>
+                  ))}
+                </SelectField>
+                <p className="text-[10px] text-ink-muted mt-1">
+                  Person responsible for completing this event/task.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="inline-flex items-center gap-2 text-xs text-ink-secondary select-none">
+                  <input
+                    type="checkbox"
+                    checked={effectiveIsPublic}
+                    disabled={isAnnouncementOrAlert}
+                    onChange={(e) => handleChange('isPublic', e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-[var(--dms-color-brand-primary)] focus:ring-[var(--dms-color-brand-primary)]/30"
+                  />
+                  <span className="font-semibold uppercase tracking-wider text-ink-muted text-[11px]">
+                    Visible to all users
+                  </span>
+                </label>
+                {isAnnouncementOrAlert ? (
+                  <p className="text-[10px] text-[var(--dms-color-success-ink)]">
+                    {form.category === 'INFO' ? 'Announcements (INFO)' : 'Alerts (WARNING)'} are always public for all staff.
+                  </p>
+                ) : effectiveIsPublic ? (
+                  <p className="text-[10px] text-[var(--dms-color-info-ink)]">
+                    Everyone on the system will see this event.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-ink-muted">
+                    Only you + assignee + viewers below can see this event.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {!effectiveIsPublic && (
+              <div className="space-y-2 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                    Additional viewers ({form.viewerIds.length})
+                  </label>
+                  <span className="text-[10px] text-ink-muted">
+                    {usersLoading ? 'Loading users…' : `${users.length} users loaded`}
+                  </span>
+                </div>
+                <div className="max-h-48 overflow-y-auto dms-scrollbar space-y-1.5 pr-1 rounded-xl border border-border/60 bg-[var(--dms-color-bg-surface)] p-2.5">
+                  {usersLoading && users.length === 0 && (
+                    <p className="text-[11px] text-ink-muted px-2 py-1">Loading users…</p>
+                  )}
+                  {!usersLoading && users.length === 0 && (
+                    <p className="text-[11px] text-ink-muted px-2 py-1">No active users available.</p>
+                  )}
+                  {users.map((u) => {
+                    const isAssignee = String(form.assigneeId) === String(u.id)
+                    const checked = form.viewerIds.includes(Number(u.id)) || isAssignee
+                    return (
+                      <label
+                        key={u.id}
+                        className={[
+                          'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer select-none border-2',
+                          checked ? 'border-[var(--dms-color-brand-primary)]/40 bg-[var(--dms-color-brand-primary)]/5' : 'border-transparent hover:bg-[var(--dms-color-bg-surface-muted)]'
+                        ].join(' ')}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={isAssignee}
+                          onChange={() => toggleViewerId(u.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-[var(--dms-color-brand-primary)] focus:ring-[var(--dms-color-brand-primary)]/30"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] font-semibold text-ink truncate">{formatUserName(u)}</div>
+                          {u.position && <div className="text-[10px] text-ink-muted truncate">{u.position}{u.email ? ` • ${u.email}` : ''}</div>}
+                        </div>
+                        {isAssignee && (
+                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-[var(--dms-color-info-ink)] bg-[var(--dms-color-info-soft)] rounded-full px-2 py-0.5">
+                            Assignee
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-ink-muted">
+                  Tip: Assignees automatically receive viewer access — no need to tick them.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">

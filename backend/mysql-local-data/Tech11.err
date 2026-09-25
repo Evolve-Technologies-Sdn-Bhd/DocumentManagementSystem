@@ -458,3 +458,7 @@ Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribut
 2026-09-25 14:05:02 250 [Warning] Aborted connection 250 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
 2026-09-25 14:05:02 252 [Warning] Aborted connection 252 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
 2026-09-25 14:05:02 251 [Warning] Aborted connection 251 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-25 15:01:24 289 [Warning] Aborted connection 289 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-25 15:57:18 293 [Warning] Aborted connection 293 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-25 15:57:19 294 [Warning] Aborted connection 294 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-25 16:01:24 292 [Warning] Aborted connection 292 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)

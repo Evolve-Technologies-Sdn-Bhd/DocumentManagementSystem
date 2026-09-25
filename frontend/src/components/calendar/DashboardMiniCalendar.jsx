@@ -89,7 +89,7 @@ export default function DashboardMiniCalendar({
               key={d.toISOString() + '_' + idx}
               onClick={() => handleDayClick(d)}
               className={[
-                'group relative min-h-[40px] p-0.5 flex flex-col items-center justify-start transition-colors rounded-lg',
+                'group relative h-[30px] p-0.5 flex flex-col items-center justify-start transition-colors rounded-lg',
                 inMonth ? 'text-ink' : 'text-ink-soft/50',
                 isTodayFlag ? 'bg-[var(--dms-color-info-soft)]/70 ring-1 ring-[var(--dms-color-info-ink)]/20' : 'hover:bg-[var(--dms-color-bg-surface-muted)]'
               ].join(' ')}

@@ -109,6 +109,7 @@ model User {
   calendarAssignedEvents CalendarEvent[] @relation("CalendarEventAssignee")
   createdCustomCalendarEvents CalendarCustomEvent[] @relation("CustomEventCreator")
   calendarEventReminders CalendarEventReminder[] @relation("ReminderOwner")
+  calendarEventViewers CalendarEventViewer[] @relation("EventViewerUser")
   userCalendarPreference UserCalendarPreference?
 
   @@index([email])
@@ -2430,6 +2431,7 @@ model CalendarEvent {
   assignee      User?                   @relation("CalendarEventAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   reminders     CalendarEventReminder[] @relation("EventReminders")
   customEvent   CalendarCustomEvent?    @relation("CustomEventToEvent")
+  viewers       CalendarEventViewer[]   @relation("EventViewers")
 
   @@index([startDateTime])
   @@index([endDateTime])
@@ -2440,6 +2442,20 @@ model CalendarEvent {
   @@index([sourceDocumentId])
   @@index([sourceProjectId])
   @@index([isSynthetic])
+}
+
+model CalendarEventViewer {
+  id              Int           @id @default(autoincrement())
+  calendarEventId Int
+  userId          Int
+  createdAt       DateTime      @default(now())
+
+  calendarEvent CalendarEvent @relation("EventViewers", fields: [calendarEventId], references: [id], onDelete: Cascade)
+  user          User          @relation("EventViewerUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarEventId, userId], map: "cal_event_viewer_uniq")
+  @@index([userId])
+  @@index([calendarEventId])
 }
 
 model UserCalendarPreference {

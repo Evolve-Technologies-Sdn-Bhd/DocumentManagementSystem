@@ -122,7 +122,8 @@ async function getEventsInRange(userId, from, to, opts = {}) {
           OR: [
             { userId: null },
             { userId },
-            { assigneeId: userId }
+            { assigneeId: userId },
+            { viewers: { some: { userId } } }
           ]
         }
       ]
@@ -130,7 +131,10 @@ async function getEventsInRange(userId, from, to, opts = {}) {
     include: {
       customEvent: true,
       user: true,
-      assignee: true
+      assignee: true,
+      viewers: {
+        include: { user: true }
+      }
     },
     orderBy: { startDateTime: 'asc' }
   });
@@ -150,6 +154,8 @@ async function getEventsInRange(userId, from, to, opts = {}) {
       userId: ce.userId,
       assigneeId: ce.assigneeId,
       assignee: normalizeUser(ce.assignee),
+      viewerIds: (ce.viewers || []).map((v) => v.userId),
+      viewers: (ce.viewers || []).map((v) => normalizeUser(v.user)),
       customEvent: ce.customEvent ? {
         id: ce.customEvent.id,
         recurrenceRule: ce.customEvent.recurrenceRule,
@@ -593,65 +599,88 @@ async function createCustomEvent(userId, payload) {
   const {
     title, description, startDateTime, endDateTime, isAllDay,
     category, priority, assigneeId, location, recurrenceRule, colorOverride,
-    reminderOffset, categoryMeta
+    reminderOffset, categoryMeta, viewerIds, isPublic
   } = payload;
 
   if (!title) throw new Error('Title is required');
   if (!startDateTime) throw new Error('Start date/time is required');
 
-  const result = await prisma.calendarEvent.create({
-    data: {
-      title,
-      description: description || null,
-      startDateTime: new Date(startDateTime),
-      endDateTime: endDateTime ? new Date(endDateTime) : null,
-      isAllDay: isAllDay === true,
-      sourceType: 'CUSTOM',
-      category: category || 'CUSTOM',
-      priority: priority || 0,
-      userId,
-      assigneeId: assigneeId || null,
-      isSynthetic: false,
-      customEvent: {
-        create: {
-          recurrenceRule: recurrenceRule || null,
-          colorOverride: colorOverride || null,
-          location: location || null,
-          reminderOffset: reminderOffset || null,
-          categoryMeta: categoryMeta != null ? categoryMeta : null,
-          createdById: userId
-        }
+  const cat = category || 'CUSTOM';
+  const isAnnouncementOrAlert = cat === 'INFO' || cat === 'WARNING';
+  const isPublicEvent = isPublic === true || isAnnouncementOrAlert;
+
+  const cleanViewerIds = Array.isArray(viewerIds)
+    ? [...new Set(viewerIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id !== userId))]
+    : [];
+
+  const eventCreateData = {
+    title,
+    description: description || null,
+    startDateTime: new Date(startDateTime),
+    endDateTime: endDateTime ? new Date(endDateTime) : null,
+    isAllDay: isAllDay === true,
+    sourceType: 'CUSTOM',
+    category: cat,
+    priority: priority || 0,
+    userId: isPublicEvent ? null : userId,
+    assigneeId: assigneeId || null,
+    isSynthetic: false,
+    customEvent: {
+      create: {
+        recurrenceRule: recurrenceRule || null,
+        colorOverride: colorOverride || null,
+        location: location || null,
+        reminderOffset: reminderOffset || null,
+        categoryMeta: categoryMeta != null ? categoryMeta : null,
+        createdById: userId
       }
-    },
+    }
+  };
+
+  if (cleanViewerIds.length > 0) {
+    eventCreateData.viewers = {
+      create: cleanViewerIds.map((vid) => ({ userId: vid }))
+    };
+  }
+
+  const result = await prisma.calendarEvent.create({
+    data: eventCreateData,
     include: {
       customEvent: true,
       user: true,
-      assignee: true
+      assignee: true,
+      viewers: { include: { user: true } }
     }
   });
 
   const offsetMins = parseReminderOffsetToMinutes(reminderOffset);
   if (offsetMins != null) {
-    try {
-      await prisma.calendarEventReminder.upsert({
-        where: {
-          cal_rem_evt_user_type_off_uniq: {
+    const reminderRecipientIds = new Set();
+    reminderRecipientIds.add(userId);
+    if (result.assigneeId) reminderRecipientIds.add(result.assigneeId);
+    cleanViewerIds.forEach((vid) => reminderRecipientIds.add(vid));
+    for (const rid of reminderRecipientIds) {
+      try {
+        await prisma.calendarEventReminder.upsert({
+          where: {
+            cal_rem_evt_user_type_off_uniq: {
+              calendarEventId: result.id,
+              userId: rid,
+              reminderType: 'IN_APP',
+              offsetMinutes: offsetMins
+            }
+          },
+          create: {
             calendarEventId: result.id,
-            userId,
+            userId: rid,
             reminderType: 'IN_APP',
             offsetMinutes: offsetMins
-          }
-        },
-        create: {
-          calendarEventId: result.id,
-          userId,
-          reminderType: 'IN_APP',
-          offsetMinutes: offsetMins
-        },
-        update: { delivered: false, deliveredAt: null }
-      });
-    } catch (e) {
-      // ignore reminder creation failure; event already persisted
+          },
+          update: { delivered: false, deliveredAt: null }
+        });
+      } catch (e) {
+        // ignore reminder creation failure; event already persisted
+      }
     }
   }
 
@@ -661,7 +690,7 @@ async function createCustomEvent(userId, payload) {
 async function updateCustomEvent(userId, eventId, payload) {
   const existing = await prisma.calendarEvent.findUnique({
     where: { id: Number(eventId) },
-    include: { customEvent: true }
+    include: { customEvent: true, viewers: true }
   });
   if (!existing) throw new Error('Event not found');
   if (existing.isSynthetic) throw new Error('Synthetic events cannot be edited');
@@ -673,7 +702,7 @@ async function updateCustomEvent(userId, eventId, payload) {
   const {
     title, description, startDateTime, endDateTime, isAllDay,
     category, priority, assigneeId, location, recurrenceRule, colorOverride,
-    reminderOffset, categoryMeta
+    reminderOffset, categoryMeta, viewerIds, isPublic
   } = payload;
 
   const customData = {};
@@ -683,54 +712,86 @@ async function updateCustomEvent(userId, eventId, payload) {
   if (reminderOffset !== undefined) customData.reminderOffset = reminderOffset || null;
   if (categoryMeta !== undefined) customData.categoryMeta = categoryMeta || Prisma.DbNull;
 
+  const eventUpdateData = {};
+  if (title !== undefined) eventUpdateData.title = title;
+  if (description !== undefined) eventUpdateData.description = description || null;
+  if (startDateTime) eventUpdateData.startDateTime = new Date(startDateTime);
+  if (endDateTime !== undefined) eventUpdateData.endDateTime = endDateTime ? new Date(endDateTime) : null;
+  if (isAllDay !== undefined) eventUpdateData.isAllDay = isAllDay === true;
+  if (category !== undefined) eventUpdateData.category = category;
+  if (priority !== undefined) eventUpdateData.priority = priority || 0;
+  if (assigneeId !== undefined) eventUpdateData.assigneeId = assigneeId || null;
+
+  if (category !== undefined || isPublic !== undefined) {
+    const cat = category !== undefined ? category : existing.category;
+    const isAnnouncementOrAlert = cat === 'INFO' || cat === 'WARNING';
+    const isPublicEvent = isPublic === true || (isPublic !== false && isAnnouncementOrAlert);
+    const createdById = existing.customEvent?.createdById || userId;
+    eventUpdateData.userId = isPublicEvent ? null : (existing.userId || createdById);
+  }
+
+  if (Object.keys(customData).length) {
+    eventUpdateData.customEvent = existing.customEvent ? {
+      update: customData
+    } : {
+      create: {
+        ...customData,
+        createdById: existing.customEvent?.createdById || userId
+      }
+    };
+  }
+
+  let cleanViewerIds = null;
+  if (Array.isArray(viewerIds)) {
+    cleanViewerIds = [...new Set(viewerIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id !== userId))];
+    eventUpdateData.viewers = {
+      deleteMany: {},
+      create: cleanViewerIds.map((vid) => ({ userId: vid }))
+    };
+  }
+
   const updated = await prisma.calendarEvent.update({
     where: { id: Number(eventId) },
-    data: {
-      title: title !== undefined ? title : undefined,
-      description: description !== undefined ? description : undefined,
-      startDateTime: startDateTime ? new Date(startDateTime) : undefined,
-      endDateTime: endDateTime ? new Date(endDateTime) : (endDateTime === null ? null : undefined),
-      isAllDay: isAllDay !== undefined ? isAllDay : undefined,
-      category: category !== undefined ? category : undefined,
-      priority: priority !== undefined ? priority : undefined,
-      assigneeId: assigneeId !== undefined ? (assigneeId || null) : undefined,
-      customEvent: existing.customEvent && Object.keys(customData).length ? {
-        update: customData
-      } : (!existing.customEvent && (location !== undefined || recurrenceRule !== undefined || reminderOffset !== undefined || categoryMeta !== undefined) ? {
-        create: {
-          ...customData,
-          createdById: userId
-        }
-      } : undefined)
-    },
+    data: eventUpdateData,
     include: {
       customEvent: true,
       user: true,
-      assignee: true
+      assignee: true,
+      viewers: { include: { user: true } }
     }
   });
 
   const offsetMins = parseReminderOffsetToMinutes(reminderOffset);
   if (offsetMins != null) {
-    try {
-      await prisma.calendarEventReminder.upsert({
-        where: {
-          cal_rem_evt_user_type_off_uniq: {
+    const reminderRecipientIds = new Set();
+    reminderRecipientIds.add(userId);
+    if (updated.assigneeId) reminderRecipientIds.add(updated.assigneeId);
+    if (cleanViewerIds != null) {
+      cleanViewerIds.forEach((vid) => reminderRecipientIds.add(vid));
+    } else if (updated.viewers) {
+      updated.viewers.forEach((v) => reminderRecipientIds.add(v.userId));
+    }
+    for (const rid of reminderRecipientIds) {
+      try {
+        await prisma.calendarEventReminder.upsert({
+          where: {
+            cal_rem_evt_user_type_off_uniq: {
+              calendarEventId: updated.id,
+              userId: rid,
+              reminderType: 'IN_APP',
+              offsetMinutes: offsetMins
+            }
+          },
+          create: {
             calendarEventId: updated.id,
-            userId,
+            userId: rid,
             reminderType: 'IN_APP',
             offsetMinutes: offsetMins
-          }
-        },
-        create: {
-          calendarEventId: updated.id,
-          userId,
-          reminderType: 'IN_APP',
-          offsetMinutes: offsetMins
-        },
-        update: { delivered: false, deliveredAt: null }
-      });
-    } catch (e) { /* ignore */ }
+          },
+          update: { delivered: false, deliveredAt: null }
+        });
+      } catch (e) { /* ignore */ }
+    }
   }
 
   return updated;
@@ -760,7 +821,8 @@ async function getEventDetail(userId, eventId) {
       customEvent: true,
       user: true,
       assignee: true,
-      reminders: true
+      reminders: true,
+      viewers: { include: { user: true } }
     }
   });
   if (!evt) return null;

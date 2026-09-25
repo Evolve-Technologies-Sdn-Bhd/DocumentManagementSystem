@@ -255,10 +255,7 @@ export const CATEGORY_FIELD_CONFIG = {
   CUSTOM: {
     title: 'Custom Event Details',
     desc: 'Personal or team calendar entries with flexible fields.',
-    fields: [
-      { key: 'location', label: 'Location', type: 'text', placeholder: 'e.g. Conference Room / Google Meet link', required: false },
-      { key: 'attendees', label: 'Attendees', type: 'text', placeholder: 'e.g. name1@company.com, name2@company.com', required: false, note: 'Comma-separated emails' }
-    ]
+    fields: []
   },
   MILESTONE: {
     title: 'Project Milestone Details',
