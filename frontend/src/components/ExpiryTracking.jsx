@@ -199,7 +199,7 @@ function ExpiryEditModal({ open, profile, globalSettings, users, onClose, onSubm
         e.preventDefault()
         const checklistPayload = defaultChecklist.map((item) => item.name)
         onSubmit({ ...form, useGlobalRule, defaultChecklistItems: checklistPayload })
-      }}>
+      }} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center gap-2">
@@ -525,7 +525,7 @@ function RenewalModal({ open, profile, onClose, onSubmit, saving }) {
       <form onSubmit={(e) => {
         e.preventDefault()
         onSubmit({ ...form, checklistItems })
-      }}>
+      }} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">

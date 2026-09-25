@@ -30,7 +30,7 @@ export function ModalHeader({ title, subtitle, onClose, className = '' }) {
 }
 
 export function ModalBody({ children, className = '' }) {
-  return <div className={['flex-1 overflow-y-auto px-6 py-4 dms-scrollbar', className].filter(Boolean).join(' ')}>{children}</div>
+  return <div className={['flex-1 min-h-0 overflow-y-auto px-6 py-4 dms-scrollbar', className].filter(Boolean).join(' ')}>{children}</div>
 }
 
 export function ModalFooter({ children, className = '' }) {
@@ -59,12 +59,12 @@ export default function Modal({
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="relative inset-0 flex min-h-full w-full items-center justify-center p-4">
+      <div className="relative inset-0 flex h-full w-full items-center justify-center p-4 overflow-y-auto">
         <div
           role="dialog"
           aria-modal="true"
           className={[
-            'modal-uniform relative z-10 w-full max-h-[92vh] flex flex-col overflow-hidden rounded-[16px] shadow-[0_30px_80px_rgba(15,23,42,0.30)] ring-1 ring-black/10 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]',
+            'modal-uniform relative z-10 my-auto w-full max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden rounded-[16px] shadow-[0_30px_80px_rgba(15,23,42,0.30)] ring-1 ring-black/10 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]',
             sizeMap[size] || sizeMap.lg,
             className
           ].filter(Boolean).join(' ')}
