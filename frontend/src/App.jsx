@@ -429,7 +429,7 @@ export default function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute module="profileSettings" action="view">
+            <ProtectedRoute>
               <Layout>
                 <ProfileSettings />
               </Layout>

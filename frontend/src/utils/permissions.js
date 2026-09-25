@@ -87,6 +87,7 @@ export const getUserPermissions = () => {
 export const hasPermission = (module, action) => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
+  if (module === 'profileSettings') return true
   return !!(permissions[module] && permissions[module][action])
 }
 
@@ -98,6 +99,7 @@ export const hasPermission = (module, action) => {
 export const hasAnyPermission = (module) => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
+  if (module === 'profileSettings') return true
   if (!permissions[module]) return false
   
   return Object.values(permissions[module]).some(value => value === true)
