@@ -322,6 +322,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   if (!isOpen) return null
 
   return (
+    <>
     <Modal onClose={loading ? undefined : onClose} closeOnBackdrop={!loading} size="lg">
       <ModalHeader
         title="Publish Document"
@@ -620,5 +621,6 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
       parentFolder={createFolderParent}
       onCreated={handleFolderCreated}
     />
+    </>
   )
 }
