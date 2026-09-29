@@ -452,7 +452,6 @@ async function getEventsInRange(userId, from, to, opts = {}) {
           where: { createdAt: { gte: fromDate, lte: toDate } },
           include: {
             user: true,
-            assignedBy: true,
             document: { include: { documentType: true } }
           }
         });
@@ -475,7 +474,7 @@ async function getEventsInRange(userId, from, to, opts = {}) {
             _allDay: false,
             _docId: a.documentId,
             _userId: a.assignedById || null,
-            _user: normalizeUser(a.assignedBy),
+            _user: a.assignedById ? { id: a.assignedById, name: `User #${a.assignedById}`, email: null, role: null } : null,
             _assigneeId: a.userId,
             _assignee: normalizeUser(a.user),
             _link: docLink,
