@@ -63,12 +63,12 @@ function DayActivityPopover({
           if (e.target === e.currentTarget) onClose && onClose()
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+      <div className="absolute inset-0 flex sm:items-center items-start justify-center p-2 sm:p-4 md:p-6 pointer-events-none overflow-y-auto">
         <div
           ref={ref}
-          className="pointer-events-auto w-full max-w-2xl max-h-[75vh] flex flex-col"
+          className="pointer-events-auto w-full max-w-full sm:max-w-xl md:max-w-2xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-3rem)] flex flex-col sm:my-0 my-2"
         >
-          <div className="rounded-[20px] border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] shadow-[0_24px_60px_rgba(15,23,42,0.35)] ring-1 ring-black/10 overflow-hidden animate-[popoverIn_0.18s_ease-out] flex flex-col h-full">
+          <div className="sm:rounded-[20px] rounded-xl border-2 sm:border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] shadow-[0_24px_60px_rgba(15,23,42,0.35)] ring-1 ring-black/10 overflow-hidden animate-[popoverIn_0.18s_ease-out] flex flex-col h-full">
             <div className="px-5 sm:px-6 py-3.5 flex items-start justify-between gap-3 bg-gradient-to-br from-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_80%,var(--dms-color-bg-surface))] via-[var(--dms-color-bg-surface)] to-[color-mix(in_srgb,var(--dms-color-info-soft)_40%,var(--dms-color-bg-surface))] border-b-2 border-[var(--dms-color-border-default)]">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -98,27 +98,29 @@ function DayActivityPopover({
               </button>
             </div>
 
-            <div className="px-5 sm:px-6 py-5 flex-1 min-h-0">
+            <div className="px-5 sm:px-6 py-5 flex-1 min-h-0 overflow-hidden flex flex-col">
               {dayEvents.length === 0 ? (
-                <div className="py-10 sm:py-12 text-center rounded-[18px] bg-gradient-to-br from-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_80%,var(--dms-color-bg-surface))] to-[color-mix(in_srgb,var(--dms-color-success-soft)_30%,var(--dms-color-bg-surface))] border-2 border-dashed border-[var(--dms-color-border-default)]">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-2xl flex items-center justify-center bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-surface-strong))] text-[var(--dms-color-success-ink)] shadow-[0_8px_20px_rgba(16,185,129,0.20)] ring-1 ring-[var(--dms-color-success-ink)]/15">
-                    <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.20em] text-[var(--dms-color-success-ink)] mb-1.5">
-                    All clear
-                  </div>
-                  <div className="text-sm text-ink-secondary leading-relaxed max-w-sm mx-auto font-medium">
-                    No events scheduled for this day. Tap below to add your first activity.
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="py-10 sm:py-12 w-full text-center rounded-[18px] bg-gradient-to-br from-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_80%,var(--dms-color-bg-surface))] to-[color-mix(in_srgb,var(--dms-color-success-soft)_30%,var(--dms-color-bg-surface))] border-2 border-dashed border-[var(--dms-color-border-default)]">
+                    <div className="mx-auto mb-4 h-16 w-16 rounded-2xl flex items-center justify-center bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-surface-strong))] text-[var(--dms-color-success-ink)] shadow-[0_8px_20px_rgba(16,185,129,0.20)] ring-1 ring-[var(--dms-color-success-ink)]/15">
+                      <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.20em] text-[var(--dms-color-success-ink)] mb-1.5">
+                      All clear
+                    </div>
+                    <div className="text-sm text-ink-secondary leading-relaxed max-w-sm mx-auto font-medium">
+                      No events scheduled for this day. Tap below to add your first activity.
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 overflow-y-auto dms-scrollbar pr-2 h-full">
+                <div className="flex-1 min-h-0 overflow-y-auto dms-scrollbar pr-2 space-y-3">
                   {dayEvents.map((ev) => (
                     <div
                       key={String(ev.id)}
-                      className="rounded-[18px] border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_98%,var(--dms-color-bg-surface-muted))] hover:bg-[var(--dms-color-bg-surface-muted)]/70 hover:border-[var(--dms-color-brand-primary)]/35 hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)] transition-all p-3"
+                      className="rounded-[18px] border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_98%,var(--dms-color-bg-surface-muted))] hover:bg-[var(--dms-color-bg-surface-muted)]/70 hover:border-[var(--dms-color-brand-primary)]/35 hover:shadow-[0_8px_20px_rgba(15,23,42,0.10)] transition-all p-3 shrink-0"
                     >
                       <CalendarEventBlock
                         event={ev}
