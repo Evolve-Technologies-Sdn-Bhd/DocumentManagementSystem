@@ -57,10 +57,17 @@ function EventPopover({
 
   const isCustom = event.sourceType === 'CUSTOM' && !event.synthetic
   const canEdit = isCustom
+  const isAssignmentType = event.sourceType === 'ASSIGNMENT_CREATED' || event.sourceType === 'VERSION_REQUEST_TARGET'
+  const organizerLabel = isAssignmentType ? 'Assigned By' : 'Organizer'
+  const organizerUser = event.user
+  const organizerName = organizerUser
+    ? [organizerUser.firstName, organizerUser.lastName].filter(Boolean).join(' ') || organizerUser.email
+    : (event.createdById ? String(event.createdById) : 'System')
 
   const handleNavigate = () => {
     if (!event.deepLink) return
     navigate(event.deepLink)
+    onClose && onClose()
   }
 
   const locationValue = event.customEvent?.location || event.location
@@ -178,6 +185,24 @@ function EventPopover({
                     </div>
                   )}
 
+                  {(organizerUser || event.createdById) && (
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--dms-color-success-soft)]/70 text-[var(--dms-color-success-ink)] shrink-0">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">{organizerLabel}</div>
+                        <div className="text-sm leading-6 text-ink-secondary font-medium">
+                          {organizerName}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {event.assignee && (
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--dms-color-brand-primary)]/10 text-[var(--dms-color-brand-primary)] shrink-0">
@@ -247,8 +272,13 @@ function EventPopover({
                   </Button>
                 )}
                 {event.deepLink && (
-                  <Button size="md" variant="secondary" onClick={handleNavigate}>
-                    View Source
+                  <Button size="md" variant={onViewDetails ? "secondary" : "primary"} onClick={handleNavigate}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+                      </svg>
+                      Go to Source
+                    </span>
                   </Button>
                 )}
               </div>

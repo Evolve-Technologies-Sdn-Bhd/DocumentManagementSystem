@@ -39,7 +39,7 @@ export default function ReminderModal({
         subtitle={event.title}
         onClose={onClose}
       />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody className="space-y-4">
           <div className="rounded-xl border border-border bg-[var(--dms-color-bg-surface-muted)] px-3 py-2.5">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">Event Time</div>

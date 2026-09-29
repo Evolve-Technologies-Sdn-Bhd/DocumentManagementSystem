@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Modal, { ModalHeader, ModalBody, ModalFooter } from '../ui/Modal'
 import Button from '../ui/Button'
 import {
@@ -36,7 +37,8 @@ const ICONS = {
   repeat: 'M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3',
   user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
   notes: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
-  warning: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01'
+  warning: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01',
+  external: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3'
 }
 
 const InfoRow = ({ label, children, icon }) => (
@@ -66,6 +68,7 @@ export default function EventDetailsModal({
   onDelete,
   deleting = false
 }) {
+  const navigate = useNavigate()
   if (!event) return null
   const synthetic = isSynthetic(event)
   const style = useMemo(() => getCategoryStyle(event.category), [event.category])
@@ -98,6 +101,16 @@ export default function EventDetailsModal({
   }, [catConfig, categoryMeta])
 
   const anyMetaWithValue = metaEntries.some((m) => m.value !== null && m.value !== '' && m.value !== undefined)
+
+  const isAssignmentType = event.sourceType === 'ASSIGNMENT_CREATED' || event.sourceType === 'VERSION_REQUEST_TARGET'
+  const organizerLabel = isAssignmentType ? 'Assigned By' : 'Organizer / Creator'
+
+  const handleGoToSource = () => {
+    if (event.deepLink) {
+      navigate(event.deepLink)
+      onClose && onClose()
+    }
+  }
 
   const StartRow = () => (
     <InfoRow label="Starts" icon={<Icon d={ICONS.calendar} />}>
@@ -187,7 +200,7 @@ export default function EventDetailsModal({
               <InfoRow label="Location" icon={<Icon d={ICONS.location} />}>
                 <span className="font-medium break-words">{custom.location}</span>
               </InfoRow>
-              <InfoRow label="Organizer / Creator" icon={<Icon d={ICONS.user} />}>
+              <InfoRow label={organizerLabel} icon={<Icon d={ICONS.user} />}>
                 <span className="font-medium">{getNameLabel(event.user) || event.createdById || 'System'}</span>
               </InfoRow>
               {event.assignee && (
@@ -314,6 +327,19 @@ export default function EventDetailsModal({
         </div>
       </ModalBody>
       <ModalFooter>
+        {synthetic && event.deepLink && (
+          <div className="mr-auto flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={handleGoToSource}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Icon d={ICONS.external} className="h-4 w-4" />
+                Go to Source
+              </span>
+            </Button>
+          </div>
+        )}
         {!synthetic && (
           <div className="mr-auto flex items-center gap-2">
             <Button

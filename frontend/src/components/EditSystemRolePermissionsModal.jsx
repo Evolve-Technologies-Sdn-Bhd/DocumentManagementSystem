@@ -468,7 +468,7 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
       <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border-2 border-[var(--dms-color-border-default)]">
         {/* Header */}
-        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] sticky top-0 bg-[var(--dms-color-bg-surface)]">
+        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] flex-shrink-0 bg-[var(--dms-color-bg-surface)]">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-ink">Edit Permissions</h2>
@@ -488,8 +488,9 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-6 space-y-6">
             {/* Info Alert */}
             <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
               <div className="flex items-start gap-3">
@@ -695,9 +696,9 @@ export default function EditSystemRolePermissionsModal({ role, onClose, onSubmit
               })}
             </div>
           </div>
-
+        </div>
           {/* Footer */}
-          <div className="px-6 py-4 border-t-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] flex items-center justify-between sticky bottom-0">
+          <div className="px-6 py-4 border-t-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] flex items-center justify-between flex-shrink-0">
             <div className="text-sm text-ink-secondary">
               <span className="font-medium">Total Selected:</span> 
               <span className="ml-1 font-semibold text-ink">{getGrandTotal().selected} of {getGrandTotal().total} permissions</span>

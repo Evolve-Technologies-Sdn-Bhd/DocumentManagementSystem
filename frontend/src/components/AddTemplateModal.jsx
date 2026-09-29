@@ -134,9 +134,9 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
 
   const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-gray-900">Add / Reupload New Template</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -151,7 +151,7 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
         </div>
 
         {/* Form Content */}
-        <div className="px-6 py-4 space-y-4">
+        <div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Document Type <span className="text-red-500">*</span></label>
@@ -262,7 +262,7 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
           <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">Submit</button>
         </div>

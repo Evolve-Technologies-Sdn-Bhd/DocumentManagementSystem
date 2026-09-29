@@ -1339,8 +1339,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         }}
       />
 
-      <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto border border-gray-200" data-tour-id="bulk-import-modal">
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+      <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200" data-tour-id="bulk-import-modal">
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900">{t('bulk_import_title')}</h2>
@@ -1358,7 +1358,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
           </div>
         </div>
 
-          <div className="px-6 py-4 space-y-4">
+          <div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
             {formError && (
               <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-800">
                 {formError}
@@ -2041,7 +2041,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
             ) : null}
           </div>
 
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
             <div className="text-xs text-gray-700 mr-auto">
               Step {currentStep + 1} of {BULK_IMPORT_STEPS.length}
             </div>
@@ -2085,8 +2085,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
           {expiryEditor.open && expiryEditor.draft ? (
             <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-              <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+              <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">Custom Expiry Tracking</h3>
@@ -2107,7 +2107,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   </div>
                 </div>
 
-                <div className="px-6 py-4 space-y-4">
+                <div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
                   <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3">
                     <p className="text-sm font-medium text-blue-800">Set a custom expiry rule for this file.</p>
                     <p className="mt-2 text-xs text-blue-700">
@@ -2328,7 +2328,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   </details>
                 </div>
 
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
                   <div className="mr-auto">
                     {fileItems[expiryEditor.itemIndex]?.expiryOverrideEnabled ? (
                       <button

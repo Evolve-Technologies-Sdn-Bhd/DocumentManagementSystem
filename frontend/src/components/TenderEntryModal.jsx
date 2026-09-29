@@ -200,7 +200,7 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="max-h-[78vh] overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
               {error}

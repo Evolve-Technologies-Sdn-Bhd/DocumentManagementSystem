@@ -290,7 +290,7 @@ const { uploadDocument } = require('./middleware/upload');
 const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
   try {
     const settings = await configService.getSmartDocumentSettings()
-    if (!settings.enabled) {
+    if (!settings?.enabled) {
       return ResponseFormatter.error(
         res,
         'Smart Document feature is currently disabled. Please contact your administrator.',
@@ -301,7 +301,12 @@ const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
     next()
   } catch (error) {
     console.error('Smart Document gating error:', error)
-    next()
+    return ResponseFormatter.error(
+      res,
+      'Smart Document feature is currently unavailable. Please try again later.',
+      503,
+      { code: 'SMART_DOCUMENT_UNAVAILABLE' }
+    )
   }
 })
 

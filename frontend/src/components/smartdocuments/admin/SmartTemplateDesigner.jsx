@@ -2440,7 +2440,7 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
             subtitle={uploadModal.versionLabel || ''}
             onClose={() => setUploadModal(null)}
           />
-          <form onSubmit={handleUpload}>
+          <form onSubmit={handleUpload} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <ModalBody className="space-y-4">
               {uploadError && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{uploadError}</div>
@@ -2481,7 +2481,7 @@ function VersionsTab({ template, setTemplate, onReload, notify, activeDesignVers
       {createModal && (
         <Modal onClose={() => setCreateModal(false)} size="md">
           <ModalHeader title="Create New Version" subtitle="Optionally copy sections, fields, and mappings from an existing version." onClose={() => setCreateModal(false)} />
-          <form onSubmit={handleCreateVersion}>
+          <form onSubmit={handleCreateVersion} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <ModalBody className="space-y-4">
               {createError && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{createError}</div>
@@ -2859,7 +2859,7 @@ function SectionsTab({ template, setTemplate, onReload, notify, activeDesignVers
       {addOpen && (
         <Modal onClose={() => setAddOpen(false)} size="md">
           <ModalHeader title="Add Section" onClose={() => setAddOpen(false)} />
-          <form onSubmit={handleAddSubmit}>
+          <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <ModalBody className="space-y-4">
               {addError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addError}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3961,7 +3961,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
       {addOpen && addForm && (
         <Modal onClose={() => setAddOpen(false)} size="xl">
           <ModalHeader title="Add Form Field" onClose={() => setAddOpen(false)} />
-          <form onSubmit={handleAddSubmit}>
+          <form onSubmit={handleAddSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <ModalBody className="space-y-4">
               {addError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addError}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4177,7 +4177,7 @@ const FormFieldsTab = forwardRef(function FormFieldsTab({ template, setTemplate,
       {editOpen && editForm && (
         <Modal onClose={() => setEditOpen(false)} size="xl">
           <ModalHeader title="Edit Form Field" onClose={() => setEditOpen(false)} />
-          <form onSubmit={handleEditSubmit}>
+          <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <ModalBody className="space-y-4">
               {editError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{editError}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

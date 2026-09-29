@@ -311,7 +311,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
         subtitle="Finalize publication destination and optional expiry tracking setup."
         onClose={loading ? undefined : onClose}
       />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody className="space-y-6">
           {isLoadingData ? (
             <AsyncActionStatus

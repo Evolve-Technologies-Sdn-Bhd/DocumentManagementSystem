@@ -683,7 +683,7 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
         )}
 
         {/* Smart Form dengan diffs */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4 max-h-[500px] overflow-y-auto pr-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
           <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 flex items-center justify-center gap-2"><InlineSpinner className="h-4 w-4 border-2"/>Loading Smart Form...</div>}>
             {smartTemplateVersion ? (
               <SmartFormLazy

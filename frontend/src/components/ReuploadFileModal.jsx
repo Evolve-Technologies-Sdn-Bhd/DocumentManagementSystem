@@ -1505,7 +1505,6 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
                 initialValues={smartFieldValues}
                 onChange={handleSmartFieldChange}
                 readonly={false}
-                className="max-h-[480px] overflow-y-auto pr-2"
               />
             </div>
           )}

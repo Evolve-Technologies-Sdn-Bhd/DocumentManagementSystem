@@ -64,6 +64,7 @@ const buildSynthetic = (row) => ({
   category: SOURCE_CATEGORY[row._kind] || 'INFO',
   priority: row._priority || 0,
   userId: row._userId || null,
+  user: row._user || null,
   assigneeId: row._assigneeId || null,
   assignee: row._assignee || null,
   sourceDocumentId: row._docId || null,
@@ -412,22 +413,34 @@ async function getEventsInRange(userId, from, to, opts = {}) {
       where: { createdAt: { gte: fromDate, lte: toDate } },
       include: {
         user: true,
+        assignedBy: true,
         document: { include: { documentType: true } }
       }
     });
     for (const a of assignments) {
       const canSee = isSuper || a.userId === userId || a.assignedById === userId;
       if (!canSee) continue;
+      const docCode = a.document?.fileCode ? ` (${a.document.fileCode})` : '';
+      const docLink = a.documentId ? `/documents/review-approval?docId=${a.documentId}` : `/documents/review-approval`;
+      const extra = {};
+      if (a.assignmentType) extra.assignmentType = a.assignmentType;
+      if (a.document?.fileCode) extra.documentCode = a.document.fileCode;
+      if (a.document?.documentType?.name) extra.documentType = a.document.documentType.name;
+      if (a.assignedById) extra.assignedById = a.assignedById;
       results.push(buildSynthetic({
         _kind: 'ASSIGNMENT_CREATED',
         _refId: `DA_${a.id}`,
-        _title: `${a.assignmentType} Assigned: ${a.document?.title || 'Document'}`,
+        _title: `${a.assignmentType} Assigned: ${a.document?.title || 'Document'}${docCode}`,
+        _description: a.document?.documentType?.name ? `Document Type: ${a.document.documentType.name}` : null,
         _start: a.createdAt,
         _allDay: false,
         _docId: a.documentId,
+        _userId: a.assignedById || null,
+        _user: normalizeUser(a.assignedBy),
         _assigneeId: a.userId,
         _assignee: normalizeUser(a.user),
-        _link: `/documents/review-approval`
+        _link: docLink,
+        _extra: Object.keys(extra).length ? extra : null
       }));
     }
   }
@@ -443,6 +456,7 @@ async function getEventsInRange(userId, from, to, opts = {}) {
     for (const v of vrs) {
       const canSee = isSuper || v.requestedById === userId || v.reviewedById === userId || v.approvedById === userId;
       if (!canSee) continue;
+      const vrLink = v.documentId ? `/documents/review-approval?docId=${v.documentId}` : `/documents/review-approval`;
       results.push(buildSynthetic({
         _kind: 'VERSION_REQUEST_TARGET',
         _refId: `VR_${v.id}`,
@@ -452,8 +466,9 @@ async function getEventsInRange(userId, from, to, opts = {}) {
         _vrId: v.id,
         _docId: v.documentId,
         _userId: v.requestedById,
+        _user: normalizeUser(v.requestedBy),
         _priority: 1,
-        _link: `/documents/review-approval`
+        _link: vrLink
       }));
     }
   }

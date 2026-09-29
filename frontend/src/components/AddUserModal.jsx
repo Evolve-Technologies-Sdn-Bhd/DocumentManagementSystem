@@ -115,8 +115,8 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
 
   const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
-      <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-[var(--dms-color-border-default)]">
-        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] sticky top-0 bg-[var(--dms-color-bg-surface)]">
+      <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border-2 border-[var(--dms-color-border-default)]">
+        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] flex-shrink-0 bg-[var(--dms-color-bg-surface)]">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-ink">
               {initialData ? 'Edit User' : 'Add New User'}
@@ -132,7 +132,7 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           </p>
         </div>
 
-        <div className="px-6 py-4 space-y-6">
+        <div className="px-6 py-4 space-y-6 flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-4">
             <h4 className="font-semibold text-ink">Basic Information</h4>
             
@@ -314,7 +314,7 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           )}
         </div>
 
-        <div className="px-6 py-4 bg-[var(--dms-color-bg-surface-muted)] border-t-2 border-[var(--dms-color-border-default)] flex justify-end gap-3 sticky bottom-0">
+        <div className="px-6 py-4 bg-[var(--dms-color-bg-surface-muted)] border-t-2 border-[var(--dms-color-border-default)] flex justify-end gap-3 flex-shrink-0">
           <button
             onClick={onClose}
             className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"

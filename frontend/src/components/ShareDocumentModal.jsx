@@ -229,7 +229,7 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
           </button>
         </div>
 
-        <div className="max-h-[85vh] overflow-y-auto px-6 py-4 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-6">
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}

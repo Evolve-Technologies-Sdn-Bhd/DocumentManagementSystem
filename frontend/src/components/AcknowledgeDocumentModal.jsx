@@ -29,7 +29,7 @@ export default function AcknowledgeDocumentModal({ document, onClose, onSubmit }
 
   return (
     <Modal onClose={onClose} size="md">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalHeader
           title={t('acknowledged_document')}
           subtitle={t('modal_draft_desc')}

@@ -104,7 +104,7 @@ function DocumentTypeModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_doc_type') : t('mdm_add_doc_type')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -228,7 +228,7 @@ function ProjectCategoryModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_project_cat') : t('mdm_add_project_cat')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -313,7 +313,7 @@ function DepartmentModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_dept') : t('mdm_add_dept')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -395,7 +395,7 @@ function DivisionModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_division') : t('mdm_add_division')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -484,7 +484,7 @@ function DivisionAssignmentModal({
   return (
     <Modal onClose={onClose} closeOnBackdrop size="lg">
       <ModalHeader title={title} onClose={onClose} />
-      <div className="space-y-4">
+      <div className="space-y-4 flex flex-col flex-1 min-h-0 overflow-hidden">
         {description && (
           <div className="px-6 pt-4">
             <p className="text-sm text-ink-soft">{description}</p>

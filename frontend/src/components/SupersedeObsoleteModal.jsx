@@ -175,9 +175,9 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
 
   const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Request Supersede / Obsolete Document</h2>
           <button
             onClick={handleClose}
@@ -189,8 +189,9 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
           </button>
         </div>
 
-        {/* Info Box */}
-        <div className="px-6 pt-4">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* Info Box */}
+          <div className="px-6 pt-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               Please make sure a replacement file is available before requesting to supersede, and ensure it goes through the review and approval process.
@@ -358,9 +359,10 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
             />
           </div>
         </form>
+        </div>
 
         {/* Actions */}
-        <div className="bg-gray-50 border-t border-gray-200 sticky bottom-0 px-6 py-4">
+        <div className="bg-gray-50 border-t border-gray-200 flex-shrink-0 px-6 py-4">
           <div className="flex gap-3 justify-end">
             <button
               type="button"
