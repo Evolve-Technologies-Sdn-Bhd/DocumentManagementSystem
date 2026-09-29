@@ -104,6 +104,7 @@ export default function EventDetailsModal({
 
   const isAssignmentType = event.sourceType === 'ASSIGNMENT_CREATED' || event.sourceType === 'VERSION_REQUEST_TARGET'
   const organizerLabel = isAssignmentType ? 'Assigned By' : 'Organizer / Creator'
+  const documentOwner = event.extra?.documentOwner || null
 
   const handleGoToSource = () => {
     if (event.deepLink) {
@@ -145,7 +146,7 @@ export default function EventDetailsModal({
   )
 
   return (
-    <Modal open onClose={onClose} size="2xl" className="w-full max-w-2xl max-h-[78vh] flex flex-col rounded-[20px] overflow-hidden shadow-[0_24px_60px_rgba(15,23,42,0.40)] ring-1 ring-black/10 border-2 border-[var(--dms-color-border-default)]">
+    <Modal open onClose={onClose} size="lg">
       <ModalHeader
         title={
           <div className="flex flex-wrap items-center gap-3">
@@ -206,6 +207,11 @@ export default function EventDetailsModal({
               {event.assignee && (
                 <InfoRow label="Assignee" icon={<Icon d={ICONS.user} />}>
                   <span className="font-medium">{getNameLabel(event.assignee)}</span>
+                </InfoRow>
+              )}
+              {documentOwner && (
+                <InfoRow label="Document Owner" icon={<Icon d={ICONS.user} />}>
+                  <span className="font-medium">{getNameLabel(documentOwner)}</span>
                 </InfoRow>
               )}
               <InfoRow label="Visibility" icon={<Icon d={ICONS.user} />}>

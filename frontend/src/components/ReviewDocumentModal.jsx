@@ -589,7 +589,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
 
   return (
     <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="xl">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalHeader
           title={isSmartDocument ? 'Smart Document Review' : t('review_document')}
           subtitle={isSmartDocument

@@ -301,14 +301,13 @@ export default function CustomEventModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} size="2xl" className="w-full max-w-2xl max-h-[78vh] flex flex-col rounded-[20px] overflow-hidden shadow-[0_24px_60px_rgba(15,23,42,0.40)] ring-1 ring-black/10 border-2 border-[var(--dms-color-border-default)]">
+    <Modal open={open} onClose={onClose} size="lg">
       <ModalHeader
         title={existing ? 'Edit Event' : 'New Event'}
         subtitle={existing?.synthetic ? 'System-generated event cannot be edited.' : 'Create a new calendar entry with time and category details.'}
         onClose={onClose}
-        className="rounded-t-[20px]"
       />
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+      <form onSubmit={handleSubmit}>
         <ModalBody className="space-y-5 flex-1 overflow-y-auto dms-scrollbar px-5 sm:px-6 py-5">
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-ink-muted">

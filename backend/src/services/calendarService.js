@@ -452,11 +452,12 @@ async function getEventsInRange(userId, from, to, opts = {}) {
           where: { createdAt: { gte: fromDate, lte: toDate } },
           include: {
             user: true,
-            document: { include: { documentType: true } }
+            assignedBy: true,
+            document: { include: { documentType: true, owner: true, submittedBy: true } }
           }
         });
         for (const a of assignments) {
-          const canSee = isSuper || a.userId === userId || a.assignedById === userId;
+          const canSee = isSuper || a.userId === userId || a.assignedById === userId || a.document?.ownerId === userId;
           if (!canSee) continue;
           const docCode = a.document?.fileCode ? ` (${a.document.fileCode})` : '';
           const docLink = a.documentId ? `/documents/review-approval?docId=${a.documentId}` : `/documents/review-approval`;
@@ -464,7 +465,22 @@ async function getEventsInRange(userId, from, to, opts = {}) {
           if (a.assignmentType) extra.assignmentType = a.assignmentType;
           if (a.document?.fileCode) extra.documentCode = a.document.fileCode;
           if (a.document?.documentType?.name) extra.documentType = a.document.documentType.name;
-          if (a.assignedById) extra.assignedById = a.assignedById;
+          if (a.document?.ownerId) extra.documentOwnerId = a.document.ownerId;
+          if (a.document?.owner) extra.documentOwner = normalizeUser(a.document.owner);
+
+          let effectiveAssignedById = a.assignedById;
+          let effectiveAssignedBy = a.assignedBy;
+          if (!effectiveAssignedById) {
+            if (a.assignmentType === 'REVIEW' && a.document?.submittedById) {
+              effectiveAssignedById = a.document.submittedById;
+              effectiveAssignedBy = a.document.submittedBy;
+            } else if (a.document?.ownerId) {
+              effectiveAssignedById = a.document.ownerId;
+              effectiveAssignedBy = a.document.owner;
+            }
+          }
+          if (effectiveAssignedById) extra.assignedById = effectiveAssignedById;
+
           results.push(buildSynthetic({
             _kind: 'ASSIGNMENT_CREATED',
             _refId: `DA_${a.id}`,
@@ -473,8 +489,8 @@ async function getEventsInRange(userId, from, to, opts = {}) {
             _start: a.createdAt,
             _allDay: false,
             _docId: a.documentId,
-            _userId: a.assignedById || null,
-            _user: a.assignedById ? { id: a.assignedById, name: `User #${a.assignedById}`, email: null, role: null } : null,
+            _userId: effectiveAssignedById || null,
+            _user: normalizeUser(effectiveAssignedBy),
             _assigneeId: a.userId,
             _assignee: normalizeUser(a.user),
             _link: docLink,

@@ -217,7 +217,7 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
   const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
       <div className="w-full max-w-2xl rounded-lg shadow-xl border border-gray-200 bg-white max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sticky top-0 bg-white">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 flex-shrink-0 bg-white">
           <div className="min-w-0">
             <h3 className="text-xl font-bold text-gray-900">Share Document</h3>
             <div className="mt-2 truncate text-sm text-gray-600">{docLabel || 'Document'}</div>

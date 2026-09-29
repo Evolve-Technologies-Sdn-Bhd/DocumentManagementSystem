@@ -146,8 +146,8 @@ export default function FbEnquiryFollowUpModal({ open, entry, onClose, onSaved }
 
   const modal = (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Follow-up Update</h3>

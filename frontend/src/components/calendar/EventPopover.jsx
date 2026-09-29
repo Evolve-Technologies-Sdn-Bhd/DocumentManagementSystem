@@ -63,6 +63,7 @@ function EventPopover({
   const organizerName = organizerUser
     ? [organizerUser.firstName, organizerUser.lastName].filter(Boolean).join(' ') || organizerUser.email
     : (event.createdById ? String(event.createdById) : 'System')
+  const documentOwner = event.extra?.documentOwner || null
 
   const handleNavigate = () => {
     if (!event.deepLink) return
@@ -220,6 +221,23 @@ function EventPopover({
                     </div>
                   )}
 
+                  {documentOwner && (
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--dms-color-warning-soft)]/80 text-[var(--dms-color-warning-ink)] shrink-0">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">Document Owner</div>
+                        <div className="text-sm leading-6 text-ink-secondary font-medium">
+                          {[documentOwner.firstName, documentOwner.lastName].filter(Boolean).join(' ') || documentOwner.email}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {event.categoryMeta && Object.keys(event.categoryMeta).length > 0 && (
                     <div className="rounded-[18px] border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_95%,var(--dms-color-bg-surface-muted))] p-5 space-y-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
                       <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Category Details</div>
@@ -250,14 +268,19 @@ function EventPopover({
                   {event.extra && Object.keys(event.extra).length > 0 && (
                     <div className="rounded-[18px] border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_95%,var(--dms-color-bg-surface-muted))] p-5 space-y-4 shadow-[0_6px_18px_rgba(15,23,42,0.06)]">
                       <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Additional Info</div>
-                      {Object.entries(event.extra).map(([k, v]) => (
-                        v !== null && v !== undefined && v !== '' ? (
+                      {Object.entries(event.extra).map(([k, v]) => {
+                        const skipKeys = ['documentOwner', 'documentOwnerId', 'assignedById', 'assignmentType']
+                        if (skipKeys.includes(k)) return null
+                        if (v === null || v === undefined || v === '') return null
+                        if (typeof v === 'object') return null
+                        const displayKey = k.replace(/([A-Z])/g, ' $1').trim()
+                        return (
                           <div key={k} className="grid grid-cols-3 gap-3 items-start">
-                            <span className="text-[11px] text-ink-muted uppercase tracking-wide pt-0.5 col-span-1 font-semibold">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                            <span className="text-[11px] text-ink-muted uppercase tracking-wide pt-0.5 col-span-1 font-semibold">{displayKey}</span>
                             <span className="text-sm text-ink-secondary font-semibold break-words col-span-2">{String(v)}</span>
                           </div>
-                        ) : null
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
