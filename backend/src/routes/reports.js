@@ -401,6 +401,7 @@ router.get('/activity-logs/filters', asyncHandler(async (req, res) => {
 router.get('/activity-logs/export', asyncHandler(async (req, res) => {
   const { userId, user, module, action, search, dateRange, startDate, endDate, format = 'csv' } = req.query;
   const effectiveUserId = userId || user; // Support both parameter names
+  const exportRequesterId = req.user?.id ? Number(req.user.id) : null;
   
   // Calculate date range
   let calculatedStartDate = startDate;
@@ -457,7 +458,28 @@ router.get('/activity-logs/export', asyncHandler(async (req, res) => {
         `"${formatCSVDate(log.timestamp)}","${log.user}","${log.module}","${log.action}","${log.description || ''}","${log.ipAddress || ''}","${log.status}"`
       )
     ].join('\n');
-    
+
+    try {
+      const auditLogService = require('../services/auditLogService');
+      const filtersUsed = [
+        module ? `Module:${module}` : null,
+        action ? `Action:${action}` : null,
+        effectiveUserId ? `UserId:${effectiveUserId}` : null,
+        (calculatedStartDate || dateRange) ? `Period:${dateRange || 'custom'}` : null,
+        search ? `Search:"${search}"` : null
+      ].filter(Boolean).join(' | ');
+      if (exportRequesterId) {
+        auditLogService.logSystem('BULK_EXPORT', null, `Exported Activity Logs as CSV (${result.logs?.length || 0} rows)${filtersUsed ? ` — ${filtersUsed}` : ''}`, exportRequesterId, {
+          filters: { module, action, search, dateRange, startDate, endDate },
+          rowsExported: result.logs?.length || 0,
+          format,
+          reportType: 'activity-logs',
+          ipAddress: req.ip || null,
+          userAgent: req.headers?.['user-agent'] || null
+        }).catch(() => {});
+      }
+    } catch (_) { /* ignore */ }
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=activity-logs-${new Date().toISOString().split('T')[0]}.csv`);
     return res.send(csv);

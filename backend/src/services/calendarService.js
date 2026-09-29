@@ -33,7 +33,51 @@ const SOURCE_CATEGORY = {
   FB_ENQUIRY_DATE: 'INFO',
   FB_FOLLOW_UP: 'TASK',
   FB_FOLLOW_UP_LOG: 'TASK',
+  AUDIT_DOCUMENT_DOWNLOAD: 'INFO',
+  AUDIT_DOCUMENT_VIEW: 'INFO',
+  AUDIT_DOCUMENT_UPLOAD: 'INFO',
+  AUDIT_DOCUMENT_SHARED: 'INFO',
+  AUDIT_DOCUMENT_VERSION: 'INFO',
+  AUDIT_NDR_CREATED: 'TASK',
+  AUDIT_NDR_ACKNOWLEDGED: 'INFO',
+  AUDIT_WORKFLOW_REVIEW: 'TASK',
+  AUDIT_WORKFLOW_APPROVAL: 'TASK',
+  AUDIT_WORKFLOW_PUBLISHED: 'INFO',
+  AUDIT_WORKFLOW_SUPERSEDE: 'INFO',
+  AUDIT_EXPORT_REPORT: 'INFO',
+  AUDIT_CALENDAR_EVENT: 'INFO',
+  AUDIT_TENDER_UPDATED: 'TASK',
+  AUDIT_FB_ENQUIRY_UPDATED: 'TASK',
   CUSTOM: 'CUSTOM'
+};
+
+const AUDIT_ACTION_META = {
+  DOWNLOAD:                    { kind: 'AUDIT_DOCUMENT_DOWNLOAD',   title: (d,e) => `Downloaded: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  VIEW:                        { kind: 'AUDIT_DOCUMENT_VIEW',      title: (d,e) => `Viewed: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  UPLOAD:                      { kind: 'AUDIT_DOCUMENT_UPLOAD',    title: (d,e) => `Uploaded: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'New file version'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  DRAFT_UPLOAD:                { kind: 'AUDIT_DOCUMENT_UPLOAD',    title: (d,e) => `Draft Upload: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'New draft'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  SHARE_LINK_CREATE:           { kind: 'AUDIT_DOCUMENT_SHARED',    title: (d,e) => `Shared: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Share link created'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  SHARE_LINK_REVOKE:           { kind: 'AUDIT_DOCUMENT_SHARED',    title: (d,e) => `Share Revoked: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Share link revoked'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  VERSION_REQUEST:             { kind: 'AUDIT_DOCUMENT_VERSION',   title: (d,e) => `Version Request: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'New version requested'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  VERSION_ACKNOWLEDGE:         { kind: 'AUDIT_DOCUMENT_VERSION',   title: (d,e) => `Version Created: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'New version acknowledged'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  CREATE:                      { kind: 'AUDIT_NDR_CREATED',        title: (d,e) => (d?.status === 'PENDING_ACKNOWLEDGMENT' || !d?.fileCode ? `NDR Created: ` : `Document Created: `) + (d?.fileCode ? `${d.fileCode} — ` : '') + (e.description || d?.title || 'New request'), link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  ACKNOWLEDGE:                 { kind: 'AUDIT_NDR_ACKNOWLEDGED',   title: (d,e) => `NDR Acknowledged: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document request acknowledged'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
+  SUBMIT_FOR_REVIEW:           { kind: 'AUDIT_WORKFLOW_REVIEW',    title: (d,e) => `Submitted for Review: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/review-approval?docId=${id}` : '/documents/review-approval', entity: 'Document' },
+  REVIEW_APPROVE:              { kind: 'AUDIT_WORKFLOW_REVIEW',    title: (d,e) => `Review Approved: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  REVIEW_RETURN:               { kind: 'AUDIT_WORKFLOW_REVIEW',    title: (d,e) => `Review Returned: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  FIRST_APPROVE:               { kind: 'AUDIT_WORKFLOW_APPROVAL',  title: (d,e) => `1st Approval: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  FIRST_RETURN:                { kind: 'AUDIT_WORKFLOW_APPROVAL',  title: (d,e) => `1st Approval Returned: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  SECOND_APPROVE:              { kind: 'AUDIT_WORKFLOW_APPROVAL',  title: (d,e) => `2nd Approval: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  SECOND_RETURN:               { kind: 'AUDIT_WORKFLOW_APPROVAL',  title: (d,e) => `2nd Approval Returned: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  PUBLISH:                     { kind: 'AUDIT_WORKFLOW_PUBLISHED', title: (d,e) => `Published: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document is live'}`, link: (id) => id ? `/documents/published/${id}` : '/documents/published', entity: 'Workflow' },
+  SUPERSEDE_REQUEST:           { kind: 'AUDIT_WORKFLOW_SUPERSEDE', title: (d,e) => `Supersede Request: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  SUPERSEDE_REVIEW_APPROVE:    { kind: 'AUDIT_WORKFLOW_SUPERSEDE', title: (d,e) => `Supersede Review OK: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  SUPERSEDE_FINAL_APPROVE:     { kind: 'AUDIT_WORKFLOW_SUPERSEDE', title: (d,e) => `Superseded: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document superseded'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  SUPERSEDE:                   { kind: 'AUDIT_WORKFLOW_SUPERSEDE', title: (d,e) => `Superseded: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document superseded'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  OBSOLETE:                    { kind: 'AUDIT_WORKFLOW_SUPERSEDE', title: (d,e) => `Obsoleted: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document marked obsolete'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  ARCHIVE:                     { kind: 'AUDIT_WORKFLOW_PUBLISHED', title: (d,e) => `Archived: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document archived'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Workflow' },
+  BULK_EXPORT:                 { kind: 'AUDIT_EXPORT_REPORT',      title: (d,e) => `Report Export: ${e.description || 'Exported data'}`, link: () => null, entity: 'System' },
+  PUBLIC_SHARE_PREVIEW:        { kind: 'AUDIT_DOCUMENT_VIEW',      title: (d,e) => `Public Preview: ${d?.fileCode ? `${d.fileCode} — ` : ''}${e.description || 'Document viewed via share link'}`, link: (id) => id ? `/documents/${id}` : null, entity: 'Document' },
 };
 
 const addDays = (d, n) => {
@@ -448,45 +492,91 @@ async function getEventsInRange(userId, from, to, opts = {}) {
 
     if (sourceFilter(['ASSIGNMENT_CREATED']).length) {
       await safeRun('ASSIGNMENT_CREATED', async () => {
-        const assignments = await prisma.documentAssignment.findMany({
-          where: { createdAt: { gte: fromDate, lte: toDate } },
+        const pendingAssignments = await prisma.documentAssignment.findMany({
+          where: {
+            OR: [
+              { createdAt: { gte: fromDate, lte: toDate } },
+              { createdAt: { lte: toDate } }
+            ]
+          },
           include: {
             user: true,
             assignedBy: true,
             document: { include: { documentType: true, owner: true, submittedBy: true } }
-          }
+          },
+          orderBy: { createdAt: 'asc' }
         });
-        for (const a of assignments) {
-          const canSee = isSuper || a.userId === userId || a.assignedById === userId || a.document?.ownerId === userId;
+
+        const seenRefs = new Set();
+        for (const a of pendingAssignments) {
+          const refKey = `DA_${a.id}`;
+          if (seenRefs.has(refKey)) continue;
+          seenRefs.add(refKey);
+
+          const doc = a.document || {};
+          const docStage = doc.stage || '';
+          const docStatus = doc.status || '';
+
+          const assignmentStillActive = (() => {
+            if (!docStage) return true;
+            const expectedStage = (a.assignmentType || '').toUpperCase();
+            if (expectedStage === docStage.toUpperCase()) return true;
+            if (docStatus?.startsWith('PENDING_')) return true;
+            const isFinished = ['PUBLISHED', 'READY_TO_PUBLISH', 'ARCHIVED', 'DRAFT', 'DRAFTING', 'RETURNED', 'ACKNOWLEDGED', 'OBSOLETE', 'SUPERSEDED'].includes(docStatus);
+            return !isFinished;
+          })();
+
+          const calcEnd = (() => {
+            const sevenDays = addDays(a.createdAt, 7);
+            if (!assignmentStillActive) return a.createdAt;
+            return new Date(Math.min(sevenDays.getTime(), toDate.getTime()));
+          })();
+
+          if (assignmentStillActive) {
+            const eventStartsWithin = a.createdAt.getTime() <= toDate.getTime() && calcEnd.getTime() >= fromDate.getTime();
+            if (!eventStartsWithin) continue;
+          } else {
+            if (!(a.createdAt.getTime() >= fromDate.getTime() && a.createdAt.getTime() <= toDate.getTime())) continue;
+          }
+
+          const canSee = isSuper || a.userId === userId || a.assignedById === userId || doc?.ownerId === userId;
           if (!canSee) continue;
-          const docCode = a.document?.fileCode ? ` (${a.document.fileCode})` : '';
+
+          const docCode = doc?.fileCode ? ` (${doc.fileCode})` : '';
           const docLink = a.documentId ? `/documents/review-approval?docId=${a.documentId}` : `/documents/review-approval`;
           const extra = {};
           if (a.assignmentType) extra.assignmentType = a.assignmentType;
-          if (a.document?.fileCode) extra.documentCode = a.document.fileCode;
-          if (a.document?.documentType?.name) extra.documentType = a.document.documentType.name;
-          if (a.document?.ownerId) extra.documentOwnerId = a.document.ownerId;
-          if (a.document?.owner) extra.documentOwner = normalizeUser(a.document.owner);
+          if (doc?.fileCode) extra.documentCode = doc.fileCode;
+          if (doc?.documentType?.name) extra.documentType = doc.documentType.name;
+          if (doc?.ownerId) extra.documentOwnerId = doc.ownerId;
+          if (doc?.owner) extra.documentOwner = normalizeUser(doc.owner);
+          if (!assignmentStillActive) extra.status = 'COMPLETED';
+          else extra.status = 'PENDING_ACTION';
 
           let effectiveAssignedById = a.assignedById;
           let effectiveAssignedBy = a.assignedBy;
           if (!effectiveAssignedById) {
-            if (a.assignmentType === 'REVIEW' && a.document?.submittedById) {
-              effectiveAssignedById = a.document.submittedById;
-              effectiveAssignedBy = a.document.submittedBy;
-            } else if (a.document?.ownerId) {
-              effectiveAssignedById = a.document.ownerId;
-              effectiveAssignedBy = a.document.owner;
+            if (a.assignmentType === 'REVIEW' && doc?.submittedById) {
+              effectiveAssignedById = doc.submittedById;
+              effectiveAssignedBy = doc.submittedBy;
+            } else if (doc?.ownerId) {
+              effectiveAssignedById = doc.ownerId;
+              effectiveAssignedBy = doc.owner;
             }
           }
           if (effectiveAssignedById) extra.assignedById = effectiveAssignedById;
 
+          const titlePrefix = assignmentStillActive
+            ? `${a.assignmentType || 'Assignment'} Required`
+            : `${a.assignmentType || 'Assignment'} Done`;
+
           results.push(buildSynthetic({
             _kind: 'ASSIGNMENT_CREATED',
-            _refId: `DA_${a.id}`,
-            _title: `${a.assignmentType || 'Assignment'} Assigned: ${a.document?.title || 'Document'}${docCode}`,
-            _description: a.document?.documentType?.name ? `Document Type: ${a.document.documentType.name}` : null,
+            _refId: refKey,
+            _title: `${titlePrefix}: ${doc?.title || 'Document'}${docCode}`,
+            _description: doc?.documentType?.name ? `Document Type: ${doc.documentType.name}` : null,
             _start: a.createdAt,
+            _end: assignmentStillActive ? calcEnd : null,
             _allDay: false,
             _docId: a.documentId,
             _userId: effectiveAssignedById || null,
@@ -494,6 +584,7 @@ async function getEventsInRange(userId, from, to, opts = {}) {
             _assigneeId: a.userId,
             _assignee: normalizeUser(a.user),
             _link: docLink,
+            _priority: assignmentStillActive ? 2 : 0,
             _extra: Object.keys(extra).length ? extra : null
           }));
         }
@@ -679,6 +770,77 @@ async function getEventsInRange(userId, from, to, opts = {}) {
             _assigneeId: l.assignedToId,
             _assignee: normalizeUser(l.assignedTo),
             _link: `/fb-enquiries`
+          }));
+        }
+      });
+    }
+
+    const auditKindFilters = Object.values(AUDIT_ACTION_META).map((m) => m.kind);
+    if (sourceFilter(auditKindFilters).length) {
+      await safeRun('AUDIT_LOG_ACTIVITY', async () => {
+        const mappedActions = Object.keys(AUDIT_ACTION_META);
+        const auditLogs = await prisma.auditLog.findMany({
+          where: {
+            createdAt: { gte: fromDate, lte: toDate },
+            action: { in: mappedActions },
+            isArchived: false
+          },
+          include: { user: true },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        const docIdsToFetch = new Set();
+        for (const al of auditLogs) {
+          if (al.entity === 'Document' && Number.isInteger(al.entityId)) {
+            docIdsToFetch.add(Number(al.entityId));
+          }
+        }
+        const docMap = new Map();
+        if (docIdsToFetch.size > 0) {
+          const docs = await prisma.document.findMany({
+            where: { id: { in: [...docIdsToFetch] } },
+            include: { documentType: true }
+          });
+          for (const d of docs) docMap.set(d.id, d);
+        }
+
+        for (const al of auditLogs) {
+          const meta = AUDIT_ACTION_META[al.action];
+          if (!meta) continue;
+
+          const canSee = isSuper || al.userId === userId;
+          if (!canSee) continue;
+
+          let matchedEntity = true;
+          if (meta.entity === 'Document') matchedEntity = al.entity === 'Document' || al.entity === 'Workflow';
+          if (meta.entity === 'Workflow') matchedEntity = al.entity === 'Workflow' || al.entity === 'Document';
+          if (meta.entity === 'System') matchedEntity = true;
+          if (!matchedEntity) continue;
+
+          const doc = (Number.isInteger(al.entityId) ? docMap.get(Number(al.entityId)) : null) || null;
+          const extra = {};
+          if (al.entity) extra.auditEntity = al.entity;
+          if (al.action) extra.auditAction = al.action;
+          if (al.ipAddress) extra.ipAddress = al.ipAddress;
+          if (al.metadata) extra.auditMetadata = al.metadata;
+
+          const deepLink = typeof meta.link === 'function' ? meta.link(al.entityId) : null;
+          if (deepLink) extra.deepLink = deepLink;
+
+          results.push(buildSynthetic({
+            _kind: meta.kind,
+            _refId: `AUD_${al.id}`,
+            _title: typeof meta.title === 'function' ? meta.title(doc, al) : (al.description || meta.kind),
+            _description: al.description && typeof meta.title === 'function' ? null : (al.description || null),
+            _start: al.createdAt,
+            _end: null,
+            _allDay: false,
+            _docId: al.entity && (al.entity === 'Document' || al.entity === 'Workflow') ? Number(al.entityId) : null,
+            _userId: al.userId || null,
+            _user: normalizeUser(al.user),
+            _link: deepLink,
+            _priority: 0,
+            _extra: Object.keys(extra).length ? extra : null
           }));
         }
       });
