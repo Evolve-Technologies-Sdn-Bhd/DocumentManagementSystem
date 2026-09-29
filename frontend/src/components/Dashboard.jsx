@@ -351,8 +351,12 @@ export default function Dashboard() {
   useEffect(() => {
     const mountedRef = { current: true }
     loadDashboard(mountedRef)
-    loadCalendar()
     return () => { mountedRef.current = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    loadCalendar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarCursor])
 

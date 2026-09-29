@@ -149,30 +149,20 @@ export default function EventDetailsModal({
     <Modal open onClose={onClose} size="lg">
       <ModalHeader
         title={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <span className={['inline-flex h-2.5 w-2.5 rounded-full shrink-0', style.dot].join(' ')} />
             <span className="line-clamp-1">{event.title || 'Untitled Event'}</span>
             <span className={['inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold', style.bg, style.ink, style.ring].join(' ')}>
               {style.label}
             </span>
-            {synthetic && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--dms-color-brand-primary)]/30 bg-[var(--dms-color-info-soft)]/60 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dms-color-brand-primary)]">
-                <Icon d={ICONS.warning} className="h-3.5 w-3.5" />
-                Synthetic System Event
-              </span>
-            )}
           </div>
         }
-        subtitle={
-          synthetic
-            ? 'System-generated events are read-only and managed by their source modules (Document Control, Projects, Workflows, etc.).'
-            : event.description
-              ? 'View full event details below.'
-              : 'View full event details below. No description provided.'
-        }
+        subtitle={event.description
+          ? (event.description.length > 160 ? event.description.slice(0, 160) + '…' : event.description)
+          : ''}
         onClose={onClose}
       />
-      <ModalBody className="flex-1 overflow-y-auto dms-scrollbar space-y-6 px-5 sm:px-6 py-5">
+      <ModalBody className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-5">
             <div className="rounded-[24px] border border-border/80 bg-gradient-to-br from-white via-[var(--dms-color-bg-surface)] to-[var(--dms-color-info-soft)]/20 p-5 space-y-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
@@ -332,22 +322,21 @@ export default function EventDetailsModal({
           </div>
         </div>
       </ModalBody>
-      <ModalFooter>
-        {synthetic && event.deepLink && (
-          <div className="mr-auto flex items-center gap-2">
+      <ModalFooter className="!justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          {synthetic && event.deepLink && (
             <Button
               type="button"
+              variant="secondary"
               onClick={handleGoToSource}
             >
               <span className="inline-flex items-center gap-2">
                 <Icon d={ICONS.external} className="h-4 w-4" />
-                Go to Source
+                View Source
               </span>
             </Button>
-          </div>
-        )}
-        {!synthetic && (
-          <div className="mr-auto flex items-center gap-2">
+          )}
+          {!synthetic && (
             <Button
               type="button"
               variant="danger"
@@ -358,20 +347,22 @@ export default function EventDetailsModal({
             >
               Delete Event
             </Button>
-          </div>
-        )}
-        <Button type="button" variant="secondary" onClick={onClose} disabled={deleting}>
-          Close
-        </Button>
-        {!synthetic && (
-          <Button
-            type="button"
-            loading={deleting}
-            onClick={() => onEdit && onEdit(event)}
-          >
-            Edit Event
+          )}
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={deleting}>
+            Close
           </Button>
-        )}
+          {!synthetic && (
+            <Button
+              type="button"
+              loading={deleting}
+              onClick={() => onEdit && onEdit(event)}
+            >
+              Edit Event
+            </Button>
+          )}
+        </div>
       </ModalFooter>
     </Modal>
   )

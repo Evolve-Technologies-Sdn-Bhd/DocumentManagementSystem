@@ -14,12 +14,12 @@ const sizeMap = {
 export function ModalHeader({ title, subtitle, onClose, className = '' }) {
   return (
     <div className={['flex-shrink-0 z-10 flex items-start justify-between gap-3 sm:gap-4 border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] sm:px-6 px-4 sm:py-4 py-3 shadow-[0_1px_0_var(--dms-color-border-strong)]', className].filter(Boolean).join(' ')}>
-      <div className="min-w-0">
-        <h2 className="sm:text-xl text-lg font-bold text-[var(--dms-color-text-ink)]">{title}</h2>
-        {subtitle ? <p className="mt-1.5 sm:text-sm text-xs text-[var(--dms-color-text-ink-secondary)]">{subtitle}</p> : null}
+      <div className="min-w-0 flex-1">
+        <h2 className="sm:text-xl text-lg font-bold text-[var(--dms-color-text-ink)] leading-snug">{title}</h2>
+        {subtitle ? <p className="mt-1.5 sm:text-sm text-xs text-[var(--dms-color-text-ink-secondary)] leading-relaxed">{subtitle}</p> : null}
       </div>
       {onClose ? (
-        <button type="button" onClick={onClose} className="text-[var(--dms-color-text-muted)] hover:text-[var(--dms-color-text-ink)] transition-colors shrink-0" aria-label="Close">
+        <button type="button" onClick={onClose} className="text-[var(--dms-color-text-muted)] hover:text-[var(--dms-color-text-ink)] transition-colors shrink-0 self-start mt-0.5" aria-label="Close">
           <svg className="sm:w-6 sm:h-6 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
