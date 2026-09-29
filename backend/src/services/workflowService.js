@@ -4,7 +4,33 @@ const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
 const divisionScopeService = require('./divisionScopeService');
+const folderPermissionService = require('./folderPermissionService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
+
+function isUserAdmin(user) {
+  if (!user || !user.roles) return false;
+  if (!Array.isArray(user.roles)) return false;
+  const adminPattern = /admin|controller|document_controller/i;
+  return user.roles.some(
+    (r) =>
+      (r && (r.isSystem || adminPattern.test(r.name || ''))) ||
+      (r && r.role && (r.role.isSystem || adminPattern.test(r.role.name || '')))
+  );
+}
+
+async function isUserIdAdmin(userId) {
+  const normalizedId = Number.parseInt(userId, 10);
+  if (!Number.isFinite(normalizedId)) return false;
+  const user = await prisma.user.findUnique({
+    where: { id: normalizedId },
+    select: {
+      roles: {
+        include: { role: true }
+      }
+    }
+  });
+  return isUserAdmin(user);
+}
 
 class WorkflowService {
   async assertUserHasRole(userId, roleName, message) {
@@ -259,20 +285,23 @@ class WorkflowService {
 
       if (!skipApproval && approverId) {
         await this.assertUserHasRole(approverId, 'approver', 'Selected approver must have Approver role')
-        const effectiveDivisionIds = document.folderId
-          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
-          : document.divisionId
-            ? [document.divisionId]
-            : []
+        const isCurrentUserAdmin = await isUserIdAdmin(userId)
+        if (!isCurrentUserAdmin) {
+          const effectiveDivisionIds = document.folderId
+            ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+            : document.divisionId
+              ? [document.divisionId]
+              : []
 
-        if (effectiveDivisionIds.length === 0) {
-          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
-        }
+          if (effectiveDivisionIds.length === 0) {
+            throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+          }
 
-        const allowedDivisions = new Set(effectiveDivisionIds)
-        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(approverId)
-        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
-          throw new BadRequestError('Selected approver must belong to the same division as the document');
+          const allowedDivisions = new Set(effectiveDivisionIds)
+          const approverDivisionIds = await divisionScopeService.getUserDivisionIds(approverId)
+          if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+            throw new BadRequestError('Selected approver must belong to the same division as the document');
+          }
         }
       }
 
@@ -507,20 +536,23 @@ class WorkflowService {
 
       if (secondApproverId) {
         await this.assertUserHasRole(secondApproverId, 'approver', 'Selected approver must have Approver role')
-        const effectiveDivisionIds = document.folderId
-          ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
-          : document.divisionId
-            ? [document.divisionId]
-            : []
+        const isCurrentUserAdmin = await isUserIdAdmin(userId)
+        if (!isCurrentUserAdmin) {
+          const effectiveDivisionIds = document.folderId
+            ? await divisionScopeService.getEffectiveFolderDivisionIds(document.folderId)
+            : document.divisionId
+              ? [document.divisionId]
+              : []
 
-        if (effectiveDivisionIds.length === 0) {
-          throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
-        }
+          if (effectiveDivisionIds.length === 0) {
+            throw new BadRequestError('Document division scope is not set. Please assign a division before assigning approvers');
+          }
 
-        const allowedDivisions = new Set(effectiveDivisionIds)
-        const approverDivisionIds = await divisionScopeService.getUserDivisionIds(secondApproverId)
-        if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
-          throw new BadRequestError('Selected approver must belong to the same division as the document');
+          const allowedDivisions = new Set(effectiveDivisionIds)
+          const approverDivisionIds = await divisionScopeService.getUserDivisionIds(secondApproverId)
+          if (approverDivisionIds.length === 0 || !approverDivisionIds.some((id) => allowedDivisions.has(id))) {
+            throw new BadRequestError('Selected approver must belong to the same division as the document');
+          }
         }
       }
 
@@ -811,8 +843,36 @@ class WorkflowService {
       throw new NotFoundError('Folder');
     }
 
+    // Ensure the publishing user has create permission inside the target folder.
+    // Admin/document_controller bypasses this check early (via isCurrentUserAdmin).
+    const isCurrentUserAdmin = await isUserIdAdmin(userId)
+    if (!isCurrentUserAdmin) {
+      const actingUser = await prisma.user.findUnique({
+        where: { id: Number(userId) },
+        include: { roles: { include: { role: true } } }
+      })
+      if (actingUser) {
+        const actingRoleNames = (actingUser.roles || [])
+          .map((r) => r?.role?.name || r?.name)
+          .filter(Boolean)
+        const normalizedUser = {
+          ...actingUser,
+          roles: actingRoleNames,
+          permissions: actingUser.permissions || {}
+        }
+        const canCreateInFolder = await folderPermissionService.canUser(
+          folderId,
+          normalizedUser,
+          'create'
+        )
+        if (!canCreateInFolder) {
+          throw new ForbiddenError("You don't have permission to publish to this folder")
+        }
+      }
+    }
+
     const folderDivisionIds = await divisionScopeService.getEffectiveFolderDivisionIds(folderId)
-    if (document.divisionId && folderDivisionIds.length > 0 && !folderDivisionIds.includes(document.divisionId)) {
+    if (!isCurrentUserAdmin && document.divisionId && folderDivisionIds.length > 0 && !folderDivisionIds.includes(document.divisionId)) {
       throw new ForbiddenError('Selected folder does not match the document division scope')
     }
 

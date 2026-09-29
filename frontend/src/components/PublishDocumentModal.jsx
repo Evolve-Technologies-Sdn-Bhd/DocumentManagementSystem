@@ -7,7 +7,9 @@ import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import FolderTreePicker from './ui/FolderTreePicker'
 import AsyncActionStatus from './ui/AsyncActionStatus'
+import CreateFolderModal from './CreateFolderModal'
 import useLoadingProgress from '../hooks/useLoadingProgress'
+import { isAdmin } from '../utils/permissions'
 
 const REMINDER_LEVELS = [
   { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
@@ -40,11 +42,14 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   const [folders, setFolders] = useState([])
   const [users, setUsers] = useState([])
   const [selectedFolder, setSelectedFolder] = useState('')
+  const [selectedFolderNode, setSelectedFolderNode] = useState(null)
   const [newFileName, setNewFileName] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [error, setError] = useState('')
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false)
+  const [createFolderParent, setCreateFolderParent] = useState(null)
   const [recipientSearch, setRecipientSearch] = useState({
     reminder1: '',
     reminder2: '',
@@ -84,6 +89,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     let cancelled = false
     const requiresExpiryTracking = Boolean(document?.documentTypeConfig?.requiresExpiryTracking)
     setSelectedFolder('')
+    setSelectedFolderNode(null)
     setNewFileName(document?.fileName || '')
     setNotes('')
     setError('')
@@ -141,6 +147,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   }, [document])
 
   const scopedFolders = useMemo(() => {
+    if (isAdmin()) return folders
     if (!targetDivisionId) return folders
 
     const walk = (nodes) => {
@@ -192,6 +199,7 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
   useEffect(() => {
     if (!isOpen) return
     if (isLoadingData) return
+    if (isAdmin()) return
     if (!targetDivisionId) return
     if (!Array.isArray(folders) || folders.length === 0) return
     if (Array.isArray(scopedFolders) && scopedFolders.length === 0) {
@@ -237,6 +245,15 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError)
     }
+  }
+
+  const handleFolderCreated = async (createdFolder) => {
+    if (!createdFolder?.id) return
+    await fetchFolders()
+    const newFolderId = String(createdFolder.id)
+    setSelectedFolder(newFolderId)
+    setSelectedFolderNode(null)
+    setError('')
   }
 
   const toggleRecipient = (levelKey, userId) => {
@@ -357,19 +374,59 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
             </Field>
             <div className="md:col-span-2">
               <Field label="Destination Folder">
-                <FolderTreePicker
-                  folders={scopedFolders}
-                  selectedId={selectedFolder}
-                  onSelect={(folderId) => {
-                    setSelectedFolder(folderId)
-                    setError('')
-                  }}
-                  emptySelectionText="Select folder"
-                  selectedLabel="Selected destination"
-                  treeClassName="max-h-64"
-                  mode="nested"
-                  disabled={loading || isLoadingData}
-                />
+                <div className="space-y-3">
+                  <FolderTreePicker
+                    folders={scopedFolders}
+                    selectedId={selectedFolder}
+                    onSelect={(folderId, node) => {
+                      setSelectedFolder(folderId)
+                      setSelectedFolderNode(node || null)
+                      setError('')
+                    }}
+                    emptySelectionText="Select folder"
+                    selectedLabel="Selected destination"
+                    treeClassName="max-h-64"
+                    mode="nested"
+                    disabled={loading || isLoadingData}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setCreateFolderParent(null)
+                        setShowCreateFolderModal(true)
+                      }}
+                      disabled={loading || isLoadingData}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      </svg>
+                      New Folder
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        if (!selectedFolder || !selectedFolderNode) {
+                          setError('Please select a parent folder first to create a subfolder')
+                          return
+                        }
+                        setCreateFolderParent(selectedFolderNode)
+                        setShowCreateFolderModal(true)
+                      }}
+                      disabled={loading || isLoadingData || !selectedFolder}
+                      title={!selectedFolder ? 'Select a parent folder first' : ''}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      New Subfolder
+                    </Button>
+                  </div>
+                </div>
               </Field>
             </div>
             <div className="md:col-span-2">
@@ -557,5 +614,11 @@ export default function PublishDocumentModal({ isOpen, onClose, document, onPubl
         </ModalFooter>
       </form>
     </Modal>
+    <CreateFolderModal
+      isOpen={showCreateFolderModal}
+      onClose={() => setShowCreateFolderModal(false)}
+      parentFolder={createFolderParent}
+      onCreated={handleFolderCreated}
+    />
   )
 }

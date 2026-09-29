@@ -10,7 +10,7 @@ class FolderPermissionService {
       if (!name) return false
       if ([
         'admin', 'administrator', 'system administrator', 'system_admin', 'system-admin',
-        'document_controller', 'reviewer', 'approver'
+        'document_controller'
       ].includes(name)) return true
       return name.includes('administrator') || name.includes('admin')
         || name.includes('document_controller') || name.includes('controller')

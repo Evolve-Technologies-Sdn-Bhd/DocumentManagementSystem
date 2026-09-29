@@ -91,539 +91,599 @@ const getVisibleIdsForUser = async (userId) => {
 };
 
 async function getEventsInRange(userId, from, to, opts = {}) {
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-  const { includeSources, categories, search } = opts;
-  const { isSuper } = await getVisibleIdsForUser(userId);
-
-  const sourceFilter = (list) => {
-    if (!includeSources || includeSources.length === 0) return list;
-    return list.filter((k) => includeSources.includes(k));
-  };
-
-  const catFilter = (arr) => {
-    if (!categories || categories.length === 0) return arr;
-    return arr.filter((e) => categories.includes(e.category));
-  };
-
-  const results = [];
-  let customEvents = [];
-  const baseWhere = {
-    isSynthetic: false,
-    AND: [
-      { startDateTime: { lte: toDate } },
-      {
-        OR: [
-          { endDateTime: null },
-          { endDateTime: { gte: fromDate } },
-          { startDateTime: { gte: fromDate } }
-        ]
-      },
-      {
-        OR: [
-          { userId: null },
-          { userId },
-          { assigneeId: userId },
-          { viewers: { some: { userId } } }
-        ]
-      }
-    ]
-  };
-  const legacyWhere = {
-    isSynthetic: false,
-    AND: [
-      { startDateTime: { lte: toDate } },
-      {
-        OR: [
-          { endDateTime: null },
-          { endDateTime: { gte: fromDate } },
-          { startDateTime: { gte: fromDate } }
-        ]
-      },
-      {
-        OR: [
-          { userId: null },
-          { userId },
-          { assigneeId: userId }
-        ]
-      }
-    ]
-  };
   try {
-    customEvents = await prisma.calendarEvent.findMany({
-      where: baseWhere,
-      include: {
-        customEvent: true,
-        user: true,
-        assignee: true,
-        viewers: {
-          include: { user: true }
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const { includeSources, categories, search } = opts;
+    let visCtx = { isSuper: false };
+    try {
+      visCtx = await getVisibleIdsForUser(userId);
+    } catch (e) {
+      logger.warn(`[calendar] getVisibleIdsForUser failed (uid=${userId}): ${e?.message || e}`);
+    }
+    const { isSuper } = visCtx;
+
+    const sourceFilter = (list) => {
+      if (!includeSources || includeSources.length === 0) return list;
+      return list.filter((k) => includeSources.includes(k));
+    };
+
+    const catFilter = (arr) => {
+      if (!categories || categories.length === 0) return arr;
+      return arr.filter((e) => categories.includes(e.category));
+    };
+
+    const results = [];
+    let customEvents = [];
+    const baseWhere = {
+      isSynthetic: false,
+      AND: [
+        { startDateTime: { lte: toDate } },
+        {
+          OR: [
+            { endDateTime: null },
+            { endDateTime: { gte: fromDate } },
+            { startDateTime: { gte: fromDate } }
+          ]
+        },
+        {
+          OR: [
+            { userId: null },
+            { userId },
+            { assigneeId: userId },
+            { viewers: { some: { userId } } }
+          ]
         }
-      },
-      orderBy: { startDateTime: 'asc' }
-    });
-  } catch (e) {
-    if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(String(e.message || ''))) {
-      logger.warn('Calendar viewers relation missing, falling back to legacy query. Please run prisma db push on server.');
+      ]
+    };
+    const legacyWhere = {
+      isSynthetic: false,
+      AND: [
+        { startDateTime: { lte: toDate } },
+        {
+          OR: [
+            { endDateTime: null },
+            { endDateTime: { gte: fromDate } },
+            { startDateTime: { gte: fromDate } }
+          ]
+        },
+        {
+          OR: [
+            { userId: null },
+            { userId },
+            { assigneeId: userId }
+          ]
+        }
+      ]
+    };
+    try {
       customEvents = await prisma.calendarEvent.findMany({
-        where: legacyWhere,
+        where: baseWhere,
         include: {
           customEvent: true,
           user: true,
-          assignee: true
+          assignee: true,
+          viewers: {
+            include: { user: true }
+          }
         },
         orderBy: { startDateTime: 'asc' }
       });
-    } else {
-      throw e;
-    }
-  }
-
-  for (const ce of customEvents) {
-    results.push({
-      id: ce.id,
-      synthetic: false,
-      title: ce.title,
-      description: ce.description,
-      startDateTime: ce.startDateTime,
-      endDateTime: ce.endDateTime,
-      isAllDay: ce.isAllDay,
-      sourceType: 'CUSTOM',
-      category: ce.category,
-      priority: ce.priority,
-      userId: ce.userId,
-      assigneeId: ce.assigneeId,
-      assignee: normalizeUser(ce.assignee),
-      viewerIds: (ce.viewers || []).map((v) => v.userId),
-      viewers: (ce.viewers || []).map((v) => normalizeUser(v.user)),
-      customEvent: ce.customEvent ? {
-        id: ce.customEvent.id,
-        recurrenceRule: ce.customEvent.recurrenceRule,
-        colorOverride: ce.customEvent.colorOverride,
-        location: ce.customEvent.location,
-        createdById: ce.customEvent.createdById
-      } : null,
-      deepLink: null,
-      extra: null,
-      createdAt: ce.createdAt
-    });
-  }
-
-  if (sourceFilter(['DOCUMENT_EXPIRY']).length) {
-    const rows = await prisma.documentExpiryProfile.findMany({
-      where: {
-        trackingEnabled: true,
-        expiryDate: { gte: addDays(fromDate, -0), lte: toDate }
-      },
-      include: {
-        document: {
-          include: {
-            owner: true,
-            documentType: true
-          }
+    } catch (e) {
+      const msg = String(e?.message || '');
+      if (e && /P2022|P2021|viewers|CalendarEventViewer/i.test(msg)) {
+        logger.warn('Calendar viewers relation missing, falling back to legacy query. Please run prisma db push on server.');
+        try {
+          customEvents = await prisma.calendarEvent.findMany({
+            where: legacyWhere,
+            include: {
+              customEvent: true,
+              user: true,
+              assignee: true
+            },
+            orderBy: { startDateTime: 'asc' }
+          });
+        } catch (e2) {
+          logger.warn(`[calendar] legacy customEvents query also failed: ${e2?.message || e2}`);
+          customEvents = [];
         }
+      } else {
+        logger.warn(`[calendar] customEvents query failed: ${msg}`);
+        customEvents = [];
       }
-    });
-    for (const r of rows) {
-      const doc = r.document;
-      if (!isSuper && doc.ownerId !== userId && doc.createdById !== userId && doc.reviewerId !== userId && doc.firstApproverId !== userId && doc.secondApproverId !== userId) continue;
-      results.push(buildSynthetic({
-        _kind: 'DOCUMENT_EXPIRY',
-        _refId: r.id,
-        _title: `Expire: ${doc.title} (${doc.fileCode})`,
-        _description: `Document Type: ${doc.documentType?.name || '-'}`,
-        _start: r.expiryDate,
-        _docId: doc.id,
-        _userId: doc.ownerId,
-        _priority: 2,
-        _link: `/expiry-tracking`,
-        _extra: { fileCode: doc.fileCode, expiryStatus: r.expiryStatus, renewalStatus: r.renewalStatus }
-      }));
     }
-  }
 
-  if (sourceFilter(['DOCUMENT_EXPIRY_REMINDER']).length) {
-    const reminderRows = await prisma.documentExpiryProfile.findMany({
-      where: { trackingEnabled: true },
-      include: {
-        document: { include: { owner: true } }
+    for (const ce of customEvents) {
+      results.push({
+        id: ce.id,
+        synthetic: false,
+        title: ce.title,
+        description: ce.description,
+        startDateTime: ce.startDateTime,
+        endDateTime: ce.endDateTime,
+        isAllDay: ce.isAllDay,
+        sourceType: 'CUSTOM',
+        category: ce.category,
+        priority: ce.priority,
+        userId: ce.userId,
+        assigneeId: ce.assigneeId,
+        assignee: normalizeUser(ce.assignee),
+        viewerIds: (ce.viewers || []).map((v) => v.userId),
+        viewers: (ce.viewers || []).map((v) => normalizeUser(v.user)),
+        customEvent: ce.customEvent ? {
+          id: ce.customEvent.id,
+          recurrenceRule: ce.customEvent.recurrenceRule,
+          colorOverride: ce.customEvent.colorOverride,
+          location: ce.customEvent.location,
+          createdById: ce.customEvent.createdById
+        } : null,
+        deepLink: null,
+        extra: null,
+        createdAt: ce.createdAt
+      });
+    }
+
+    const safeRun = async (label, fn) => {
+      try {
+        await fn();
+      } catch (e) {
+        logger.warn(`[calendar] ${label} failed: ${e?.message || e}`);
       }
-    });
-    for (const r of reminderRows) {
-      const doc = r.document;
-      if (!r.expiryDate) continue;
-      if (!isSuper && doc.ownerId !== userId && doc.createdById !== userId) continue;
-      const offsets = [
-        { label: 'Reminder 4', days: r.reminder4Days || 7, priority: 1 },
-        { label: 'Reminder 3', days: r.reminder3Days || 30, priority: 1 },
-        { label: 'Reminder 2', days: r.reminder2Days || 60, priority: 0 },
-        { label: 'Reminder 1', days: r.reminder1Days || 90, priority: 0 }
-      ];
-      for (const off of offsets) {
-        const d = addDays(r.expiryDate, -off.days);
-        if (d >= fromDate && d <= toDate) {
+    };
+
+    if (sourceFilter(['DOCUMENT_EXPIRY']).length) {
+      await safeRun('DOCUMENT_EXPIRY', async () => {
+        const rows = await prisma.documentExpiryProfile.findMany({
+          where: {
+            trackingEnabled: true,
+            expiryDate: { gte: addDays(fromDate, -0), lte: toDate }
+          },
+          include: {
+            document: {
+              include: {
+                owner: true,
+                documentType: true
+              }
+            }
+          }
+        });
+        for (const r of rows) {
+          const doc = r.document;
+          if (!doc) continue;
+          if (!isSuper && doc.ownerId !== userId && doc.createdById !== userId && doc.reviewerId !== userId && doc.firstApproverId !== userId && doc.secondApproverId !== userId) continue;
           results.push(buildSynthetic({
-            _kind: 'DOCUMENT_EXPIRY_REMINDER',
-            _refId: `${r.id}_${off.label}`,
-            _title: `${off.label} (${off.days}d): ${doc.title}`,
-            _start: d,
+            _kind: 'DOCUMENT_EXPIRY',
+            _refId: r.id,
+            _title: `Expire: ${doc.title} (${doc.fileCode || '-'})`,
+            _description: `Document Type: ${doc.documentType?.name || '-'}`,
+            _start: r.expiryDate,
             _docId: doc.id,
             _userId: doc.ownerId,
-            _priority: off.priority,
-            _link: `/expiry-tracking`
+            _priority: 2,
+            _link: `/expiry-tracking`,
+            _extra: { fileCode: doc.fileCode || null, expiryStatus: r.expiryStatus || null, renewalStatus: r.renewalStatus || null }
           }));
         }
-      }
+      });
     }
-  }
 
-  if (sourceFilter(['DOCUMENT_SHARE_EXPIRY']).length) {
-    const shares = await prisma.documentShareLink.findMany({
-      where: { expiresAt: { gte: fromDate, lte: toDate } },
-      include: { createdBy: true, document: true }
-    });
-    for (const s of shares) {
-      if (!isSuper && s.createdById !== userId) continue;
-      results.push(buildSynthetic({
-        _kind: 'DOCUMENT_SHARE_EXPIRY',
-        _refId: s.id,
-        _title: `Share link expires: ${s.document?.title || 'Document'}`,
-        _start: s.expiresAt,
-        _allDay: false,
-        _shareId: s.id,
-        _docId: s.documentId,
-        _userId: s.createdById,
-        _link: `/documents/my-documents`
-      }));
-    }
-  }
-
-  if (sourceFilter(['PROJECT_START', 'PROJECT_COMPLETION']).length) {
-    const projects = await prisma.project.findMany({
-      where: {
-        OR: [
-          { startDate: { gte: fromDate, lte: toDate } },
-          { plannedCompletionDate: { gte: fromDate, lte: toDate } }
-        ]
-      },
-      include: { manager: true, projectCategory: true }
-    });
-    for (const p of projects) {
-      const canSee = isSuper || p.managerId === userId || p.createdById === userId;
-      if (!canSee) continue;
-      if (p.startDate && p.startDate >= fromDate && p.startDate <= toDate && sourceFilter(['PROJECT_START']).length) {
-        results.push(buildSynthetic({
-          _kind: 'PROJECT_START',
-          _refId: `P_S_${p.id}`,
-          _title: `Project Start: ${p.name}`,
-          _description: p.description || `Code: ${p.code}`,
-          _start: p.startDate,
-          _projectId: p.id,
-          _userId: p.managerId,
-          _link: `/project-tracking/${p.id}`
-        }));
-      }
-      if (p.plannedCompletionDate && p.plannedCompletionDate >= fromDate && p.plannedCompletionDate <= toDate && sourceFilter(['PROJECT_COMPLETION']).length) {
-        results.push(buildSynthetic({
-          _kind: 'PROJECT_COMPLETION',
-          _refId: `P_C_${p.id}`,
-          _title: `Project Due: ${p.name}`,
-          _description: p.description || `Code: ${p.code}`,
-          _start: p.plannedCompletionDate,
-          _projectId: p.id,
-          _userId: p.managerId,
-          _priority: 2,
-          _link: `/project-tracking/${p.id}`
-        }));
-      }
-    }
-  }
-
-  if (sourceFilter(['PROJECT_ITEM_DUE']).length) {
-    const items = await prisma.projectIterationDocumentItem.findMany({
-      where: { dueDate: { gte: fromDate, lte: toDate } },
-      include: {
-        documentType: true,
-        assignedTo: true,
-        iteration: {
+    if (sourceFilter(['DOCUMENT_EXPIRY_REMINDER']).length) {
+      await safeRun('DOCUMENT_EXPIRY_REMINDER', async () => {
+        const reminderRows = await prisma.documentExpiryProfile.findMany({
+          where: { trackingEnabled: true },
           include: {
-            project: true,
-            currentStage: true
+            document: { include: { owner: true } }
+          }
+        });
+        for (const r of reminderRows) {
+          const doc = r.document;
+          if (!r.expiryDate || !doc) continue;
+          if (!isSuper && doc.ownerId !== userId && doc.createdById !== userId) continue;
+          const offsets = [
+            { label: 'Reminder 4', days: r.reminder4Days || 7, priority: 1 },
+            { label: 'Reminder 3', days: r.reminder3Days || 30, priority: 1 },
+            { label: 'Reminder 2', days: r.reminder2Days || 60, priority: 0 },
+            { label: 'Reminder 1', days: r.reminder1Days || 90, priority: 0 }
+          ];
+          for (const off of offsets) {
+            const d = addDays(r.expiryDate, -off.days);
+            if (d >= fromDate && d <= toDate) {
+              results.push(buildSynthetic({
+                _kind: 'DOCUMENT_EXPIRY_REMINDER',
+                _refId: `${r.id}_${off.label}`,
+                _title: `${off.label} (${off.days}d): ${doc.title}`,
+                _start: d,
+                _docId: doc.id,
+                _userId: doc.ownerId,
+                _priority: off.priority,
+                _link: `/expiry-tracking`
+              }));
+            }
           }
         }
-      }
-    });
-    for (const it of items) {
-      const canSee = isSuper || it.assignedToId === userId || it.iteration.project.managerId === userId;
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'PROJECT_ITEM_DUE',
-        _refId: `PI_${it.id}`,
-        _title: `Due: ${it.documentType?.name || 'Document'} - ${it.iteration.project.name}`,
-        _description: it.iteration.currentStage ? `Stage: ${it.iteration.currentStage.name}` : null,
-        _start: it.dueDate,
-        _projectId: it.iteration.project.id,
-        _projItemId: it.id,
-        _assigneeId: it.assignedToId,
-        _assignee: normalizeUser(it.assignedTo),
-        _priority: 2,
-        _link: `/project-tracking/${it.iteration.project.id}`
-      }));
+      });
     }
-  }
 
-  if (sourceFilter(['ITERATION_START', 'ITERATION_END']).length) {
-    const iters = await prisma.projectIteration.findMany({
-      where: {
-        OR: [
-          { startedAt: { gte: fromDate, lte: toDate } },
-          { endedAt: { gte: fromDate, lte: toDate } }
-        ]
-      },
-      include: { project: true }
-    });
-    for (const it of iters) {
-      const canSee = isSuper || it.project.managerId === userId;
-      if (!canSee) continue;
-      if (it.startedAt && it.startedAt >= fromDate && it.startedAt <= toDate) {
-        results.push(buildSynthetic({
-          _kind: 'ITERATION_START',
-          _refId: `IT_S_${it.id}`,
-          _title: `Iteration ${it.iterationNo} Start: ${it.project.name}`,
-          _start: it.startedAt,
-          _projectId: it.project.id,
-          _link: `/project-tracking/${it.project.id}`
-        }));
-      }
-      if (it.endedAt && it.endedAt >= fromDate && it.endedAt <= toDate) {
-        results.push(buildSynthetic({
-          _kind: 'ITERATION_END',
-          _refId: `IT_E_${it.id}`,
-          _title: `Iteration ${it.iterationNo} End: ${it.project.name}`,
-          _start: it.endedAt,
-          _projectId: it.project.id,
-          _link: `/project-tracking/${it.project.id}`
-        }));
-      }
+    if (sourceFilter(['DOCUMENT_SHARE_EXPIRY']).length) {
+      await safeRun('DOCUMENT_SHARE_EXPIRY', async () => {
+        const shares = await prisma.documentShareLink.findMany({
+          where: { expiresAt: { gte: fromDate, lte: toDate } },
+          include: { createdBy: true, document: true }
+        });
+        for (const s of shares) {
+          if (!isSuper && s.createdById !== userId) continue;
+          results.push(buildSynthetic({
+            _kind: 'DOCUMENT_SHARE_EXPIRY',
+            _refId: s.id,
+            _title: `Share link expires: ${s.document?.title || 'Document'}`,
+            _start: s.expiresAt,
+            _allDay: false,
+            _shareId: s.id,
+            _docId: s.documentId,
+            _userId: s.createdById,
+            _link: `/documents/my-documents`
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['ASSIGNMENT_CREATED']).length) {
-    const assignments = await prisma.documentAssignment.findMany({
-      where: { createdAt: { gte: fromDate, lte: toDate } },
-      include: {
-        user: true,
-        assignedBy: true,
-        document: { include: { documentType: true } }
-      }
-    });
-    for (const a of assignments) {
-      const canSee = isSuper || a.userId === userId || a.assignedById === userId;
-      if (!canSee) continue;
-      const docCode = a.document?.fileCode ? ` (${a.document.fileCode})` : '';
-      const docLink = a.documentId ? `/documents/review-approval?docId=${a.documentId}` : `/documents/review-approval`;
-      const extra = {};
-      if (a.assignmentType) extra.assignmentType = a.assignmentType;
-      if (a.document?.fileCode) extra.documentCode = a.document.fileCode;
-      if (a.document?.documentType?.name) extra.documentType = a.document.documentType.name;
-      if (a.assignedById) extra.assignedById = a.assignedById;
-      results.push(buildSynthetic({
-        _kind: 'ASSIGNMENT_CREATED',
-        _refId: `DA_${a.id}`,
-        _title: `${a.assignmentType} Assigned: ${a.document?.title || 'Document'}${docCode}`,
-        _description: a.document?.documentType?.name ? `Document Type: ${a.document.documentType.name}` : null,
-        _start: a.createdAt,
-        _allDay: false,
-        _docId: a.documentId,
-        _userId: a.assignedById || null,
-        _user: normalizeUser(a.assignedBy),
-        _assigneeId: a.userId,
-        _assignee: normalizeUser(a.user),
-        _link: docLink,
-        _extra: Object.keys(extra).length ? extra : null
-      }));
+    if (sourceFilter(['PROJECT_START', 'PROJECT_COMPLETION']).length) {
+      await safeRun('PROJECT_MILESTONES', async () => {
+        const projects = await prisma.project.findMany({
+          where: {
+            OR: [
+              { startDate: { gte: fromDate, lte: toDate } },
+              { plannedCompletionDate: { gte: fromDate, lte: toDate } }
+            ]
+          },
+          include: { manager: true, projectCategory: true }
+        });
+        for (const p of projects) {
+          const canSee = isSuper || p.managerId === userId || p.createdById === userId;
+          if (!canSee) continue;
+          if (p.startDate && p.startDate >= fromDate && p.startDate <= toDate && sourceFilter(['PROJECT_START']).length) {
+            results.push(buildSynthetic({
+              _kind: 'PROJECT_START',
+              _refId: `P_S_${p.id}`,
+              _title: `Project Start: ${p.name}`,
+              _description: p.description || `Code: ${p.code || '-'}`,
+              _start: p.startDate,
+              _projectId: p.id,
+              _userId: p.managerId,
+              _link: `/project-tracking/${p.id}`
+            }));
+          }
+          if (p.plannedCompletionDate && p.plannedCompletionDate >= fromDate && p.plannedCompletionDate <= toDate && sourceFilter(['PROJECT_COMPLETION']).length) {
+            results.push(buildSynthetic({
+              _kind: 'PROJECT_COMPLETION',
+              _refId: `P_C_${p.id}`,
+              _title: `Project Due: ${p.name}`,
+              _description: p.description || `Code: ${p.code || '-'}`,
+              _start: p.plannedCompletionDate,
+              _projectId: p.id,
+              _userId: p.managerId,
+              _priority: 2,
+              _link: `/project-tracking/${p.id}`
+            }));
+          }
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['VERSION_REQUEST_TARGET']).length) {
-    const vrs = await prisma.versionRequest.findMany({
-      where: { targetDate: { gte: fromDate, lte: toDate } },
-      include: {
-        requestedBy: true,
-        document: true
-      }
-    });
-    for (const v of vrs) {
-      const canSee = isSuper || v.requestedById === userId || v.reviewedById === userId || v.approvedById === userId;
-      if (!canSee) continue;
-      const vrLink = v.documentId ? `/documents/review-approval?docId=${v.documentId}` : `/documents/review-approval`;
-      results.push(buildSynthetic({
-        _kind: 'VERSION_REQUEST_TARGET',
-        _refId: `VR_${v.id}`,
-        _title: `Version Request Target: ${v.document?.title || 'Document'}`,
-        _description: v.proposedChanges || v.reasonForRevision,
-        _start: v.targetDate,
-        _vrId: v.id,
-        _docId: v.documentId,
-        _userId: v.requestedById,
-        _user: normalizeUser(v.requestedBy),
-        _priority: 1,
-        _link: vrLink
-      }));
+    if (sourceFilter(['PROJECT_ITEM_DUE']).length) {
+      await safeRun('PROJECT_ITEM_DUE', async () => {
+        const items = await prisma.projectIterationDocumentItem.findMany({
+          where: { dueDate: { gte: fromDate, lte: toDate } },
+          include: {
+            documentType: true,
+            assignedTo: true,
+            iteration: {
+              include: {
+                project: true,
+                currentStage: true
+              }
+            }
+          }
+        });
+        for (const it of items) {
+          const proj = it.iteration?.project;
+          if (!proj) continue;
+          const canSee = isSuper || it.assignedToId === userId || proj.managerId === userId;
+          if (!canSee) continue;
+          results.push(buildSynthetic({
+            _kind: 'PROJECT_ITEM_DUE',
+            _refId: `PI_${it.id}`,
+            _title: `Due: ${it.documentType?.name || 'Document'} - ${proj.name}`,
+            _description: it.iteration.currentStage ? `Stage: ${it.iteration.currentStage.name}` : null,
+            _start: it.dueDate,
+            _projectId: proj.id,
+            _projItemId: it.id,
+            _assigneeId: it.assignedToId,
+            _assignee: normalizeUser(it.assignedTo),
+            _priority: 2,
+            _link: `/project-tracking/${proj.id}`
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['TENDER_SUBMISSION_DEADLINE']).length) {
-    const tenders = await prisma.crmTenderEntry.findMany({
-      where: { submissionDeadline: { gte: fromDate, lte: toDate } },
-      include: { createdBy: true, assignees: { include: { user: true } } }
-    });
-    for (const t of tenders) {
-      const assigneeIds = (t.assignees || []).map((a) => a.userId);
-      const canSee = isSuper || t.createdById === userId || assigneeIds.includes(userId);
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'TENDER_SUBMISSION_DEADLINE',
-        _refId: `TD_${t.id}`,
-        _title: `Tender Due: ${t.title}`,
-        _description: t.clientName ? `Client: ${t.clientName}${t.tenderRefNo ? ` • ${t.tenderRefNo}` : ''}` : (t.tenderRefNo || null),
-        _start: t.submissionDeadline,
-        _tenderId: t.id,
-        _userId: t.createdById,
-        _priority: 2,
-        _link: `/tender-book`,
-        _extra: { status: t.status, tenderRefNo: t.tenderRefNo, clientName: t.clientName }
-      }));
+    if (sourceFilter(['ITERATION_START', 'ITERATION_END']).length) {
+      await safeRun('ITERATION', async () => {
+        const iters = await prisma.projectIteration.findMany({
+          where: {
+            OR: [
+              { startedAt: { gte: fromDate, lte: toDate } },
+              { endedAt: { gte: fromDate, lte: toDate } }
+            ]
+          },
+          include: { project: true }
+        });
+        for (const it of iters) {
+          if (!it.project) continue;
+          const canSee = isSuper || it.project.managerId === userId;
+          if (!canSee) continue;
+          if (it.startedAt && it.startedAt >= fromDate && it.startedAt <= toDate) {
+            results.push(buildSynthetic({
+              _kind: 'ITERATION_START',
+              _refId: `IT_S_${it.id}`,
+              _title: `Iteration ${it.iterationNo} Start: ${it.project.name}`,
+              _start: it.startedAt,
+              _projectId: it.project.id,
+              _link: `/project-tracking/${it.project.id}`
+            }));
+          }
+          if (it.endedAt && it.endedAt >= fromDate && it.endedAt <= toDate) {
+            results.push(buildSynthetic({
+              _kind: 'ITERATION_END',
+              _refId: `IT_E_${it.id}`,
+              _title: `Iteration ${it.iterationNo} End: ${it.project.name}`,
+              _start: it.endedAt,
+              _projectId: it.project.id,
+              _link: `/project-tracking/${it.project.id}`
+            }));
+          }
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['TENDER_FOLLOW_UP']).length) {
-    const tenders = await prisma.crmTenderEntry.findMany({
-      where: { nextFollowUpAt: { gte: fromDate, lte: toDate } },
-      include: { createdBy: true, assignees: { include: { user: true } } }
-    });
-    for (const t of tenders) {
-      const assigneeIds = (t.assignees || []).map((a) => a.userId);
-      const canSee = isSuper || t.createdById === userId || assigneeIds.includes(userId);
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'TENDER_FOLLOW_UP',
-        _refId: `TF_${t.id}`,
-        _title: `Follow-up: ${t.title}`,
-        _start: t.nextFollowUpAt,
-        _allDay: false,
-        _tenderId: t.id,
-        _userId: t.createdById,
-        _link: `/tender-book`
-      }));
+    if (sourceFilter(['ASSIGNMENT_CREATED']).length) {
+      await safeRun('ASSIGNMENT_CREATED', async () => {
+        const assignments = await prisma.documentAssignment.findMany({
+          where: { createdAt: { gte: fromDate, lte: toDate } },
+          include: {
+            user: true,
+            assignedBy: true,
+            document: { include: { documentType: true } }
+          }
+        });
+        for (const a of assignments) {
+          const canSee = isSuper || a.userId === userId || a.assignedById === userId;
+          if (!canSee) continue;
+          const docCode = a.document?.fileCode ? ` (${a.document.fileCode})` : '';
+          const docLink = a.documentId ? `/documents/review-approval?docId=${a.documentId}` : `/documents/review-approval`;
+          const extra = {};
+          if (a.assignmentType) extra.assignmentType = a.assignmentType;
+          if (a.document?.fileCode) extra.documentCode = a.document.fileCode;
+          if (a.document?.documentType?.name) extra.documentType = a.document.documentType.name;
+          if (a.assignedById) extra.assignedById = a.assignedById;
+          results.push(buildSynthetic({
+            _kind: 'ASSIGNMENT_CREATED',
+            _refId: `DA_${a.id}`,
+            _title: `${a.assignmentType || 'Assignment'} Assigned: ${a.document?.title || 'Document'}${docCode}`,
+            _description: a.document?.documentType?.name ? `Document Type: ${a.document.documentType.name}` : null,
+            _start: a.createdAt,
+            _allDay: false,
+            _docId: a.documentId,
+            _userId: a.assignedById || null,
+            _user: normalizeUser(a.assignedBy),
+            _assigneeId: a.userId,
+            _assignee: normalizeUser(a.user),
+            _link: docLink,
+            _extra: Object.keys(extra).length ? extra : null
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['TENDER_FOLLOW_UP_LOG']).length) {
-    const logs = await prisma.crmTenderFollowUpLog.findMany({
-      where: { followUpAt: { gte: fromDate, lte: toDate } },
-      include: {
-        assignedTo: true,
-        createdBy: true,
-        tender: true
-      }
-    });
-    for (const l of logs) {
-      const canSee = isSuper || l.assignedToId === userId || l.createdById === userId;
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'TENDER_FOLLOW_UP_LOG',
-        _refId: `TFL_${l.id}`,
-        _title: l.note ? `Follow-up: ${(l.note.length > 40 ? l.note.slice(0, 40) + '…' : l.note)}` : `Follow-up Log for Tender`,
-        _description: l.note,
-        _start: l.followUpAt,
-        _allDay: false,
-        _tenderId: l.tenderId,
-        _assigneeId: l.assignedToId,
-        _assignee: normalizeUser(l.assignedTo),
-        _link: `/tender-book`
-      }));
+    if (sourceFilter(['VERSION_REQUEST_TARGET']).length) {
+      await safeRun('VERSION_REQUEST_TARGET', async () => {
+        const vrs = await prisma.versionRequest.findMany({
+          where: { targetDate: { gte: fromDate, lte: toDate } },
+          include: {
+            requestedBy: true,
+            document: true
+          }
+        });
+        for (const v of vrs) {
+          const canSee = isSuper || v.requestedById === userId || v.reviewedById === userId || v.approvedById === userId;
+          if (!canSee) continue;
+          const vrLink = v.documentId ? `/documents/review-approval?docId=${v.documentId}` : `/documents/review-approval`;
+          results.push(buildSynthetic({
+            _kind: 'VERSION_REQUEST_TARGET',
+            _refId: `VR_${v.id}`,
+            _title: `Version Request Target: ${v.document?.title || 'Document'}`,
+            _description: v.proposedChanges || v.reasonForRevision || null,
+            _start: v.targetDate,
+            _vrId: v.id,
+            _docId: v.documentId,
+            _userId: v.requestedById,
+            _user: normalizeUser(v.requestedBy),
+            _priority: 1,
+            _link: vrLink
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['FB_ENQUIRY_DATE']).length) {
-    const fbs = await prisma.crmFbEnquiryEntry.findMany({
-      where: { enquiryDate: { gte: fromDate, lte: toDate } },
-      include: { createdBy: true, assignees: { include: { user: true } } }
-    });
-    for (const f of fbs) {
-      const assigneeIds = (f.assignees || []).map((a) => a.userId);
-      const canSee = isSuper || f.createdById === userId || assigneeIds.includes(userId);
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'FB_ENQUIRY_DATE',
-        _refId: `FE_D_${f.id}`,
-        _title: `Enquiry: ${f.name || f.contact}`,
-        _description: f.company ? `Company: ${f.company}` : null,
-        _start: f.enquiryDate,
-        _fbId: f.id,
-        _userId: f.createdById,
-        _link: `/fb-enquiries`
-      }));
+    if (sourceFilter(['TENDER_SUBMISSION_DEADLINE']).length) {
+      await safeRun('TENDER_SUBMISSION_DEADLINE', async () => {
+        const tenders = await prisma.crmTenderEntry.findMany({
+          where: { submissionDeadline: { gte: fromDate, lte: toDate } },
+          include: { createdBy: true, assignees: { include: { user: true } } }
+        });
+        for (const t of tenders) {
+          const assigneeIds = (t.assignees || []).map((a) => a.userId);
+          const canSee = isSuper || t.createdById === userId || assigneeIds.includes(userId);
+          if (!canSee) continue;
+          results.push(buildSynthetic({
+            _kind: 'TENDER_SUBMISSION_DEADLINE',
+            _refId: `TD_${t.id}`,
+            _title: `Tender Due: ${t.title}`,
+            _description: t.clientName ? `Client: ${t.clientName}${t.tenderRefNo ? ` • ${t.tenderRefNo}` : ''}` : (t.tenderRefNo || null),
+            _start: t.submissionDeadline,
+            _tenderId: t.id,
+            _userId: t.createdById,
+            _priority: 2,
+            _link: `/tender-book`,
+            _extra: { status: t.status || null, tenderRefNo: t.tenderRefNo || null, clientName: t.clientName || null }
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['FB_FOLLOW_UP']).length) {
-    const fbs = await prisma.crmFbEnquiryEntry.findMany({
-      where: { nextFollowUpAt: { gte: fromDate, lte: toDate } },
-      include: { createdBy: true, assignees: { include: { user: true } } }
-    });
-    for (const f of fbs) {
-      const assigneeIds = (f.assignees || []).map((a) => a.userId);
-      const canSee = isSuper || f.createdById === userId || assigneeIds.includes(userId);
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'FB_FOLLOW_UP',
-        _refId: `FE_F_${f.id}`,
-        _title: `Follow-up: ${f.name || f.contact}`,
-        _start: f.nextFollowUpAt,
-        _allDay: false,
-        _fbId: f.id,
-        _userId: f.createdById,
-        _link: `/fb-enquiries`
-      }));
+    if (sourceFilter(['TENDER_FOLLOW_UP']).length) {
+      await safeRun('TENDER_FOLLOW_UP', async () => {
+        const tenders = await prisma.crmTenderEntry.findMany({
+          where: { nextFollowUpAt: { gte: fromDate, lte: toDate } },
+          include: { createdBy: true, assignees: { include: { user: true } } }
+        });
+        for (const t of tenders) {
+          const assigneeIds = (t.assignees || []).map((a) => a.userId);
+          const canSee = isSuper || t.createdById === userId || assigneeIds.includes(userId);
+          if (!canSee) continue;
+          results.push(buildSynthetic({
+            _kind: 'TENDER_FOLLOW_UP',
+            _refId: `TF_${t.id}`,
+            _title: `Follow-up: ${t.title}`,
+            _start: t.nextFollowUpAt,
+            _allDay: false,
+            _tenderId: t.id,
+            _userId: t.createdById,
+            _link: `/tender-book`
+          }));
+        }
+      });
     }
-  }
 
-  if (sourceFilter(['FB_FOLLOW_UP_LOG']).length) {
-    const logs = await prisma.crmFbEnquiryFollowUpLog.findMany({
-      where: { followUpAt: { gte: fromDate, lte: toDate } },
-      include: { assignedTo: true, createdBy: true }
-    });
-    for (const l of logs) {
-      const canSee = isSuper || l.assignedToId === userId || l.createdById === userId;
-      if (!canSee) continue;
-      results.push(buildSynthetic({
-        _kind: 'FB_FOLLOW_UP_LOG',
-        _refId: `FFL_${l.id}`,
-        _title: l.note ? `Follow-up: ${(l.note.length > 40 ? l.note.slice(0, 40) + '…' : l.note)}` : `Enquiry Follow-up Log`,
-        _description: l.note,
-        _start: l.followUpAt,
-        _allDay: false,
-        _fbId: l.enquiryId,
-        _assigneeId: l.assignedToId,
-        _assignee: normalizeUser(l.assignedTo),
-        _link: `/fb-enquiries`
-      }));
+    if (sourceFilter(['TENDER_FOLLOW_UP_LOG']).length) {
+      await safeRun('TENDER_FOLLOW_UP_LOG', async () => {
+        const logs = await prisma.crmTenderFollowUpLog.findMany({
+          where: { followUpAt: { gte: fromDate, lte: toDate } },
+          include: {
+            assignedTo: true,
+            createdBy: true,
+            tender: true
+          }
+        });
+        for (const l of logs) {
+          const canSee = isSuper || l.assignedToId === userId || l.createdById === userId;
+          if (!canSee) continue;
+          const safeNote = String(l.note || '');
+          results.push(buildSynthetic({
+            _kind: 'TENDER_FOLLOW_UP_LOG',
+            _refId: `TFL_${l.id}`,
+            _title: safeNote ? `Follow-up: ${(safeNote.length > 40 ? safeNote.slice(0, 40) + '…' : safeNote)}` : `Follow-up Log for Tender`,
+            _description: l.note,
+            _start: l.followUpAt,
+            _allDay: false,
+            _tenderId: l.tenderId,
+            _assigneeId: l.assignedToId,
+            _assignee: normalizeUser(l.assignedTo),
+            _link: `/tender-book`
+          }));
+        }
+      });
     }
-  }
 
-  let final = results;
-  if (search && search.trim()) {
-    const q = search.toLowerCase().trim();
-    final = final.filter((e) =>
-      (e.title && e.title.toLowerCase().includes(q)) ||
-      (e.description && e.description.toLowerCase().includes(q))
-    );
+    if (sourceFilter(['FB_ENQUIRY_DATE']).length) {
+      await safeRun('FB_ENQUIRY_DATE', async () => {
+        const fbs = await prisma.crmFbEnquiryEntry.findMany({
+          where: { enquiryDate: { gte: fromDate, lte: toDate } },
+          include: { createdBy: true, assignees: { include: { user: true } } }
+        });
+        for (const f of fbs) {
+          const assigneeIds = (f.assignees || []).map((a) => a.userId);
+          const canSee = isSuper || f.createdById === userId || assigneeIds.includes(userId);
+          if (!canSee) continue;
+          results.push(buildSynthetic({
+            _kind: 'FB_ENQUIRY_DATE',
+            _refId: `FE_D_${f.id}`,
+            _title: `Enquiry: ${f.name || f.contact || '-'}`,
+            _description: f.company ? `Company: ${f.company}` : null,
+            _start: f.enquiryDate,
+            _fbId: f.id,
+            _userId: f.createdById,
+            _link: `/fb-enquiries`
+          }));
+        }
+      });
+    }
+
+    if (sourceFilter(['FB_FOLLOW_UP']).length) {
+      await safeRun('FB_FOLLOW_UP', async () => {
+        const fbs = await prisma.crmFbEnquiryEntry.findMany({
+          where: { nextFollowUpAt: { gte: fromDate, lte: toDate } },
+          include: { createdBy: true, assignees: { include: { user: true } } }
+        });
+        for (const f of fbs) {
+          const assigneeIds = (f.assignees || []).map((a) => a.userId);
+          const canSee = isSuper || f.createdById === userId || assigneeIds.includes(userId);
+          if (!canSee) continue;
+          results.push(buildSynthetic({
+            _kind: 'FB_FOLLOW_UP',
+            _refId: `FE_F_${f.id}`,
+            _title: `Follow-up: ${f.name || f.contact || '-'}`,
+            _start: f.nextFollowUpAt,
+            _allDay: false,
+            _fbId: f.id,
+            _userId: f.createdById,
+            _link: `/fb-enquiries`
+          }));
+        }
+      });
+    }
+
+    if (sourceFilter(['FB_FOLLOW_UP_LOG']).length) {
+      await safeRun('FB_FOLLOW_UP_LOG', async () => {
+        const logs = await prisma.crmFbEnquiryFollowUpLog.findMany({
+          where: { followUpAt: { gte: fromDate, lte: toDate } },
+          include: { assignedTo: true, createdBy: true }
+        });
+        for (const l of logs) {
+          const canSee = isSuper || l.assignedToId === userId || l.createdById === userId;
+          if (!canSee) continue;
+          const safeNote = String(l.note || '');
+          results.push(buildSynthetic({
+            _kind: 'FB_FOLLOW_UP_LOG',
+            _refId: `FFL_${l.id}`,
+            _title: safeNote ? `Follow-up: ${(safeNote.length > 40 ? safeNote.slice(0, 40) + '…' : safeNote)}` : `Enquiry Follow-up Log`,
+            _description: l.note,
+            _start: l.followUpAt,
+            _allDay: false,
+            _fbId: l.enquiryId,
+            _assigneeId: l.assignedToId,
+            _assignee: normalizeUser(l.assignedTo),
+            _link: `/fb-enquiries`
+          }));
+        }
+      });
+    }
+
+    let final = results;
+    if (search && search.trim()) {
+      const q = search.toLowerCase().trim();
+      final = final.filter((e) =>
+        (e.title && e.title.toLowerCase().includes(q)) ||
+        (e.description && e.description.toLowerCase().includes(q))
+      );
+    }
+    final = catFilter(final);
+    final.sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+    return final;
+  } catch (topLevelError) {
+    logger.error(`[calendar] getEventsInRange TOTAL FAILURE (uid=${userId}): ${topLevelError?.stack || topLevelError}`);
+    return [];
   }
-  final = catFilter(final);
-  final.sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
-  return final;
 }
 
 async function getUpcoming(userId, days = 7) {

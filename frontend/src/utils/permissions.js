@@ -161,13 +161,32 @@ export const hasRole = (roleName) => {
 }
 
 /**
- * Check if user is admin
+ * Check if user is admin / has super-admin-like override capabilities
+ * Mirrors backend isUserAdmin(): permissions.all, isSystem role, OR
+ * role name matches admin|controller|document_controller pattern
  * @returns {boolean}
  */
 export const isAdmin = () => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
-  return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+  try {
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+    }
+    const user = JSON.parse(userStr)
+    const rolesRaw = user.roles || []
+    const adminPattern = /admin|controller|document_controller/i
+    return rolesRaw.some((roleData) => {
+      const role = roleData?.role || roleData
+      if (!role) return false
+      if (role.isSystem === true) return true
+      const roleName = role.name || role.displayName || ''
+      return adminPattern.test(roleName)
+    })
+  } catch (e) {
+    return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+  }
 }
 
 /**
