@@ -70,7 +70,7 @@ export default function Modal({
           ].filter(Boolean).join(' ')}
           {...domProps}
         >
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden [&>*]:flex [&>*]:flex-col [&>*]:min-h-0 [&>*]:overflow-hidden [&>*:has(.overflow-y-auto)]:flex-1">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden [&>*]:flex [&>*]:flex-col [&>*]:min-h-0 [&>*:not(.overflow-y-auto)]:overflow-hidden [&>*:has(.overflow-y-auto)]:flex-1">
             {children}
           </div>
         </div>

@@ -864,7 +864,7 @@ function DetailModal({ open, profile, onClose }) {
               <tbody>
                 {rhSortedData.length === 0 ? (
                   <Tr>
-                    <Td colSpan={Math.max(rhVisibleColumns.length, 1)} className="py-8 text-center text-sm text-ink-muted">No renewal history yet.</Td>
+                    <Td colSpan={Math.max(rhVisibleColumns.length, 1)} className="py-8 text-center text-sm text-ink-muted">No renewals completed yet. History records will appear here after each renewal.</Td>
                   </Tr>
                 ) : (
                   rhSortedData.map((entry) => (
