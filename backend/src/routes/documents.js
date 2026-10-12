@@ -57,6 +57,7 @@ router.get('/my-status', documentController.getMyDocuments);
 router.get('/my-status/:status', documentController.getMyDocumentsByStatus);
 router.get('/code/:fileCode', documentController.getDocumentByCode);
 router.delete('/code/:fileCode/purge', authorize('admin', 'Admin', 'Administrator', 'ADMIN', 'document_controller'), documentController.purgeDocumentByCode);
+router.get('/file-code/generate', documentController.generateFileCode);
 router.get('/:id/remarks', documentController.getDocumentRemarks);
 router.get('/:id/confidential-access', documentController.getConfidentialAccess);
 router.get('/:id', documentController.getDocument);

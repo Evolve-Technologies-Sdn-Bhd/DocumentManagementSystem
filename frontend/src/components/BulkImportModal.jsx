@@ -447,6 +447,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   useEffect(() => {
     if (!isOpen) return
     setFileItems((prev) => prev.map((it) => ({ ...it, projectCategoryId: projectCategoryId || '' })))
+    if (!projectCategoryId) return
+    fileItems.forEach((it, idx) => {
+      const typeId = String(it?.documentTypeId || '').trim()
+      if (!typeId || it?.isClientDocument) return
+      generateFileCodeForItem(idx, typeId)
+    })
   }, [projectCategoryId, isOpen])
 
   useEffect(() => {
@@ -701,6 +707,42 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
   const autoMatchClientDocumentTypeId = () => {
     return getOtherDocumentationTypeId(documentTypes)
+  }
+
+  const generateFileCodeForItem = async (idx, documentTypeId) => {
+    const trimmedTypeId = String(documentTypeId || '').trim()
+    if (!trimmedTypeId) return
+    if (!projectCategoryId) return
+    const snapshot = fileItems[idx]
+    if (snapshot?.isClientDocument) return
+
+    try {
+      const res = await api.get('/documents/file-code/generate', {
+        params: {
+          documentTypeId: trimmedTypeId,
+          projectCategoryId
+        }
+      })
+      const generated = res.data?.data?.fileCode || res.data?.fileCode || ''
+      if (!generated) return
+      setFileItems((prev) => prev.map((x, i) => {
+        if (i !== idx) return x
+        if (String(x.documentTypeId || '').trim() !== trimmedTypeId) return x
+        if (x.isClientDocument) return x
+        return {
+          ...x,
+          fileCode: generated,
+          nonClientFileCode: generated
+        }
+      }))
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  const handleDocumentTypeChange = (idx, nextTypeId) => {
+    setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, documentTypeId: nextTypeId } : x))
+    generateFileCodeForItem(idx, nextTypeId)
   }
 
   const getFileItemKey = (item) => `${item?.relativePath || item?.file?.name || ''}:${item?.file?.size || 0}:${item?.file?.lastModified || 0}`
@@ -1705,7 +1747,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                                 <label className="block text-xs font-medium text-gray-700 mb-1">{t('bulk_import_document_type_label')}</label>
                                 <select
                                   value={it.documentTypeId || ''}
-                                  onChange={(e) => setFileItems((prev) => prev.map((x, i) => i === idx ? { ...x, documentTypeId: e.target.value } : x))}
+                                  onChange={(e) => handleDocumentTypeChange(idx, e.target.value)}
                                   disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
                                 >

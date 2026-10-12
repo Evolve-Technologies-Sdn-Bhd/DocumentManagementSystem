@@ -1910,12 +1910,34 @@ class DocumentService {
       }
     }
 
-    // Update status to ARCHIVED instead of hard delete
-    await prisma.document.update({
-      where: { id: documentId },
-      data: {
-        status: 'ARCHIVED'
-      }
+    const fileCode = document.fileCode;
+    const projectCategoryId = document.projectCategoryId || null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.document.update({
+        where: { id: documentId },
+        data: { status: 'ARCHIVED' }
+      });
+
+      const fileCodeWhere = { fileCode };
+      const fileCodeAndCategoryWhere = projectCategoryId
+        ? { fileCode, projectCategoryId }
+        : null;
+
+      const deleteRegisters = async (model) => {
+        try {
+          await tx[model].deleteMany({ where: fileCodeWhere });
+          if (fileCodeAndCategoryWhere) {
+            await tx[model].deleteMany({ where: fileCodeAndCategoryWhere });
+          }
+        } catch (_e) { /* ignore */ }
+      };
+
+      await deleteRegisters('documentRegister');
+      await deleteRegisters('codeRegistry');
+      await deleteRegisters('obsoleteRegister');
+      await deleteRegisters('archiveRegister');
+      await deleteRegisters('versionRegister');
     });
 
     return true;

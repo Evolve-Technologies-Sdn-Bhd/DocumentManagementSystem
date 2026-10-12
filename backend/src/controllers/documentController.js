@@ -942,6 +942,32 @@ class DocumentController {
   });
 
   /**
+   * Generate the next file code for a document type + project category
+   * GET /api/documents/file-code/generate?documentTypeId=&projectCategoryId=&version=
+   */
+  generateFileCode = asyncHandler(async (req, res) => {
+    const documentTypeId = parseInt(req.query.documentTypeId, 10);
+    const projectCategoryId = req.query.projectCategoryId ? parseInt(req.query.projectCategoryId, 10) : null;
+    const version = String(req.query.version || '1');
+
+    if (!documentTypeId || Number.isNaN(documentTypeId)) {
+      throw new BadRequestError('documentTypeId is required');
+    }
+
+    const fileCode = await documentService.generateFileCode(
+      documentTypeId,
+      projectCategoryId,
+      version
+    );
+
+    return ResponseFormatter.success(
+      res,
+      { fileCode },
+      'File code generated successfully'
+    );
+  });
+
+  /**
    * Search documents
    * GET /api/documents/search
    */
