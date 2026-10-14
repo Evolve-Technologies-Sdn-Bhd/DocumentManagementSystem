@@ -1907,15 +1907,18 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-6xl">
-      <form onSubmit={submit} className="space-y-4">
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-[115rem]">
+      <form onSubmit={submit} className="space-y-5">
+        <div className="text-sm text-ink-muted">
+          Link one or more existing documents to this stage. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
+        </div>
         <AssignmentSummary
           modeLabel="Attach existing document to stage"
           phaseLabel={getPhaseTitle(phase, '-')}
           stageLabel={stage?.name}
           documentTypeLabel="Keep original document type"
         />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
@@ -1943,7 +1946,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-96"
+                  treeClassName="max-h-[28rem]"
                 />
               )}
             </AppSurface>
@@ -1954,7 +1957,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
             <div className="flex gap-2">
               <TextInput
@@ -1970,7 +1973,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </div>
             <div className="text-xs text-ink-soft">
               {selectedFolderId
-                ? 'Search covers accessible documents inside the chosen folder.'
+                ? 'Search covers accessible documents inside the chosen folder and all its subfolders.'
                 : 'Search covers all accessible documents in the system, including published documents outside this project.'}
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -1990,36 +1993,43 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-96 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-[28rem] overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
                   const matchingItem = resolveMatchingItem(r)
+                  const folderPath = r.folderPath || r.document?.folderPath || []
 
                   return (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
-                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
+                      className={`w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-surface-muted ring-1 ring-inset ring-brand/30' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="font-semibold text-ink truncate">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary truncate">{getDocumentTitleLabel(r.document || r)}</div>
                           <div className="mt-1 text-xs text-ink-soft">
                             {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
                           </div>
-                          <div className="mt-1 inline-flex items-center gap-2">
+                          {folderPath.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-ink-muted" title={folderPath.join(' \u203A ')}>
+                              <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></svg>
+                              <span className="truncate">{folderPath.join(' \u203A ')}</span>
+                            </div>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
                             <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
                             <DocumentStatusBadge status={r.document?.status || r.status} />
                           </div>
                           <div className="mt-1 text-xs text-ink-soft">
                             {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
                           </div>
-                          <div className="mt-2 text-xs font-medium text-brand">
+                          <div className="mt-1 text-xs font-medium text-brand">
                             {matchingItem
                               ? `Will attach under required item: ${matchingItem.documentType?.name || 'Document Type'}`
                               : 'Will attach under Other Documents for this stage'}
@@ -2058,12 +2068,17 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             {submitError}
           </div>
         )}
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-border bg-surface px-6 py-3">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={submitting || selectedCount === 0} type="submit">
-            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {submitting ? 'Attaching...' : attachmentBreakdown.autoConfidential > 0 ? `Attach ${selectedCount} as Needed` : `Attach ${selectedCount || ''}`.trim()}
-          </Button>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-between gap-3 border-t border-border bg-surface px-6 py-3">
+          <span className="text-sm text-ink-secondary">
+            {selectedCount > 0 ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected` : 'No documents selected'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={submitting || selectedCount === 0} type="submit">
+              {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {submitting ? 'Attaching...' : attachmentBreakdown.autoConfidential > 0 ? `Attach ${selectedCount} as Needed` : `Attach ${selectedCount || ''}`.trim()}
+            </Button>
+          </div>
         </div>
       </form>
     </ModalShell>
@@ -2462,15 +2477,18 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-6xl">
-      <form onSubmit={submit} className="space-y-4">
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-[115rem]">
+      <form onSubmit={submit} className="space-y-5">
+        <div className="text-sm text-ink-muted">
+          Link one or more existing documents to this required item. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
+        </div>
         <AssignmentSummary
           modeLabel="Attach existing document to required item"
           phaseLabel={getPhaseTitle(phase, '-')}
           stageLabel={item.stage?.name}
           documentTypeLabel={item.documentType?.name}
         />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
@@ -2498,7 +2516,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-96"
+                  treeClassName="max-h-[28rem]"
                 />
               )}
             </AppSurface>
@@ -2509,7 +2527,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
             <div className="flex gap-2">
               <TextInput
@@ -2525,7 +2543,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             </div>
             <div className="text-xs text-ink-soft">
               {selectedFolderId
-                ? 'Search covers accessible documents inside the chosen folder.'
+                ? 'Search covers accessible documents inside the chosen folder and all its subfolders.'
                 : 'Search covers all accessible documents in the system, including published documents outside this project.'}
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -2545,24 +2563,34 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-96 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-[28rem] overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
+                  const folderPath = r.folderPath || r.document?.folderPath || []
                   return (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
-                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
+                      className={`w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-surface-muted ring-1 ring-inset ring-brand/30' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
-                          <div className="mt-1 inline-flex items-center gap-2">
+                          <div className="font-semibold text-ink truncate">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary truncate">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="mt-1 text-xs text-ink-soft">
+                            {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
+                          </div>
+                          {folderPath.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-ink-muted" title={folderPath.join(' \u203A ')}>
+                              <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></svg>
+                              <span className="truncate">{folderPath.join(' \u203A ')}</span>
+                            </div>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
                             <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
                             <DocumentStatusBadge status={r.document?.status || r.status} />
                           </div>
@@ -2598,12 +2626,17 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             {submitError}
           </div>
         )}
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-border bg-surface px-6 py-3">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={submitting || selectedCount === 0} type="submit">
-            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {submitting ? 'Attaching...' : `Attach ${selectedCount || ''}`.trim()}
-          </Button>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-between gap-3 border-t border-border bg-surface px-6 py-3">
+          <span className="text-sm text-ink-secondary">
+            {selectedCount > 0 ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected` : 'No documents selected'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={submitting || selectedCount === 0} type="submit">
+              {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {submitting ? 'Attaching...' : `Attach ${selectedCount || ''}`.trim()}
+            </Button>
+          </div>
         </div>
       </form>
     </ModalShell>

@@ -6,6 +6,7 @@ const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
 const notificationService = require('./notificationService')
 const divisionScopeService = require('./divisionScopeService')
+const folderService = require('./folderService')
 
 const getAllowedDivisionIdsForUser = (user) => {
   return divisionScopeService.normalizeDivisionIds(user?.divisionIds || [])
@@ -2397,7 +2398,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     andWhere.push({ projectLinks: { some: { iteration: { projectId } } } })
   }
   if (folderId) {
-    andWhere.push({ folderId })
+    const folderIds = await folderService.getDescendantFolderIds(folderId, { includeSelf: true })
+    andWhere.push({ folderId: { in: folderIds } })
   }
 
   if (query) {
@@ -2436,6 +2438,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         isConfidential: true,
         updatedAt: true,
         documentTypeId: true,
+        folderId: true,
+        folder: { select: { id: true, name: true, parentId: true } },
         documentType: { select: { id: true, name: true } }
       },
       orderBy: { updatedAt: 'desc' },
@@ -2460,6 +2464,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         isConfidential: true,
         updatedAt: true,
         documentTypeId: true,
+        folderId: true,
+        folder: { select: { id: true, name: true, parentId: true } },
         documentType: { select: { id: true, name: true } },
         projectLinks: {
           where: projectId ? { iteration: { projectId } } : undefined,
@@ -2479,8 +2485,49 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     })
   }
 
-  const toResult = (doc) => {
+  const buildFolderMap = async (docs) => {
+    const folderIds = new Set()
+    docs.forEach((d) => {
+      if (d?.folder?.id) folderIds.add(d.folder.id)
+    })
+    if (folderIds.size === 0) return new Map()
+
+    const map = new Map()
+    let frontier = Array.from(folderIds)
+    while (frontier.length > 0) {
+      const rows = await prisma.folder.findMany({
+        where: { id: { in: frontier } },
+        select: { id: true, name: true, parentId: true }
+      })
+      const next = []
+      rows.forEach((r) => {
+        if (!map.has(r.id)) {
+          map.set(r.id, r)
+          if (r.parentId != null && !map.has(r.parentId)) next.push(r.parentId)
+        }
+      })
+      frontier = next
+    }
+    return map
+  }
+
+  const folderPathFor = (folder, folderMap) => {
+    if (!folder) return []
+    const path = []
+    let cur = folder
+    const seen = new Set()
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id)
+      path.unshift(cur.name)
+      if (cur.parentId == null) break
+      cur = folderMap.get(cur.parentId) || null
+    }
+    return path
+  }
+
+  const toResult = (doc, folderMap) => {
     const latestLink = doc.projectLinks[0] || null
+    const folderPath = folderPathFor(doc.folder, folderMap)
     return {
       id: doc.id,
       fileCode: doc.fileCode,
@@ -2491,6 +2538,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
       updatedAt: doc.updatedAt,
       documentTypeId: doc.documentTypeId,
       documentType: doc.documentType,
+      folderId: doc.folderId,
+      folderName: doc.folder?.name || null,
+      folderPath,
       document: {
         id: doc.id,
         fileCode: doc.fileCode,
@@ -2511,8 +2561,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
   if (!query) {
     const ids = candidates.slice(0, 200).map((d) => d.id)
     const docs = await fetchWithLinks(ids)
+    const folderMap = await buildFolderMap(docs)
     const byId = new Map(docs.map((d) => [d.id, d]))
-    return ids.map((id) => toResult(byId.get(id))).filter(Boolean)
+    return ids.map((id) => toResult(byId.get(id), folderMap)).filter(Boolean)
   }
 
   const scored = candidates
@@ -2554,8 +2605,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     .map((entry) => entry.id)
 
   const docs = await fetchWithLinks(scored)
+  const folderMap = await buildFolderMap(docs)
   const byId = new Map(docs.map((d) => [d.id, d]))
-  return scored.map((id) => toResult(byId.get(id))).filter(Boolean)
+  return scored.map((id) => toResult(byId.get(id), folderMap)).filter(Boolean)
 };
 
 exports.getCategoryStages = async (projectCategoryId) => {
