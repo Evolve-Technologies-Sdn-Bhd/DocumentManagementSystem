@@ -34,17 +34,27 @@ function ItemStatusBadge({ status }) {
   return <span className={`${base} bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]`}>Pending</span>
 }
 
-function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
+function ModalShell({ title, subtitle, children, onClose, maxWidthClass = 'max-w-xl' }) {
   return (
     <Modal
       onClose={onClose}
       className={`w-full overflow-hidden rounded-dms-lg ${maxWidthClass}`}
     >
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h3 className="text-lg font-semibold text-ink">{title}</h3>
-        <IconButton size="sm" onClick={onClose} aria-label="Close">
-          <span className="text-lg leading-none">×</span>
-        </IconButton>
+      <div className="flex-shrink-0 flex items-center justify-between gap-3 border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-6 py-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-bold text-ink leading-snug">{title}</h3>
+          {subtitle ? <p className="mt-1.5 text-sm text-ink-secondary leading-relaxed">{subtitle}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-ink-muted hover:text-ink transition-colors shrink-0"
+          aria-label="Close"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
     </Modal>
@@ -1617,7 +1627,7 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
           </Table>
         </TableContainer>
         {!initialItem && (
-          <div className="flex justify-between gap-2">
+          <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={addRow}>Add Row</Button>
             <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
           </div>
@@ -1907,7 +1917,12 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-[115rem]">
+    <ModalShell
+      title="Attach Existing Document"
+      subtitle={`${getPhaseTitle(phase, '-')} • ${stage?.name || '-'}`}
+      onClose={onClose}
+      maxWidthClass="max-w-[1870px]"
+    >
       <form onSubmit={submit} className="space-y-5">
         <div className="text-sm text-ink-muted">
           Link one or more existing documents to this stage. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
@@ -2053,11 +2068,11 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             )}
           </div>
         </div>
-        <div className="text-xs text-ink-soft">
-          {selectedCount > 0
-            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected. ${attachmentBreakdown.required > 0 ? `${attachmentBreakdown.required} will go to required item${attachmentBreakdown.required === 1 ? '' : 's'}. ` : ''}${attachmentBreakdown.other > 0 ? `${attachmentBreakdown.other} will go to Other Documents.` : ''}`
-            : 'Search and select one or more documents from the list above.'}
-        </div>
+        {selectedCount > 0 && (
+          <div className="text-xs text-ink-soft">
+            {`${selectedCount} document${selectedCount === 1 ? '' : 's'} selected. ${attachmentBreakdown.required > 0 ? `${attachmentBreakdown.required} will go to required item${attachmentBreakdown.required === 1 ? '' : 's'}. ` : ''}${attachmentBreakdown.other > 0 ? `${attachmentBreakdown.other} will go to Other Documents.` : ''}`}
+          </div>
+        )}
         {attachmentBreakdown.autoConfidential > 0 && (
           <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
             {attachmentBreakdown.autoConfidential} selected document{attachmentBreakdown.autoConfidential === 1 ? '' : 's'} will be updated to confidential automatically after attach.
@@ -2477,7 +2492,12 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-[115rem]">
+    <ModalShell
+      title="Attach Existing Document"
+      subtitle={`${getPhaseTitle(phase, '-')} • ${item.stage?.name || '-'}${item.documentType?.name ? ` • ${item.documentType.name}` : ''}`}
+      onClose={onClose}
+      maxWidthClass="max-w-[1870px]"
+    >
       <form onSubmit={submit} className="space-y-5">
         <div className="text-sm text-ink-muted">
           Link one or more existing documents to this required item. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
@@ -2616,11 +2636,11 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             )}
           </div>
         </div>
-        <div className="text-xs text-ink-soft">
-          {selectedCount > 0
-            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected and ready to attach to this required item.`
-            : 'Search and select one or more documents from the list above.'}
-        </div>
+        {selectedCount > 0 && (
+          <div className="text-xs text-ink-soft">
+            {`${selectedCount} document${selectedCount === 1 ? '' : 's'} selected and ready to attach to this required item.`}
+          </div>
+        )}
         {submitError && (
           <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
             {submitError}
