@@ -89,6 +89,11 @@ api.interceptors.request.use(async (cfg) => {
 
   if (isFormDataPayload(cfg.data)) {
     cfg._isUpload = true
+    // Allow large/slow uploads to exceed the default 20s global timeout.
+    // Applies to file uploads (documents, templates, profile images, etc.).
+    if (cfg.timeout === undefined || cfg.timeout === 20000) {
+      cfg.timeout = 300000 // 5 minutes
+    }
     if (!cfg._uploadProgressStarted) {
       cfg._uploadProgressStarted = true
       startUploadProgress(getUploadLabel(cfg))
