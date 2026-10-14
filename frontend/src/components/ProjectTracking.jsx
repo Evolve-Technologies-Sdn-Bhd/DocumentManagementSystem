@@ -24,6 +24,7 @@ import ActionMenu from './ActionMenu'
 import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import useTableFeatures from '../hooks/useTableFeatures'
 import DataTableToolbar from './ui/DataTableToolbar'
+import NewDraftModal from './NewDraftModal'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -1906,7 +1907,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-6xl">
       <form onSubmit={submit} className="space-y-4">
         <AssignmentSummary
           modeLabel="Attach existing document to stage"
@@ -1942,7 +1943,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-72"
+                  treeClassName="max-h-96"
                 />
               )}
             </AppSurface>
@@ -1989,7 +1990,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-96 overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
                   const matchingItem = resolveMatchingItem(r)
@@ -2057,7 +2058,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             {submitError}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-border bg-surface px-6 py-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={submitting || selectedCount === 0} type="submit">
             {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
@@ -2461,7 +2462,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
+    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-6xl">
       <form onSubmit={submit} className="space-y-4">
         <AssignmentSummary
           modeLabel="Attach existing document to required item"
@@ -2497,7 +2498,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-72"
+                  treeClassName="max-h-96"
                 />
               )}
             </AppSurface>
@@ -2544,7 +2545,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-96 overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
                   return (
@@ -2597,7 +2598,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             {submitError}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-border bg-surface px-6 py-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={submitting || selectedCount === 0} type="submit">
             {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
@@ -3900,6 +3901,7 @@ function ProjectDetail({ projectId }) {
   const [showCreateDoc, setShowCreateDoc] = useState(null)
   const [showStageLink, setShowStageLink] = useState(null)
   const [showStageCreate, setShowStageCreate] = useState(null)
+  const [newDraftTarget, setNewDraftTarget] = useState(null)
   const [showCreatePhase, setShowCreatePhase] = useState(false)
   const [showEditPhase, setShowEditPhase] = useState(null)
   const [showDocumentAccess, setShowDocumentAccess] = useState(null)
@@ -4462,6 +4464,43 @@ function ProjectDetail({ projectId }) {
     navigate(`/documents/drafts?docId=${docId}&origin=project-tracking`)
   }
 
+  const handleNewDraftFromProject = async ({ docId, documentTypeId }) => {
+    const target = newDraftTarget
+    setNewDraftTarget(null)
+    if (!docId || !target) return
+    try {
+      if (target.type === 'item') {
+        await api.post(`/project-tracking/items/${target.item.id}/link-document`, { documentId: docId })
+      } else if (target.type === 'stage' && selectedIterationId) {
+        const stageItems = itemsByStage.get(target.stage.id) || []
+        const matchingItem = documentTypeId
+          ? stageItems.find((it) => String(it.documentTypeId) === String(documentTypeId))
+          : null
+        if (matchingItem) {
+          await api.post(`/project-tracking/items/${matchingItem.id}/link-document`, { documentId: docId })
+        } else {
+          await api.post(`/project-tracking/iterations/${selectedIterationId}/stages/${target.stage.id}/link-document`, { documentId: docId })
+        }
+      }
+      if (selectedIterationId) await loadItems(selectedIterationId)
+      setAlertModal({
+        show: true,
+        title: 'Draft Created & Linked',
+        message: 'The new draft has been created and linked to this project successfully. You can manage the reviewer and upload the file from the Draft Documents page.',
+        type: 'success'
+      })
+    } catch (error) {
+      console.error('Failed to link draft to project:', error)
+      const message = error?.response?.data?.message || error?.message || 'Draft was created but could not be linked to the project automatically. You can attach it manually using "Attach Existing".'
+      setAlertModal({
+        show: true,
+        title: 'Link Failed',
+        message,
+        type: 'warning'
+      })
+    }
+  }
+
   const createNamedIteration = async ({ name }) => {
     const res = await api.post(`/project-tracking/projects/${projectId}/iterations`, { name })
     const iter = res?.data?.data?.iteration
@@ -4992,7 +5031,7 @@ function ProjectDetail({ projectId }) {
                 Attach Existing
               </button>
               {canCreate ? (
-                <button type="button" onClick={() => setShowCreateDoc(it)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                <button type="button" onClick={() => setNewDraftTarget({ type: 'item', item: it })} className="font-medium text-ink-secondary hover:text-ink hover:underline">
                   Add New File
                 </button>
               ) : null}
@@ -6077,7 +6116,7 @@ function ProjectDetail({ projectId }) {
                       </Button>
                     ) : null}
                     {canCreate && isProjectActive ? (
-                      <Button onClick={() => setShowStageCreate(st)}>
+                      <Button onClick={() => setNewDraftTarget({ type: 'stage', stage: st })}>
                         Create New
                       </Button>
                     ) : null}
@@ -6286,15 +6325,17 @@ function ProjectDetail({ projectId }) {
         </Modal>
       )}
 
-      {showCreateDoc && (
-        <CreateDocumentModal
-          item={showCreateDoc}
-          phase={selectedPhase}
-          onClose={() => setShowCreateDoc(null)}
-          onCreated={async (result) => {
-            setShowCreateDoc(null)
-            await handoffCreatedDraft(result)
-          }}
+      {newDraftTarget && (
+        <NewDraftModal
+          isOpen={Boolean(newDraftTarget)}
+          onClose={() => setNewDraftTarget(null)}
+          onSubmit={handleNewDraftFromProject}
+          prefillDocumentTypeId={newDraftTarget.type === 'item' ? newDraftTarget.item.documentTypeId : null}
+          prefillTitle={
+            newDraftTarget.type === 'item'
+              ? `${newDraftTarget.item.documentType?.name || 'Document'} - ${newDraftTarget.item.stage?.name || ''}`.trim()
+              : `${newDraftTarget.stage?.name || 'Document'} - Document`
+          }
         />
       )}
 
@@ -6332,21 +6373,6 @@ function ProjectDetail({ projectId }) {
               message: buildAttachSummaryMessage(summary),
               type: summary?.failedCount ? 'warning' : 'success'
             })
-          }}
-        />
-      )}
-
-      {showStageCreate && selectedIterationId && (
-        <StageCreateDocumentModal
-          iterationId={selectedIterationId}
-          phase={selectedPhase}
-          stage={showStageCreate}
-          stageItems={itemsByStage.get(showStageCreate.id) || []}
-          documentTypes={docTypes}
-          onClose={() => setShowStageCreate(null)}
-          onCreated={async (result) => {
-            setShowStageCreate(null)
-            await handoffCreatedDraft(result)
           }}
         />
       )}

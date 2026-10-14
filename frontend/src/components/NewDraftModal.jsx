@@ -219,7 +219,7 @@ const getReviewerDisplayName = (reviewer) => {
   return fullName || reviewer.email || ''
 }
 
-export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
+export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocumentTypeId, prefillTitle }) {
   const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
@@ -231,6 +231,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     reviewerId: null,
     divisionId: ''
   })
+  const isDocumentTypeLocked = Boolean(prefillDocumentTypeId)
   const [loading, setLoading] = useState(false)
   const [documentTypes, setDocumentTypes] = useState([])
   const [loadingDocTypes, setLoadingDocTypes] = useState(true)
@@ -485,7 +486,20 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setLoadingDocTypes(true)
     try {
       const res = await api.get('/system/config/document-types')
-      setDocumentTypes(res.data.data.documentTypes || [])
+      const types = res.data.data.documentTypes || []
+      setDocumentTypes(types)
+      if (prefillDocumentTypeId) {
+        const matched = types.find((d) => String(d.id) === String(prefillDocumentTypeId))
+        if (matched) {
+          setFormData((prev) => ({
+            ...prev,
+            documentType: matched.name,
+            title: prefillTitle || prev.title
+          }))
+        }
+      } else if (prefillTitle) {
+        setFormData((prev) => ({ ...prev, title: prefillTitle }))
+      }
     } catch (error) {
       console.error('Failed to load document types:', error)
     } finally {
@@ -730,7 +744,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       }
 
       onClose()
-      if (typeof onSubmit === 'function') onSubmit({ docId, verId })
+      if (typeof onSubmit === 'function') onSubmit({ docId, verId, documentTypeId: doc.documentTypeId || doc.documentType?.id || null })
       else try { navigate('/documents/drafts') } catch (_) { window.location.reload() }
     } catch (error) {
       console.error('Error saving draft:', error)
@@ -791,7 +805,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       }
 
       onClose()
-      if (typeof onSubmit === 'function') onSubmit({ docId, verId })
+      if (typeof onSubmit === 'function') onSubmit({ docId, verId, documentTypeId: doc.documentTypeId || doc.documentType?.id || null })
       else try { navigate('/documents/drafts') } catch (_) { window.location.reload() }
     } catch (error) {
       console.error('Error submitting for review:', error)
@@ -941,7 +955,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               placeholder={loadingDocTypes ? t('loading_ellipsis') : t('select_doc_type')}
               searchPlaceholder={t('search_doc_type')}
               noResultsLabel={t('no_doc_type_found')}
-              disabled={loadingDocTypes}
+              disabled={loadingDocTypes || isDocumentTypeLocked}
               loading={loadingDocTypes}
               clearLabel={t('clear_filter')}
               loadingLabel={t('loading_ellipsis')}
