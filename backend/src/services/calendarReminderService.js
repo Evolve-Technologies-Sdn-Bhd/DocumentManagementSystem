@@ -1,6 +1,5 @@
 const prisma = require('../config/database')
 const notificationService = require('./notificationService')
-const { formatDDMMYYYY, formatTime24 } = require('../utils/dateUtils')
 
 function dateUtilsFallback() {
   const pad2 = (n) => String(n).padStart(2, '0')
@@ -25,8 +24,8 @@ class CalendarReminderService {
     this._timer = null
     this._running = false
     const dtls = dateUtilsFallback()
-    this._formatDDMMYYYY = formatDDMMYYYY || dtls.formatDDMMYYYY
-    this._formatTime24 = formatTime24 || dtls.formatTime24
+    this._formatDDMMYYYY = dtls.formatDDMMYYYY
+    this._formatTime24 = dtls.formatTime24
   }
 
   async processDueReminders(now = new Date()) {

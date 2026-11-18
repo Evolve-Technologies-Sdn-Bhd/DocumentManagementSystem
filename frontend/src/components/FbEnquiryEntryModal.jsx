@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
@@ -36,8 +36,9 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
   const [channelOptions, setChannelOptions] = useState(defaultChannelOptions)
   const [industryOptions, setIndustryOptions] = useState(defaultIndustryOptions)
   const [addingLookup, setAddingLookup] = useState({ channel: false, industryType: false })
-  const [showAddLookup, setShowAddLookup] = useState({ channel: false, industryType: false })
+  const [activeLookupModal, setActiveLookupModal] = useState(null)
   const [newLookup, setNewLookup] = useState({ channel: '', industryType: '' })
+  const [addLookupError, setAddLookupError] = useState('')
   const [form, setForm] = useState({
     name: '',
     enquiryDate: '',
@@ -172,39 +173,39 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
   const addLookupValue = async (field) => {
     const value = normalizeLookupText(newLookup[field])
     if (!value) {
-      setError(field === 'channel' ? 'Enquiry Channel is required.' : 'Industry Type is required.')
+      setAddLookupError(field === 'channel' ? 'Enquiry Channel is required.' : 'Industry Type is required.')
       return
     }
 
     const list = field === 'channel' ? channelOptions : industryOptions
-    const exists = list.some((item) => String(item).toLowerCase() === value.toLowerCase())
-    if (exists) {
-      setError('This value already exists.')
+    if (list.some((item) => String(item).toLowerCase() === value.toLowerCase())) {
+      setAddLookupError('This value already exists.')
       return
     }
 
     setAddingLookup((prev) => ({ ...prev, [field]: true }))
-    setError('')
+    setAddLookupError('')
+
     try {
       const payload = {
         channels: field === 'channel' ? [...channelOptions, value] : channelOptions,
         industryTypes: field === 'industryType' ? [...industryOptions, value] : industryOptions
       }
+
       const res = await api.put('/system/config/crm-fb-enquiry-lookups', payload)
       const lookups = res.data?.data?.lookups || payload
       const baseChannels = Array.isArray(lookups.channels) && lookups.channels.length ? lookups.channels : payload.channels
       const baseIndustries = Array.isArray(lookups.industryTypes) && lookups.industryTypes.length ? lookups.industryTypes : payload.industryTypes
-      const nextChannels = baseChannels.slice().sort((a, b) => String(a).localeCompare(String(b)))
-      const nextIndustries = baseIndustries.slice().sort((a, b) => String(a).localeCompare(String(b)))
 
-      setChannelOptions(nextChannels)
-      setIndustryOptions(nextIndustries)
+      setChannelOptions(baseChannels.slice().sort((a, b) => String(a).localeCompare(String(b))))
+      setIndustryOptions(baseIndustries.slice().sort((a, b) => String(a).localeCompare(String(b))))
       setForm((prev) => ({ ...prev, [field]: value }))
       setNewLookup((prev) => ({ ...prev, [field]: '' }))
-      setShowAddLookup((prev) => ({ ...prev, [field]: false }))
+      setActiveLookupModal(null)
+      setAddLookupError('')
     } catch (e) {
       console.error('Failed to add lookup value:', e)
-      setError(e.response?.data?.message || 'Unable to add value. Please try again.')
+      setAddLookupError(e.response?.data?.message || 'Unable to add value. Please try again.')
     } finally {
       setAddingLookup((prev) => ({ ...prev, [field]: false }))
     }
@@ -254,30 +255,22 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{isEdit ? 'Edit Enquiry' : 'Add New Enquiry'}</h3>
-              <p className="text-xs text-gray-600 mt-1">FB Enquiry Register</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 rounded-lg p-2 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title={isEdit ? 'Edit Enquiry' : 'Add New Enquiry'}
+          subtitle="FB Enquiry Register"
+          onClose={onClose}
+        />
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
+        <ModalBody className="space-y-4">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">Contact No.</label>
               <TextInput value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
@@ -294,7 +287,7 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <label className="mb-2 block text-sm font-medium text-gray-900">Company (Optional)</label>
               <TextInput value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Address</label>
               <TextInput value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
             </div>
@@ -303,97 +296,61 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <TextInput value={form.state} onChange={(e) => setForm((p) => ({ ...p, state: e.target.value }))} />
             </div>
             <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-gray-900">Enquiry Channel</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Enquiry Channel</label>
+              <div className="flex items-center gap-2">
+                <SelectField
+                  className="h-[38px] min-w-0 flex-1 cursor-pointer shadow-sm"
+                  value={form.channel}
+                  onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))}
+                >
+                  {channelOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </SelectField>
                 <Button
+                  type="button"
                   variant="secondary"
                   size="sm"
+                  className="h-[38px] w-[38px] shrink-0 px-0 text-lg"
+                  aria-label="Add enquiry channel"
                   onClick={() => {
-                    setError('')
-                    setShowAddLookup((prev) => ({ ...prev, channel: !prev.channel }))
+                    setAddLookupError('')
                     setNewLookup((prev) => ({ ...prev, channel: '' }))
+                    setActiveLookupModal('channel')
                   }}
                 >
                   +
                 </Button>
               </div>
-              <SelectField value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))}>
-                {channelOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </SelectField>
-              {showAddLookup.channel && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <TextInput
-                    value={newLookup.channel}
-                    placeholder="Add new channel..."
-                    onChange={(e) => setNewLookup((prev) => ({ ...prev, channel: e.target.value }))}
-                  />
-                  <Button size="sm" onClick={() => addLookupValue('channel')} loading={addingLookup.channel} loadingText="Adding...">
-                    Save
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setShowAddLookup((prev) => ({ ...prev, channel: false }))
-                      setNewLookup((prev) => ({ ...prev, channel: '' }))
-                    }}
-                    disabled={addingLookup.channel}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
             </div>
             <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-gray-900">Industry Type</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900">Industry Type</label>
+              <div className="flex items-center gap-2">
+                <SelectField
+                  className="h-[38px] min-w-0 flex-1 cursor-pointer shadow-sm"
+                  value={form.industryType}
+                  onChange={(e) => setForm((p) => ({ ...p, industryType: e.target.value }))}
+                >
+                  <option value="">Select industry...</option>
+                  {industryOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </SelectField>
                 <Button
+                  type="button"
                   variant="secondary"
                   size="sm"
+                  className="h-[38px] w-[38px] shrink-0 px-0 text-lg"
+                  aria-label="Add industry type"
                   onClick={() => {
-                    setError('')
-                    setShowAddLookup((prev) => ({ ...prev, industryType: !prev.industryType }))
+                    setAddLookupError('')
                     setNewLookup((prev) => ({ ...prev, industryType: '' }))
+                    setActiveLookupModal('industryType')
                   }}
                 >
                   +
                 </Button>
               </div>
-              <SelectField value={form.industryType} onChange={(e) => setForm((p) => ({ ...p, industryType: e.target.value }))}>
-                <option value="">Select industry...</option>
-                {industryOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </SelectField>
-              {showAddLookup.industryType && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <TextInput
-                    value={newLookup.industryType}
-                    placeholder="Add new industry..."
-                    onChange={(e) => setNewLookup((prev) => ({ ...prev, industryType: e.target.value }))}
-                  />
-                  <Button size="sm" onClick={() => addLookupValue('industryType')} loading={addingLookup.industryType} loadingText="Adding...">
-                    Save
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setShowAddLookup((prev) => ({ ...prev, industryType: false }))
-                      setNewLookup((prev) => ({ ...prev, industryType: '' }))
-                    }}
-                    disabled={addingLookup.industryType}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">Enquiry Date</label>
@@ -403,13 +360,13 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
               <label className="mb-2 block text-sm font-medium text-gray-900">Interested Product / Service</label>
               <TextInput value={form.interestedProduct} onChange={(e) => setForm((p) => ({ ...p, interestedProduct: e.target.value }))} />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Pain Point / Customer Need</label>
               <TextArea rows={3} value={form.painPoint} onChange={(e) => setForm((p) => ({ ...p, painPoint: e.target.value }))} />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">Status</label>
-              <SelectField value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+              <SelectField className="h-[38px] cursor-pointer shadow-sm" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -417,25 +374,91 @@ export default function FbEnquiryEntryModal({ open, entry, onClose, onSaved }) {
                 ))}
               </SelectField>
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Documents (Link / Reference)</label>
               <TextInput value={form.documentLink} onChange={(e) => setForm((p) => ({ ...p, documentLink: e.target.value }))} />
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 sticky bottom-0 flex justify-end gap-3">
+<ModalFooter>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} loading={saving} loadingText="Saving...">
             Save Entry
           </Button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
+
+    {activeLookupModal && (
+      <Modal
+        isOpen
+        size="sm"
+        onClose={() => {
+          if (addingLookup[activeLookupModal]) return
+          setActiveLookupModal(null)
+          setAddLookupError('')
+        }}
+      >
+        <ModalHeader
+          title={activeLookupModal === 'channel' ? 'Add Enquiry Channel' : 'Add Industry Type'}
+          subtitle="FB Enquiry Register"
+          onClose={() => {
+            if (addingLookup[activeLookupModal]) return
+            setActiveLookupModal(null)
+            setAddLookupError('')
+          }}
+        />
+        <ModalBody className="space-y-4">
+          {addLookupError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {addLookupError}
+            </div>
+          )}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-900">
+              {activeLookupModal === 'channel' ? 'Enquiry Channel Name' : 'Industry Type Name'}
+            </label>
+            <TextInput
+              autoFocus
+              value={newLookup[activeLookupModal]}
+              placeholder={activeLookupModal === 'channel' ? 'Enter enquiry channel...' : 'Enter industry type...'}
+              onChange={(e) => {
+                setNewLookup((prev) => ({ ...prev, [activeLookupModal]: e.target.value }))
+                setAddLookupError('')
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addLookupValue(activeLookupModal)
+              }}
+            />
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setActiveLookupModal(null)
+              setAddLookupError('')
+            }}
+            disabled={addingLookup[activeLookupModal]}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => addLookupValue(activeLookupModal)}
+            loading={addingLookup[activeLookupModal]}
+            loadingText="Saving..."
+          >
+            Save
+          </Button>
+        </ModalFooter>
+      </Modal>
+    )}
+    </>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+  return modal
 }

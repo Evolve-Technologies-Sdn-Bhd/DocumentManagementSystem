@@ -4,6 +4,7 @@ import Button from '../ui/Button'
 import TextInput from '../ui/TextInput'
 import SelectField from '../ui/SelectField'
 import TextArea from '../ui/TextArea'
+import SearchableSingleSelect from '../ui/SearchableSingleSelect'
 import api from '../../api/axios'
 import {
   formatDDMMYYYY, formatTime24, getCategoryStyle,
@@ -50,6 +51,7 @@ export default function CustomEventModal({
 }) {
   const [users, setUsers] = useState([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [viewerSearch, setViewerSearch] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -173,6 +175,30 @@ export default function CustomEventModal({
 
   const currentStyle = useMemo(() => getCategoryStyle(form.category), [form.category])
   const currentCatConfig = useMemo(() => CATEGORY_FIELD_CONFIG[form.category], [form.category])
+  const assigneeOptions = useMemo(() => [
+    { value: '', label: '— No assignee —', searchText: 'no assignee' },
+    ...users.map((u) => ({
+      value: String(u.id),
+      label: formatUserName(u),
+      searchText: [
+        u.email,
+        u.department,
+        u.position,
+        u.firstName,
+        u.lastName
+      ].filter(Boolean).join(' ')
+    }))
+  ], [users])
+  const filteredViewerUsers = useMemo(() => {
+    const query = viewerSearch.trim().toLowerCase()
+    if (!query) return users
+    return users.filter((u) => [
+      formatUserName(u),
+      u.email,
+      u.department,
+      u.position
+    ].filter(Boolean).join(' ').toLowerCase().includes(query))
+  }, [users, viewerSearch])
   const isAnnouncementOrAlert = form.category === 'INFO' || form.category === 'WARNING'
   const effectiveIsPublic = isAnnouncementOrAlert || form.isPublic === true
 
@@ -214,6 +240,12 @@ export default function CustomEventModal({
     const nextErrors = {}
     if (!form.title.trim()) nextErrors.title = 'Title is required'
     if (!form.startDate) nextErrors.startDate = 'Start date is required'
+    if (!form.isAllDay && !form.startTime) {
+      nextErrors.startTime = 'Start time is required'
+    }
+    if (!form.isAllDay && form.endDate && !form.endTime) {
+      nextErrors.endTime = 'End time is required when an end date is selected'
+    }
     ;(currentCatConfig?.fields || []).forEach((f) => {
       if (f.required && !String(form.categoryMeta?.[f.key] || '').trim()) {
         nextErrors['meta_' + f.key] = `${f.label} is required`
@@ -222,7 +254,7 @@ export default function CustomEventModal({
     const start = combineDateTime(form.startDate, form.isAllDay ? '00:00' : form.startTime)
     let end = null
     if (form.endDate) {
-      end = combineDateTime(form.endDate, form.isAllDay ? '23:59' : form.endTime, '10:00')
+      end = combineDateTime(form.endDate, form.isAllDay ? '23:59' : form.endTime)
     }
     if (start && end && end < start) nextErrors.endDate = 'End cannot be before start'
     if (Object.keys(nextErrors).length) {
@@ -307,8 +339,8 @@ export default function CustomEventModal({
         subtitle={existing?.synthetic ? 'System-generated event cannot be edited.' : 'Create a new calendar entry with time and category details.'}
         onClose={onClose}
       />
-      <form onSubmit={handleSubmit}>
-        <ModalBody className="space-y-5 flex-1 overflow-y-auto dms-scrollbar px-5 sm:px-6 py-5">
+      <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col overflow-hidden">
+        <ModalBody className="space-y-5 flex-1 min-h-0 overflow-y-auto overscroll-contain dms-scrollbar px-5 sm:px-6 py-5">
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Title <span className="text-[var(--dms-color-danger-ink)]">*</span>
@@ -365,9 +397,20 @@ export default function CustomEventModal({
                   {currentCatConfig.desc}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
-                {(currentCatConfig.fields || []).map(renderField)}
-              </div>
+
+              {(currentCatConfig.fields || []).length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border/60">
+                  {currentCatConfig.fields.map(renderField)}
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 rounded-xl border border-dashed border-border/80 bg-[var(--dms-color-bg-surface)] px-3 py-3">
+                  <span className="mt-0.5 text-[var(--dms-color-info-ink)]">ⓘ</span>
+                  <p className="text-xs leading-relaxed text-ink-muted">
+                    No additional fields are required for a custom event. Use the description,
+                    location and schedule below to provide more details.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -392,20 +435,23 @@ export default function CustomEventModal({
                 <div className={['grid gap-2', form.isAllDay ? 'grid-cols-1' : 'grid-cols-2'].join(' ')}>
                   <input
                     type="date"
+                    required
                     value={form.startDate}
                     onChange={(e) => handleChange('startDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
                   />
                   {!form.isAllDay && (
                     <input
                       type="time"
+                      required
                       value={form.startTime}
                       onChange={(e) => handleChange('startTime', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
                     />
                   )}
                 </div>
                 {errors.startDate && <p className="text-[11px] text-[var(--dms-color-danger-ink)]">{errors.startDate}</p>}
+                {errors.startTime && <p className="text-[11px] text-[var(--dms-color-danger-ink)]">{errors.startTime}</p>}
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Ends (optional)</label>
@@ -414,18 +460,20 @@ export default function CustomEventModal({
                     type="date"
                     value={form.endDate}
                     onChange={(e) => handleChange('endDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
                   />
                   {!form.isAllDay && (
                     <input
                       type="time"
+                      required={Boolean(form.endDate)}
                       value={form.endTime}
                       onChange={(e) => handleChange('endTime', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)] outline-none"
                     />
                   )}
                 </div>
                 {errors.endDate && <p className="text-[11px] text-[var(--dms-color-danger-ink)]">{errors.endDate}</p>}
+                {errors.endTime && <p className="text-[11px] text-[var(--dms-color-danger-ink)]">{errors.endTime}</p>}
               </div>
             </div>
           </div>
@@ -468,15 +516,17 @@ export default function CustomEventModal({
                 <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                   Assignee
                 </label>
-                <SelectField
+                <SearchableSingleSelect
                   value={String(form.assigneeId || '')}
-                  onChange={(e) => handleChange('assigneeId', e.target.value)}
-                >
-                  <option value="">— No assignee —</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={String(u.id)}>{formatUserName(u)}</option>
-                  ))}
-                </SelectField>
+                  options={assigneeOptions}
+                  onChange={(value) => handleChange('assigneeId', value)}
+                  placeholder="Choose an assignee..."
+                  searchPlaceholder="Search name, email or department..."
+                  loading={usersLoading}
+                  loadingLabel="Loading users..."
+                  noResultsLabel="No matching users found"
+                  disabled={usersLoading && users.length === 0}
+                />
                 <p className="text-[10px] text-ink-muted mt-1">
                   Person responsible for completing this event/task.
                 </p>
@@ -521,14 +571,37 @@ export default function CustomEventModal({
                     {usersLoading ? 'Loading users…' : `${users.length} users loaded`}
                   </span>
                 </div>
-                <div className="max-h-48 overflow-y-auto dms-scrollbar space-y-1.5 pr-1 rounded-xl border border-border/60 bg-[var(--dms-color-bg-surface)] p-2.5">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="search"
+                      value={viewerSearch}
+                      onChange={(e) => setViewerSearch(e.target.value)}
+                      placeholder="Search viewers by name, email or department..."
+                      aria-label="Search additional viewers"
+                      className="w-full rounded-xl border border-border/80 bg-[var(--dms-color-bg-surface)] px-3 py-2 text-xs text-ink outline-none transition focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+                    />
+                    {viewerSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setViewerSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-ink-muted hover:text-ink"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-48 overflow-y-auto dms-scrollbar space-y-1.5 pr-1 rounded-xl border border-border/60 bg-[var(--dms-color-bg-surface)] p-2.5">
                   {usersLoading && users.length === 0 && (
                     <p className="text-[11px] text-ink-muted px-2 py-1">Loading users…</p>
                   )}
                   {!usersLoading && users.length === 0 && (
                     <p className="text-[11px] text-ink-muted px-2 py-1">No active users available.</p>
                   )}
-                  {users.map((u) => {
+                  {!usersLoading && users.length > 0 && filteredViewerUsers.length === 0 && (
+                    <p className="text-[11px] text-ink-muted px-2 py-3 text-center">No users match your search.</p>
+                  )}
+                  {filteredViewerUsers.map((u) => {
                     const isAssignee = String(form.assigneeId) === String(u.id)
                     const checked = form.viewerIds.includes(Number(u.id)) || isAssignee
                     return (
@@ -558,6 +631,7 @@ export default function CustomEventModal({
                       </label>
                     )
                   })}
+                  </div>
                 </div>
                 <p className="text-[10px] text-ink-muted">
                   Tip: Assignees automatically receive viewer access — no need to tick them.

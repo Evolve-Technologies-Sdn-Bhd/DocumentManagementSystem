@@ -1115,27 +1115,23 @@ function NotificationSettings() {
           </div>
           <div className="flex gap-4 ml-4">
             <label className={`flex items-center gap-1.5 ${emailDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-                <input
+              <input
                   type="checkbox"
                   checked={emailChecked}
                   onChange={onEmailChange}
                   disabled={emailDisabledByAdmin}
                   className="h-4 w-4 cursor-pointer text-brand rounded border-[var(--dms-color-border-default)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
-              </span>
               <span className="text-xs font-medium text-ink-secondary">Email</span>
             </label>
             <label className={`flex items-center gap-1.5 ${inAppDisabledByAdmin ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-                <input
+              <input
                   type="checkbox"
                   checked={inAppChecked}
                   onChange={onInAppChange}
                   disabled={inAppDisabledByAdmin}
                   className="h-4 w-4 cursor-pointer text-brand rounded border-[var(--dms-color-border-default)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
-              </span>
               <span className="text-xs font-medium text-ink-secondary">In-App</span>
             </label>
           </div>

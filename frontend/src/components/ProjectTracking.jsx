@@ -5,11 +5,12 @@ import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import ShareDocumentModal from './ShareDocumentModal'
-import { getUserPermissions, hasPermission, isAdmin as isAdminUser } from '../utils/permissions'
+import { hasPermission, isAdmin as isAdminUser } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
@@ -316,7 +317,10 @@ function ProjectFormFields({
   showCategory = false,
   projectCategories = [],
   stageStatusLabel = 'Will follow workflow stage after creation',
-  showLifecycleStatus = false
+  showLifecycleStatus = false,
+  searchableDropdowns = false,
+  canQuickAddCategory = false,
+  onQuickAddCategory
 }) {
   const inputClass = 'w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/30'
 
@@ -358,51 +362,118 @@ function ProjectFormFields({
 
       {showCategory && (
         <ProjectField label="Project Category">
-          <select
-            value={form.projectCategoryId}
-            onChange={(e) => setForm((p) => ({ ...p, projectCategoryId: e.target.value }))}
-            className={inputClass}
-            required
-          >
-            <option value="">Select</option>
-            {projectCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          {searchableDropdowns ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <SearchableSingleSelect
+                value={form.projectCategoryId}
+                options={projectCategories.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                  searchText: `${c.name || ''} ${c.code || ''}`,
+                  meta: c.code ? [`Code: ${c.code}`] : []
+                }))}
+                onChange={(value) => setForm((p) => ({ ...p, projectCategoryId: String(value || '') }))}
+                placeholder="Select project category"
+                searchPlaceholder="Search category name or code..."
+                noResultsLabel="No project categories found"
+              />
+              {canQuickAddCategory && (
+                <button
+                  type="button"
+                  onClick={onQuickAddCategory}
+                  aria-label="Add new project category"
+                  title="Add new project category"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-transparent text-2xl font-bold leading-none text-black transition hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                >
+                  +
+                </button>
+              )}
+            </div>
+          ) : (
+            <select
+              value={form.projectCategoryId}
+              onChange={(e) => setForm((p) => ({ ...p, projectCategoryId: e.target.value }))}
+              className={inputClass}
+              required
+            >
+              <option value="">Select</option>
+              {projectCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
         </ProjectField>
       )}
 
       {showDivision && (
         <ProjectField label="Division">
-          <select
-            value={form.divisionId}
-            onChange={(e) => setForm((p) => ({ ...p, divisionId: e.target.value }))}
-            className={`${inputClass}${divisionLocked ? ' bg-surface-muted text-ink-muted' : ''}`}
-            required
-            disabled={divisionLocked}
-          >
-            <option value="">Select</option>
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
+          {searchableDropdowns ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <SearchableSingleSelect
+                value={form.divisionId}
+                options={divisions.map((d) => ({
+                  value: String(d.id),
+                  label: d.name,
+                  searchText: `${d.name || ''} ${d.code || ''}`,
+                  meta: d.code ? [`Code: ${d.code}`] : []
+                }))}
+                onChange={(value) => setForm((p) => ({ ...p, divisionId: String(value || '') }))}
+                placeholder="Select division"
+                searchPlaceholder="Search division name or code..."
+                noResultsLabel="No divisions found"
+                disabled={divisionLocked}
+              />
+            </div>
+          ) : (
+            <select
+              value={form.divisionId}
+              onChange={(e) => setForm((p) => ({ ...p, divisionId: e.target.value }))}
+              className={`${inputClass}${divisionLocked ? ' bg-surface-muted text-ink-muted' : ''}`}
+              required
+              disabled={divisionLocked}
+            >
+              <option value="">Select</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          )}
         </ProjectField>
       )}
 
       <ProjectField label="Internal Project Manager">
-        <select
-          value={form.managerId}
-          onChange={(e) => setForm((p) => ({ ...p, managerId: e.target.value }))}
-          className={inputClass}
-          required
-        >
-          <option value="">Select</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
-            </option>
-          ))}
-        </select>
+        {searchableDropdowns ? (
+          <SearchableSingleSelect
+            value={form.managerId}
+            options={users.map((u) => {
+              const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim()
+              return {
+                value: String(u.id),
+                label: fullName || u.email,
+                searchText: u.email || '',
+                meta: fullName && u.email ? [u.email] : []
+              }
+            })}
+            onChange={(value) => setForm((p) => ({ ...p, managerId: String(value || '') }))}
+            placeholder="Select project manager"
+            searchPlaceholder="Search name or email..."
+            noResultsLabel="No project managers found"
+          />
+        ) : (
+          <select
+            value={form.managerId}
+            onChange={(e) => setForm((p) => ({ ...p, managerId: e.target.value }))}
+            className={inputClass}
+            required
+          >
+            <option value="">Select</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
+              </option>
+            ))}
+          </select>
+        )}
       </ProjectField>
 
       <ProjectField label="Project Start Date">
@@ -2207,6 +2278,17 @@ function CreateProjectModal({ onClose, onCreated }) {
   const [projectCategories, setProjectCategories] = useState([])
   const [divisions, setDivisions] = useState([])
   const [users, setUsers] = useState([])
+  const [createError, setCreateError] = useState('')
+
+  const [quickAddType, setQuickAddType] = useState(null)
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    code: '',
+    description: ''
+  })
+  const [quickAddCodeManuallyEdited, setQuickAddCodeManuallyEdited] = useState(false)
+  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  const [quickAddError, setQuickAddError] = useState('')
 
   const [form, setForm] = useState({
     code: '',
@@ -2226,6 +2308,10 @@ function CreateProjectModal({ onClose, onCreated }) {
     managerId: ''
   })
 
+  // Match the backend project-category authorization exactly.
+  // Auth responses store assigned roles as { role: { name, ... } } records.
+  const canQuickAddCategory = hasPermission('configuration.masterData', 'create')
+
   useEffect(() => {
     const load = async () => {
       const [cats, usersRes, divisionsRes] = await Promise.all([
@@ -2233,8 +2319,10 @@ function CreateProjectModal({ onClose, onCreated }) {
         api.get('/users'),
         api.get('/divisions')
       ])
+
       setProjectCategories(cats?.data?.data?.projectCategories || [])
       setUsers(usersRes?.data?.data?.users || [])
+
       const loadedDivisions = divisionsRes?.data?.data?.divisions || []
       setDivisions(loadedDivisions)
 
@@ -2257,8 +2345,124 @@ function CreateProjectModal({ onClose, onCreated }) {
     if (value) localStorage.setItem('lastActiveDivisionId', value)
   }, [form.divisionId])
 
+  const openQuickAdd = (type) => {
+    setQuickAddType(type)
+    setQuickAddForm({ name: '', code: '', description: '' })
+    setQuickAddCodeManuallyEdited(false)
+    setQuickAddError('')
+  }
+
+  const closeQuickAdd = () => {
+    if (quickAddSaving) return
+    setQuickAddType(null)
+    setQuickAddError('')
+  }
+
+  const handleQuickAddNameChange = (value) => {
+    setQuickAddForm((previous) => {
+      const next = { ...previous, name: value }
+
+      if (quickAddType === 'category' && !quickAddCodeManuallyEdited) {
+        const words = String(value || '').trim().split(/\s+/).filter(Boolean)
+        next.code = !words.length
+          ? ''
+          : words.length > 1
+            ? words.map((word) => word[0]).join('').toUpperCase().slice(0, 12)
+            : words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3)
+      }
+
+      return next
+    })
+  }
+
+  const submitQuickAdd = async (event) => {
+    event.preventDefault()
+    if (!quickAddType || quickAddSaving) return
+
+    const name = quickAddForm.name.trim()
+    const code = quickAddForm.code.trim().toUpperCase()
+
+    if (!name || !code) {
+      setQuickAddError('Please enter both a name and a code.')
+      return
+    }
+
+    const duplicate = projectCategories.some(
+      (item) => String(item.code || '').trim().toUpperCase() === code
+    )
+
+    if (duplicate) {
+      setQuickAddError(`The code "${code}" is already in use. Please choose another code.`)
+      return
+    }
+
+    setQuickAddSaving(true)
+    setQuickAddError('')
+
+    try {
+      const response = await api.post('/system/config/project-categories', {
+        name,
+        code,
+        description: quickAddForm.description.trim() || null
+      })
+
+      let createdRecord = response?.data?.data?.projectCategory
+
+      // Refresh if the API response does not include the created record.
+      if (!createdRecord?.id) {
+        const refreshResponse = await api.get('/system/config/project-categories')
+        const refreshedItems = refreshResponse?.data?.data?.projectCategories || []
+
+        createdRecord = refreshedItems.find(
+          (item) => String(item.code || '').trim().toUpperCase() === code
+        )
+      }
+
+      if (!createdRecord?.id) {
+        throw new Error('The record was created, but the new item could not be retrieved. Please refresh the list.')
+      }
+
+      setProjectCategories((previous) => [
+        ...previous.filter((item) => String(item.id) !== String(createdRecord.id)),
+        createdRecord
+      ])
+      setForm((previous) => ({
+        ...previous,
+        projectCategoryId: String(createdRecord.id)
+      }))
+
+      setQuickAddType(null)
+      setQuickAddError('')
+    } catch (error) {
+      setQuickAddError(
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to create this record. Please try again.'
+      )
+    } finally {
+      setQuickAddSaving(false)
+    }
+  }
+
   const submit = async (e) => {
     e.preventDefault()
+    setCreateError('')
+
+    if (!form.projectCategoryId) {
+      setCreateError('Please select a Project Category.')
+      return
+    }
+
+    if (divisions.length > 1 && !form.divisionId) {
+      setCreateError('Please select a Division.')
+      return
+    }
+
+    if (!form.managerId) {
+      setCreateError('Please select an Internal Project Manager.')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
@@ -2278,36 +2482,152 @@ function CreateProjectModal({ onClose, onCreated }) {
         divisionId: form.divisionId ? Number(form.divisionId) : null,
         managerId: Number(form.managerId)
       }
+
       const res = await api.post('/project-tracking/projects', payload)
       const project = res?.data?.data?.project
       if (project) onCreated(project)
+    } catch (error) {
+      setCreateError(
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to create the project. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
+  const quickAddTitle = 'Add Project Category'
+
   return (
-    <ModalShell title="Create Project" onClose={onClose} maxWidthClass="max-w-5xl">
-      <form onSubmit={submit} className="space-y-4">
-        <ProjectFormFields
-          form={form}
-          setForm={setForm}
-          users={users}
-          divisions={divisions}
-          showDivision={divisions.length > 1}
-          showCategory
-          projectCategories={projectCategories}
-          stageStatusLabel="Will follow the initial workflow stage after creation"
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={loading} type="submit">
-            {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
-          </Button>
-        </div>
-      </form>
-    </ModalShell>
+    <>
+      <ModalShell title="Create Project" onClose={onClose} maxWidthClass="max-w-5xl">
+        <form onSubmit={submit} className="space-y-4">
+          {createError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+            >
+              {createError}
+            </div>
+          ) : null}
+
+          <ProjectFormFields
+            form={form}
+            setForm={setForm}
+            users={users}
+            divisions={divisions}
+            showDivision={divisions.length > 1}
+            showCategory
+            projectCategories={projectCategories}
+            stageStatusLabel="Will follow the initial workflow stage after creation"
+            searchableDropdowns
+            canQuickAddCategory={canQuickAddCategory}
+            onQuickAddCategory={() => openQuickAdd('category')}
+          />
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={loading} type="submit">
+              {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {loading ? 'Creating...' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      </ModalShell>
+
+      {quickAddType && (
+        <Modal onClose={closeQuickAdd} closeOnBackdrop={!quickAddSaving} size="sm">
+          <ModalHeader
+            title={quickAddTitle}
+            subtitle="Add the new item without leaving the Create Project form."
+            onClose={quickAddSaving ? undefined : closeQuickAdd}
+          />
+
+          <form onSubmit={submitQuickAdd} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ModalBody>
+              <div className="space-y-4">
+                {quickAddError ? (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                  >
+                    {quickAddError}
+                  </div>
+                ) : null}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    autoFocus
+                    value={quickAddForm.name}
+                    onChange={(event) => handleQuickAddNameChange(event.target.value)}
+                    placeholder="e.g., Internal Project"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Code <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    value={quickAddForm.code}
+                    onChange={(event) => {
+                      setQuickAddCodeManuallyEdited(true)
+                      setQuickAddForm((previous) => ({
+                        ...previous,
+                        code: event.target.value.toUpperCase()
+                      }))
+                    }}
+                    placeholder="e.g., INT"
+                  />
+                  <p className="mt-1.5 text-xs text-ink-soft">
+                    Codes are automatically converted to uppercase.
+                  </p>
+                </div>
+
+                {quickAddType === 'category' && (
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink">
+                      Description <span className="text-xs font-normal text-ink-muted">(Optional)</span>
+                    </label>
+                    <TextArea
+                      value={quickAddForm.description}
+                      onChange={(event) => setQuickAddForm((previous) => ({
+                        ...previous,
+                        description: event.target.value
+                      }))}
+                      rows={3}
+                      placeholder="Enter a short description"
+                    />
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={quickAddSaving}
+                onClick={closeQuickAdd}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={quickAddSaving}>
+                {quickAddSaving ? 'Saving...' : 'Save & Select'}
+              </Button>
+            </ModalFooter>
+          </form>
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -2908,6 +3228,9 @@ function ProjectsList({ onOpenProject }) {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-ink">Project Directory</h2>
+      </div>
       <DataTableToolbar
         left={
           <div className="flex-1">
@@ -3917,6 +4240,25 @@ function ProjectDashboard({ onOpenProject }) {
             ))
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+export function ProjectDashboardPage() {
+  const navigate = useNavigate()
+  const canSearchProjects = hasPermission('projectTracking', 'searchProject')
+
+  return (
+    <div className="space-y-6" data-tour-id="pt-dashboard-page">
+      <PageHeader
+        title="Project Dashboard"
+        subtitle="Overview of project progress, phases, activities, and linked documents."
+      />
+      {canSearchProjects ? (
+        <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+      ) : (
+        <EmptyState title="No access" message="You do not have permission to view the Project Dashboard." />
       )}
     </div>
   )
@@ -8219,14 +8561,9 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
-  const activeTab = String(searchParams.get('tab') || 'dashboard')
+  const activeTab = String(searchParams.get('tab') || 'projects')
 
   const setTab = (tab) => {
-    if (tab === 'dashboard') {
-      navigate('/project-tracking')
-      return
-    }
-
     const basePath = projectId ? `/project-tracking/${projectId}` : '/project-tracking'
     navigate(`${basePath}?tab=${encodeURIComponent(tab)}`)
   }
@@ -8238,7 +8575,6 @@ export default function ProjectTracking() {
   const tabs = useMemo(() => {
     const base = []
     if (canSearchProjects) {
-      base.push({ id: 'dashboard', label: 'Dashboard' })
       base.push({ id: 'projects', label: 'Project Lists' })
       base.push({ id: 'search', label: 'Search Documents' })
     }
@@ -8248,7 +8584,7 @@ export default function ProjectTracking() {
     return base
   }, [canOpenProjectSetup, canSearchProjects])
 
-  const fallbackTab = tabs[0]?.id || 'dashboard'
+  const fallbackTab = tabs[0]?.id || 'projects'
 
   useEffect(() => {
     if (projectId) return
@@ -8290,10 +8626,6 @@ export default function ProjectTracking() {
           {activeTab === 'setup' && canOpenProjectSetup ? (
             <div data-tour-id="pt-setup-panel">
               <Setup />
-            </div>
-          ) : activeTab === 'dashboard' && canSearchProjects ? (
-            <div data-tour-id="pt-dashboard-panel">
-              <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
             </div>
           ) : activeTab === 'search' && canSearchProjects ? (
             <div data-tour-id="pt-search-panel">

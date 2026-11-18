@@ -203,7 +203,7 @@ function HeroCropPreview({ heroImage, focalX, focalY, onChange, presetKey, defau
         <div className="text-xs text-ink-muted">
           Preview: {size.width}×{size.height}px
         </div>
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-1.5 text-xs font-semibold text-ink transition-all duration-150 hover:border-[var(--dms-color-border-strong)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink">
           <input type="checkbox" checked={lockAspectRatio} onChange={(e) => setLockAspectRatio(e.target.checked)} className="h-[16px] w-[16px] cursor-pointer accent-[var(--dms-color-brand-primary)] rounded border border-[var(--dms-color-border-default)] bg-white focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/25" />
           Lock ratio
         </label>

@@ -1,4 +1,5 @@
 const prisma = require('../config/database')
+const { ForbiddenError } = require('../utils/errors')
 
 class DivisionScopeService {
   isAdminUser(user) {
@@ -43,6 +44,156 @@ class DivisionScopeService {
       : await this.getUserDivisionIds(user?.id)
 
     return divisionIds[0] || null
+  }
+
+  // Only Administrator and Document Controller may move items across companies.
+  isCrossCompanyMovePrivileged(user) {
+    const roles = Array.isArray(user?.roles) ? user.roles : []
+    const privilegedRoles = new Set([
+      'admin',
+      'administrator',
+      'system_administrator',
+      'system_admin',
+      'document_controller'
+    ])
+
+    return roles.some((role) => {
+      const normalized = String(role || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_')
+
+      return privilegedRoles.has(normalized)
+    })
+  }
+
+  sameDivisionScope(sourceIds, destinationIds) {
+    const source = this.normalizeDivisionIds(sourceIds).sort((a, b) => a - b)
+    const destination = this.normalizeDivisionIds(destinationIds).sort((a, b) => a - b)
+
+    return source.length > 0
+      && source.length === destination.length
+      && source.every((id, index) => id === destination[index])
+  }
+
+  async assertFolderMoveWithinCompany(sourceFolderIds, destinationFolderId, user) {
+    if (this.isCrossCompanyMovePrivileged(user)) return true
+
+    const folderGraph = await this.getFolderGraph()
+    const destinationId = Number.parseInt(destinationFolderId, 10)
+    const destination = Number.isFinite(destinationId)
+      ? folderGraph.get(destinationId)
+      : null
+
+    if (!destination) {
+      throw new ForbiddenError('You can only move folders within the same company. The destination company could not be verified.')
+    }
+
+    const cache = new Map()
+    const destinationDivisionIds = this.resolveEffectiveFolderDivisionIds(
+      destinationId,
+      folderGraph,
+      cache
+    )
+
+    if (destinationDivisionIds.length === 0) {
+      throw new ForbiddenError('You can only move folders within the same company. The destination company could not be verified.')
+    }
+
+    const childrenByParent = new Map()
+    for (const folder of folderGraph.values()) {
+      if (!folder.parentId) continue
+      if (!childrenByParent.has(folder.parentId)) {
+        childrenByParent.set(folder.parentId, [])
+      }
+      childrenByParent.get(folder.parentId).push(folder.id)
+    }
+
+    const visited = new Set()
+    const pending = (Array.isArray(sourceFolderIds) ? sourceFolderIds : [])
+      .map((id) => Number.parseInt(id, 10))
+      .filter(Number.isFinite)
+
+    while (pending.length > 0) {
+      const folderId = pending.pop()
+      if (visited.has(folderId)) continue
+      visited.add(folderId)
+
+      const folder = folderGraph.get(folderId)
+      if (!folder) {
+        throw new ForbiddenError('One or more source folders could not be verified.')
+      }
+
+      const sourceDivisionIds = this.resolveEffectiveFolderDivisionIds(
+        folderId,
+        folderGraph,
+        cache
+      )
+
+      if (!this.sameDivisionScope(sourceDivisionIds, destinationDivisionIds)) {
+        throw new ForbiddenError('You can only move folders within the same company. Contact an Administrator or Document Controller for cross-company movement.')
+      }
+
+      pending.push(...(childrenByParent.get(folderId) || []))
+    }
+
+    return true
+  }
+
+  async assertDocumentMoveWithinCompany(documents, destinationFolderId, user) {
+    if (this.isCrossCompanyMovePrivileged(user)) return true
+
+    const folderGraph = await this.getFolderGraph()
+    const destinationId = Number.parseInt(destinationFolderId, 10)
+    const destination = Number.isFinite(destinationId)
+      ? folderGraph.get(destinationId)
+      : null
+
+    if (!destination) {
+      throw new ForbiddenError('You can only move documents within the same company. The destination company could not be verified.')
+    }
+
+    const cache = new Map()
+    const destinationDivisionIds = this.resolveEffectiveFolderDivisionIds(
+      destinationId,
+      folderGraph,
+      cache
+    )
+
+    if (destinationDivisionIds.length === 0) {
+      throw new ForbiddenError('You can only move documents within the same company. The destination company could not be verified.')
+    }
+
+    for (const document of documents || []) {
+      let sourceDivisionIds = document.folderId
+        ? this.resolveEffectiveFolderDivisionIds(document.folderId, folderGraph, cache)
+        : []
+
+      if (document.divisionId !== null && document.divisionId !== undefined) {
+        const documentDivisionId = Number.parseInt(document.divisionId, 10)
+
+        if (!Number.isFinite(documentDivisionId)) {
+          throw new ForbiddenError('The document company could not be verified.')
+        }
+
+        if (
+          sourceDivisionIds.length > 0
+          && !sourceDivisionIds.includes(documentDivisionId)
+        ) {
+          throw new ForbiddenError('The document company does not match its source folder.')
+        }
+
+        if (sourceDivisionIds.length === 0) {
+          sourceDivisionIds = [documentDivisionId]
+        }
+      }
+
+      if (!this.sameDivisionScope(sourceDivisionIds, destinationDivisionIds)) {
+        throw new ForbiddenError('You can only move documents within the same company. Contact an Administrator or Document Controller for cross-company movement.')
+      }
+    }
+
+    return true
   }
 
   async getFolderGraph() {
@@ -188,6 +339,38 @@ class DivisionScopeService {
 
     const allowed = new Set(userDivisionIds)
     return effectiveDivisionIds.some((divisionId) => allowed.has(divisionId))
+  }
+
+  async canUserManageFolder(user, folderId, suppliedFolderGraph = null) {
+    if (user?.permissions?.all === true) return true
+    if (this.isCrossCompanyMovePrivileged(user)) return true
+
+    if (user?.permissions?.documents?.published?.manageAccess !== true) {
+      return false
+    }
+
+    const normalizedFolderId = Number.parseInt(folderId, 10)
+    if (!Number.isFinite(normalizedFolderId)) return false
+
+    const folderGraph = suppliedFolderGraph || await this.getFolderGraph()
+    if (!folderGraph.has(normalizedFolderId)) return false
+
+    const userDivisionIds = Array.isArray(user?.divisionIds) && user.divisionIds.length > 0
+      ? this.normalizeDivisionIds(user.divisionIds)
+      : await this.getUserDivisionIds(user?.id)
+
+    if (userDivisionIds.length === 0) return false
+
+    const folderDivisionIds = this.resolveEffectiveFolderDivisionIds(
+      normalizedFolderId,
+      folderGraph,
+      new Map()
+    )
+
+    if (folderDivisionIds.length === 0) return false
+
+    const allowed = new Set(userDivisionIds)
+    return folderDivisionIds.some((divisionId) => allowed.has(divisionId))
   }
 
   async buildAccessibleDocumentWhere(user, extraWhere = {}) {

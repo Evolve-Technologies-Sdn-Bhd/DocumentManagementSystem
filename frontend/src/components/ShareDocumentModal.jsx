@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody } from './ui/Modal'
 import api from '../api/axios'
 import Button from './ui/Button'
 import IconButton from './ui/IconButton'
@@ -215,21 +215,14 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-      <div className="w-full max-w-2xl rounded-lg shadow-xl border border-gray-200 bg-white max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 flex-shrink-0 bg-white">
-          <div className="min-w-0">
-            <h3 className="text-xl font-bold text-gray-900">Share Document</h3>
-            <div className="mt-2 truncate text-sm text-gray-600">{docLabel || 'Document'}</div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen size="lg" onClose={onClose}>
+        <ModalHeader
+          title="Share Document"
+          subtitle={docLabel || 'Document'}
+          onClose={onClose}
+        />
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-6">
+        <ModalBody className="space-y-6">
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}
@@ -372,11 +365,7 @@ export default function ShareDocumentModal({ open, document: selectedDocument, o
               </Button>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </ModalBody>
+    </Modal>
   )
-
-  if (typeof window === 'undefined' || !ReactDOM?.createPortal || !window.document?.body) return modal
-  return ReactDOM.createPortal(modal, window.document.body)
 }

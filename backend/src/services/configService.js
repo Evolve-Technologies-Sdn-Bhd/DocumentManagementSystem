@@ -7,6 +7,7 @@ const appConfig = require('../config/app');
 
 let maintenanceSettingsCache = null;
 let maintenanceSettingsCacheAt = 0;
+let maintenanceExpiryTimer = null;
 const MAINTENANCE_SETTINGS_CACHE_TTL_MS = 5000;
 
 class ConfigService {
@@ -1158,21 +1159,177 @@ class ConfigService {
     return JSON.parse(config.value);
   }
 
+  scheduleMaintenanceExpiry(settings, retryDelayMs = 0) {
+    if (maintenanceExpiryTimer) {
+      clearTimeout(maintenanceExpiryTimer);
+      maintenanceExpiryTimer = null;
+    }
+
+    const schedule = settings?.schedule || {};
+    const startTime = schedule.startAt ? Date.parse(schedule.startAt) : NaN;
+    const endTime = schedule.endAt ? Date.parse(schedule.endAt) : NaN;
+
+    if (
+      !schedule.enabled ||
+      !Number.isFinite(startTime) ||
+      !Number.isFinite(endTime) ||
+      endTime <= startTime
+    ) return;
+
+    const delay = retryDelayMs > 0
+      ? retryDelayMs
+      : Math.max(0, endTime - Date.now());
+
+    maintenanceExpiryTimer = setTimeout(async () => {
+      maintenanceExpiryTimer = null;
+
+      try {
+        await this.getMaintenanceSettings({ bypassCache: true });
+
+        const config = await prisma.configuration.findUnique({
+          where: { key: 'maintenance_settings' }
+        });
+
+        let stored = null;
+        if (config?.value) {
+          try { stored = JSON.parse(config.value); } catch {}
+        }
+
+        const storedSchedule = stored?.schedule || {};
+        const storedStart = storedSchedule.startAt
+          ? Date.parse(storedSchedule.startAt) : NaN;
+        const storedEnd = storedSchedule.endAt
+          ? Date.parse(storedSchedule.endAt) : NaN;
+
+        const stillScheduled =
+          Boolean(storedSchedule.enabled) &&
+          Number.isFinite(storedStart) &&
+          Number.isFinite(storedEnd) &&
+          storedEnd > storedStart;
+
+        if (stillScheduled) {
+          this.scheduleMaintenanceExpiry(
+            { schedule: storedSchedule },
+            storedEnd <= Date.now() ? 30000 : 0
+          );
+        }
+      } catch (error) {
+        console.error('Maintenance expiry scheduler failed; retrying:', error);
+        this.scheduleMaintenanceExpiry(settings, 30000);
+      }
+    }, Math.min(delay, 2147483647));
+
+    if (typeof maintenanceExpiryTimer.unref === 'function') {
+      maintenanceExpiryTimer.unref();
+    }
+  }
+
+  async initializeMaintenanceScheduler() {
+    const settings = await this.getMaintenanceSettings({ bypassCache: true });
+    this.scheduleMaintenanceExpiry(settings);
+    return settings;
+  }
+
   normalizeMaintenanceSettings(settings) {
-    const enabled = Boolean(settings?.enabled);
+    const manualEnabled = Boolean(
+      settings?.manualEnabled ?? settings?.enabled
+    );
+
+    const manualMessageSource = settings?.manualMessage ?? settings?.message;
     const message =
-      typeof settings?.message === 'string' && settings.message.trim()
-        ? settings.message.trim()
+      typeof manualMessageSource === 'string' && manualMessageSource.trim()
+        ? manualMessageSource.trim()
         : 'System is under maintenance';
 
-    return { enabled, message };
+    const inputSchedule =
+      settings?.schedule && typeof settings.schedule === 'object'
+        ? settings.schedule
+        : {};
+
+    const startAt = typeof inputSchedule.startAt === 'string'
+      ? inputSchedule.startAt
+      : null;
+
+    const endAt = typeof inputSchedule.endAt === 'string'
+      ? inputSchedule.endAt
+      : null;
+
+    const startTime = startAt ? Date.parse(startAt) : NaN;
+    const endTime = endAt ? Date.parse(endAt) : NaN;
+
+    const scheduleMessage =
+      typeof inputSchedule.message === 'string' && inputSchedule.message.trim()
+        ? inputSchedule.message.trim()
+        : message;
+
+    const scheduleValid =
+      Number.isFinite(startTime) &&
+      Number.isFinite(endTime) &&
+      endTime > startTime;
+
+    const now = Date.now();
+    const scheduleExpired =
+      Boolean(inputSchedule.enabled) &&
+      scheduleValid &&
+      now >= endTime;
+    const scheduleEnabled =
+      Boolean(inputSchedule.enabled) && !scheduleExpired;
+
+    const scheduleActive =
+      scheduleEnabled &&
+      scheduleValid &&
+      now >= startTime &&
+      now < endTime;
+
+    let scheduleStatus = 'disabled';
+
+    if (scheduleEnabled) {
+      if (!scheduleValid) {
+        scheduleStatus = 'invalid';
+      } else if (now < startTime) {
+        scheduleStatus = 'pending';
+      } else if (now < endTime) {
+        scheduleStatus = 'active';
+      } else {
+        scheduleStatus = 'completed';
+      }
+    }
+
+    return {
+      enabled: manualEnabled || scheduleActive,
+      manualEnabled,
+      message: scheduleActive ? scheduleMessage : message,
+      manualMessage: message,
+      schedule: {
+        enabled: scheduleEnabled,
+        startAt: scheduleExpired ? null : startAt,
+        endAt: scheduleExpired ? null : endAt,
+        message: scheduleMessage
+      },
+      scheduleStatus
+    };
   }
 
   async getMaintenanceSettings(options = {}) {
     const { bypassCache = false } = options;
     const now = Date.now();
-    if (!bypassCache && maintenanceSettingsCache && (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS) {
-      return maintenanceSettingsCache;
+    const cachedSchedule = maintenanceSettingsCache?.schedule || {};
+    const cachedStart = cachedSchedule.startAt ? Date.parse(cachedSchedule.startAt) : NaN;
+    const cachedEnd = cachedSchedule.endAt ? Date.parse(cachedSchedule.endAt) : NaN;
+    const cachedScheduleExpired =
+      Boolean(cachedSchedule.enabled) &&
+      Number.isFinite(cachedStart) &&
+      Number.isFinite(cachedEnd) &&
+      cachedEnd > cachedStart &&
+      now >= cachedEnd;
+
+    if (
+      !bypassCache &&
+      maintenanceSettingsCache &&
+      (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS &&
+      !cachedScheduleExpired
+    ) {
+      return this.normalizeMaintenanceSettings(maintenanceSettingsCache);
     }
 
     let config = null
@@ -1193,13 +1350,81 @@ class ConfigService {
       }
     }
 
+    const storedSchedule = parsed?.schedule || {};
+    const storedStart = storedSchedule.startAt ? Date.parse(storedSchedule.startAt) : NaN;
+    const storedEnd = storedSchedule.endAt ? Date.parse(storedSchedule.endAt) : NaN;
+    const scheduleExpired =
+      Boolean(storedSchedule.enabled) &&
+      Number.isFinite(storedStart) &&
+      Number.isFinite(storedEnd) &&
+      storedEnd > storedStart &&
+      now >= storedEnd;
+
+    if (scheduleExpired && parsed) {
+      const expiredSettings = {
+        ...parsed,
+        schedule: {
+          ...storedSchedule,
+          enabled: false,
+          startAt: null,
+          endAt: null
+        }
+      };
+
+      try {
+        const saved = await prisma.configuration.upsert({
+          where: { key: 'maintenance_settings' },
+          update: {
+            value: JSON.stringify(expiredSettings),
+            description: 'Maintenance mode settings'
+          },
+          create: {
+            key: 'maintenance_settings',
+            value: JSON.stringify(expiredSettings),
+            description: 'Maintenance mode settings'
+          }
+        });
+        parsed = JSON.parse(saved.value);
+      } catch (error) {
+        console.error('Failed to persist expired maintenance schedule:', error);
+        parsed = expiredSettings;
+        this.scheduleMaintenanceExpiry(
+          { schedule: storedSchedule },
+          30000
+        );
+      }
+    }
+
     maintenanceSettingsCache = this.normalizeMaintenanceSettings(parsed || null);
-    maintenanceSettingsCacheAt = now;
+    maintenanceSettingsCacheAt = Date.now();
     return maintenanceSettingsCache;
   }
 
   async updateMaintenanceSettings(settings) {
-    const normalized = this.normalizeMaintenanceSettings(settings || null);
+    const existing = await this.getMaintenanceSettings({ bypassCache: true });
+
+    const incoming = settings || {};
+    const merged = {
+      ...existing,
+      ...incoming,
+      manualEnabled:
+        incoming.manualEnabled !== undefined
+          ? Boolean(incoming.manualEnabled)
+          : incoming.enabled !== undefined
+            ? Boolean(incoming.enabled)
+            : existing.manualEnabled,
+      message: incoming.message ?? existing.manualMessage ?? existing.message,
+      manualMessage:
+        incoming.manualMessage ?? incoming.message ?? existing.manualMessage ?? existing.message,
+      schedule: incoming.schedule !== undefined
+        ? {
+            ...existing.schedule,
+            ...incoming.schedule
+          }
+        : existing.schedule
+    };
+
+    const normalized = this.normalizeMaintenanceSettings(merged);
     const value = JSON.stringify(normalized);
 
     const config = await prisma.configuration.upsert({
@@ -1210,6 +1435,7 @@ class ConfigService {
 
     maintenanceSettingsCache = this.normalizeMaintenanceSettings(JSON.parse(config.value));
     maintenanceSettingsCacheAt = Date.now();
+    this.scheduleMaintenanceExpiry(maintenanceSettingsCache);
     return maintenanceSettingsCache;
   }
 

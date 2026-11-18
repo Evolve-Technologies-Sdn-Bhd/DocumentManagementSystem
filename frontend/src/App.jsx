@@ -31,9 +31,14 @@ import FbEnquiryRegister from './components/FbEnquiryRegister'
 import { PreferencesProvider, usePreferences } from './contexts/PreferencesContext'
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
-import { getUserPermissions } from './utils/permissions'
+import { isSystemAdmin } from './utils/permissions'
 
 const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
+const ProjectDashboardPage = lazy(() =>
+  import('./components/ProjectTracking').then((module) => ({
+    default: module.ProjectDashboardPage
+  }))
+)
 
 function SmartDocGate({ children }) {
   const { smartDocumentEnabled } = usePreferences()
@@ -101,32 +106,107 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     let timer = null
+    let inFlight = false
+    let checkAgain = false
+
     const checkMaintenance = async () => {
-      await new Promise((r) => { timer = setTimeout(r, 1200) })
       if (cancelled) return
+
+      if (inFlight) {
+        checkAgain = true
+        return
+      }
+
+      inFlight = true
+      let nextDelay = 15000;
+
       try {
-        const res = await api.get('/public/maintenance-status', { timeout: 5000, skipGlobalLoading: true, _retryAttempt: 0 })
+        const res = await api.get('/public/maintenance-status', {
+          timeout: 5000,
+          skipGlobalLoading: true,
+          _retryAttempt: 0
+        })
+
         if (cancelled) return
-        const enabled = Boolean(res?.data?.data?.enabled)
+
+        const data = res?.data?.data || {}
+        const enabled = Boolean(data.enabled)
         const message =
-          res?.data?.data?.message || res?.data?.message || 'System is under maintenance'
+          data.message || res?.data?.message || 'System is under maintenance'
+
+        const nextStatus = {
+          enabled,
+          manualEnabled: Boolean(data.manualEnabled),
+          message,
+          manualMessage: data.manualMessage || message,
+          scheduleStatus: data.scheduleStatus || 'disabled',
+          schedule: data.schedule || {
+            enabled: false,
+            startAt: null,
+            endAt: null,
+            message
+          }
+        }
 
         try {
-          localStorage.setItem('maintenanceStatus', JSON.stringify({ enabled, message }))
+          localStorage.setItem('maintenanceStatus', JSON.stringify(nextStatus))
         } catch {}
 
-        const permissions = getUserPermissions()
-        const isSystemAdmin = permissions?.all === true
+        nextDelay = 10000;
+
+        const schedule = nextStatus.schedule || {};
+        const transitionAt = nextStatus.scheduleStatus === 'pending'
+          ? Date.parse(schedule.startAt)
+          : nextStatus.scheduleStatus === 'active'
+            ? Date.parse(schedule.endAt)
+            : NaN;
+
+        if (Number.isFinite(transitionAt) && transitionAt > Date.now()) {
+          nextDelay = Math.min(
+            nextDelay,
+            Math.max(250, transitionAt - Date.now() + 150)
+          );
+        }
+
+        const hasSystemAdminAccess = isSystemAdmin()
         const path = location.pathname
 
-        if (enabled && !isSystemAdmin && path !== '/maintenance' && path !== '/login') {
+        if (
+          enabled &&
+          !hasSystemAdminAccess &&
+          path !== '/maintenance' &&
+          path !== '/login'
+        ) {
           navigate('/maintenance', { replace: true })
         }
       } catch {}
+      finally {
+        inFlight = false
+
+        if (!cancelled) {
+          if (checkAgain) {
+            checkAgain = false
+            timer = setTimeout(checkMaintenance, 0)
+          } else {
+            timer = setTimeout(checkMaintenance, nextDelay)
+          }
+        }
+      }
     }
-    checkMaintenance()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return
+      if (timer) clearTimeout(timer)
+      checkMaintenance()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    timer = setTimeout(checkMaintenance, 0)
+
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (timer) clearTimeout(timer)
     }
   }, [location.pathname, navigate])
@@ -183,6 +263,18 @@ export default function App() {
               <Layout>
                 <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading calendar...</div>}>
                   <CalendarPage />
+                </Suspense>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/project-dashboard"
+          element={
+            <ProtectedRoute module="projectTracking" action="view">
+              <Layout>
+                <Suspense fallback={<div className="min-h-screen bg-surface p-6 text-sm text-ink-muted">Loading project dashboard...</div>}>
+                  <ProjectDashboardPage />
                 </Suspense>
               </Layout>
             </ProtectedRoute>

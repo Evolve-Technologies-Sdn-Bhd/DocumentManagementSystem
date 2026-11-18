@@ -109,7 +109,10 @@ export default function ActionMenu({ actions, dataTourId }) {
       <div className="relative inline-flex items-center justify-end w-full">
         <button
           ref={buttonRef}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={(event) => {
+            event.stopPropagation()
+            setIsOpen((prev) => !prev)
+          }}
           data-tour-id={dataTourId}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >

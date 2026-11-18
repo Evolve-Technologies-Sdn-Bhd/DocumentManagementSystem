@@ -43,6 +43,13 @@ const menuItems = [
     hideIcon: true
   },
   { 
+    name: 'Project Dashboard',
+    translationKey: 'project_dashboard',
+    path: '/project-dashboard',
+    module: 'projectTracking',
+    hideIcon: true
+  },
+  {
     name: 'Project Tracking', 
     translationKey: 'project_tracking',
     path: '/project-tracking',
@@ -156,7 +163,7 @@ const menuSections = [
     key: 'projects',
     label: 'Projects',
     icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.25 3.75H8.25A2.25 2.25 0 006 6v12a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 18V7.5l-3.75-3.75z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.25 3.75V7.5H18" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 3h3" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 14.25l1.5 1.5m0 0l2.25-2.25m-2.25 2.25a3 3 0 11-4.243-4.243 3 3 0 014.243 4.243z" /></svg>,
-    paths: ['/project-tracking']
+    paths: ['/project-dashboard', '/project-tracking']
   },
   {
     key: 'documentControl',

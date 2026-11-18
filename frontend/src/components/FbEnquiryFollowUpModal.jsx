@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
@@ -145,25 +145,14 @@ export default function FbEnquiryFollowUpModal({ open, entry, onClose, onSaved }
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Follow-up Update</h3>
-              <p className="text-xs text-gray-600 mt-1">
-                {entry?.contact ? `FB Enquiry · ${entry.contact}` : 'FB Enquiry'}
-              </p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 rounded-lg p-2 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title="Follow-up Update"
+          subtitle={entry?.contact ? `FB Enquiry · ${entry.contact}` : 'FB Enquiry'}
+          onClose={onClose}
+        />
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
+        <ModalBody className="space-y-4">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
               {error}
@@ -258,17 +247,13 @@ export default function FbEnquiryFollowUpModal({ open, entry, onClose, onSaved }
               )}
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 flex justify-end gap-3">
+<ModalFooter>
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }

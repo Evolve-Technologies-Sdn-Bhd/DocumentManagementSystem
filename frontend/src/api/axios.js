@@ -177,9 +177,6 @@ api.interceptors.response.use(
         )
       } catch {}
 
-      localStorage.removeItem('token')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('user')
       finishGlobalOnce()
       releaseOnce()
       if (window.location.pathname !== '/maintenance') {

@@ -88,7 +88,21 @@ export const hasPermission = (module, action) => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
   if (module === 'profileSettings') return true
-  return !!(permissions[module] && permissions[module][action])
+
+  // Support both flat keys (configuration.masterData)
+  // and nested permission objects (configuration -> masterData).
+  let modulePermissions = permissions[module]
+
+  if (!modulePermissions && module.includes('.')) {
+    modulePermissions = module.split('.').reduce(
+      (current, key) => current && typeof current === 'object'
+        ? current[key]
+        : undefined,
+      permissions
+    )
+  }
+
+  return !!(modulePermissions && modulePermissions[action])
 }
 
 /**
@@ -258,4 +272,35 @@ export const canAccessRoute = (route) => {
   }
 
   return hasAnyPermission(module)
+}
+
+
+// Strict System Administrator check for maintenance access and system settings.
+// Intentionally does not use isSystem(), substring matching, or the broader isAdmin().
+export const isSystemAdmin = () => {
+  try {
+    const permissions = getUserPermissions()
+    if (permissions?.all === true) return true
+
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    const roles = Array.isArray(user?.roles) ? user.roles : []
+
+    const allowedNames = new Set([
+      'admin',
+      'system_admin',
+      'system administrator',
+      'system-admin'
+    ])
+
+    return roles.some((roleData) => {
+      const role = roleData?.role || roleData
+      const roleName = typeof role === 'string'
+        ? role
+        : (role?.name || role?.displayName || '')
+
+      return allowedNames.has(String(roleName).trim().toLowerCase())
+    })
+  } catch {
+    return getUserPermissions()?.all === true
+  }
 }

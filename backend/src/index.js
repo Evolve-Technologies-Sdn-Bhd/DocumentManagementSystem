@@ -29,6 +29,7 @@ const retentionService = require('./services/retentionService');
 const expiryReminderService = require('./services/expiryReminderService');
 const reviewApprovalReminderService = require('./services/reviewApprovalReminderService');
 const calendarReminderService = require('./services/calendarReminderService');
+const configService = require('./services/configService');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -70,6 +71,11 @@ try {
 
 app.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port}`);
+
+  // Restore and initialize scheduled maintenance expiry
+  configService.initializeMaintenanceScheduler()
+    .then(() => console.log('Maintenance expiry scheduler initialized'))
+    .catch(error => console.error('Maintenance expiry scheduler initialization failed:', error));
   
   // Initialize retention policy cleanup scheduler
   retentionService.scheduleRetentionCleanup();

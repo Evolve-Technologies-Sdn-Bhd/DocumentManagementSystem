@@ -30,6 +30,16 @@ class FolderController {
     const permMap = await folderPermissionService.getEffectivePermissionsMap(flat.map((f) => f.id), req.user?.id, roleIds)
     const byId = new Map(flat.map((f) => [f.id, f]))
     const folderGraph = await divisionScopeService.getFolderGraph()
+    const manageableFolderIds = new Set(
+      (await Promise.all(flat.map(async (folder) => {
+        const allowed = isAdmin || await divisionScopeService.canUserManageFolder(
+          req.user,
+          folder.id,
+          folderGraph
+        )
+        return allowed ? folder.id : null
+      }))).filter((id) => id !== null)
+    )
     const effectiveDivisionCache = new Map()
     const getDirectDivisionIds = (folderId) => folderGraph.get(folderId)?.divisionIds || []
     const getEffectiveDivisionIds = (folderId) =>
@@ -95,12 +105,13 @@ class FolderController {
     const canSeeFolderNode = (folderId) => {
       const f = byId.get(folderId)
       if (!f) return false
-      const manage = isAdmin || f.createdById === req.user?.id
-      return manage || canViewFolder(folderId)
+      const canManage = manageableFolderIds.has(folderId)
+      const canSeeAsCreator = f.createdById === req.user?.id
+      return canManage || canSeeAsCreator || canViewFolder(folderId)
     }
 
     const decorate = (node) => {
-      const manage = isAdmin || node.createdById === req.user?.id
+      const manage = manageableFolderIds.has(node.id)
       return {
         ...node,
         canManage: manage,
@@ -190,6 +201,12 @@ class FolderController {
       await folderPermissionService.assertCan(folderId, req.user, 'edit')
     }
 
+    await divisionScopeService.assertFolderMoveWithinCompany(
+      folderIds,
+      destinationParentId,
+      req.user
+    )
+
     const result = await folderService.bulkMoveFolders(folderIds, destinationParentId, req.user.id);
 
     await auditLogService.logSystem(req.user.id, 'FOLDER_BULK_MOVE', 'Folder', req, {
@@ -216,6 +233,27 @@ class FolderController {
     await folderPermissionService.assertCan(folderId, req.user, 'edit')
     if (parentId !== undefined && parentId) {
       await folderPermissionService.assertCan(parseInt(parentId), req.user, 'create')
+    }
+
+    if (parentId !== undefined) {
+      const currentFolder = await prisma.folder.findUnique({
+        where: { id: folderId },
+        select: { parentId: true }
+      })
+
+      const nextParentId = parentId ? parseInt(parentId, 10) : null
+
+      if (!currentFolder) {
+        return ResponseFormatter.error(res, 'Folder not found', 404)
+      }
+
+      if (nextParentId !== currentFolder.parentId) {
+        await divisionScopeService.assertFolderMoveWithinCompany(
+          [folderId],
+          nextParentId,
+          req.user
+        )
+      }
     }
 
     const folder = await folderService.updateFolder(folderId, {

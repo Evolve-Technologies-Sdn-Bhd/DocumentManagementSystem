@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import SearchableSingleSelect from '../components/ui/SearchableSingleSelect'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import NewVersionRequestModal from './NewVersionRequestModal'
@@ -40,211 +40,6 @@ function DatePicker({ value, onChange, placeholder = "Select date" }) {
     </div>
   )
 }
-
-function SearchableSingleSelect({
-  value,
-  options,
-  onChange,
-  placeholder,
-  searchPlaceholder,
-  noResultsLabel,
-  disabled = false,
-  loading = false,
-  clearLabel = 'Clear',
-  loadingLabel = 'Loading...',
-  invalid = false,
-  zIndex = 140,
-  ...rest
-}) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const containerRef = useRef(null)
-  const inputRef = useRef(null)
-  const buttonRef = useRef(null)
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 320, placement: 'bottom' })
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.value) === String(value)) || null,
-    [options, value]
-  )
-
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
-    if (!normalizedSearch) return options
-
-    return options.filter((option) =>
-      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
-    )
-  }, [options, searchValue])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const handlePointerDown = (event) => {
-      if (
-        !containerRef.current?.contains(event.target) &&
-        !(event.target instanceof Element && event.target.closest('[data-dms-select-portal]'))
-      ) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-    if (!buttonRef.current) return undefined
-
-    const rect = buttonRef.current.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    const maxHeight = Math.min(420, Math.max(280, viewportHeight * 0.55))
-    const spaceBelow = viewportHeight - rect.bottom
-    const placement =
-      spaceBelow < maxHeight + 14 && rect.top > spaceBelow ? 'top' : 'bottom'
-    const top = placement === 'top' ? Math.max(12, rect.top - maxHeight - 10) : Math.min(viewportHeight - maxHeight - 12, rect.bottom + 10)
-    const left = Math.max(12, Math.min(window.innerWidth - rect.width - 12, rect.left))
-    const width = rect.width
-
-    setPosition({ top, left, width, placement })
-
-    const timer = window.setTimeout(() => {
-      inputRef.current?.focus()
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [open])
-
-  useEffect(() => {
-    if (disabled) {
-      setOpen(false)
-      setSearchValue('')
-    }
-  }, [disabled])
-
-  const handleSelect = (option) => {
-    onChange(option.value, option)
-    setOpen(false)
-    setSearchValue('')
-  }
-
-  const dropdown = (
-    <div
-      data-dms-select-portal
-      style={{ zIndex: zIndex + 1 }}
-      className="pointer-events-none fixed inset-0"
-    >
-      <div
-        className="pointer-events-auto fixed"
-        style={{
-          top: `${position.top}px`,
-          left: `${position.left}px`,
-          width: `${position.width}px`
-        }}
-      >
-        <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] ring-1 ring-black/5">
-          <div className="border-b border-gray-200 p-3">
-            <input
-              ref={inputRef}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-shadow focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)]/60"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-gray-500">
-              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchValue('')}
-                  className="rounded-lg px-2 py-1 font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
-                >
-                  {clearLabel}
-                </button>
-              ) : (
-                <span>Type to filter</span>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-[320px] overflow-y-auto p-2">
-            {loading ? (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{loadingLabel}</div>
-            ) : filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = String(option.value) === String(value)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
-                      isSelected
-                        ? 'border-[var(--dms-color-info-default)]/30 bg-[color-mix(in_srgb,var(--dms-color-info-soft)_55%,white)] text-gray-900 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--dms-color-info-default)_25%,transparent)]'
-                        : 'border-transparent text-gray-800 hover:bg-gray-50 hover:border-gray-200'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900">{option.label}</div>
-                      {option.meta?.length ? (
-                        <div className="mt-1 space-y-0.5">
-                          {option.meta.map((metaLine) => (
-                            <div key={metaLine} className="text-xs text-gray-500">
-                              {metaLine}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isSelected ? <span className="text-xs font-bold text-[var(--dms-color-brand-primary)]">Selected</span> : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{noResultsLabel}</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const portalRoot = typeof document !== 'undefined' ? document.body : null
-  const renderedDropdown =
-    open && portalRoot && ReactDOM && (ReactDOM.createPortal || (ReactDOM.default && ReactDOM.default.createPortal))
-      ? ((ReactDOM.createPortal || (ReactDOM.default && ReactDOM.default.createPortal))(dropdown, portalRoot))
-      : open
-      ? dropdown
-      : null
-
-  return (
-    <div ref={containerRef} className="flex-1" {...rest}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => {
-          if (!disabled) setOpen((prev) => !prev)
-        }}
-        disabled={disabled}
-        aria-expanded={open}
-        className={`flex min-h-[40px] w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--dms-color-brand-primary)]/30 ${
-          invalid ? 'border-red-300 focus-visible:ring-red-200/80' : ''
-        } ${disabled ? 'cursor-not-allowed bg-gray-100 text-gray-400' : ''} ${
-          open ? 'ring-2 ring-[var(--dms-color-brand-primary)]/20 border-[var(--dms-color-brand-primary)]/40' : ''
-        }`}
-      >
-        <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span className="ml-3 text-xs text-gray-400">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {renderedDropdown}
-    </div>
-  )
-}
-
 
 export default function NewDocumentRequest() {
   const { t, formatDate } = usePreferences()
@@ -307,6 +102,8 @@ export default function NewDocumentRequest() {
   // Check if user has permission to acknowledge document requests
   // Uses permission-based checking instead of hardcoded roles
   const canAcknowledge = hasPermission('newDocumentRequest', 'acknowledge')
+  const canAddDocumentType = hasPermission('configuration.documentTypes', 'create')
+  const canAddProjectCategory = hasPermission('configuration.masterData', 'create')
   
   // Get current user ID to prevent self-acknowledgment
   const getCurrentUserId = () => {
@@ -1354,7 +1151,8 @@ export default function NewDocumentRequest() {
                   disabled={loadingMasterData}
                   invalid={fieldErrors.documentType}
                 />
-                <IconButton
+                {canAddDocumentType && (
+<IconButton
                   type="button"
                   onClick={handleAddDocumentType}
                   title={t('mdm_add_doc_type')}
@@ -1364,6 +1162,7 @@ export default function NewDocumentRequest() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </IconButton>
+                )}
               </div>
             </div>
 
@@ -1406,7 +1205,8 @@ export default function NewDocumentRequest() {
                   disabled={loadingMasterData}
                   invalid={fieldErrors.projectCategory}
                 />
-                <IconButton
+                {canAddProjectCategory && (
+<IconButton
                   type="button"
                   onClick={handleAddProjectCategory}
                   title={t('mdm_add_project_cat')}
@@ -1416,6 +1216,7 @@ export default function NewDocumentRequest() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </IconButton>
+                )}
               </div>
             </div>
           </div>

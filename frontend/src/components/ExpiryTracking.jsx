@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../api/axios'
+import BulkImportModal from './BulkImportModal'
+import { AlertModal } from './ConfirmModal'
 import { hasPermission } from '../utils/permissions'
 import Pagination from './Pagination'
 import PageHeader from './ui/PageHeader'
@@ -11,6 +13,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import InlineSpinner from './ui/InlineSpinner'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import { Table, TableContainer, Td, Th, Tr } from './ui/Table'
@@ -927,6 +930,28 @@ export default function ExpiryTracking() {
     expiryDateFrom: '',
     expiryDateTo: ''
   })
+  const ownerOptions = useMemo(() => [
+    { id: 'all-owners', value: '', label: 'All owners' },
+    ...owners.map((owner) => ({
+      id: owner.id,
+      value: String(owner.id),
+      label: formatUserLabel(owner),
+      searchText: owner.email || '',
+      meta: owner.email ? [owner.email] : []
+    }))
+  ], [owners])
+
+  const documentTypeOptions = useMemo(() => [
+    { id: 'all-document-types', value: '', label: 'All document types' },
+    ...documentTypes.map((type) => ({
+      id: type.id,
+      value: String(type.id),
+      label: type.name,
+      searchText: `${type.name || ''} ${type.prefix || ''}`,
+      meta: type.prefix ? [`Prefix: ${type.prefix}`] : []
+    }))
+  ], [documentTypes])
+
   const [pagination, setPagination] = useState({ page: 1, limit: 15, total: 0 })
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -942,12 +967,22 @@ export default function ExpiryTracking() {
   const [editOpen, setEditOpen] = useState(false)
   const [renewalOpen, setRenewalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [uploadFolders, setUploadFolders] = useState([])
+  const [uploadLoading, setUploadLoading] = useState(false)
+  const [alertModal, setAlertModal] = useState({
+    show: false,
+    title: '',
+    message: '',
+    type: 'info'
+  })
   const [mainDragColIndex, setMainDragColIndex] = useState(null)
   const [mainDragOverColIndex, setMainDragOverColIndex] = useState(null)
 
   const canEdit = hasPermission('expiryTracking', 'edit')
   const canRenew = hasPermission('expiryTracking', 'renew')
   const canExport = hasPermission('expiryTracking', 'export')
+  const canUpload = hasPermission('documents.published', 'create')
 
   const loadLookups = async () => {
     try {
@@ -1020,6 +1055,124 @@ export default function ExpiryTracking() {
   }, [pagination.limit, pagination.total])
 
   const refresh = () => setRefreshKey((prev) => prev + 1)
+
+  const handleOpenUpload = async () => {
+    setUploadLoading(true)
+
+    try {
+      const response = await api.get('/folders')
+      const sourceFolders = response.data?.data?.folders || response.data?.folders || []
+
+      const flattenFolders = (folderList, level = 0, parentPath = []) => {
+        let result = []
+
+        ;(Array.isArray(folderList) ? folderList : []).forEach((folder) => {
+          const currentPath = [...parentPath, folder.name]
+          const hasChildren = Array.isArray(folder.children) && folder.children.length > 0
+
+          let prefix = ''
+          if (level > 0) {
+            prefix = '\u00A0\u00A0'.repeat(level - 1) + '\u2514\u2500 '
+          }
+
+          result.push({
+            id: folder.id,
+            name: folder.name,
+            displayName: prefix + folder.name,
+            level,
+            path: currentPath.join(' › '),
+            fullPath: currentPath,
+            hasChildren,
+            icon: level === 0 ? '📁' : '📂',
+            canCreate: Boolean(folder.canCreate),
+            canEdit: Boolean(folder.canEdit),
+            canDelete: Boolean(folder.canDelete),
+            canDownload: Boolean(folder.canDownload),
+            canManage: Boolean(folder.canManage)
+          })
+
+          if (hasChildren) {
+            result = result.concat(flattenFolders(folder.children, level + 1, currentPath))
+          }
+        })
+
+        return result
+      }
+
+      const allowedFolders = flattenFolders(sourceFolders).filter((folder) => folder.canCreate)
+      setUploadFolders(allowedFolders)
+
+      if (allowedFolders.length === 0) {
+        setAlertModal({
+          show: true,
+          title: 'No Available Folder',
+          message: 'You do not have permission to upload documents into any folder.',
+          type: 'warning'
+        })
+        return
+      }
+
+      setUploadModalOpen(true)
+    } catch (error) {
+      console.error('Failed to load folders for expiry upload:', error)
+      setAlertModal({
+        show: true,
+        title: 'Unable to Load Folders',
+        message: error.response?.data?.message || 'Failed to load available folders. Please try again.',
+        type: 'error'
+      })
+    } finally {
+      setUploadLoading(false)
+    }
+  }
+
+  const handleExpiryUpload = async (uploadData) => {
+    const formData = new FormData()
+    formData.append('folderId', uploadData.folderId)
+
+    if (uploadData.description) {
+      formData.append('description', uploadData.description)
+    }
+    if (uploadData.filesMeta) {
+      formData.append('filesMeta', JSON.stringify(uploadData.filesMeta))
+    }
+    if (uploadData.expiryInfo) {
+      formData.append('expiryInfo', JSON.stringify(uploadData.expiryInfo))
+    }
+    if (uploadData.allowReassign) {
+      formData.append('allowReassign', 'true')
+    }
+
+    uploadData.files.forEach((file) => formData.append('files', file))
+
+    const importResponse = await api.post('/documents/bulk-import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    const counts = importResponse?.data?.data?.counts
+    const importedCount = counts?.imported ?? 0
+    const failedCount = counts?.failed ?? 0
+    const failedList = importResponse?.data?.data?.failed || []
+    const failedPreview = failedList
+      .slice(0, 5)
+      .map((item) => `Line ${item.lineNumber || '-'} - ${item.fileName}: ${item.message}`)
+      .join('\n')
+
+    const message = failedCount > 0
+      ? `Imported ${importedCount} file(s). Rejected ${failedCount} file(s).${failedPreview ? `\n\n${failedPreview}` : ''}`
+      : `Imported ${importedCount} file(s) successfully.`
+
+    setUploadModalOpen(false)
+    setAlertModal({
+      show: true,
+      title: failedCount > 0 ? 'Upload Completed with Issues' : 'Upload Successful',
+      message,
+      type: failedCount > 0 ? 'warning' : 'success'
+    })
+    refresh()
+
+    return importResponse
+  }
 
   const openProfileDetail = async (record) => {
     try {
@@ -1388,6 +1541,11 @@ export default function ExpiryTracking() {
         subtitle="Track enrolled documents, expiry status, and renewal progress without duplicating document metadata."
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2" data-tour-id="expiry-header-actions">
+            {canUpload ? (
+              <Button onClick={handleOpenUpload} disabled={uploadLoading}>
+                {uploadLoading ? 'Loading Folders...' : 'Upload File'}
+              </Button>
+            ) : null}
             <Button variant="secondary" onClick={refresh}>Refresh</Button>
             {canExport ? <Button variant="secondary" onClick={exportExcel}>Export Excel</Button> : null}
             {canExport ? <Button onClick={exportPdf}>Export PDF</Button> : null}
@@ -1414,14 +1572,15 @@ export default function ExpiryTracking() {
             />
           </Field>
           <Field label="Owner">
-            <SelectField value={filters.ownerId} onChange={(e) => setFilters((prev) => ({ ...prev, ownerId: e.target.value }))}>
-              <option value="">All owners</option>
-              {owners.map((owner) => (
-                <option key={owner.id} value={owner.id}>
-                  {`${owner.firstName || ''} ${owner.lastName || ''}`.trim() || owner.email}
-                </option>
-              ))}
-            </SelectField>
+            <SearchableSingleSelect
+              value={filters.ownerId}
+              options={ownerOptions}
+              onChange={(value) => setFilters((prev) => ({ ...prev, ownerId: value }))}
+              placeholder="All owners"
+              searchPlaceholder="Search owners by name or email..."
+              noResultsLabel="No owners found"
+              zIndex={170}
+            />
           </Field>
           <Field label="Department">
             <TextInput value={filters.department} onChange={(e) => setFilters((prev) => ({ ...prev, department: e.target.value }))} placeholder="Department" />
@@ -1430,12 +1589,15 @@ export default function ExpiryTracking() {
             <TextInput value={filters.company} onChange={(e) => setFilters((prev) => ({ ...prev, company: e.target.value }))} placeholder="Company" />
           </Field>
           <Field label="Document Type">
-            <SelectField value={filters.documentTypeId} onChange={(e) => setFilters((prev) => ({ ...prev, documentTypeId: e.target.value }))}>
-              <option value="">All document types</option>
-              {documentTypes.map((type) => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </SelectField>
+            <SearchableSingleSelect
+              value={filters.documentTypeId}
+              options={documentTypeOptions}
+              onChange={(value) => setFilters((prev) => ({ ...prev, documentTypeId: value }))}
+              placeholder="All document types"
+              searchPlaceholder="Search document types..."
+              noResultsLabel="No document types found"
+              zIndex={170}
+            />
           </Field>
           <Field label="Expiry Status">
             <SelectField value={filters.expiryStatus} onChange={(e) => setFilters((prev) => ({ ...prev, expiryStatus: e.target.value }))}>
@@ -1473,14 +1635,27 @@ export default function ExpiryTracking() {
           </div>
         ) : (
           <>
-            <DataTableToolbar paddingClassName="px-6 pt-4 pb-2" rightSlot={<>
-              <ColumnSettingsButton
-                orderedColumns={mainOrderedColumns}
-                hiddenColumns={mainHiddenColumns}
-                onToggleColumn={mainToggleColumnVisibility}
-                onReset={mainResetTableSettings}
-              />
-            </>} />
+            <DataTableToolbar
+              paddingClassName="px-6 py-3"
+              left={
+                <div className="space-y-1 min-w-0" data-tour-id="expiry-table-heading">
+                  <h2 className="text-base font-semibold text-ink">
+                    Document Expiry Tracking List
+                  </h2>
+                  <p className="text-xs text-ink-soft">
+                    View and manage documents with tracked expiry dates. Monitor upcoming expirations, review document validity, and keep renewal records up to date.
+                  </p>
+                </div>
+              }
+              rightSlot={
+                <ColumnSettingsButton
+                  orderedColumns={mainOrderedColumns}
+                  hiddenColumns={mainHiddenColumns}
+                  onToggleColumn={mainToggleColumnVisibility}
+                  onReset={mainResetTableSettings}
+                />
+              }
+            />
 
             <TableContainer>
               <Table>
@@ -1574,6 +1749,24 @@ export default function ExpiryTracking() {
         setRenewalOpen(false)
         setSelectedProfile(null)
       }} onSubmit={handleCompleteRenewal} saving={saving} />
+
+      <AlertModal
+        show={alertModal.show}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal({ show: false, title: '', message: '', type: 'info' })}
+      />
+
+      {uploadModalOpen ? (
+        <BulkImportModal
+          isOpen={uploadModalOpen}
+          onClose={() => setUploadModalOpen(false)}
+          onSubmit={handleExpiryUpload}
+          folders={uploadFolders}
+          forceExpiryTracking
+        />
+      ) : null}
     </div>
   )
 }

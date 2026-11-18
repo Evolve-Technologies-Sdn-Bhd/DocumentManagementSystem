@@ -132,12 +132,16 @@ class FolderPermissionService {
 
   async assertCanManage(folderId, user) {
     const folder = await this.getFolderById(folderId)
+
     if (user?.permissions?.all === true) return true
-    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
-    if (!withinDivisionScope) throw new ForbiddenError(`You don't have permission to manage this folder`)
     if (this.isAdminRoleNames(user?.roles || [])) return true
-    if (folder.createdById === user?.id) return true
-    throw new ForbiddenError(`You don't have permission to manage this folder`)
+
+    const allowed = await divisionScopeService.canUserManageFolder(user, folder.id)
+    if (!allowed) {
+      throw new ForbiddenError(`You don't have permission to manage this folder`)
+    }
+
+    return true
   }
 
   async getFolderAccessConfig(folderId) {

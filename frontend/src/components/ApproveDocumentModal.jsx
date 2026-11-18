@@ -6,6 +6,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
 import AsyncActionStatus from './ui/AsyncActionStatus'
@@ -904,20 +905,25 @@ export default function ApproveDocumentModal({ document, onClose, onSubmit, isSu
                   {t('second_approver_note')}
                 </p>
                 <div className="flex items-center gap-3">
-                  <SelectField
-                    value={formData.assignedSecondApprover || ''}
-                    onChange={(e) => handleSecondApproverSelect(e.target.value)}
+                  <SearchableSingleSelect
+                    value={formData.assignedSecondApprover ?? ''}
+                    options={[
+                      {
+                        value: '',
+                        label: loadingApprovers ? t('loading_approvers') : t('no_second_approver')
+                      },
+                      ...approversList.map((approver) => ({
+                        value: String(approver.id),
+                        label: approver.name,
+                        searchText: approver.name || ''
+                      }))
+                    ]}
+                    onChange={(value) => handleSecondApproverSelect(value)}
+                    placeholder={t('no_second_approver')}
+                    searchPlaceholder={t('assign_second_approver')}
                     disabled={loadingApprovers}
-                  >
-                    <option value="">
-                      {loadingApprovers ? t('loading_approvers') : t('no_second_approver')}
-                    </option>
-                    {approversList.map((approver) => (
-                      <option key={approver.id} value={approver.id}>
-                        {approver.name}
-                      </option>
-                    ))}
-                  </SelectField>
+                    zIndex={180}
+                  />
                   {loadingApprovers ? <InlineSpinner className="h-4 w-4 border-2" /> : null}
                 </div>
               </div>

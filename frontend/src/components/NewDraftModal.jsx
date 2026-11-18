@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import * as ReactDOM from 'react-dom'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useNavigate } from 'react-router-dom'
+import { usePermissions } from '../hooks/usePermissions'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
@@ -11,207 +12,6 @@ import TextArea from './ui/TextArea'
 import InlineSpinner from './ui/InlineSpinner'
 import SmartForm from './smartdocuments/SmartForm'
 
-
-function SearchableSingleSelect({
-  value,
-  options,
-  onChange,
-  placeholder,
-  searchPlaceholder,
-  noResultsLabel,
-  disabled = false,
-  loading = false,
-  clearLabel = 'Clear',
-  loadingLabel = 'Loading...',
-  zIndex = 150,
-  ...rest
-}) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const containerRef = useRef(null)
-  const inputRef = useRef(null)
-  const buttonRef = useRef(null)
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 320, placement: 'bottom' })
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.value) === String(value)) || null,
-    [options, value]
-  )
-
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
-    if (!normalizedSearch) return options
-
-    return options.filter((option) =>
-      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
-    )
-  }, [options, searchValue])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const handlePointerDown = (event) => {
-      if (
-        !containerRef.current?.contains(event.target) &&
-        !(event.target instanceof Element && event.target.closest('[data-dms-select-portal]'))
-      ) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-    if (!buttonRef.current) return undefined
-
-    const rect = buttonRef.current.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    const maxHeight = Math.min(420, Math.max(280, viewportHeight * 0.55))
-    const spaceBelow = viewportHeight - rect.bottom
-    const placement =
-      spaceBelow < maxHeight + 14 && rect.top > spaceBelow ? 'top' : 'bottom'
-    const top = placement === 'top' ? Math.max(12, rect.top - maxHeight - 10) : Math.min(viewportHeight - maxHeight - 12, rect.bottom + 10)
-    const left = Math.max(12, Math.min(window.innerWidth - rect.width - 12, rect.left))
-    const width = rect.width
-
-    setPosition({ top, left, width, placement })
-
-    const timer = window.setTimeout(() => {
-      inputRef.current?.focus()
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [open])
-
-  useEffect(() => {
-    if (disabled) {
-      setOpen(false)
-      setSearchValue('')
-    }
-  }, [disabled])
-
-  const handleSelect = (option) => {
-    onChange(option.value, option)
-    setOpen(false)
-    setSearchValue('')
-  }
-
-  const dropdown = (
-    <div
-      data-dms-select-portal
-      style={{ zIndex: zIndex + 1 }}
-      className="pointer-events-none fixed inset-0"
-    >
-      <div
-        className="pointer-events-auto fixed"
-        style={{
-          top: `${position.top}px`,
-          left: `${position.left}px`,
-          width: `${position.width}px`
-        }}
-      >
-        <div className="w-full overflow-hidden rounded-2xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] shadow-[0_18px_40px_rgba(15,23,42,0.18)] ring-1 ring-black/5">
-          <div className="border-b border-[var(--dms-color-border-default)] p-3">
-            <input
-              ref={inputRef}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-10 w-full rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 text-sm text-ink outline-none placeholder:text-ink-muted shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-shadow focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/30 focus:border-[var(--dms-color-brand-primary)]/60"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] font-medium text-ink-secondary">
-              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchValue('')}
-                  className="rounded-lg px-2 py-1 font-semibold text-ink-secondary transition hover:bg-[var(--dms-color-bg-surface-muted)] hover:text-ink"
-                >
-                  {clearLabel}
-                </button>
-              ) : (
-                <span>Type to filter</span>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-[320px] overflow-y-auto p-2">
-            {loading ? (
-              <div className="rounded-xl px-4 py-4 text-sm font-medium text-ink-muted">{loadingLabel}</div>
-            ) : filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = String(option.value) === String(value)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`flex w-full items-start justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
-                      isSelected
-                        ? 'border-[var(--dms-color-info-default)]/30 bg-[color-mix(in_srgb,var(--dms-color-info-soft)_55%,var(--dms-color-bg-surface))] text-ink shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--dms-color-info-default)_25%,transparent)]'
-                        : 'border-transparent text-ink-secondary hover:bg-[var(--dms-color-bg-surface-muted)] hover:border-[var(--dms-color-border-default)]'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-ink">{option.label}</div>
-                      {option.meta?.length ? (
-                        <div className="mt-1 space-y-0.5">
-                          {option.meta.map((metaLine) => (
-                            <div key={metaLine} className="text-xs font-medium text-ink-secondary">
-                              {metaLine}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isSelected ? <span className="text-xs font-bold text-[var(--dms-color-brand-primary)]">Selected</span> : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="rounded-xl px-4 py-4 text-sm font-medium text-ink-muted">{noResultsLabel}</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-
-  const portalRoot = typeof document !== 'undefined' ? document.body : null
-  const renderedDropdown =
-    open && portalRoot && ReactDOM && (ReactDOM.createPortal || (ReactDOM.default && ReactDOM.default.createPortal))
-      ? ((ReactDOM.createPortal || (ReactDOM.default && ReactDOM.default.createPortal))(dropdown, portalRoot))
-      : open
-      ? dropdown
-      : null
-
-  return (
-    <div ref={containerRef} {...rest}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => {
-          if (!disabled) setOpen((prev) => !prev)
-        }}
-        disabled={disabled}
-        aria-expanded={open}
-        className={`flex min-h-[42px] w-full items-center justify-between rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-2 text-left text-sm text-ink shadow-[0_1px_2px_rgba(15,23,42,0.04)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--dms-color-brand-primary)]/30 ${
-          disabled ? 'cursor-not-allowed bg-[var(--dms-color-bg-surface-muted)] text-ink-muted' : ''
-        } ${open ? 'ring-2 ring-[var(--dms-color-brand-primary)]/30 border-[var(--dms-color-brand-primary)]/40' : ''}`}
-      >
-        <span className={selectedOption ? 'text-ink' : 'text-ink-muted'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {renderedDropdown}
-    </div>
-  )
-}
 
 const getReviewerDisplayName = (reviewer) => {
   if (!reviewer) return ''
@@ -222,6 +22,9 @@ const getReviewerDisplayName = (reviewer) => {
 export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocumentTypeId, prefillTitle }) {
   const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
+  const { hasPermission } = usePermissions()
+  const canAddDocumentType = hasPermission('configuration.documentTypes', 'create')
+  const canAddDivision = hasPermission('configuration.masterData', 'create')
   const [formData, setFormData] = useState({
     fileCode: '',
     title: '',
@@ -259,6 +62,19 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
   const [smartFieldValues, setSmartFieldValues] = useState({})
   const [creationMode, setCreationMode] = useState(smartDocumentEnabled ? 'SMART_DOCUMENT' : 'FILE_BASED')
   const [uploadedFile, setUploadedFile] = useState(null)
+
+  // Quick Add overlays — keep the New Draft form mounted and preserve its state.
+  const [quickAddType, setQuickAddType] = useState(null)
+  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  const [quickAddError, setQuickAddError] = useState('')
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    prefix: '',
+    description: '',
+    requiresExpiryTracking: false,
+    allowRenewal: true,
+    code: ''
+  })
 
   const documentTypeOptions = useMemo(
     () => documentTypes.map((type) => ({
@@ -625,12 +441,157 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
     setFormData((prev) => ({ ...prev, reviewerId: userId }))
   }
 
+  const openQuickAdd = (type) => {
+    setQuickAddError('')
+    setQuickAddForm({
+      name: '',
+      prefix: '',
+      description: '',
+      requiresExpiryTracking: false,
+      allowRenewal: true,
+      code: ''
+    })
+    setQuickAddType(type)
+  }
+
+  const handleAddDocumentType = () => openQuickAdd('documentType')
+  const handleAddDivision = () => openQuickAdd('division')
+
+  const closeQuickAdd = () => {
+    if (quickAddSaving) return
+    setQuickAddType(null)
+    setQuickAddError('')
+  }
+
   const handleDivisionSelect = (divisionId) => {
     const next = divisionId ? String(divisionId) : ''
     setFormData((prev) => ({ ...prev, divisionId: next, reviewerId: null }))
     try {
       if (next) localStorage.setItem('lastActiveDivisionId', next)
     } catch {}
+  }
+
+  const handleQuickAddSubmit = async (event) => {
+    event.preventDefault()
+    if (!quickAddType || quickAddSaving) return
+
+    const name = String(quickAddForm.name || '').trim()
+
+    if (!name) {
+      setQuickAddError('Name is required.')
+      return
+    }
+
+    if (quickAddType === 'documentType' && !String(quickAddForm.prefix || '').trim()) {
+      setQuickAddError('Document type prefix is required.')
+      return
+    }
+
+    if (quickAddType === 'division' && !String(quickAddForm.code || '').trim()) {
+      setQuickAddError('Division code is required.')
+      return
+    }
+
+    setQuickAddSaving(true)
+    setQuickAddError('')
+
+    try {
+      if (quickAddType === 'documentType') {
+        const payload = {
+          name,
+          prefix: String(quickAddForm.prefix || '').trim(),
+          description: String(quickAddForm.description || '').trim(),
+          requiresExpiryTracking: Boolean(quickAddForm.requiresExpiryTracking),
+          allowRenewal: Boolean(quickAddForm.allowRenewal)
+        }
+
+        const createRes = await api.post('/system/config/document-types', payload)
+        const created =
+          createRes?.data?.data?.documentType ||
+          createRes?.data?.documentType ||
+          null
+
+        let refreshedTypes = []
+        try {
+          const listRes = await api.get('/system/config/document-types')
+          refreshedTypes = listRes?.data?.data?.documentTypes || []
+        } catch (refreshError) {
+          console.warn('Document type created; dropdown refresh will use the created record.', refreshError)
+        }
+
+        const selectedType =
+          refreshedTypes.find((item) =>
+            (created?.id && String(item.id) === String(created.id)) ||
+            String(item.prefix || '').toLowerCase() === payload.prefix.toLowerCase() ||
+            String(item.name || '').toLowerCase() === name.toLowerCase()
+          ) || created
+
+        if (refreshedTypes.length) {
+          setDocumentTypes(refreshedTypes)
+        } else if (created) {
+          setDocumentTypes((prev) => [
+            ...prev.filter((item) => String(item.id) !== String(created.id)),
+            created
+          ])
+        }
+
+        // Select the new value without resetting any other New Draft fields.
+        handleDocumentTypeSelect(selectedType?.name || name)
+      } else if (quickAddType === 'division') {
+        const payload = {
+          name,
+          code: String(quickAddForm.code || '').trim().toUpperCase()
+        }
+
+        const createRes = await api.post('/divisions', payload)
+        const created =
+          createRes?.data?.data?.division ||
+          createRes?.data?.division ||
+          null
+
+        let refreshedDivisions = []
+        try {
+          const listRes = await api.get('/divisions')
+          refreshedDivisions = listRes?.data?.data?.divisions || []
+        } catch (refreshError) {
+          console.warn('Division created; dropdown refresh will use the created record.', refreshError)
+        }
+
+        const selectedDivision =
+          refreshedDivisions.find((item) =>
+            (created?.id && String(item.id) === String(created.id)) ||
+            String(item.code || '').toUpperCase() === payload.code
+          ) || created
+
+        if (refreshedDivisions.length) {
+          setDivisions(refreshedDivisions)
+        } else if (created) {
+          setDivisions((prev) => [
+            ...prev.filter((item) => String(item.id) !== String(created.id)),
+            created
+          ])
+        }
+
+        if (!selectedDivision?.id) {
+          throw new Error('Division was created, but its ID could not be retrieved. Please refresh the division list before continuing.')
+        }
+
+        // This also clears the old reviewer and triggers the reviewer reload effect.
+        handleDivisionSelect(String(selectedDivision.id))
+      }
+
+      setQuickAddType(null)
+      setQuickAddError('')
+    } catch (error) {
+      console.error('Quick Add failed:', error)
+      setQuickAddError(
+        error?.response?.data?.message ||
+        error?.message ||
+        'Unable to create this item. Please try again.'
+      )
+    } finally {
+      setQuickAddSaving(false)
+    }
   }
 
   const filteredAcknowledgedDocs = acknowledgedDocs.filter(doc =>
@@ -945,9 +906,17 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-ink mb-2">
-              {t('doc_type')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink">
+                {t('doc_type')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
+              </label>
+              {canAddDocumentType && !isDocumentTypeLocked && (
+                <button type="button" onClick={handleAddDocumentType}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-800">
+                  + Add New
+                </button>
+              )}
+            </div>
             <SearchableSingleSelect
               value={formData.documentType}
               options={documentTypeOptions}
@@ -1156,9 +1125,17 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
 
         {divisions.length > 1 || loadingDivisions ? (
           <div>
-            <label className="block text-sm font-semibold text-ink mb-2">
-              Division <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink">
+                Division <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
+              </label>
+              {canAddDivision && (
+                <button type="button" onClick={handleAddDivision}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-800">
+                  + Add New
+                </button>
+              )}
+            </div>
             {loadingDivisions ? (
               <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm font-medium text-ink-secondary">
                 <InlineSpinner className="h-4 w-4 border-2" />
@@ -1473,7 +1450,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
   })()
 
   return (
-    <Modal onClose={handleClose} closeOnBackdrop size="3xl" data-tour-id="new-draft-modal">
+    <>
+    <Modal isOpen={isOpen} onClose={handleClose} closeOnBackdrop size="3xl" data-tour-id="new-draft-modal">
       <ModalHeader
         title={t('new_draft_doc')}
         subtitle={t('modal_draft_desc')}
@@ -1487,5 +1465,159 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
 
       {effectiveFooter}
     </Modal>
+
+    <Modal
+      isOpen={Boolean(quickAddType)}
+      onClose={closeQuickAdd}
+      closeOnBackdrop={!quickAddSaving}
+      size="sm"
+    >
+      <ModalHeader
+        title={quickAddType === 'documentType' ? 'Add Document Type' : 'Add Division'}
+        subtitle={
+          quickAddType === 'documentType'
+            ? 'Create a document type without leaving New Draft.'
+            : 'Create a division without leaving New Draft.'
+        }
+        onClose={closeQuickAdd}
+      />
+
+      <form onSubmit={handleQuickAddSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="space-y-4">
+            {quickAddError ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+              >
+                {quickAddError}
+              </div>
+            ) : null}
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
+              </label>
+              <TextInput
+                type="text"
+                required
+                autoFocus
+                value={quickAddForm.name}
+                disabled={quickAddSaving}
+                onChange={(e) => setQuickAddForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder={quickAddType === 'documentType' ? 'e.g., Minutes of Meeting' : 'e.g., Private Division'}
+              />
+            </div>
+
+            {quickAddType === 'documentType' ? (
+              <>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Prefix <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    value={quickAddForm.prefix}
+                    disabled={quickAddSaving}
+                    onChange={(e) => setQuickAddForm((prev) => ({ ...prev, prefix: e.target.value }))}
+                    placeholder="e.g., MoM"
+                  />
+                  <p className="mt-1.5 text-xs text-ink-soft">
+                    A short prefix used to identify this document type.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">Description</label>
+                  <TextArea
+                    value={quickAddForm.description}
+                    disabled={quickAddSaving}
+                    onChange={(e) => setQuickAddForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    placeholder="Optional description"
+                  />
+                </div>
+
+                <AppSurface variant="panel" padding="md" className="space-y-3">
+                  <label className="flex items-start gap-3 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={quickAddForm.requiresExpiryTracking}
+                      disabled={quickAddSaving}
+                      onChange={(e) => setQuickAddForm((prev) => ({
+                        ...prev,
+                        requiresExpiryTracking: e.target.checked
+                      }))}
+                      className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+                    />
+                    <span>
+                      <span className="block font-medium">Require Expiry Tracking</span>
+                      <span className="mt-1 block text-xs text-ink-soft">
+                        Documents of this type will require expiry information when published.
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={quickAddForm.allowRenewal}
+                      disabled={quickAddSaving}
+                      onChange={(e) => setQuickAddForm((prev) => ({
+                        ...prev,
+                        allowRenewal: e.target.checked
+                      }))}
+                      className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+                    />
+                    <span>
+                      <span className="block font-medium">Allow Renewal</span>
+                      <span className="mt-1 block text-xs text-ink-soft">
+                        Allow tracked documents of this type to use the renewal workflow.
+                      </span>
+                    </span>
+                  </label>
+                </AppSurface>
+              </>
+            ) : (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink">
+                  Code <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                </label>
+                <TextInput
+                  type="text"
+                  required
+                  value={quickAddForm.code}
+                  disabled={quickAddSaving}
+                  onChange={(e) => setQuickAddForm((prev) => ({
+                    ...prev,
+                    code: e.target.value.toUpperCase()
+                  }))}
+                  placeholder="e.g., PRV"
+                />
+                <p className="mt-1.5 text-xs text-ink-soft">
+                  Division codes are automatically converted to uppercase.
+                </p>
+              </div>
+            )}
+          </div>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={closeQuickAdd}
+            disabled={quickAddSaving}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={quickAddSaving}>
+            {quickAddSaving ? 'Saving...' : 'Create'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+    </>
   )
 }

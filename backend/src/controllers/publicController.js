@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const prisma = require('../config/database');
+const configService = require('../services/configService');
 const fs = require('fs/promises');
 const path = require('path');
 const appConfig = require('../config/app');
@@ -388,31 +389,25 @@ exports.getMaintenanceStatus = asyncHandler(async (req, res) => {
   res.set('Pragma', 'no-cache')
   res.set('Expires', '0')
 
-  let config = null
-  try {
-    config = await prisma.configuration.findUnique({
-      where: { key: 'maintenance_settings' }
-    })
-  } catch {
-    config = null
-  }
+  const maintenance = await configService.getMaintenanceSettings();
 
-  let parsed = null
-  if (config?.value) {
-    try {
-      parsed = JSON.parse(config.value)
-    } catch {
-      parsed = null
-    }
-  }
-
-  const enabled = Boolean(parsed?.enabled)
-  const message =
-    typeof parsed?.message === 'string' && parsed.message.trim()
-      ? parsed.message.trim()
-      : 'System is under maintenance'
-
-  return ResponseFormatter.success(res, { enabled, message }, 'Maintenance status retrieved successfully')
+  return ResponseFormatter.success(
+    res,
+    {
+      enabled: Boolean(maintenance?.enabled),
+      manualEnabled: Boolean(maintenance?.manualEnabled),
+      message: maintenance?.message || 'System is under maintenance',
+      manualMessage: maintenance?.manualMessage || 'System is under maintenance',
+      scheduleStatus: maintenance?.scheduleStatus || 'disabled',
+      schedule: {
+        enabled: Boolean(maintenance?.schedule?.enabled),
+        startAt: maintenance?.schedule?.startAt || null,
+        endAt: maintenance?.schedule?.endAt || null,
+        message: maintenance?.schedule?.message || 'System is under maintenance'
+      }
+    },
+    'Maintenance status retrieved successfully'
+  )
 })
 
 exports.getSmartDocumentStatus = asyncHandler(async (req, res) => {

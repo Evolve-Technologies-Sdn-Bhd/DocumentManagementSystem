@@ -3,7 +3,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
 import { applyTheme, applyThemeMode, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
-import { getUserPermissions } from '../utils/permissions'
+import { getUserPermissions, isSystemAdmin } from '../utils/permissions'
 import MarkdownEditor from './MarkdownEditor'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
@@ -23,6 +23,10 @@ function SubTabNavigation({ activeTab, onTabChange }) {
     { id: 'notification', label: t('gss_notification_settings') },
     { id: 'security', label: t('gss_security') }
   ]
+
+  if (isSystemAdmin()) {
+    tabs.push({ id: 'maintenance', label: 'Maintenance' })
+  }
 
   return (
     <div className="mb-6 border-b border-border" data-tour-id="gss-tabbar">
@@ -4130,14 +4134,12 @@ function DocumentSettings() {
                   <div key={colIdx} className="flex flex-col gap-4 min-w-[120px]">
                     {col.map((type) => (
                       <label key={type} className="flex items-center gap-3 cursor-pointer group">
-                        <div className="flex items-center justify-center h-9 w-9 shrink-0 rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all group-hover:border-[var(--dms-color-border-strong)]">
-                          <input
+                        <input
                             type="checkbox"
                             checked={settings.allowedTypes[type]}
                             onChange={(e) => setSettings(prev => ({ ...prev, allowedTypes: { ...prev.allowedTypes, [type]: e.target.checked } }))}
                             className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
                           />
-                        </div>
                         <span className="text-sm font-semibold text-ink uppercase">{type}</span>
                       </label>
                     ))}
@@ -4167,14 +4169,12 @@ function DocumentSettings() {
           <p className="text-sm text-ink-muted">Configure automatic document code generation and formatting</p>
         </div>
           <label className="flex items-start gap-3 cursor-pointer">
-            <div className="mt-0.5 flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input 
+            <input
                 type="checkbox" 
                 checked={settings.autoGenerateCode} 
                 onChange={(e) => setSettings(prev => ({ ...prev, autoGenerateCode: e.target.checked }))} 
                 className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" 
               />
-            </div>
             <div>
               <span className="text-sm font-semibold text-ink">Enable Auto-generate Document Code</span>
               <p className="mt-0.5 text-sm text-ink-muted">Automatically generate unique document codes based on your format</p>
@@ -4205,14 +4205,12 @@ function DocumentSettings() {
 
                   <div>
                     <label className="flex items-start gap-3 mb-1.5">
-                      <div className="mt-0.5 flex items-center justify-center h-9 w-9 shrink-0 rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                        <input
+                      <input
                           type="checkbox"
                           checked={settings.includeProjectCategoryCode}
                           onChange={(e) => setSettings(prev => ({ ...prev, includeProjectCategoryCode: e.target.checked }))}
                           className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
                         />
-                      </div>
                       <div>
                         <span className="text-xs font-semibold text-ink">Include Project Category Code</span>
                         <p className="mt-1 text-xs text-ink-soft">
@@ -4243,14 +4241,12 @@ function DocumentSettings() {
                   {/* Version */}
                   <div>
                     <label className="flex items-start gap-3 mb-1.5">
-                      <div className="mt-0.5 flex items-center justify-center h-9 w-9 shrink-0 rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                        <input 
+                      <input
                           type="checkbox" 
                           checked={settings.includeVersion} 
                           onChange={(e) => setSettings(prev => ({ ...prev, includeVersion: e.target.checked }))} 
                           className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
                         />
-                      </div>
                       <div>
                         <span className="text-xs font-semibold text-ink">Include Version Number</span>
                         {settings.includeVersion && (
@@ -4407,9 +4403,7 @@ function DocumentSettings() {
         <h4 className="font-semibold text-ink mb-5">{t('gss_ds_version_control')}</h4>
         <div className="space-y-5">
           <label className="flex items-start gap-3">
-            <div className="mt-0.5 flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-            </div>
+            <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
             <div>
               <span className="text-sm font-semibold text-ink">Enable Automatic Versioning</span>
             </div>
@@ -4532,14 +4526,12 @@ function DocumentSettings() {
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
-            <div className="mt-0.5 flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input
+            <input
                 type="checkbox"
                 checked={settings.rfidEpcRegistryEnabled}
                 onChange={(e) => setSettings((prev) => ({ ...prev, rfidEpcRegistryEnabled: e.target.checked }))}
                 className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
               />
-            </div>
             <div>
               <span className="text-sm font-semibold text-ink">Enable EPC Registry</span>
               <p className="text-sm text-ink-secondary mt-0.5">
@@ -4566,14 +4558,12 @@ function DocumentSettings() {
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
-            <div className="mt-0.5 flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input
+            <input
                 type="checkbox"
                 checked={settings.smartDocumentEnabled}
                 onChange={(e) => setSettings((prev) => ({ ...prev, smartDocumentEnabled: e.target.checked }))}
                 className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
               />
-            </div>
             <div>
               <span className="text-sm font-semibold text-ink">Enable Smart Document Feature</span>
               <p className="text-sm text-ink-secondary mt-0.5">
@@ -4940,14 +4930,10 @@ function NotificationSettings() {
                 <tr key={key} className="border-b border-[var(--dms-color-border-default)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))]">
                   <td className="py-3 px-4 text-ink-secondary capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</td>
                   <td className="py-3 px-4 text-center">
-                    <div className="inline-flex items-center justify-center h-6 w-6 rounded-md border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                      <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-                    </div>
+                    <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <div className="inline-flex items-center justify-center h-6 w-6 rounded-md border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                      <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-                    </div>
+                    <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
                   </td>
                 </tr>
               ))}
@@ -4971,9 +4957,7 @@ function NotificationSettings() {
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Daily Digest</label>
             <div className="flex gap-3 items-stretch">
-              <div className="flex items-center justify-center h-12 w-12 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <input type="time" value={settings.digestTime} onChange={(e) => setSettings(prev => ({ ...prev, digestTime: e.target.value }))} disabled={!settings.dailyDigest} className="flex-1 px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed transition-all duration-150" />
             </div>
           </div>
@@ -5014,11 +4998,6 @@ function SecuritySettings() {
     encryptDocuments: true,
     encryptDatabase: true
   })
-  const canManageMaintenance = getUserPermissions()?.all === true
-  const [maintenance, setMaintenance] = useState({
-    enabled: false,
-    message: 'System is under maintenance'
-  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -5051,19 +5030,6 @@ function SecuritySettings() {
           }))
         }
 
-        if (canManageMaintenance) {
-          const mRes = await fetch('/api/system/config/maintenance-settings', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-          if (mRes.ok) {
-            const mBody = await mRes.json()
-            const mData = mBody?.data?.settings || mBody?.settings || mBody
-            setMaintenance({
-              enabled: Boolean(mData?.enabled),
-              message: mData?.message || 'System is under maintenance'
-            })
-          }
-        }
       } catch (error) {
         console.error('Failed to load security settings:', error)
       } finally {
@@ -5106,24 +5072,6 @@ function SecuritySettings() {
         })
       })
       if (response.ok) {
-        if (canManageMaintenance) {
-          const mResponse = await fetch('/api/system/config/maintenance-settings', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              enabled: Boolean(maintenance.enabled),
-              message: maintenance.message
-            })
-          })
-          if (!mResponse.ok) {
-            const mErr = await mResponse.json().catch(() => null)
-            alert(`Security settings saved, but maintenance settings failed: ${mErr?.message || 'Unknown error'}`)
-            return
-          }
-        }
         alert('Security settings saved successfully!')
       } else {
         const error = await response.json()
@@ -5162,21 +5110,15 @@ function SecuritySettings() {
           </div>
           <div className="space-y-3">
             <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.requireUppercase} onChange={(e) => setSettings(prev => ({ ...prev, requireUppercase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.requireUppercase} onChange={(e) => setSettings(prev => ({ ...prev, requireUppercase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <span className="text-sm font-medium text-ink">Require uppercase letters</span>
             </label>
             <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.requireNumbers} onChange={(e) => setSettings(prev => ({ ...prev, requireNumbers: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.requireNumbers} onChange={(e) => setSettings(prev => ({ ...prev, requireNumbers: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <span className="text-sm font-medium text-ink">Require numbers</span>
             </label>
             <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.requireSymbols} onChange={(e) => setSettings(prev => ({ ...prev, requireSymbols: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.requireSymbols} onChange={(e) => setSettings(prev => ({ ...prev, requireSymbols: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <span className="text-sm font-medium text-ink">Require symbols</span>
             </label>
           </div>
@@ -5206,66 +5148,29 @@ function SecuritySettings() {
       <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
         <h4 className="font-semibold text-ink mb-5">{t('gss_sec_2fa')}</h4>
         <label className="flex items-center gap-3 mb-5">
-          <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-            <input type="checkbox" checked={settings.enable2FA} onChange={(e) => setSettings(prev => ({ ...prev, enable2FA: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-          </div>
+          <input type="checkbox" checked={settings.enable2FA} onChange={(e) => setSettings(prev => ({ ...prev, enable2FA: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
           <span className="text-sm font-semibold text-ink">Enable 2FA for all users</span>
         </label>
         {settings.enable2FA && (
           <div className="space-y-3 pl-14">
             <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.twoFAMethods.email} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, email: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.twoFAMethods.email} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, email: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <span className="text-sm font-medium text-ink-secondary">Email verification</span>
             </label>
             <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input type="checkbox" checked={settings.twoFAMethods.app} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, app: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-              </div>
+              <input type="checkbox" checked={settings.twoFAMethods.app} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, app: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
               <span className="text-sm font-medium text-ink-secondary">Authenticator app</span>
             </label>
           </div>
         )}
       </div>
 
-      {canManageMaintenance ? (
-        <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
-          <h4 className="font-semibold text-ink mb-5">Maintenance Mode</h4>
-          <div className="space-y-4">
-            <label className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                <input
-                  type="checkbox"
-                  checked={maintenance.enabled}
-                  onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
-                  className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
-                />
-              </div>
-              <span className="text-sm font-semibold text-ink">Enable maintenance mode (System Admin only)</span>
-            </label>
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">Message</label>
-              <textarea
-                value={maintenance.message}
-                onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
-                rows={3}
-                disabled={!maintenance.enabled}
-                className="w-full resize-y rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Audit Logging */}
       <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
         <h4 className="font-semibold text-ink mb-5">{t('gss_sec_audit')}</h4>
         <div className="space-y-5">
           <label className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input type="checkbox" checked={settings.enableAuditLog} onChange={(e) => setSettings(prev => ({ ...prev, enableAuditLog: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-            </div>
+            <input type="checkbox" checked={settings.enableAuditLog} onChange={(e) => setSettings(prev => ({ ...prev, enableAuditLog: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
             <span className="text-sm font-semibold text-ink">Enable audit logging</span>
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -5275,9 +5180,7 @@ function SecuritySettings() {
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-                  <input type="checkbox" checked={settings.logFailedLogins} onChange={(e) => setSettings(prev => ({ ...prev, logFailedLogins: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-                </div>
+                <input type="checkbox" checked={settings.logFailedLogins} onChange={(e) => setSettings(prev => ({ ...prev, logFailedLogins: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
                 <span className="text-sm font-medium text-ink-secondary">Log failed login attempts</span>
               </label>
             </div>
@@ -5290,15 +5193,11 @@ function SecuritySettings() {
         <h4 className="font-semibold text-ink mb-5">{t('gss_sec_encryption')}</h4>
         <div className="space-y-3">
           <label className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input type="checkbox" checked={settings.encryptDocuments} onChange={(e) => setSettings(prev => ({ ...prev, encryptDocuments: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-            </div>
+            <input type="checkbox" checked={settings.encryptDocuments} onChange={(e) => setSettings(prev => ({ ...prev, encryptDocuments: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
             <span className="text-sm font-medium text-ink-secondary">Encrypt documents (AES-256)</span>
           </label>
           <label className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-11 w-11 shrink-0 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all">
-              <input type="checkbox" checked={settings.encryptDatabase} onChange={(e) => setSettings(prev => ({ ...prev, encryptDatabase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
-            </div>
+            <input type="checkbox" checked={settings.encryptDatabase} onChange={(e) => setSettings(prev => ({ ...prev, encryptDatabase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
             <span className="text-sm font-medium text-ink-secondary">Encrypt database</span>
           </label>
         </div>
@@ -5311,6 +5210,355 @@ function SecuritySettings() {
           className="px-6 py-3 text-sm font-semibold text-ink-inverse bg-brand rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? t('gss_saving') : t('gss_save_changes')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Maintenance Mode Settings
+function MaintenanceSettings() {
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    message: 'System is under maintenance',
+    schedule: {
+      enabled: false,
+      startAt: '',
+      endAt: '',
+      message: 'System is under maintenance'
+    }
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const toMalaysiaDateTime = (value) => {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+
+    const formatted = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    }).format(date)
+
+    return formatted.replace(' ', 'T')
+  }
+
+  const fromMalaysiaDateTime = (value) => {
+    if (!value) return null
+    const date = new Date(`${value}:00+08:00`)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+
+  const handleScheduleToggle = (enabled) => {
+    setMaintenance((prev) => {
+      if (!enabled) {
+        return {
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            enabled: false,
+            startAt: '',
+            endAt: ''
+          }
+        }
+      }
+
+      const now = Date.now()
+      return {
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          enabled: true,
+          startAt: toMalaysiaDateTime(new Date(now).toISOString()),
+          endAt: toMalaysiaDateTime(new Date(now + 60 * 60 * 1000).toISOString())
+        }
+      }
+    })
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchMaintenanceSettings = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/system/config/maintenance-settings', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.message || 'Failed to load maintenance settings')
+        }
+
+        const body = await response.json()
+        const data = body?.data?.settings || body?.settings || body
+        const schedule = data?.schedule || {}
+
+        if (!cancelled) {
+          setMaintenance({
+            enabled: Boolean(data?.manualEnabled ?? data?.enabled),
+            message: data?.manualMessage || data?.message || 'System is under maintenance',
+            schedule: {
+              enabled: Boolean(schedule.enabled),
+              startAt: toMalaysiaDateTime(schedule.startAt),
+              endAt: toMalaysiaDateTime(schedule.endAt),
+              message: schedule.message || data?.message || 'System is under maintenance'
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load maintenance settings:', error)
+        if (!cancelled) {
+          alert(error.message || 'Failed to load maintenance settings')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetchMaintenanceSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!maintenance.schedule.enabled || !maintenance.schedule.endAt) return
+
+    let expiryHandled = false
+
+    const checkScheduleExpiry = () => {
+      const endTime = Date.parse(`${maintenance.schedule.endAt}:00+08:00`)
+      if (
+        !expiryHandled &&
+        Number.isFinite(endTime) &&
+        Date.now() >= endTime
+      ) {
+        expiryHandled = true
+
+        setMaintenance((prev) => ({
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            enabled: false,
+            startAt: '',
+            endAt: ''
+          }
+        }))
+
+        const token = localStorage.getItem('token')
+        fetch('/api/system/config/maintenance-settings', {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch((error) => {
+          console.error('Failed to persist expired maintenance schedule:', error)
+        })
+      }
+    }
+
+    checkScheduleExpiry()
+    const timer = setInterval(checkScheduleExpiry, 5000)
+    return () => clearInterval(timer)
+  }, [maintenance.schedule.enabled, maintenance.schedule.endAt])
+
+  const handleSave = async () => {
+    const schedule = maintenance.schedule
+    let startAt = null
+    let endAt = null
+
+    if (schedule.enabled) {
+      if (!schedule.startAt || !schedule.endAt) {
+        alert('Please select both scheduled start and end date/time.')
+        return
+      }
+
+      startAt = fromMalaysiaDateTime(schedule.startAt)
+      endAt = fromMalaysiaDateTime(schedule.endAt)
+
+      if (!startAt || !endAt || new Date(endAt) <= new Date(startAt)) {
+        alert('Scheduled end date/time must be later than the start date/time.')
+        return
+      }
+    }
+
+    setSaving(true)
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/system/config/maintenance-settings', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          manualEnabled: Boolean(maintenance.enabled),
+          message: maintenance.message,
+          schedule: {
+            enabled: Boolean(schedule.enabled),
+            startAt,
+            endAt,
+            message: schedule.message
+          }
+        })
+      })
+
+      if (response.ok) {
+        alert('Maintenance settings saved successfully!')
+      } else {
+        const error = await response.json().catch(() => null)
+        alert(`Failed to save maintenance settings: ${error?.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Failed to save maintenance settings:', error)
+      alert('Failed to save maintenance settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-ink-muted">Loading maintenance settings...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-ink">Maintenance Mode</h3>
+        <p className="text-sm text-ink-secondary mt-1">
+          Control manual maintenance access or schedule maintenance automatically.
+        </p>
+      </div>
+
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">Manual Maintenance</h4>
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={maintenance.enabled}
+              onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
+              className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-ink">
+              Enable maintenance mode immediately
+            </span>
+          </label>
+
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Maintenance Message
+            </label>
+            <textarea
+              value={maintenance.message}
+              onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
+              rows={3}
+              disabled={!maintenance.enabled}
+              className="w-full resize-y rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <div className="mb-5">
+          <h4 className="font-semibold text-ink">Scheduled Maintenance</h4>
+          <p className="text-sm text-ink-secondary mt-1">
+            Automatically enable maintenance mode during the selected period.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={maintenance.schedule.enabled}
+              onChange={(e) => handleScheduleToggle(e.target.checked)}
+              className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-ink">
+              Enable scheduled maintenance
+            </span>
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">
+                Start Date &amp; Time (Malaysia Time)
+              </label>
+              <input
+                type="datetime-local"
+                value={maintenance.schedule.startAt}
+                disabled={!maintenance.schedule.enabled}
+                onChange={(e) => setMaintenance((prev) => ({
+                  ...prev,
+                  schedule: { ...prev.schedule, startAt: e.target.value }
+                }))}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">
+                End Date &amp; Time (Malaysia Time)
+              </label>
+              <input
+                type="datetime-local"
+                value={maintenance.schedule.endAt}
+                disabled={!maintenance.schedule.enabled}
+                min={maintenance.schedule.startAt || undefined}
+                onChange={(e) => setMaintenance((prev) => ({
+                  ...prev,
+                  schedule: { ...prev.schedule, endAt: e.target.value }
+                }))}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Scheduled Maintenance Message
+            </label>
+            <textarea
+              value={maintenance.schedule.message}
+              disabled={!maintenance.schedule.enabled}
+              onChange={(e) => setMaintenance((prev) => ({
+                ...prev,
+                schedule: { ...prev.schedule, message: e.target.value }
+              }))}
+              rows={3}
+              className="w-full resize-y rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <p className="text-xs text-ink-secondary">
+            Time zone: Asia/Kuala_Lumpur (UTC+08:00). Maintenance starts automatically
+            at the start time and ends automatically at the end time. Manual maintenance
+            remains active independently of this schedule.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-3 text-sm font-semibold text-ink-inverse bg-brand rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>
@@ -5436,6 +5684,7 @@ export default function GeneralSystemSettings() {
         {activeTab === 'document' && <DocumentSettings />}
         {activeTab === 'notification' && <NotificationSettings />}
         {activeTab === 'security' && <SecuritySettings />}
+        {activeTab === 'maintenance' && isSystemAdmin() && <MaintenanceSettings />}
       </div>
     </div>
   )

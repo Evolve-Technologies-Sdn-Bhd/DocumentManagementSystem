@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
+import ProjectCategoryModal from './ProjectCategoryModal'
+import DocumentTypeModal from './DocumentTypeModal'
 import ActionMenu from './ActionMenu'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import Pagination from './Pagination'
@@ -61,221 +63,6 @@ function flattenFolderTree(nodes, depth = 0, parentPath = '') {
       ...flattenFolderTree(node.children || [], depth + 1, label)
     ]
   })
-}
-
-// Add/Edit Modal for Document Type
-function DocumentTypeModal({ isOpen, onClose, onSubmit, initialData }) {
-  const { t } = usePreferences()
-  const [formData, setFormData] = useState({
-    name: '',
-    prefix: '',
-    description: '',
-    requiresExpiryTracking: false,
-    allowRenewal: true
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        prefix: initialData.prefix || '',
-        description: initialData.description || '',
-        requiresExpiryTracking: Boolean(initialData.requiresExpiryTracking),
-        allowRenewal: initialData.allowRenewal !== undefined ? Boolean(initialData.allowRenewal) : true
-      })
-    } else {
-      setFormData({
-        name: '',
-        prefix: '',
-        description: '',
-        requiresExpiryTracking: false,
-        allowRenewal: true
-      })
-    }
-  }, [initialData, isOpen])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <Modal onClose={onClose} closeOnBackdrop size="sm">
-      <ModalHeader title={initialData ? t('mdm_edit_doc_type') : t('mdm_add_doc_type')} onClose={onClose} />
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <ModalBody>
-          <div className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Minutes of Meeting"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_prefix')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.prefix}
-                onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                placeholder="e.g., MoM"
-              />
-              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_prefix_help')}</p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
-              <TextArea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                placeholder={t('mdm_optional_desc')}
-              />
-            </div>
-
-            <AppSurface variant="panel" padding="md" className="space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold text-ink">Expiry Tracking</h4>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Control whether documents of this type are enrolled into the expiry tracking module by default.
-                </p>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={formData.requiresExpiryTracking}
-                  onChange={(e) => setFormData({ ...formData, requiresExpiryTracking: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-ink">Require Expiry Tracking</span>
-                  <span className="mt-1 block text-xs text-ink-soft">
-                    Published documents of this type will prompt for expiry information in the publish flow.
-                  </span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={formData.allowRenewal}
-                  onChange={(e) => setFormData({ ...formData, allowRenewal: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-ink">Allow Renewal</span>
-                  <span className="mt-1 block text-xs text-ink-soft">
-                    Lets tracked documents of this type use the renewal flow to create a new document version.
-                  </span>
-                </div>
-              </label>
-            </AppSurface>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
-          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
-        </ModalFooter>
-      </form>
-    </Modal>
-  )
-}
-
-// Add/Edit Modal for Project Category
-function ProjectCategoryModal({ isOpen, onClose, onSubmit, initialData }) {
-  const { t } = usePreferences()
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    description: ''
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        code: initialData.code || '',
-        description: initialData.description || ''
-      })
-    } else {
-      setFormData({
-        name: '',
-        code: '',
-        description: ''
-      })
-    }
-  }, [initialData, isOpen])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <Modal onClose={onClose} closeOnBackdrop size="sm">
-      <ModalHeader title={initialData ? t('mdm_edit_project_cat') : t('mdm_add_project_cat')} onClose={onClose} />
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <ModalBody>
-          <div className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Internal Project"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_code')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                placeholder="e.g., INT"
-              />
-              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_code_project_help')}</p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
-              <TextArea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                placeholder={t('mdm_optional_desc')}
-              />
-            </div>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
-          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
-        </ModalFooter>
-      </form>
-    </Modal>
-  )
 }
 
 // Add/Edit Modal for Department
@@ -537,14 +324,12 @@ function DivisionAssignmentModal({
                       key={item.id}
                       className="flex items-start gap-3 px-4 py-3.5 cursor-pointer hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors rounded-xl"
                     >
-                      <span className="mt-0 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-brand/30 focus-within:border-brand-primary">
-                        <input
+                      <input
                           type="checkbox"
                           checked={localSelected.includes(item.id)}
                           onChange={() => toggleItem(item.id)}
                           className="h-5 w-5 rounded accent-brand-primary text-brand focus:ring-0 border-0 cursor-pointer"
                         />
-                      </span>
                       <div className="min-w-0 flex-1 pt-1">
                         <div className="text-sm font-semibold text-ink truncate">{item.label}</div>
                         {item.secondary && (
@@ -1670,14 +1455,12 @@ function DivisionsManagement() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           <label className="inline-flex items-center gap-2 text-sm text-ink-secondary font-medium">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-              <input
+            <input
                 type="checkbox"
                 checked={showInactive}
                 onChange={(e) => setShowInactive(e.target.checked)}
                 className="h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
               />
-            </span>
             {t('show_inactive')}
           </label>
         </div>

@@ -2,7 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const configService = require('../services/configService');
 const expiryTrackingService = require('../services/expiryTrackingService');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, ForbiddenError } = require('../utils/errors');
 const prisma = require('../config/database');
 const { updateFileUploadSettingsCache } = require('../middleware/upload');
 
@@ -25,7 +25,7 @@ exports.getDocumentTypes = asyncHandler(async (req, res) => {
 /**
  * @desc    Create new document type
  * @route   POST /api/config/document-types
- * @access  Private (Admin only)
+ * @access  Private (configuration.masterData.create)
  */
 exports.createDocumentType = asyncHandler(async (req, res) => {
   const { name, prefix, description, requiresExpiryTracking, allowRenewal, renewalUrl, defaultRenewalChecklist } = req.body;

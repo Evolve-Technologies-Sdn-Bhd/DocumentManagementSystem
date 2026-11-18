@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 
 export default function AddUserModal({ onClose, onSubmit, initialData, availableRoles }) {
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
   const [divisions, setDivisions] = useState([])
   const [selectedDivisions, setSelectedDivisions] = useState([])
   const [loadingDivisions, setLoadingDivisions] = useState(false)
+  const [errors, setErrors] = useState({})
 
   const defaultRoles = [
     { id: 1, numericId: 1, name: 'Admin', roleName: 'admin', description: 'Full system access' },
@@ -77,6 +79,7 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+    setErrors(prev => ({ ...prev, [name]: '' }))
   }
 
   const handleRoleToggle = (roleId) => {
@@ -86,53 +89,53 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
         : [...prev, roleId]
       return newRoles
     })
+    setErrors(prev => ({ ...prev, roles: '' }))
   }
 
   const handleSubmit = () => {
-    if (!formData.userName || !formData.email) {
-      alert('Please enter user name and email')
-      return
+    const nextErrors = {}
+    const normalizedName = formData.userName.trim()
+    const normalizedEmail = formData.email.trim()
+
+    if (!normalizedName) {
+      nextErrors.userName = 'Please enter the user name.'
+    }
+
+    if (!normalizedEmail) {
+      nextErrors.email = 'Please enter an email address.'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      nextErrors.email = 'Please enter a valid email address.'
     }
 
     if (selectedRoles.length === 0) {
-      alert('Please assign at least one role to the user')
-      return
+      nextErrors.roles = 'Please select at least one role.'
     }
 
     if (!initialData && selectedDivisions.length === 0) {
-      alert('Please assign at least one division to the user')
-      return
+      nextErrors.divisions = 'Please assign at least one division.'
     }
 
-    const userData = {
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    onSubmit({
       ...formData,
+      userName: normalizedName,
+      email: normalizedEmail,
       roles: selectedRoles,
       divisionIds: initialData ? undefined : selectedDivisions
-    }
-    
-    onSubmit(userData)
+    })
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
-      <div className="bg-[var(--dms-color-bg-surface)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border-2 border-[var(--dms-color-border-default)]">
-        <div className="px-6 py-4 border-b-2 border-[var(--dms-color-border-default)] flex-shrink-0 bg-[var(--dms-color-bg-surface)]">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-ink">
-              {initialData ? 'Edit User' : 'Add New User'}
-            </h3>
-            <button onClick={onClose} className="text-ink-muted hover:text-ink-secondary transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <p className="text-sm text-ink-secondary mt-2">
-            Create user account and assign roles
-          </p>
-        </div>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title={initialData ? 'Edit User' : 'Add New User'}
+          subtitle="Set up account details, access roles and division scope"
+          onClose={onClose}
+        />
 
-        <div className="px-6 py-4 space-y-6 flex-1 min-h-0 overflow-y-auto">
+        <ModalBody className="space-y-6">
           <div className="space-y-4">
             <h4 className="font-semibold text-ink">Basic Information</h4>
             
@@ -147,8 +150,12 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   value={formData.userName}
                   onChange={handleInputChange}
                   placeholder="Enter full name"
+                  aria-invalid={Boolean(errors.userName)}
                   className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
+                {errors.userName && (
+                  <p className="mt-1.5 text-xs text-[var(--dms-color-danger-ink)]">{errors.userName}</p>
+                )}
               </div>
 
               <div>
@@ -160,42 +167,36 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="user@company.com"
+                  placeholder="name@company.com"
+                  aria-invalid={Boolean(errors.email)}
                   className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
+                {errors.email && (
+                  <p className="mt-1.5 text-xs text-[var(--dms-color-danger-ink)]">{errors.email}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-ink mb-2">
                   Department
                 </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleInputChange}
-                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
-                >
-                  <option value="">Select department</option>
-                  {departments.map((dept) => (
-                    <option key={`dept-${dept.id}`} value={dept.name}>{dept.name}</option>
-                  ))}
-                </select>
+                <SearchableSingleSelect
+                  value={formData.department || ''}
+                  options={[
+                    { value: '', label: 'Select department' },
+                    ...departments.map((dept) => ({
+                      value: dept.name,
+                      label: dept.name,
+                      searchText: dept.name || ''
+                    }))
+                  ]}
+                  onChange={(value) => setFormData(prev => ({ ...prev, department: value }))}
+                  placeholder="Select department"
+                  searchPlaceholder="Search departments..."
+                  zIndex={180}
+                />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-ink mb-2">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -205,20 +206,18 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
               <p className="text-sm text-ink-secondary mt-1">Select one or more roles for this user</p>
             </div>
 
-            <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-4 bg-[var(--dms-color-bg-surface-muted)] space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {roles.map((role) => (
                 <label 
                   key={`role-${role.id}`} 
-                  className="flex items-start gap-3 cursor-pointer hover:bg-[var(--dms-color-bg-surface)] p-2 rounded-lg transition-colors"
+                  className="flex items-start gap-3 cursor-pointer py-2"
                 >
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)] mt-1">
-                    <input
+                  <input
                       type="checkbox"
                       checked={selectedRoles.includes(role.id)}
                       onChange={() => handleRoleToggle(role.id)}
                       className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer border-0 focus:ring-0"
                     />
-                  </span>
                   <div className="flex-1">
                     <div className="font-medium text-ink">{role.name}</div>
                     {role.description && (
@@ -229,6 +228,8 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
               ))}
             </div>
             
+            {errors.roles && <p className="text-xs text-[var(--dms-color-danger-ink)]">{errors.roles}</p>}
+
             {selectedRoles.length > 0 && (
               <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
                 <div className="flex items-start gap-2">
@@ -252,17 +253,16 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                 </p>
               </div>
 
-              <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-4 bg-[var(--dms-color-bg-surface-muted)] space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {loadingDivisions ? (
                   <div className="text-sm text-ink-secondary">Loading divisions...</div>
                 ) : divisions.length > 0 ? (
                   divisions.map((division) => (
                     <label
                       key={`division-${division.id}`}
-                      className="flex items-start gap-3 cursor-pointer hover:bg-[var(--dms-color-bg-surface)] p-2 rounded-lg transition-colors"
+                      className="flex items-start gap-3 cursor-pointer py-2"
                     >
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/30 focus-within:border-[var(--dms-color-brand-primary)] mt-1">
-                        <input
+                      <input
                           type="checkbox"
                           checked={selectedDivisions.includes(division.id)}
                           onChange={() => {
@@ -270,10 +270,10 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                               if (prev.includes(division.id)) return prev.filter((id) => id !== division.id)
                               return [...prev, division.id]
                             })
+                            setErrors(prev => ({ ...prev, divisions: '' }))
                           }}
                           className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer border-0 focus:ring-0"
                         />
-                      </span>
                       <div className="flex-1">
                         <div className="font-medium text-ink">{division.name}</div>
                         <div className="text-sm text-ink-secondary">{division.code}</div>
@@ -284,6 +284,8 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   <div className="text-sm text-ink-secondary">No divisions available</div>
                 )}
               </div>
+
+              {errors.divisions && <p className="text-xs text-[var(--dms-color-danger-ink)]">{errors.divisions}</p>}
 
               {selectedDivisions.length > 0 ? (
                 <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
@@ -307,14 +309,14 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <p className="text-sm text-[var(--dms-color-warning-ink)]">
-                  A temporary password will be generated and sent to the user's email address.
+                  A default password is assigned by the system. Share the login instructions securely with the user.
                 </p>
               </div>
             </div>
           )}
-        </div>
+        </ModalBody>
 
-        <div className="px-6 py-4 bg-[var(--dms-color-bg-surface-muted)] border-t-2 border-[var(--dms-color-border-default)] flex justify-end gap-3 flex-shrink-0">
+        <ModalFooter>
           <button
             onClick={onClose}
             className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-border-strong)] hover:text-ink text-sm"
@@ -327,11 +329,10 @@ export default function AddUserModal({ onClose, onSubmit, initialData, available
           >
             {initialData ? 'Update User' : 'Create User'}
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+
+  return modal
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../api/axios'
 import BulkImportModal from './BulkImportModal'
@@ -19,6 +19,7 @@ import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import SelectField from './ui/SelectField'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import InlineSpinner from './ui/InlineSpinner'
 import FolderTreePicker from './ui/FolderTreePicker'
 import ColumnSettingsButton from './ui/ColumnSettingsButton'
@@ -43,6 +44,7 @@ export default function PublishedDocuments() {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedFolder, setSelectedFolder] = useState(null)
+  const [folderSidebarSearch, setFolderSidebarSearch] = useState('')
   const [expandedFolders, setExpandedFolders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -74,6 +76,19 @@ export default function PublishedDocuments() {
   const [inheritPermissions, setInheritPermissions] = useState(true)
   const [accessEntries, setAccessEntries] = useState([])
   const [subjects, setSubjects] = useState({ users: [], roles: [] })
+
+  const subjectOptions = useMemo(() => [
+    ...(subjects.users || []).map((u) => ({
+      value: `USER:${u.id}`,
+      label: u.email || `User ${u.id}`,
+      searchText: u.email || ''
+    })),
+    ...(subjects.roles || []).map((ro) => ({
+      value: `ROLE:${ro.id}`,
+      label: ro.displayName || ro.name || `Role ${ro.id}`,
+      searchText: `${ro.displayName || ''} ${ro.name || ''}`
+    }))
+  ], [subjects.users, subjects.roles])
   const [showShareDocument, setShowShareDocument] = useState(null)
   const [expiryDocument, setExpiryDocument] = useState(null)
   const [showExpiryModal, setShowExpiryModal] = useState(false)
@@ -103,6 +118,10 @@ export default function PublishedDocuments() {
   const [moveError, setMoveError] = useState('')
   const [dragMovePayload, setDragMovePayload] = useState(null)
   const [dragTargetFolderId, setDragTargetFolderId] = useState(null)
+  const [dragExpandedFolders, setDragExpandedFolders] = useState([])
+  const dragHoverTimerRef = useRef(null)
+  const dragHoverFolderIdRef = useRef(null)
+  const sidebarScrollRef = useRef(null)
   const [dragColIndex, setDragColIndex] = useState(null)
   const [dragOverColIndex, setDragOverColIndex] = useState(null)
 
@@ -360,6 +379,34 @@ export default function PublishedDocuments() {
     
     return findChildren(folders) || []
   }
+
+  // Filter folders displayed in the sidebar at the current level only
+  const visibleSidebarFolders = useMemo(() => {
+    // During drag-and-drop, expose the complete folder hierarchy
+    // so users can drop items outside the currently selected folder.
+    const currentFolders = dragMovePayload
+      ? (folders || [])
+      : getChildFolders(selectedFolder)
+
+    const query = String(folderSidebarSearch || '').trim().toLowerCase()
+
+    if (!query) return currentFolders
+
+    const filterTree = (folderList) => (
+      (folderList || []).reduce((result, folder) => {
+        const children = filterTree(folder.children || [])
+        const matches = String(folder.name || '').toLowerCase().includes(query)
+
+        if (matches || children.length > 0) {
+          result.push({ ...folder, children })
+        }
+
+        return result
+      }, [])
+    )
+
+    return filterTree(currentFolders)
+  }, [folders, selectedFolder, folderSidebarSearch, dragMovePayload])
 
   const findFolderNode = (folderList, folderId) => {
     const fid = toFolderId(folderId)
@@ -850,9 +897,19 @@ export default function PublishedDocuments() {
     setSelectedItems({ folders: [], documents: [] })
   }
 
+  const clearDragHoverTimer = () => {
+    if (dragHoverTimerRef.current !== null) {
+      window.clearTimeout(dragHoverTimerRef.current)
+      dragHoverTimerRef.current = null
+    }
+    dragHoverFolderIdRef.current = null
+  }
+
   const clearDragMoveState = () => {
+    clearDragHoverTimer()
     setDragMovePayload(null)
     setDragTargetFolderId(null)
+    setDragExpandedFolders([])
   }
 
   const toggleSelectedItem = (item, checked) => {
@@ -1077,6 +1134,8 @@ export default function PublishedDocuments() {
       return
     }
 
+    clearDragHoverTimer()
+    setDragExpandedFolders([])
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', item.isFolder ? `folder:${item.folderId}` : `document:${item.id}`)
     setDragMovePayload(payload)
@@ -1087,11 +1146,76 @@ export default function PublishedDocuments() {
     clearDragMoveState()
   }
 
+  // Automatically scroll the folder sidebar while dragging near its edges.
+  const handleSidebarDragAutoScroll = (event) => {
+    if (!dragMovePayload) return
+
+    const sidebar = sidebarScrollRef.current
+    if (!sidebar) return
+
+    const rect = sidebar.getBoundingClientRect()
+    const edgeSize = 72
+    const maxSpeed = 22
+
+    if (event.clientY < rect.top + edgeSize) {
+      const distance = rect.top + edgeSize - event.clientY
+      const speed = Math.min(maxSpeed, Math.max(6, Math.ceil(distance / 3)))
+      sidebar.scrollTop -= speed
+    } else if (event.clientY > rect.bottom - edgeSize) {
+      const distance = event.clientY - (rect.bottom - edgeSize)
+      const speed = Math.min(maxSpeed, Math.max(6, Math.ceil(distance / 3)))
+      sidebar.scrollTop += speed
+    }
+  }
+
   const handleFolderDragOver = (event, folder) => {
     if (!canDropPayloadIntoFolder(dragMovePayload, folder)) return
+
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
-    setDragTargetFolderId(toFolderId(folder.id))
+
+    const folderId = toFolderId(folder.id)
+    setDragTargetFolderId(folderId)
+
+    const hasLoadedChildren = Array.isArray(folder.children) && folder.children.length > 0
+    const alreadyExpanded = dragExpandedFolders.includes(folderId)
+
+    if (!hasLoadedChildren || alreadyExpanded) {
+      if (dragHoverFolderIdRef.current === folderId) {
+        clearDragHoverTimer()
+      }
+      return
+    }
+
+    // Start only one timer per hovered folder. Repeated dragOver events
+    // must not continually restart the timer.
+    if (dragHoverFolderIdRef.current !== folderId) {
+      clearDragHoverTimer()
+      dragHoverFolderIdRef.current = folderId
+
+      dragHoverTimerRef.current = window.setTimeout(() => {
+        setDragExpandedFolders((previous) => (
+          previous.includes(folderId)
+            ? previous
+            : [...previous, folderId]
+        ))
+
+        dragHoverTimerRef.current = null
+        dragHoverFolderIdRef.current = null
+      }, 800)
+    }
+  }
+
+  const handleFolderDragLeave = (folder) => {
+    const folderId = toFolderId(folder.id)
+
+    if (dragHoverFolderIdRef.current === folderId) {
+      clearDragHoverTimer()
+    }
+
+    setDragTargetFolderId((current) => (
+      current === folderId ? null : current
+    ))
   }
 
   const handleFolderDrop = (event, folder) => {
@@ -1221,10 +1345,10 @@ export default function PublishedDocuments() {
   // Recursive component for rendering folder tree
   const FolderTreeItem = ({ folder, level = 0 }) => {
     const hasChildren = Boolean((folder.children && folder.children.length > 0) || (Number(folder.childrenCount) > 0))
-    const isExpanded = expandedFolders.includes(folder.id)
     const isSelected = selectedFolder === folder.id
     const isDropAllowed = canDropPayloadIntoFolder(dragMovePayload, folder)
     const isDragTarget = dragTargetFolderId === toFolderId(folder.id) && isDropAllowed
+    const isExpanded = dragExpandedFolders.includes(toFolderId(folder.id))
     const [showContextMenu, setShowContextMenu] = useState(false)
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
 
@@ -1243,10 +1367,6 @@ export default function PublishedDocuments() {
       const id = toFolderId(folder.id)
       setSelectedFolder(id)
       setBreadcrumbs(buildBreadcrumbs(id))
-      // Expand this folder when clicked
-      if (hasChildren && !isExpanded) {
-        toggleFolder(id)
-      }
     }
 
     return (
@@ -1263,11 +1383,7 @@ export default function PublishedDocuments() {
           onContextMenu={handleContextMenu}
           onDragOver={(e) => handleFolderDragOver(e, folder)}
           onDrop={(e) => handleFolderDrop(e, folder)}
-          onDragLeave={() => {
-            if (dragTargetFolderId === toFolderId(folder.id)) {
-              setDragTargetFolderId(null)
-            }
-          }}
+          onDragLeave={() => handleFolderDragLeave(folder)}
           style={{ paddingLeft: `${12 + level * 20}px` }}
         >
           <span className="text-ink-muted">{level === 0 ? '📁' : '📂'}</span>
@@ -1279,45 +1395,18 @@ export default function PublishedDocuments() {
           )}
           <div className="flex items-center gap-1">
             {hasChildren && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  toggleFolder(folder.id)
-                }}
-                className="p-1 rounded hover:bg-surface-muted transition-colors"
-                aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+              <svg
+                className={`w-4 h-4 shrink-0 text-ink-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
               >
-                <svg
-                  className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             )}
           </div>
         </div>
-        {isExpanded && hasChildren && (
-          <div>
-            {(folder.children || []).length === 0 && folder.childrenCount > 0 ? (
-              <div
-                className="px-3 py-2 text-xs text-ink-muted"
-                style={{ paddingLeft: `${12 + (level + 1) * 20}px` }}
-              >
-                No accessible subfolders
-              </div>
-            ) : (
-              folder.children.map((child) => (
-                <FolderTreeItem key={child.id} folder={child} level={level + 1} />
-              ))
-            )}
-          </div>
-        )}
-
         {/* Right-click Context Menu */}
         {showContextMenu && contextMenuFolder === folder.id && (
           <>
@@ -1390,6 +1479,18 @@ export default function PublishedDocuments() {
               )}
             </div>
           </>
+        )}
+
+        {hasChildren && isExpanded && (
+          <div className="space-y-1">
+            {(folder.children || []).map((child) => (
+              <FolderTreeItem
+                key={child.id}
+                folder={child}
+                level={level + 1}
+              />
+            ))}
+          </div>
         )}
       </div>
     )
@@ -1621,7 +1722,6 @@ export default function PublishedDocuments() {
   } = pubTableFeatures
 
   const pubPaginatedData = pubSortedData
-  useEffect(() => { setCurrentPage(1) }, [pubSortedData.length])
 
   const pubColDragStart = (idx, e) => {
     const col = pubVisibleColumns[idx]
@@ -1772,29 +1872,20 @@ export default function PublishedDocuments() {
                   ) : accessEntries.map((r, idx) => (
                     <div key={`${r.subjectType}-${r.subjectId}-${idx}`} className="px-4 py-3 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
                       <div className="lg:col-span-4">
-                        <SelectField
+                        <SearchableSingleSelect
                           value={`${r.subjectType}:${r.subjectId || ''}`}
-                          onChange={(e) => {
-                            const [st, sid] = String(e.target.value).split(':')
+                          options={subjectOptions}
+                          onChange={(selectedValue, selectedOption) => {
+                            const [st, sid] = String(selectedValue).split(':')
                             const id = sid ? parseInt(sid, 10) : null
-                            const label = st === 'ROLE'
-                              ? (subjects.roles.find((x) => x.id === id)?.displayName || subjects.roles.find((x) => x.id === id)?.name || '')
-                              : (subjects.users.find((x) => x.id === id)?.email || '')
+                            const label = selectedOption?.label || ''
                             setAccessEntries((prev) => prev.map((x, i) => i === idx ? { ...x, subjectType: st, subjectId: id, label } : x))
                           }}
                           disabled={accessLoading}
-                        >
-                          <optgroup label="Users">
-                            {(subjects.users || []).map((u) => (
-                              <option key={`U-${u.id}`} value={`USER:${u.id}`}>{u.email}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Roles">
-                            {(subjects.roles || []).map((ro) => (
-                              <option key={`R-${ro.id}`} value={`ROLE:${ro.id}`}>{ro.displayName || ro.name}</option>
-                            ))}
-                          </optgroup>
-                        </SelectField>
+                          placeholder="Select user or role..."
+                          searchPlaceholder="Search users or roles..."
+                          zIndex={180}
+                        />
                       </div>
 
                       <div className="lg:col-span-7 flex flex-wrap gap-3 text-sm text-ink-secondary">
@@ -1844,7 +1935,12 @@ export default function PublishedDocuments() {
       )}
 
       {/* Left Sidebar - Folder Tree */}
-      <div className="w-72 lg:w-80 xl:w-96 xl:shrink-0 bg-surface border-r border-border overflow-y-auto" data-tour-id="pub-folder-tree">
+      <div
+        ref={sidebarScrollRef}
+        onDragOver={handleSidebarDragAutoScroll}
+        className="w-72 lg:w-80 xl:w-96 xl:shrink-0 bg-surface border-r border-border overflow-y-auto"
+        data-tour-id="pub-folder-tree"
+      >
         <div className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-ink-secondary">{t('pub_folders')}</h3>
@@ -1854,24 +1950,120 @@ export default function PublishedDocuments() {
                 const list = await loadFolders()
                 if (selectedFolder) setBreadcrumbs(buildBreadcrumbsFrom(list || [], selectedFolder))
               }}
-              className="p-2.5 rounded-2xl hover:bg-surface-muted text-ink-secondary hover:text-ink transition-colors ring-1 ring-border"
+              className="inline-flex shrink-0 items-center justify-center p-2.5 rounded-2xl hover:bg-surface-muted text-ink-secondary hover:text-ink transition-colors ring-1 ring-border"
               aria-label={t('refresh')}
               title={t('refresh')}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006.34 5.34L4 10m16 4l-2.34 4.66A8 8 0 0017.66 18.66L20 14" />
+              <svg
+                className="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"
+                />
               </svg>
             </button>
           </div>
+
+          <div className="relative mb-3">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" strokeWidth="2" />
+              <path strokeLinecap="round" strokeWidth="2" d="m20 20-4-4" />
+            </svg>
+            <input
+              type="text"
+              value={folderSidebarSearch}
+              onChange={(e) => setFolderSidebarSearch(e.target.value)}
+              placeholder="Search folders..."
+              aria-label="Search folders"
+              autoComplete="off"
+              className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-9 text-sm text-ink placeholder:text-ink-muted outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+            {folderSidebarSearch && (
+              <button
+                type="button"
+                onClick={() => setFolderSidebarSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
+                aria-label="Clear folder search"
+                title="Clear search"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m6 6 12 12M18 6 6 18" />
+                </svg>
+              </button>
+            )}
+          </div>
+
           {canUpdatePublished && (
             <div className="mb-3 rounded-2xl bg-surface-muted px-3 py-2 text-xs text-ink-muted">
               Drag files or folders from the list and drop them onto a folder here to move them.
             </div>
           )}
+          {selectedFolder && (
+            <div className="mb-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const ancestors = getAncestorFolderIds(folders, selectedFolder)
+                  const parentId = ancestors.length
+                    ? ancestors[ancestors.length - 1]
+                    : null
+
+                  setSelectedFolder(parentId)
+                  setBreadcrumbs(buildBreadcrumbs(parentId))
+                  setCurrentPage(1)
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-secondary hover:bg-surface-muted transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFolder(null)
+                  setBreadcrumbs(buildBreadcrumbs(null))
+                  setCurrentPage(1)
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-brand hover:bg-surface-muted transition-colors"
+              >
+                <span>📁</span>
+                All Companies
+              </button>
+
+              <div className="border-b border-border pb-2 px-3 text-xs font-semibold text-ink-muted truncate">
+                {selectedFolderMeta?.name || 'Selected Folder'}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1">
-            {folders.map((folder) => (
+            {visibleSidebarFolders.map((folder) => (
               <FolderTreeItem key={folder.id} folder={folder} level={0} />
             ))}
+
+            {visibleSidebarFolders.length === 0 && (
+              <div className="px-3 py-3 text-xs text-ink-muted">
+                {folderSidebarSearch.trim()
+                  ? 'No matching folders found.'
+                  : 'No subfolders in this location.'}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -2265,29 +2457,20 @@ export default function PublishedDocuments() {
                       ) : createAccessEntries.map((r, idx) => (
                         <div key={`${r.subjectType}-${r.subjectId}-${idx}`} className="px-4 py-3 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
                           <div className="lg:col-span-4">
-                            <SelectField
+                            <SearchableSingleSelect
                               value={`${r.subjectType}:${r.subjectId || ''}`}
-                              onChange={(e) => {
-                                const [st, sid] = String(e.target.value).split(':')
+                              options={subjectOptions}
+                              onChange={(selectedValue, selectedOption) => {
+                                const [st, sid] = String(selectedValue).split(':')
                                 const id = sid ? parseInt(sid, 10) : null
-                                const label = st === 'ROLE'
-                                  ? (subjects.roles.find((x) => x.id === id)?.displayName || subjects.roles.find((x) => x.id === id)?.name || '')
-                                  : (subjects.users.find((x) => x.id === id)?.email || '')
+                                const label = selectedOption?.label || ''
                                 setCreateAccessEntries((prev) => prev.map((x, i) => i === idx ? { ...x, subjectType: st, subjectId: id, label } : x))
                               }}
                               disabled={createAccessLoading}
-                            >
-                              <optgroup label="Users">
-                                {(subjects.users || []).map((u) => (
-                                  <option key={`U-${u.id}`} value={`USER:${u.id}`}>{u.email}</option>
-                                ))}
-                              </optgroup>
-                              <optgroup label="Roles">
-                                {(subjects.roles || []).map((ro) => (
-                                  <option key={`R-${ro.id}`} value={`ROLE:${ro.id}`}>{ro.displayName || ro.name}</option>
-                                ))}
-                              </optgroup>
-                            </SelectField>
+                              placeholder="Select user or role..."
+                              searchPlaceholder="Search users or roles..."
+                              zIndex={180}
+                            />
                           </div>
 
                           <div className="lg:col-span-7 flex flex-wrap gap-3 text-sm text-ink-secondary">
@@ -2487,29 +2670,20 @@ export default function PublishedDocuments() {
                       ) : createAccessEntries.map((r, idx) => (
                         <div key={`${r.subjectType}-${r.subjectId}-${idx}`} className="px-4 py-3 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
                           <div className="lg:col-span-4">
-                            <SelectField
+                            <SearchableSingleSelect
                               value={`${r.subjectType}:${r.subjectId || ''}`}
-                              onChange={(e) => {
-                                const [st, sid] = String(e.target.value).split(':')
+                              options={subjectOptions}
+                              onChange={(selectedValue, selectedOption) => {
+                                const [st, sid] = String(selectedValue).split(':')
                                 const id = sid ? parseInt(sid, 10) : null
-                                const label = st === 'ROLE'
-                                  ? (subjects.roles.find((x) => x.id === id)?.displayName || subjects.roles.find((x) => x.id === id)?.name || '')
-                                  : (subjects.users.find((x) => x.id === id)?.email || '')
+                                const label = selectedOption?.label || ''
                                 setCreateAccessEntries((prev) => prev.map((x, i) => i === idx ? { ...x, subjectType: st, subjectId: id, label } : x))
                               }}
                               disabled={createAccessLoading}
-                            >
-                              <optgroup label="Users">
-                                {(subjects.users || []).map((u) => (
-                                  <option key={`U-${u.id}`} value={`USER:${u.id}`}>{u.email}</option>
-                                ))}
-                              </optgroup>
-                              <optgroup label="Roles">
-                                {(subjects.roles || []).map((ro) => (
-                                  <option key={`R-${ro.id}`} value={`ROLE:${ro.id}`}>{ro.displayName || ro.name}</option>
-                                ))}
-                              </optgroup>
-                            </SelectField>
+                              placeholder="Select user or role..."
+                              searchPlaceholder="Search users or roles..."
+                              zIndex={180}
+                            />
                           </div>
 
                           <div className="lg:col-span-7 flex flex-wrap gap-3 text-sm text-ink-secondary">

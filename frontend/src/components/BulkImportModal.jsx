@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import * as ReactDOM from 'react-dom'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import api from '../api/axios'
 import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
 import ConfirmModal from './ConfirmModal'
+import ProjectCategoryModal from './ProjectCategoryModal'
+import DocumentTypeModal from './DocumentTypeModal'
+import { usePermissions } from '../hooks/usePermissions'
 
 const REMINDER_LEVELS = [
   { key: 'reminder1', label: 'Reminder 1', daysField: 'reminder1Days' },
@@ -160,7 +164,7 @@ function buildFileCodeGuide(settings) {
   }
 }
 
-export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, selectedFolderId }) {
+export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, selectedFolderId, forceExpiryTracking = false }) {
   const normalizeFolderId = (value) => String(value ?? '').trim()
   const [folderId, setFolderId] = useState(selectedFolderId || '')
   const [currentStep, setCurrentStep] = useState(0)
@@ -178,7 +182,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     reminder4Days: 7
   })
   const [expiryInfo, setExpiryInfo] = useState({
-    trackingEnabled: false,
+    trackingEnabled: Boolean(forceExpiryTracking),
     useGlobalRule: true,
     startDate: getToday(),
     expiryDate: '',
@@ -207,12 +211,45 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const [documentTypes, setDocumentTypes] = useState([])
   const [numberingSettings, setNumberingSettings] = useState(null)
   const [projectCategories, setProjectCategories] = useState([])
+  const [categorySearch, setCategorySearch] = useState('')
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
+  const [categoryDropdownPosition, setCategoryDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 280
+  })
+  const [showProjectCategoryModal, setShowProjectCategoryModal] = useState(false)
+  const [projectCategoryCreateError, setProjectCategoryCreateError] = useState('')
+  const [creatingProjectCategory, setCreatingProjectCategory] = useState(false)
+
+  const [documentTypeSearch, setDocumentTypeSearch] = useState('')
+  const [documentTypeDropdownOpen, setDocumentTypeDropdownOpen] = useState(false)
+  const [activeDocumentTypeIndex, setActiveDocumentTypeIndex] = useState(-1)
+  const [documentTypeDropdownPosition, setDocumentTypeDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 280
+  })
+  const [showDocumentTypeModal, setShowDocumentTypeModal] = useState(false)
+  const [documentTypeTargetIndex, setDocumentTypeTargetIndex] = useState(-1)
+  const [documentTypeCreateError, setDocumentTypeCreateError] = useState('')
+  const [creatingDocumentType, setCreatingDocumentType] = useState(false)
+
   const [folderPickerConfirm, setFolderPickerConfirm] = useState({ show: false, onConfirm: null })
   const [reassignConfirm, setReassignConfirm] = useState({ show: false, conflicts: [], payload: null })
   const fileInputRef = useRef(null)
   const folderInputRef = useRef(null)
+  const categoryInputRef = useRef(null)
+  const categoryDropdownRef = useRef(null)
+  const documentTypeInputRef = useRef(null)
+  const documentTypeDropdownRef = useRef(null)
 
   const { t } = usePreferences()
+  const { hasPermission } = usePermissions()
+  const canCreateProjectCategory = hasPermission('configuration.masterData', 'create')
+  const canCreateDocumentType = hasPermission('configuration.documentTypes', 'create')
 
   const { validateFile, getAcceptString, getAllowedTypesDisplay, refreshSettings, bulkUploadLimit } = useFileUploadSettings()
 
@@ -227,6 +264,135 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   const someClientChecked = useMemo(() => fileItems.some((it) => Boolean(it.isClientDocument)), [fileItems])
   const fileCodeGuide = useMemo(() => buildFileCodeGuide(numberingSettings), [numberingSettings])
   const projectCategoryRequired = projectCategories.length > 0
+
+  const filteredProjectCategories = useMemo(() => {
+    const query = String(categorySearch || '').trim().toLowerCase()
+    if (!query) return projectCategories
+
+    return projectCategories.filter((category) => (
+      String(category.name || '').toLowerCase().includes(query) ||
+      String(category.code || '').toLowerCase().includes(query)
+    ))
+  }, [projectCategories, categorySearch])
+
+  const filteredDocumentTypes = useMemo(() => {
+    const query = String(documentTypeSearch || '').trim().toLowerCase()
+    if (!query) return documentTypes
+
+    return documentTypes.filter((type) => (
+      String(type.name || '').toLowerCase().includes(query) ||
+      String(type.prefix || '').toLowerCase().includes(query)
+    ))
+  }, [documentTypes, documentTypeSearch])
+
+  const updateDocumentTypeDropdownPosition = (element = documentTypeInputRef.current) => {
+    if (!element) return
+
+    const rect = element.getBoundingClientRect()
+    const viewportHeight = window.innerHeight
+    const gap = 4
+
+    const availableBelow = viewportHeight - rect.bottom - 12
+    const availableAbove = rect.top - 12
+    const openAbove = availableBelow < 180 && availableAbove > availableBelow
+
+    const maxHeight = Math.max(
+      120,
+      Math.min(280, openAbove ? availableAbove : availableBelow)
+    )
+
+    setDocumentTypeDropdownPosition({
+      top: openAbove ? Math.max(8, rect.top - maxHeight - gap) : rect.bottom + gap,
+      left: rect.left,
+      width: rect.width,
+      maxHeight
+    })
+  }
+
+  useEffect(() => {
+    if (!documentTypeDropdownOpen) return
+
+    updateDocumentTypeDropdownPosition()
+
+    const handleScrollOrResize = () => updateDocumentTypeDropdownPosition()
+
+    const handleOutsideClick = (event) => {
+      if (
+        documentTypeInputRef.current?.contains(event.target) ||
+        documentTypeDropdownRef.current?.contains(event.target)
+      ) {
+        return
+      }
+
+      setDocumentTypeDropdownOpen(false)
+      setDocumentTypeSearch('')
+    }
+
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+    document.addEventListener('pointerdown', handleOutsideClick)
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+      document.removeEventListener('pointerdown', handleOutsideClick)
+    }
+  }, [documentTypeDropdownOpen])
+
+  const updateCategoryDropdownPosition = () => {
+    const input = categoryInputRef.current
+    if (!input) return
+
+    const rect = input.getBoundingClientRect()
+    const viewportHeight = window.innerHeight
+    const gap = 4
+
+    const availableBelow = viewportHeight - rect.bottom - 12
+    const availableAbove = rect.top - 12
+    const openAbove = availableBelow < 180 && availableAbove > availableBelow
+
+    const maxHeight = Math.max(
+      120,
+      Math.min(280, openAbove ? availableAbove : availableBelow)
+    )
+
+    setCategoryDropdownPosition({
+      top: openAbove ? Math.max(8, rect.top - maxHeight - gap) : rect.bottom + gap,
+      left: rect.left,
+      width: rect.width,
+      maxHeight
+    })
+  }
+
+  useEffect(() => {
+    if (!categoryDropdownOpen) return
+
+    updateCategoryDropdownPosition()
+
+    const handleScrollOrResize = () => updateCategoryDropdownPosition()
+
+    const handleOutsideClick = (event) => {
+      if (
+        categoryInputRef.current?.contains(event.target) ||
+        categoryDropdownRef.current?.contains(event.target)
+      ) {
+        return
+      }
+
+      setCategoryDropdownOpen(false)
+    }
+
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+    document.addEventListener('pointerdown', handleOutsideClick)
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+      document.removeEventListener('pointerdown', handleOutsideClick)
+    }
+  }, [categoryDropdownOpen])
+
   const currentStepConfig = BULK_IMPORT_STEPS[currentStep] || BULK_IMPORT_STEPS[0]
   const metadataReadyCount = useMemo(
     () => fileItems.filter((it) => Boolean(it.documentTypeId) && (it.isClientDocument || String(it.fileCode || '').trim())).length,
@@ -369,6 +535,12 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
   useEffect(() => {
     if (!isOpen) return
     setProjectCategoryId('')
+    setCategorySearch('')
+    setCategoryDropdownOpen(false)
+    setShowProjectCategoryModal(false)
+    setProjectCategoryCreateError('')
+    setCreatingProjectCategory(false)
+
   }, [isOpen])
 
   useEffect(() => {
@@ -484,6 +656,160 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     }))
   }, [documentTypes, isOpen])
 
+  const handleCreateDocumentType = async (formData) => {
+    setCreatingDocumentType(true)
+    setDocumentTypeCreateError('')
+
+    try {
+      const payload = {
+        name: String(formData.name || '').trim(),
+        prefix: String(formData.prefix || '').trim(),
+        description: String(formData.description || '').trim(),
+        requiresExpiryTracking: Boolean(formData.requiresExpiryTracking),
+        allowRenewal: Boolean(formData.allowRenewal)
+      }
+
+      if (!payload.name || !payload.prefix) {
+        setDocumentTypeCreateError('Please enter a document type name and prefix.')
+        return
+      }
+
+      const prefixExists = documentTypes.some((type) => (
+        String(type.prefix || '').trim().toLowerCase() === payload.prefix.toLowerCase()
+      ))
+
+      if (prefixExists) {
+        setDocumentTypeCreateError('This document type prefix already exists. Please use a different prefix.')
+        return
+      }
+
+      const createResponse = await api.post(
+        '/system/config/document-types',
+        payload
+      )
+
+      const createdDocumentType = createResponse.data?.data?.documentType
+
+      const refreshResponse = await api.get('/system/config/document-types')
+      const refreshedTypes = refreshResponse.data?.data?.documentTypes || []
+
+      const typeExists = createdDocumentType &&
+        refreshedTypes.some((type) => (
+          String(type.id) === String(createdDocumentType.id)
+        ))
+
+      const nextTypes = createdDocumentType && !typeExists
+        ? [...refreshedTypes, createdDocumentType]
+        : refreshedTypes
+
+      setDocumentTypes(nextTypes)
+
+      if (createdDocumentType?.id && documentTypeTargetIndex >= 0) {
+        handleDocumentTypeChange(
+          documentTypeTargetIndex,
+          String(createdDocumentType.id)
+        )
+      }
+
+      setDocumentTypeSearch('')
+      setDocumentTypeDropdownOpen(false)
+      setShowDocumentTypeModal(false)
+      setDocumentTypeCreateError('')
+      setDocumentTypeTargetIndex(-1)
+    } catch (error) {
+      const status = error?.response?.status
+      const message = error?.response?.data?.message
+
+      if (status === 403) {
+        setDocumentTypeCreateError(
+          'You do not have permission to create document types. Please contact an administrator.'
+        )
+      } else if (status === 409) {
+        setDocumentTypeCreateError(
+          message || 'This document type name or prefix already exists.'
+        )
+      } else {
+        setDocumentTypeCreateError(
+          message || 'Unable to create document type. Please try again.'
+        )
+      }
+
+      throw error
+    } finally {
+      setCreatingDocumentType(false)
+    }
+  }
+
+  const handleCreateProjectCategory = async (formData) => {
+    setCreatingProjectCategory(true)
+    setProjectCategoryCreateError('')
+
+    try {
+      const payload = {
+        name: String(formData.name || '').trim(),
+        code: String(formData.code || '').trim().toUpperCase(),
+        description: String(formData.description || '').trim()
+      }
+
+      if (!payload.name || !payload.code) {
+        setProjectCategoryCreateError('Please enter a category name and code.')
+        return
+      }
+
+      const createResponse = await api.post(
+        '/system/config/project-categories',
+        payload
+      )
+
+      const createdCategory = createResponse.data?.data?.projectCategory
+
+      const refreshResponse = await api.get('/system/config/project-categories')
+      const refreshedCategories =
+        refreshResponse.data?.data?.projectCategories || []
+
+      const categoryExists = createdCategory &&
+        refreshedCategories.some((category) => (
+          String(category.id) === String(createdCategory.id)
+        ))
+
+      const nextCategories = createdCategory && !categoryExists
+        ? [...refreshedCategories, createdCategory]
+        : refreshedCategories
+
+      setProjectCategories(nextCategories)
+
+      if (createdCategory?.id) {
+        setProjectCategoryId(String(createdCategory.id))
+      }
+
+      setCategorySearch('')
+      setCategoryDropdownOpen(false)
+      setShowProjectCategoryModal(false)
+      setProjectCategoryCreateError('')
+    } catch (error) {
+      const status = error?.response?.status
+      const message = error?.response?.data?.message
+
+      if (status === 403) {
+        setProjectCategoryCreateError(
+          'You do not have permission to create project categories. Please contact an administrator.'
+        )
+      } else if (status === 409) {
+        setProjectCategoryCreateError(
+          message || 'This category name or code already exists. Please use a different value.'
+        )
+      } else {
+        setProjectCategoryCreateError(
+          message || 'Unable to create project category. Please try again.'
+        )
+      }
+
+      throw error
+    } finally {
+      setCreatingProjectCategory(false)
+    }
+  }
+
   const handleClose = () => {
     setIsDragging(false)
     setSubmitting(false)
@@ -491,7 +817,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
     setDescription('')
     setProjectCategoryId('')
     setExpiryInfo({
-      trackingEnabled: false,
+      trackingEnabled: Boolean(forceExpiryTracking),
       useGlobalRule: true,
       startDate: getToday(),
       expiryDate: '',
@@ -909,6 +1235,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         expiryOverrideEnabled: true,
         expiryOverride: {
           ...expiryEditor.draft,
+          trackingEnabled: forceExpiryTracking || Boolean(expiryEditor.draft.trackingEnabled),
           reminderRecipients: cloneReminderRecipients(expiryEditor.draft.reminderRecipients)
         }
       }
@@ -1170,13 +1497,13 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       setFormError(String(t('bulk_import_total_upload_limit_exceeded')).replace('{max}', String(totalUploadLimitMB)))
       return false
     }
-    if (expiryInfo.trackingEnabled && (!String(expiryInfo.startDate || '').trim() || !String(expiryInfo.expiryDate || '').trim())) {
+    if ((forceExpiryTracking || expiryInfo.trackingEnabled) && (!String(expiryInfo.startDate || '').trim() || !String(expiryInfo.expiryDate || '').trim())) {
       setFormError('Start date and expiry date are required when expiry tracking is enabled.')
       return false
     }
     for (let i = 0; i < fileItems.length; i++) {
       const item = fileItems[i]
-      if (item.expiryOverrideEnabled && item.expiryOverride?.trackingEnabled && (!String(item.expiryOverride?.startDate || '').trim() || !String(item.expiryOverride?.expiryDate || '').trim())) {
+      if (item.expiryOverrideEnabled && (forceExpiryTracking || item.expiryOverride?.trackingEnabled) && (!String(item.expiryOverride?.startDate || '').trim() || !String(item.expiryOverride?.expiryDate || '').trim())) {
         setFormError('Start date and expiry date are required when expiry tracking is enabled.')
         expandFilePanel(i)
         return false
@@ -1272,7 +1599,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
       const payload = {
         folderId,
         description,
-        expiryInfo: expiryInfo.trackingEnabled
+        expiryInfo: (forceExpiryTracking || expiryInfo.trackingEnabled)
           ? {
               trackingEnabled: true,
               startDate: expiryInfo.startDate,
@@ -1300,7 +1627,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
           relativePath: String(it.relativePath || '').trim(),
           expiryInfo: it.expiryOverrideEnabled
             ? {
-                trackingEnabled: Boolean(it.expiryOverride?.trackingEnabled),
+                trackingEnabled: forceExpiryTracking || Boolean(it.expiryOverride?.trackingEnabled),
                 startDate: it.expiryOverride?.startDate || '',
                 expiryDate: it.expiryOverride?.expiryDate || '',
                 remarks: it.expiryOverride?.remarks || '',
@@ -1332,14 +1659,14 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         return
       }
     } finally {
-      setSubmitting(false)
+        setSubmitting(false)
+      }
     }
-  }
 
-  if (!isOpen) return null
+    if (!isOpen) return null
 
-  const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
+    const modal = (
+    <Modal isOpen size="2xl" onClose={!submitting ? handleClose : undefined} closeOnBackdrop>
       <ConfirmModal
         show={folderPickerConfirm.show}
         title={t('bulk_import_folder_picker_title')}
@@ -1373,33 +1700,14 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
         }}
         onCancel={() => setReassignConfirm({ show: false, conflicts: [], payload: null })}
       />
-      <div
-        className="fixed inset-0 transition-opacity"
-        onClick={() => {
-          if (submitting) return
-          handleClose()
-        }}
-      />
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden" data-tour-id="bulk-import-modal">
+        <ModalHeader
+          title={t('bulk_import_title')}
+          subtitle={currentStepConfig.description}
+          onClose={!submitting ? handleClose : undefined}
+        />
 
-      <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200" data-tour-id="bulk-import-modal">
-        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{t('bulk_import_title')}</h2>
-              <p className="text-sm text-gray-600 mt-2">{currentStepConfig.description}</p>
-            </div>
-            <button
-              onClick={handleClose}
-              disabled={submitting}
-              className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
+          <ModalBody className="p-0">
           <div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
             {formError && (
               <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-800">
@@ -1516,27 +1824,130 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
             {currentStep === 1 ? (
               <div className="max-w-xl">
-                <label className="block text-sm font-medium text-gray-900 mb-2">{t('bulk_import_project_category_label')}</label>
-                <select
-                  value={projectCategoryId || ''}
-                  onChange={(e) => setProjectCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
-                  disabled={!projectCategoryRequired}
-                >
-                  <option value="">
-                    {projectCategoryRequired ? t('bulk_import_select_project_category') : t('bulk_import_no_project_categories')}
-                  </option>
-                  {projectCategories.map((pc) => (
-                    <option key={pc.id} value={pc.id}>
-                      {pc.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-xs text-gray-700">
-                  {projectCategoryRequired
-                    ? 'This project category will be applied to all imported files.'
-                    : 'There are no project categories to select, so you can continue.'}
-                </p>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  {t('bulk_import_project_category_label')}
+                </label>
+
+                <div className="relative">
+                  <input
+                    ref={categoryInputRef}
+                    type="text"
+                    value={categorySearch}
+                    onChange={(e) => {
+                      setCategorySearch(e.target.value)
+                      updateCategoryDropdownPosition()
+                      setCategoryDropdownOpen(true)
+                    }}
+                    onFocus={() => {
+                      updateCategoryDropdownPosition()
+                      setCategoryDropdownOpen(true)
+                    }}
+                    placeholder="Search category by name or code..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                    autoComplete="off"
+                  />
+
+                  {categoryDropdownOpen && typeof document !== 'undefined'
+                    ? ReactDOM.createPortal(
+                        <div
+                          ref={categoryDropdownRef}
+                          className="rounded-lg border border-gray-200 bg-white shadow-xl"
+                          style={{
+                            position: 'fixed',
+                            top: categoryDropdownPosition.top,
+                            left: categoryDropdownPosition.left,
+                            width: categoryDropdownPosition.width,
+                            maxHeight: categoryDropdownPosition.maxHeight,
+                            zIndex: 9999,
+                            display: 'flex',
+                            flexDirection: 'column'
+                          }}
+                        >
+                          <div className="min-h-0 flex-1 overflow-y-auto">
+                            {filteredProjectCategories.length > 0 ? (
+                              filteredProjectCategories.map((pc) => {
+                                const selected = String(projectCategoryId) === String(pc.id)
+
+                                return (
+                                  <button
+                                    key={pc.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setProjectCategoryId(String(pc.id))
+                                      setCategorySearch('')
+                                      setCategoryDropdownOpen(false)
+                                    }}
+                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-blue-50 ${
+                                      selected ? 'bg-blue-50 text-blue-700' : 'text-gray-800'
+                                    }`}
+                                  >
+                                    <span className="min-w-0 truncate">{pc.name}</span>
+                                    <span className="shrink-0 text-xs text-gray-500">
+                                      {pc.code || ''}
+                                    </span>
+                                  </button>
+                                )
+                              })
+                            ) : (
+                              <div className="px-3 py-4 text-sm text-gray-500">
+                                No matching project categories found.
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 border-t border-gray-200 bg-white p-2">
+                            {canCreateProjectCategory && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCategoryDropdownOpen(false)
+                                setProjectCategoryCreateError('')
+                                setShowProjectCategoryModal(true)
+                              }}
+                              className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                            >
+                              <span className="text-lg leading-none">+</span>
+                              Add Project Category
+                            </button>
+                            )}
+                          </div>
+                        </div>,
+                        document.body
+                      )
+                    : null}
+                </div>
+
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-gray-700">
+                    {projectCategoryRequired
+                      ? 'This project category will be applied to all imported files.'
+                      : 'There are no project categories yet. You can continue without selecting one.'}
+                  </p>
+
+                  {canCreateProjectCategory && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryDropdownOpen(false)
+                      setProjectCategoryCreateError('')
+                      setShowProjectCategoryModal(true)
+                    }}
+                    className="shrink-0 text-xs font-semibold text-blue-700 hover:text-blue-900"
+                  >
+                    + Add Category
+                  </button>
+                  )}
+                </div>
+
+                {projectCategoryId ? (
+                  <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                    Selected: {
+                      projectCategories.find(
+                        (pc) => String(pc.id) === String(projectCategoryId)
+                      )?.name || 'Selected category'
+                    }
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1745,19 +2156,120 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
 
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">{t('bulk_import_document_type_label')}</label>
-                                <select
-                                  value={it.documentTypeId || ''}
-                                  onChange={(e) => handleDocumentTypeChange(idx, e.target.value)}
-                                  disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
-                                >
-                                  <option value="">{t('bulk_import_select_document_type')}</option>
-                                  {documentTypes.map((dt) => (
-                                    <option key={dt.id} value={dt.id}>
-                                      {dt.name} ({dt.prefix})
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="relative">
+                                  <input
+                                    ref={(element) => {
+                                      if (activeDocumentTypeIndex === idx) {
+                                        documentTypeInputRef.current = element
+                                      }
+                                    }}
+                                    type="text"
+                                    value={
+                                      documentTypeDropdownOpen && activeDocumentTypeIndex === idx
+                                        ? documentTypeSearch
+                                        : typeLabel === t('bulk_import_not_selected')
+                                          ? ''
+                                          : typeLabel
+                                    }
+                                    onFocus={(e) => {
+                                      documentTypeInputRef.current = e.currentTarget
+                                      setActiveDocumentTypeIndex(idx)
+                                      setDocumentTypeSearch('')
+                                      updateDocumentTypeDropdownPosition(e.currentTarget)
+                                      setDocumentTypeDropdownOpen(true)
+                                    }}
+                                    onChange={(e) => {
+                                      documentTypeInputRef.current = e.currentTarget
+                                      setActiveDocumentTypeIndex(idx)
+                                      setDocumentTypeSearch(e.target.value)
+                                      updateDocumentTypeDropdownPosition(e.currentTarget)
+                                      setDocumentTypeDropdownOpen(true)
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') {
+                                        setDocumentTypeDropdownOpen(false)
+                                        setDocumentTypeSearch('')
+                                      }
+                                    }}
+                                    disabled={Boolean(it.isClientDocument) && Boolean(otherTypeId)}
+                                    placeholder="Search document type by name or prefix..."
+                                    autoComplete="off"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
+                                  />
+
+                                  {documentTypeDropdownOpen &&
+                                  activeDocumentTypeIndex === idx &&
+                                  typeof document !== 'undefined'
+                                    ? ReactDOM.createPortal(
+                                        <div
+                                          ref={documentTypeDropdownRef}
+                                          className="rounded-lg border border-gray-200 bg-white shadow-xl"
+                                          style={{
+                                            position: 'fixed',
+                                            top: documentTypeDropdownPosition.top,
+                                            left: documentTypeDropdownPosition.left,
+                                            width: documentTypeDropdownPosition.width,
+                                            maxHeight: documentTypeDropdownPosition.maxHeight,
+                                            zIndex: 10000,
+                                            display: 'flex',
+                                            flexDirection: 'column'
+                                          }}
+                                        >
+                                          <div className="min-h-0 flex-1 overflow-y-auto">
+                                            {filteredDocumentTypes.length > 0 ? (
+                                              filteredDocumentTypes.map((dt) => {
+                                                const selected = String(it.documentTypeId || '') === String(dt.id)
+
+                                                return (
+                                                  <button
+                                                    key={dt.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      handleDocumentTypeChange(idx, String(dt.id))
+                                                      setDocumentTypeSearch('')
+                                                      setDocumentTypeDropdownOpen(false)
+                                                    }}
+                                                    className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-blue-50 ${
+                                                      selected ? 'bg-blue-50 text-blue-700' : 'text-gray-800'
+                                                    }`}
+                                                  >
+                                                    <span className="min-w-0 truncate">{dt.name}</span>
+                                                    <span className="shrink-0 text-xs text-gray-500">
+                                                      {dt.prefix || ''}
+                                                    </span>
+                                                  </button>
+                                                )
+                                              })
+                                            ) : (
+                                              <div className="px-3 py-4 text-sm text-gray-500">
+                                                No matching document types found.
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          <div className="shrink-0 border-t border-gray-200 bg-white p-2">
+                                            {canCreateDocumentType && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setDocumentTypeTargetIndex(idx)
+                                                setDocumentTypeDropdownOpen(false)
+                                                setDocumentTypeSearch('')
+                                                setDocumentTypeCreateError('')
+                                                setShowDocumentTypeModal(true)
+                                              }}
+                                              className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                                            >
+                                              <span className="text-lg leading-none">+</span>
+                                              Add Document Type
+                                            </button>
+                                            )}
+                                          </div>
+                                        </div>,
+                                        document.body
+                                      )
+                                    : null}
+                                </div>
                               </div>
 
                               <div className="md:col-span-2">
@@ -1829,7 +2341,8 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                   <input
                     type="checkbox"
-                    checked={expiryInfo.trackingEnabled}
+                    checked={forceExpiryTracking || expiryInfo.trackingEnabled}
+                    disabled={forceExpiryTracking}
                     onChange={(e) => setExpiryInfo((prev) => ({
                       ...prev,
                       trackingEnabled: e.target.checked,
@@ -1848,7 +2361,7 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   />
                   Track Expiry (apply to all imported documents)
                 </label>
-                {expiryInfo.trackingEnabled ? (
+                {(forceExpiryTracking || expiryInfo.trackingEnabled) ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -2082,8 +2595,9 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
               </div>
             ) : null}
           </div>
+        </ModalBody>
 
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
+        <ModalFooter className="justify-end">
             <div className="text-xs text-gray-700 mr-auto">
               Step {currentStep + 1} of {BULK_IMPORT_STEPS.length}
             </div>
@@ -2123,33 +2637,19 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                 {submitting ? t('bulk_import_uploading') : t('bulk_import_upload')}
               </button>
             )}
-          </div>
+        </ModalFooter>
+      </div>
 
           {expiryEditor.open && expiryEditor.draft ? (
-            <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-              <div className="relative z-10 bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">Custom Expiry Tracking</h3>
-                      <p className="text-sm text-gray-600 mt-2">
-                        {fileItems[expiryEditor.itemIndex]?.file?.name || 'Selected file'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={closeExpiryEditor}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                      aria-label="Close custom expiry editor"
-                    >
-                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            <Modal isOpen size="lg" onClose={closeExpiryEditor}>
 
-                <div className="px-6 py-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
+                <ModalHeader
+                  title="Custom Expiry Tracking"
+                  subtitle={fileItems[expiryEditor.itemIndex]?.file?.name || 'Selected file'}
+                  onClose={closeExpiryEditor}
+                />
+
+                <ModalBody className="space-y-4">
                   <div className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3">
                     <p className="text-sm font-medium text-blue-800">Set a custom expiry rule for this file.</p>
                     <p className="mt-2 text-xs text-blue-700">
@@ -2368,9 +2868,9 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                       </div>
                     </div>
                   </details>
-                </div>
+                </ModalBody>
 
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
+                <ModalFooter className="justify-end">
                   <div className="mr-auto">
                     {fileItems[expiryEditor.itemIndex]?.expiryOverrideEnabled ? (
                       <button
@@ -2396,14 +2896,36 @@ export default function BulkImportModal({ isOpen, onClose, onSubmit, folders, se
                   >
                     Save custom expiry
                   </button>
-                </div>
-              </div>
-            </div>
+                </ModalFooter>
+            </Modal>
           ) : null}
-      </div>
-    </div>
+
+      <ProjectCategoryModal
+        isOpen={showProjectCategoryModal}
+        onClose={() => {
+          if (creatingProjectCategory) return
+          setShowProjectCategoryModal(false)
+          setProjectCategoryCreateError('')
+        }}
+        onSubmit={handleCreateProjectCategory}
+        error={projectCategoryCreateError}
+        submitting={creatingProjectCategory}
+      />
+
+      <DocumentTypeModal
+        isOpen={showDocumentTypeModal}
+        onClose={() => {
+          if (creatingDocumentType) return
+          setShowDocumentTypeModal(false)
+          setDocumentTypeCreateError('')
+          setDocumentTypeTargetIndex(-1)
+        }}
+        onSubmit={handleCreateDocumentType}
+        error={documentTypeCreateError}
+        submitting={creatingDocumentType}
+      />
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+  return modal
 }

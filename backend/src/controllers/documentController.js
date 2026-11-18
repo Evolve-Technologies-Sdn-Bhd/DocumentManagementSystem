@@ -1685,7 +1685,7 @@ class DocumentController {
 
     const documents = await prisma.document.findMany({
       where: { id: { in: normalizedIds } },
-      select: { id: true, folderId: true, title: true, fileCode: true }
+      select: { id: true, folderId: true, divisionId: true, title: true, fileCode: true }
     })
 
     if (documents.length !== normalizedIds.length) {
@@ -1702,6 +1702,12 @@ class DocumentController {
         return ResponseFormatter.error(res, 'Permission denied', 403)
       }
     }
+
+    await divisionScopeService.assertDocumentMoveWithinCompany(
+      documents,
+      destinationFolderId,
+      req.user
+    )
 
     const result = await documentService.bulkMoveDocuments(normalizedIds, destinationFolderId)
 

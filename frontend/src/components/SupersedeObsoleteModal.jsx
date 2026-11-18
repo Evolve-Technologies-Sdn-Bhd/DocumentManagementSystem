@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
 
 export default function SupersedeObsoleteModal({ isOpen, onClose, document, actionType, onSubmit }) {
@@ -174,22 +174,14 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
   if (!isOpen) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">Request Supersede / Obsolete Document</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen size="lg" onClose={handleClose}>
+        <ModalHeader
+          title="Request Supersede / Obsolete Document"
+          subtitle="Provide the replacement details and reason for this request."
+          onClose={handleClose}
+        />
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <ModalBody className="p-0">
           {/* Info Box */}
           <div className="px-6 pt-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -359,11 +351,9 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
             />
           </div>
         </form>
-        </div>
+        </ModalBody>
 
-        {/* Actions */}
-        <div className="bg-gray-50 border-t border-gray-200 flex-shrink-0 px-6 py-4">
-          <div className="flex gap-3 justify-end">
+        <ModalFooter>
             <button
               type="button"
               onClick={handleClose}
@@ -380,12 +370,7 @@ export default function SupersedeObsoleteModal({ isOpen, onClose, document, acti
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }

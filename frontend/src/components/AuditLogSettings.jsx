@@ -118,15 +118,13 @@ export default function AuditLogSettings() {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-              <input
+            <input
                 type="checkbox"
                 id="permanentRetention"
                 checked={settings.permanentRetention}
                 onChange={(e) => handleChange('permanentRetention', e.target.checked)}
                 className="h-4 w-4 cursor-pointer rounded border-[var(--dms-color-border-default)] text-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
               />
-            </span>
             <label htmlFor="permanentRetention" className="text-sm font-medium text-ink-secondary cursor-pointer">
               {t('als_permanent_retention')}
             </label>
@@ -151,15 +149,13 @@ export default function AuditLogSettings() {
             { id: 'trackFailures', label: t('als_track_failures') }
           ].map((event) => (
             <div key={event.id} className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-                <input
+              <input
                   type="checkbox"
                   id={event.id}
                   checked={settings[event.id]}
                   onChange={(e) => handleChange(event.id, e.target.checked)}
                   className="h-4 w-4 cursor-pointer rounded border-[var(--dms-color-border-default)] text-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
-              </span>
               <label htmlFor={event.id} className="text-sm font-medium text-ink-secondary cursor-pointer">
                 {event.label}
               </label>
@@ -182,15 +178,13 @@ export default function AuditLogSettings() {
             { id: 'alertConfigChanges', label: t('als_alert_config') }
           ].map((alert) => (
             <div key={alert.id} className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] transition-all duration-150 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20">
-                <input
+              <input
                   type="checkbox"
                   id={alert.id}
                   checked={settings[alert.id]}
                   onChange={(e) => handleChange(alert.id, e.target.checked)}
                   className="h-4 w-4 cursor-pointer rounded border-[var(--dms-color-border-default)] text-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                 />
-              </span>
               <label htmlFor={alert.id} className="text-sm font-medium text-ink-secondary cursor-pointer">
                 {alert.label}
               </label>
