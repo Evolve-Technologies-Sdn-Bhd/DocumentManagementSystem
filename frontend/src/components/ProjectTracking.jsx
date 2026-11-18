@@ -41,7 +41,7 @@ function ModalShell({ title, subtitle, children, onClose, maxWidthClass = 'max-w
       onClose={onClose}
       className={`w-full overflow-hidden rounded-dms-lg ${maxWidthClass}`}
     >
-      <div className="flex-shrink-0 flex items-center justify-between gap-3 border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-6 py-4">
+      <div className="flex-shrink-0 flex items-start justify-between gap-3 border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-6 py-4">
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-bold text-ink leading-snug">{title}</h3>
           {subtitle ? <p className="mt-1.5 text-sm text-ink-secondary leading-relaxed">{subtitle}</p> : null}
@@ -49,7 +49,7 @@ function ModalShell({ title, subtitle, children, onClose, maxWidthClass = 'max-w
         <button
           type="button"
           onClick={onClose}
-          className="text-ink-muted hover:text-ink transition-colors shrink-0"
+          className="text-ink-muted hover:text-ink transition-colors shrink-0 -mt-1"
           aria-label="Close"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

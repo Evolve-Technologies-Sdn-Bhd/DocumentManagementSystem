@@ -27,6 +27,8 @@ _verify_*/
 # --- sync: abaikan backup tempatan & log ---
 *.bak*
 *.before-*
+*.backup
+*.backup_*
 backend/logs/
 backend/_crash_backend.log
 /0
