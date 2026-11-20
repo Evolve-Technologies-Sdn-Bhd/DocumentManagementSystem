@@ -327,7 +327,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     drafts: stats.documents.draft,
     pendingReviews: stats.documents.pendingReview,
     published: stats.documents.published,
-    superseded: stats.documents.obsolete
+    superseded: stats.documents.superseded
   };
   
   return ResponseFormatter.success(res, { metrics, recentActivity });
@@ -476,13 +476,12 @@ router.get('/activity-logs/export', asyncHandler(async (req, res) => {
         search ? `Search:"${search}"` : null
       ].filter(Boolean).join(' | ');
       if (exportRequesterId) {
-        auditLogService.logSystem('BULK_EXPORT', null, `Exported Activity Logs as CSV (${result.logs?.length || 0} rows)${filtersUsed ? ` — ${filtersUsed}` : ''}`, exportRequesterId, {
+        auditLogService.logSystem(exportRequesterId, 'BULK_EXPORT', 'AuditLog', req, {
+          description: `Exported Activity Logs as CSV (${result.logs?.length || 0} rows)${filtersUsed ? ` — ${filtersUsed}` : ''}`,
           filters: { module, action, search, dateRange, startDate, endDate },
           rowsExported: result.logs?.length || 0,
           format,
-          reportType: 'activity-logs',
-          ipAddress: req.ip || null,
-          userAgent: req.headers?.['user-agent'] || null
+          reportType: 'activity-logs'
         }).catch(() => {});
       }
     } catch (_) { /* ignore */ }

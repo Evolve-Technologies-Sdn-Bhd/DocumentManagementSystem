@@ -1278,9 +1278,13 @@ class WorkflowService {
       }
     });
 
-    // Update document register
+    // Update document register (scoped to the document's project category because
+    // the same fileCode can exist across different project categories)
     await prisma.documentRegister.updateMany({
-      where: { fileCode: document.fileCode },
+      where: {
+        fileCode: document.fileCode,
+        projectCategoryId: document.projectCategoryId ?? null
+      },
       data: { status: 'SUPERSEDED' }
     });
 

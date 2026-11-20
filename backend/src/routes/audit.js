@@ -70,7 +70,7 @@ router.get('/logs', authorizePermission('logsReport.activityLogs', 'view'), asyn
     where.OR = [
       { entity: { contains: search } },
       { action: { contains: search } },
-      { details: { contains: search } }
+      { description: { contains: search } }
     ];
   }
 
@@ -100,7 +100,7 @@ router.get('/logs', authorizePermission('logsReport.activityLogs', 'view'), asyn
     user: log.user ? `${log.user.firstName || ''} ${log.user.lastName || ''}`.trim() || log.user.email : 'System',
     module: log.entity,
     action: log.action,
-    description: log.details || `${log.action} ${log.entity}`,
+    description: log.description || `${log.action} ${log.entity}`,
     ipAddress: log.ipAddress || 'N/A',
     status: 'Success'
   }));
