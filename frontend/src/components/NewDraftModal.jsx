@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useNavigate } from 'react-router-dom'
@@ -62,6 +62,19 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
   const [smartFieldValues, setSmartFieldValues] = useState({})
   const [creationMode, setCreationMode] = useState(smartDocumentEnabled ? 'SMART_DOCUMENT' : 'FILE_BASED')
   const [uploadedFile, setUploadedFile] = useState(null)
+
+  // In-modal preview of the selected file ("view before submit"). The preview
+  // is rendered as a sibling of the draft modal (see return) so that closing it
+  // never triggers the draft modal's backdrop/close handler.
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewKind, setPreviewKind] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewDocxBuffer, setPreviewDocxBuffer] = useState(null)
+  const [previewText, setPreviewText] = useState('')
+  const [previewError, setPreviewError] = useState('')
+  const previewUrlRef = useRef('')
+  const previewDocxContainerRef = useRef(null)
 
   // Quick Add overlays — keep the New Draft form mounted and preserve its state.
   const [quickAddType, setQuickAddType] = useState(null)
@@ -610,6 +623,57 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showFileCodeDropdown])
 
+  // Render DOCX preview into the container once the buffer is available.
+  useEffect(() => {
+    if (!previewOpen || previewKind !== 'docx' || !previewDocxBuffer) return
+    if (!previewDocxContainerRef.current) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const mod = await import('docx-preview')
+        const renderAsync = mod?.renderAsync
+        if (typeof renderAsync !== 'function') throw new Error('DOCX renderer not available')
+        if (cancelled || !previewDocxContainerRef.current) return
+        previewDocxContainerRef.current.innerHTML = ''
+        await renderAsync(previewDocxBuffer, previewDocxContainerRef.current, undefined, {
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+          ignoreFonts: false,
+          useBase64URL: true
+        })
+      } catch (err) {
+        if (!cancelled) setPreviewError(err?.message || 'Failed to render document preview')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [previewOpen, previewKind, previewDocxBuffer])
+
+  // Revoke any object URL when the component unmounts.
+  useEffect(() => () => {
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+  }, [])
+
+  // Reset the preview whenever the draft modal is closed so a stale preview
+  // never reappears the next time the modal is opened.
+  useEffect(() => {
+    if (isOpen) return
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+    setPreviewOpen(false)
+    setPreviewFile(null)
+    setPreviewKind('')
+    setPreviewUrl('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewError('')
+  }, [isOpen])
+
   const handleSmartFieldChange = useCallback((fieldKey, newValue) => {
     setSmartFieldValues((prev) => ({ ...prev, [fieldKey]: newValue }))
   }, [])
@@ -815,7 +879,63 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
     setSubmitError(null)
   }
 
+  const getPreviewKind = (file) => {
+    const name = String(file?.name || '').toLowerCase()
+    const type = String(file?.type || '').toLowerCase()
+    if (type.startsWith('image/') || /\.(png|jpe?g|gif|bmp|webp|svg)$/.test(name)) return 'image'
+    if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+    if (name.endsWith('.docx') || type.includes('wordprocessingml')) return 'docx'
+    if (type.startsWith('text/') || /\.(txt|csv|log|md)$/.test(name)) return 'text'
+    return 'other'
+  }
+
+  const revokePreviewUrl = () => {
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+    setPreviewUrl('')
+  }
+
+  const closePreview = () => {
+    revokePreviewUrl()
+    setPreviewOpen(false)
+    setPreviewFile(null)
+    setPreviewKind('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewError('')
+  }
+
+  const openPreview = async () => {
+    if (!uploadedFile) return
+    const kind = getPreviewKind(uploadedFile)
+    revokePreviewUrl()
+    setPreviewError('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewFile(uploadedFile)
+    setPreviewKind(kind)
+    setPreviewOpen(true)
+    try {
+      if (kind === 'image' || kind === 'pdf') {
+        const url = window.URL.createObjectURL(uploadedFile)
+        previewUrlRef.current = url
+        setPreviewUrl(url)
+      } else if (kind === 'docx') {
+        const buf = await uploadedFile.arrayBuffer()
+        setPreviewDocxBuffer(buf)
+      } else if (kind === 'text') {
+        const text = await uploadedFile.text()
+        setPreviewText(text)
+      }
+    } catch (err) {
+      setPreviewError(err?.message || 'Failed to load preview')
+    }
+  }
+
   const handleClose = () => {
+    closePreview()
     setFormData({
       fileCode: '',
       title: '',
@@ -1084,16 +1204,35 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
                     <div className="text-xs font-medium text-ink-secondary">
                       {uploadedFile.size ? `${(uploadedFile.size / 1024).toFixed(1)} KB` : ''}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setUploadedFile(null)
-                      }}
-                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--dms-color-danger-ink)] hover:text-[color-mix(in_srgb,var(--dms-color-danger-ink)_90%,black)]"
-                    >
-                      ✕ Remove file
-                    </button>
+                    <div className="mt-2 flex items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openPreview()
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--dms-color-brand-primary)] hover:underline"
+                        data-tour-id="new-draft-preview-file"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View file
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setUploadedFile(null)
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--dms-color-danger-ink)] hover:text-[color-mix(in_srgb,var(--dms-color-danger-ink)_90%,black)]"
+                      >
+                        ✕ Remove file
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center space-y-1">
@@ -1618,6 +1757,59 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocume
         </ModalFooter>
       </form>
     </Modal>
+
+    {previewOpen ? (
+      <Modal
+        onClose={closePreview}
+        closeOnBackdrop
+        size="xl"
+        className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[90vh] overflow-hidden"
+      >
+        <div className="flex h-full flex-col overflow-hidden">
+          <ModalHeader
+            title={t('document_preview')}
+            subtitle={previewFile?.name || ''}
+            onClose={closePreview}
+          />
+          <ModalBody className="flex-1 overflow-hidden bg-surface-muted p-0">
+            {previewError ? (
+              <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+                <p className="text-[var(--dms-color-danger-ink)] mb-4">{previewError}</p>
+              </div>
+            ) : previewKind === 'image' && previewUrl ? (
+              <div className="h-full overflow-auto p-8 bg-surface-muted flex items-center justify-center">
+                <img src={previewUrl} alt={previewFile?.name || 'Preview'} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : previewKind === 'pdf' && previewUrl ? (
+              <iframe src={previewUrl} className="w-full h-full border-0" title="Document Preview" />
+            ) : previewKind === 'docx' ? (
+              <div className="h-full overflow-auto bg-surface-muted">
+                <div className="min-h-full py-8 px-4">
+                  <div className="w-fit mx-auto bg-surface rounded-2xl shadow-dms-soft border border-border">
+                    <div ref={previewDocxContainerRef} className="p-6" />
+                  </div>
+                </div>
+              </div>
+            ) : previewKind === 'text' ? (
+              <div className="h-full overflow-auto p-8 bg-surface">
+                <pre className="whitespace-pre-wrap break-words text-sm text-ink" style={{ fontFamily: 'Calibri, Arial, sans-serif' }}>
+                  {previewText}
+                </pre>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+                <p className="text-ink-muted">{t('preview_not_available')}</p>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter className="justify-end">
+            <Button type="button" variant="secondary" onClick={closePreview}>
+              {t('close')}
+            </Button>
+          </ModalFooter>
+        </div>
+      </Modal>
+    ) : null}
     </>
   )
 }
