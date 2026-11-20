@@ -220,69 +220,7 @@ export default function NewDocumentRequest() {
     } catch (error) {
       console.error('Failed to load requests:', error)
       console.error('Error details:', error.response?.data || error.message)
-      // Mock data for demonstration
-      setRequests([
-        {
-          id: 1,
-          title: 'Minutes of Meeting - Q1 2024',
-          documentType: 'MoM',
-          projectCategory: 'Internal',
-          dateOfDocument: '25/01/2024',
-          remarks: 'Regular quarterly meeting',
-          fileCode: 'MoM012508241001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 2,
-          title: 'Project Implementation Plan',
-          documentType: 'Project Plan',
-          projectCategory: 'External',
-          dateOfDocument: '17/09/2024',
-          remarks: 'Client project phase 2',
-          fileCode: 'PP-EXT-0917-001',
-          status: 'In Process'
-        },
-        {
-          id: 3,
-          title: 'System Requirements Specification',
-          documentType: 'Requirement Analysis',
-          projectCategory: 'R&D',
-          dateOfDocument: '22/02/2024',
-          remarks: 'New DMS module requirements',
-          fileCode: '-',
-          status: 'In Process'
-        },
-        {
-          id: 4,
-          title: 'Technical Design Document v2.0',
-          documentType: 'Design',
-          projectCategory: 'Internal',
-          dateOfDocument: '03/11/2024',
-          remarks: 'Updated architecture design',
-          fileCode: 'DD012508241001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 5,
-          title: 'Quality Assurance Procedures',
-          documentType: 'SOP',
-          projectCategory: 'Internal',
-          dateOfDocument: '15/10/2024',
-          remarks: 'Updated QA process',
-          fileCode: 'SOP-QA-1024-001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 6,
-          title: 'API Integration Guide',
-          documentType: 'Manual',
-          projectCategory: 'Client',
-          dateOfDocument: '28/08/2024',
-          remarks: 'Third-party API documentation',
-          fileCode: '-',
-          status: 'In Process'
-        }
-      ])
+      setRequests([])
     } finally {
       setLoadingRequests(false)
     }
@@ -967,6 +905,18 @@ export default function NewDocumentRequest() {
     columns: ndrTableColumns
   })
 
+  // Slice the (sorted) rows for the current page so the pagination controls actually work
+  const paginatedData = useMemo(
+    () => sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [sortedData, currentPage]
+  )
+
+  // Keep the current page in range when the underlying list shrinks
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage))
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [sortedData.length, currentPage])
+
   const handleColDragStart = (visibleIdx, e) => {
     const colId = visibleColumns[visibleIdx]?.id
     if (!colId) return
@@ -1373,7 +1323,7 @@ export default function NewDocumentRequest() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedData.map((req) => (
+                  {paginatedData.map((req) => (
                     <Tr key={req.id}>
                       {visibleColumns.map((col) => {
                         const cId = col.id || col.key || col.accessor
@@ -1407,7 +1357,7 @@ export default function NewDocumentRequest() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden space-y-4" onClick={() => setAdminPurgeMenuRequestId(null)}>
-              {requests.map((req) => (
+              {paginatedData.map((req) => (
                 <AppSurface key={req.id} variant="muted" padding="md" className="space-y-3 transition-shadow hover:shadow-dms-soft">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex items-center gap-2 flex-1">
@@ -1538,12 +1488,12 @@ export default function NewDocumentRequest() {
             </div>
 
             {/* Pagination */}
-            {requests.length > itemsPerPage && (
+            {sortedData.length > itemsPerPage && (
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-border">
                 <p className="text-sm text-ink-muted">
                   Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, requests.length)}</span> of{' '}
-                  <span className="font-medium">{requests.length}</span> results
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedData.length)}</span> of{' '}
+                  <span className="font-medium">{sortedData.length}</span> results
                 </p>
                 <div className="flex items-center gap-2">
                   <IconButton
@@ -1555,7 +1505,7 @@ export default function NewDocumentRequest() {
                     </svg>
                   </IconButton>
                   
-                  {[...Array(Math.ceil(requests.length / itemsPerPage))].map((_, idx) => (
+                  {[...Array(Math.ceil(sortedData.length / itemsPerPage))].map((_, idx) => (
                     <Button
                       key={idx + 1}
                       onClick={() => setCurrentPage(idx + 1)}
@@ -1568,8 +1518,8 @@ export default function NewDocumentRequest() {
                   ))}
                   
                   <IconButton
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(requests.length / itemsPerPage), prev + 1))}
-                    disabled={currentPage === Math.ceil(requests.length / itemsPerPage)}
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(sortedData.length / itemsPerPage), prev + 1))}
+                    disabled={currentPage === Math.ceil(sortedData.length / itemsPerPage) || sortedData.length <= itemsPerPage}
                   >
                     <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
