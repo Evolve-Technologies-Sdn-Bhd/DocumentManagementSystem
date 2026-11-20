@@ -193,20 +193,20 @@ export default function NewDocumentRequest() {
         requestType: 'NVR'
       }))
       
-      // Get file codes that have NVR requests
-      // If an NVR exists for a document, the NDR should be hidden
-      const nvrFileCodes = new Set(
+      // Only hide the NDR row that represents a document auto-created by an NVR
+      // (the NVR's NEW document). Never hide by the original document's file code —
+      // a pending NVR carries the original code, which would wrongly suppress NDR rows.
+      const nvrNewFileCodes = new Set(
         nvrs
-          .filter(nvr => nvr.fileCode || nvr.document?.fileCode)
-          .map(nvr => nvr.fileCode || nvr.document?.fileCode)
+          .map(nvr => nvr.newDocument?.fileCode)
+          .filter(Boolean)
       )
-      
-      // Filter out NDRs that have been superseded by NVRs (same fileCode)
+
       const filteredNdrs = ndrs.filter(ndr => {
         // Keep NDR if it doesn't have a fileCode yet (still pending)
         if (!ndr.fileCode || ndr.fileCode === '-') return true
-        // Keep NDR if no NVR exists for this fileCode
-        return !nvrFileCodes.has(ndr.fileCode)
+        // Hide only if this NDR row is the version document an NVR already created
+        return !nvrNewFileCodes.has(ndr.fileCode)
       })
       
       // Merge and sort by date (newest first)
@@ -430,11 +430,6 @@ export default function NewDocumentRequest() {
         type: 'success'
       })
       loadRequests()
-      if (!isNVR) {
-        setTimeout(() => {
-          navigate('/documents/drafts?origin=ndr', { replace: false })
-        }, 1200)
-      }
     } catch (error) {
       console.error('Failed to acknowledge request:', error)
       const errorMessage = error.response?.data?.message || 'Failed to acknowledge request. Please try again.'
@@ -817,7 +812,7 @@ export default function NewDocumentRequest() {
         accessor: 'dateOfDocument',
         label: t('date_of_document'),
         sortable: true,
-        sortType: 'string',
+        sortType: 'date',
         render: (value) => value
       },
       {
@@ -826,7 +821,7 @@ export default function NewDocumentRequest() {
         accessor: 'requestDate',
         label: t('request_date'),
         sortable: true,
-        sortType: 'string',
+        sortType: 'date',
         render: (value) => value
       },
       {

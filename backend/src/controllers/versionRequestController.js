@@ -38,6 +38,14 @@ class VersionRequestController {
       changeType
     });
 
+    // Notify acknowledgers that a new version request is waiting (parity with NDR)
+    try {
+      const notificationService = require('../services/notificationService');
+      await notificationService.notifyAcknowledgmentRequired(request.document.id, request.document);
+    } catch (error) {
+      console.error('Failed to send NVR creation notification:', error);
+    }
+
     return ResponseFormatter.success(
       res,
       { request },

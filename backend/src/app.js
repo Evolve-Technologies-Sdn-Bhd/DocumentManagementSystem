@@ -33,6 +33,8 @@ const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
 const smartDocumentsRoutes = require('./routes/smartDocuments');
 const aiRoutes = require('./routes/ai');
 const calendarRoutes = require('./routes/calendar');
+const integrationRoutes = require('./routes/integrations');
+const apiV1Routes = require('./routes/apiV1');
 const notificationService = require('./services/notificationService');
 const configService = require('./services/configService');
 
@@ -106,7 +108,12 @@ if (config.nodeEnv === 'development') {
 }
 
 // Body parsing middleware
-app.use(express.json({ limit: config.jsonBodyLimit }));
+// `verify` captures the raw JSON payload so inbound HMAC signatures (integration
+// layer) can be validated against the exact bytes the caller signed.
+const captureRawBody = (req, res, buf) => {
+  if (buf && buf.length) req.rawBody = buf.toString('utf8');
+};
+app.use(express.json({ limit: config.jsonBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
 // Memory usage guard: reject incoming requests with 503 when Node heap is dangerously high
@@ -279,6 +286,11 @@ app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/calendar', calendarRoutes);
+
+// Integration layer: admin console (JWT + system admin) and public API v1
+// (API key + HMAC). Machine auth is handled by middleware/integrationAuth.
+app.use('/api/integrations', integrationRoutes);
+app.use('/api/v1', apiV1Routes);
 
 // Alias routes helpers (require BEFORE first use to avoid TDZ)
 const { authenticate, authorizePermission } = require('./middleware/auth');

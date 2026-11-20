@@ -23,14 +23,14 @@ router.delete('/drafts/:id', documentController.deleteDraft);
 router.post('/:id/submit-for-review', documentController.submitDraftForReview);
 
 // Version requests (MUST be before generic /:id routes to avoid conflicts)
-router.post('/version-requests', uploadDocument.single('file'), versionRequestController.createRequest);
-router.get('/version-requests', versionRequestController.listRequests);
-router.get('/version-requests/:id', versionRequestController.getRequest);
-router.post('/version-requests/:id/acknowledge', versionRequestController.acknowledgeRequest); // Main action - creates document
-router.post('/version-requests/:id/review', versionRequestController.reviewRequest);
-router.post('/version-requests/:id/approve', versionRequestController.approveRequest);
-router.post('/version-requests/:id/reject', versionRequestController.rejectRequest);
-router.delete('/version-requests/:id', versionRequestController.deleteRequest);
+router.post('/version-requests', authorizePermission('newDocumentRequest', 'create'), uploadDocument.single('file'), versionRequestController.createRequest);
+router.get('/version-requests', authorizePermission('newDocumentRequest', 'view'), versionRequestController.listRequests);
+router.get('/version-requests/:id', authorizePermission('newDocumentRequest', 'view'), versionRequestController.getRequest);
+router.post('/version-requests/:id/acknowledge', authorizePermission('newDocumentRequest', 'acknowledge'), versionRequestController.acknowledgeRequest); // Main action - creates document
+router.post('/version-requests/:id/review', authorizePermission('newDocumentRequest', 'acknowledge'), versionRequestController.reviewRequest);
+router.post('/version-requests/:id/approve', authorizePermission('newDocumentRequest', 'acknowledge'), versionRequestController.approveRequest);
+router.post('/version-requests/:id/reject', authorizePermission('newDocumentRequest', 'acknowledge'), versionRequestController.rejectRequest);
+router.delete('/version-requests/:id', authorizePermission('newDocumentRequest', 'create'), versionRequestController.deleteRequest);
 
 router.post(
   '/bulk-import',

@@ -4,6 +4,7 @@ const configService = require('../services/configService');
 const reportsService = require('../services/reportsService');
 const documentService = require('../services/documentService')
 const codeRegistryService = require('../services/codeRegistryService');
+const masterRecordSyncService = require('../services/masterRecordSyncService');
 const auditLogService = require('../services/auditLogService');
 const documentAssignmentService = require('../services/documentAssignmentService')
 const confidentialAccessService = require('../services/confidentialAccessService')
@@ -308,6 +309,12 @@ router.post('/master-record/consolidated/import', authorize('admin'), asyncHandl
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
   const result = await codeRegistryService.importLegacyRows(rows, req.user?.id);
   return ResponseFormatter.success(res, result, 'Import completed');
+}));
+
+// Reconcile the register tables with the Document table so every document is recorded
+router.post('/master-record/sync', authorize('admin'), asyncHandler(async (req, res) => {
+  const result = await masterRecordSyncService.syncAll();
+  return ResponseFormatter.success(res, result, 'Master record registers synchronized');
 }));
 
 // Analytics

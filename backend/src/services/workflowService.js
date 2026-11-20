@@ -5,6 +5,8 @@ const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
 const divisionScopeService = require('./divisionScopeService');
 const folderPermissionService = require('./folderPermissionService');
+const integrationEventService = require('./integrationEventService');
+const { EVENT_TYPES } = require('./integrationEventService');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
 function isUserAdmin(user) {
@@ -1321,6 +1323,23 @@ class WorkflowService {
       console.error('Failed to send superseded notification:', error);
     }
 
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_SUPERSEDED,
+      entityType: 'Document',
+      entityId: documentId,
+      payload: {
+        id: updated.id,
+        fileCode: updated.fileCode,
+        title: updated.title,
+        status: updated.status,
+        stage: updated.stage,
+        version: updated.version,
+        supersededById,
+        supersedingFileCode: supersedingDoc.fileCode,
+        reason: reason || null
+      }
+    });
+
     return updated;
   }
 
@@ -1396,6 +1415,22 @@ class WorkflowService {
     } catch (error) {
       console.error('Failed to send obsolete notification:', error);
     }
+
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_OBSOLETE,
+      entityType: 'Document',
+      entityId: documentId,
+      payload: {
+        id: updated.id,
+        fileCode: updated.fileCode,
+        title: updated.title,
+        status: updated.status,
+        stage: updated.stage,
+        version: updated.version,
+        obsoleteReason: updated.obsoleteReason,
+        obsoleteDate: updated.obsoleteDate
+      }
+    });
 
     return updated;
   }

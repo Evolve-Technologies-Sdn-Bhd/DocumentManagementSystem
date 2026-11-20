@@ -1,0 +1,697 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DMS Integration API",
+    "version": "1.0.0",
+    "summary": "Machine-to-machine API for ERP / WMS / PMS / Sales systems.",
+    "description": "Versioned public API exposed by the Document Management System (DMS).\n\n**Authentication**\nEvery request must carry an API key issued from the admin console (`/api/integrations/api-keys`) via either:\n- `X-API-Key: dms_<system>_<prefix>.<secret>`\n- `Authorization: Bearer dms_<system>_<prefix>.<secret>`\n\n**Request signing**\nWhen the API key has a signing secret (default), every write request (`POST`, `PUT`, `PATCH`, `DELETE`) must also be signed:\n1. Compute `timestamp` = current unix time in seconds.\n2. Build the signing input `\"<timestamp>.<raw JSON body>\"` (empty body for `DELETE`).\n3. `signature = hex(HMAC_SHA256(signingSecret, signingInput))`.\n4. Send headers `X-DMS-Timestamp: <timestamp>` and `X-DMS-Signature: sha256=<signature>`.\n\nThe timestamp tolerance is 300 seconds. Unsigned or tampered requests are rejected with `401 SIGNATURE_INVALID`.\n\n**Scopes**\nEach key carries scopes (`documents:read`, `documents:write`, `projects:read`, `projects:write`, `references:read`, `references:write`) or the wildcard `*`.\n\n**Response envelope**\nSingle resources: `{ \"success\": true, \"message\": \"...\", \"data\": { ... } }`\nCollections: same, plus a `pagination` object.\nErrors: `{ \"success\": false, \"message\": \"...\", \"errors\": { \"code\": \"...\" } }`\n\n**Outbound events**\nDMS pushes domain events to registered webhook endpoints (HMAC signed the same way, headers `X-DMS-Event`, `X-DMS-Event-Id`, `X-DMS-Delivery-Attempt`, `X-DMS-Timestamp`, `X-DMS-Signature`). Consumers that cannot expose a public URL can poll `GET /events` instead.",
+    "contact": { "name": "DMS Integration Support" }
+  },
+  "servers": [
+    { "url": "/api/v1", "description": "Same origin as the DMS deployment" }
+  ],
+  "tags": [
+    { "name": "Meta", "description": "Health and contract discovery." },
+    { "name": "Documents", "description": "Published and draft documents." },
+    { "name": "Projects", "description": "Project tracking (PMS) projects." },
+    { "name": "External references", "description": "Map an external record to a DMS record." },
+    { "name": "Events", "description": "Outbox event polling (alternative to webhooks)." }
+  ],
+  "security": [{ "ApiKeyAuth": [] }],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "This document",
+        "security": [],
+        "responses": {
+          "200": { "description": "OpenAPI 3.1 specification." }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "Liveness and credential check",
+        "description": "Returns the caller's system code. Use this to verify that an API key is valid and active.",
+        "responses": {
+          "200": {
+            "description": "Service reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "ok": { "type": "boolean" },
+                            "service": { "type": "string" },
+                            "version": { "type": "string" },
+                            "system": { "type": ["string", "null"] },
+                            "timestamp": { "type": "string", "format": "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/catalog": {
+      "get": {
+        "tags": ["Meta"],
+        "summary": "Available systems, scopes and event types",
+        "responses": {
+          "200": {
+            "description": "Catalog retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "systems": { "type": "array", "items": { "$ref": "#/components/schemas/System" } },
+                            "scopes": { "type": "array", "items": { "$ref": "#/components/schemas/Scope" } },
+                            "eventTypes": { "type": "array", "items": { "$ref": "#/components/schemas/EventType" } }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "List documents",
+        "description": "Requires scope `documents:read`. Confidential documents are never returned to machine clients.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 15 } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "default": "createdAt" } },
+          { "name": "sortOrder", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/DocumentStatus" } },
+          { "name": "stage", "in": "query", "schema": { "type": "string" } },
+          { "name": "documentTypeId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "projectCategoryId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "createdById", "in": "query", "schema": { "type": "integer" } },
+          { "name": "ownerId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "folderId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "startDate", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "endDate", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documents retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/documents/{id}": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Get one document",
+        "description": "Requires scope `documents:read`.",
+        "parameters": [{ "$ref": "#/components/parameters/ResourceId" }],
+        "responses": {
+          "200": {
+            "description": "Document retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "document": { "$ref": "#/components/schemas/Document" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List projects",
+        "description": "Requires scope `projects:read`.",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Matches project code or name." },
+          { "name": "projectCategoryId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/ProjectStatus" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projects retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginatedEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get one project",
+        "description": "Requires scope `projects:read`.",
+        "parameters": [{ "$ref": "#/components/parameters/ResourceId" }],
+        "responses": {
+          "200": {
+            "description": "Project retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "project": { "$ref": "#/components/schemas/Project" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/external-references": {
+      "get": {
+        "tags": ["External references"],
+        "summary": "List external references",
+        "description": "Requires scope `references:read`. Defaults to the calling system when `system` is omitted.",
+        "parameters": [
+          { "name": "system", "in": "query", "schema": { "$ref": "#/components/schemas/System" } },
+          { "name": "entityType", "in": "query", "schema": { "$ref": "#/components/schemas/EntityType" } },
+          { "name": "entityId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "externalType", "in": "query", "schema": { "type": "string" }, "example": "SalesOrder" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "References retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "references": { "type": "array", "items": { "$ref": "#/components/schemas/ExternalReference" } }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "tags": ["External references"],
+        "summary": "Link an external record to a DMS record",
+        "description": "Requires scope `references:write` and a valid request signature. Idempotent: re-posting the same `system` + `externalType` + `externalId` updates the existing link. A conflict is returned if that external record already points at a different DMS record.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["entityType", "entityId", "externalType", "externalId"],
+                "properties": {
+                  "system": { "$ref": "#/components/schemas/System" },
+                  "entityType": { "$ref": "#/components/schemas/EntityType" },
+                  "entityId": { "type": "integer", "description": "DMS primary key." },
+                  "externalType": { "type": "string", "example": "SalesOrder" },
+                  "externalId": { "type": "string", "example": "SO-10023" },
+                  "externalUrl": { "type": ["string", "null"], "format": "uri" },
+                  "metadata": { "type": ["object", "null"], "additionalProperties": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reference linked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "reference": { "$ref": "#/components/schemas/ExternalReference" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
+      "delete": {
+        "tags": ["External references"],
+        "summary": "Remove an external reference",
+        "description": "Requires scope `references:write` and a valid request signature (signed with an empty body).",
+        "parameters": [
+          { "name": "system", "in": "query", "schema": { "$ref": "#/components/schemas/System" } },
+          { "name": "externalType", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "externalId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reference removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "id": { "type": "integer" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/external-references/resolve": {
+      "get": {
+        "tags": ["External references"],
+        "summary": "Resolve an external record to its DMS record",
+        "description": "Requires scope `references:read`. Use this to find which DMS entity an ERP/WMS/PMS record is linked to.",
+        "parameters": [
+          { "name": "system", "in": "query", "schema": { "$ref": "#/components/schemas/System" } },
+          { "name": "externalType", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "externalId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reference resolved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": { "reference": { "$ref": "#/components/schemas/ExternalReference" } }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "Poll the outbox",
+        "description": "Requires scope `documents:read` or `projects:read`. Use this when the consumer cannot expose a public webhook URL. Poll with a marker or filter by type to pick up new events.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["PENDING", "DISPATCHED", "FAILED", "DEAD_LETTER"] } },
+          { "name": "type", "in": "query", "schema": { "$ref": "#/components/schemas/EventType" } },
+          { "name": "entityType", "in": "query", "schema": { "$ref": "#/components/schemas/EntityType" } },
+          { "name": "entityId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events retrieved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "items": { "type": "array", "items": { "$ref": "#/components/schemas/IntegrationEvent" } },
+                            "total": { "type": "integer" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Format `dms_<system>_<prefix>.<secret>`. `Authorization: Bearer dms_...` is also accepted."
+      }
+    },
+    "parameters": {
+      "ResourceId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer" }
+      },
+      "SignatureTimestamp": {
+        "name": "X-DMS-Timestamp",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Unix time in seconds. Must be within 300 seconds of server time."
+      },
+      "Signature": {
+        "name": "X-DMS-Signature",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "`sha256=<hex>` of HMAC_SHA256(signingSecret, \"<timestamp>.<rawBody>\")."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid payload.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      },
+      "Unauthorized": {
+        "description": "Missing/invalid API key, or a signature that failed verification. `errors.code` is one of `API_KEY_MISSING`, `API_KEY_INVALID`, `SIGNATURE_INVALID`.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      },
+      "Forbidden": {
+        "description": "The key lacks the required scope. `errors.code` is `INSUFFICIENT_SCOPE`.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      },
+      "NotFound": {
+        "description": "Resource does not exist.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      },
+      "Conflict": {
+        "description": "The external record is already linked to a different DMS record.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      }
+    },
+    "schemas": {
+      "System": { "type": "string", "enum": ["ERP", "WMS", "PMS", "SALES", "CUSTOM"] },
+      "Scope": {
+        "type": "string",
+        "enum": ["documents:read", "documents:write", "projects:read", "projects:write", "references:read", "references:write", "*"]
+      },
+      "EntityType": {
+        "type": "string",
+        "enum": ["Document", "Project"],
+        "description": "DMS entity the reference points at."
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "document.created",
+          "document.published",
+          "document.superseded",
+          "document.obsolete",
+          "project.created",
+          "project.updated",
+          "project.status.changed",
+          "project.iteration.created",
+          "project.stage.advanced",
+          "project.document.linked",
+          "project.document.unlinked",
+          "project.change-request.created"
+        ]
+      },
+      "DocumentStatus": {
+        "type": "string",
+        "enum": ["DRAFT", "PENDING_REVIEW", "UNDER_REVIEW", "PENDING_APPROVAL", "PENDING_ACKNOWLEDGMENT", "PUBLISHED", "REJECTED", "SUPERSEDED", "OBSOLETE"]
+      },
+      "ProjectStatus": { "type": "string", "enum": ["ACTIVE", "ON_HOLD", "CLOSED", "ARCHIVED"] },
+      "Envelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "message": { "type": "string" },
+          "data": { "type": ["object", "null"] }
+        }
+      },
+      "PaginatedEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "message": { "type": "string" },
+          "data": { "type": "array", "items": {} },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "currentPage": { "type": "integer" },
+              "totalPages": { "type": "integer" },
+              "itemsPerPage": { "type": "integer" },
+              "totalItems": { "type": "integer" },
+              "hasNextPage": { "type": "boolean" },
+              "hasPrevPage": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "message": { "type": "string" },
+          "errors": { "type": ["object", "null"], "additionalProperties": true }
+        }
+      },
+      "Document": {
+        "type": "object",
+        "description": "Projection of a DMS document. Additional fields may be present.",
+        "properties": {
+          "id": { "type": "integer" },
+          "fileCode": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "status": { "$ref": "#/components/schemas/DocumentStatus" },
+          "stage": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "isConfidential": { "type": "boolean" },
+          "documentTypeId": { "type": ["integer", "null"] },
+          "projectCategoryId": { "type": ["integer", "null"] },
+          "divisionId": { "type": ["integer", "null"] },
+          "folderId": { "type": ["integer", "null"] },
+          "ownerId": { "type": ["integer", "null"] },
+          "createdById": { "type": ["integer", "null"] },
+          "dateOfDocument": { "type": ["string", "null"], "format": "date-time" },
+          "publishedAt": { "type": ["string", "null"], "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "code": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "status": { "$ref": "#/components/schemas/ProjectStatus" },
+          "clientName": { "type": ["string", "null"] },
+          "clientPic": { "type": ["string", "null"] },
+          "startDate": { "type": ["string", "null"], "format": "date-time" },
+          "plannedCompletionDate": { "type": ["string", "null"], "format": "date-time" },
+          "actualCompletionDate": { "type": ["string", "null"], "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "projectCategory": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "integer" }, "name": { "type": "string" } }
+          },
+          "manager": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "integer" },
+              "email": { "type": "string" },
+              "firstName": { "type": ["string", "null"] },
+              "lastName": { "type": ["string", "null"] }
+            }
+          },
+          "iterations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "iterationNo": { "type": "integer" },
+                "name": { "type": ["string", "null"] },
+                "startedAt": { "type": ["string", "null"], "format": "date-time" },
+                "endedAt": { "type": ["string", "null"], "format": "date-time" },
+                "isActive": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      },
+      "ExternalReference": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "system": { "$ref": "#/components/schemas/System" },
+          "entityType": { "$ref": "#/components/schemas/EntityType" },
+          "entityId": { "type": "integer" },
+          "externalType": { "type": "string" },
+          "externalId": { "type": "string" },
+          "externalUrl": { "type": ["string", "null"] },
+          "metadata": { "type": ["object", "null"], "additionalProperties": true },
+          "createdById": { "type": ["integer", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "IntegrationEvent": {
+        "type": "object",
+        "description": "Outbox event. The same payload is delivered to webhook subscribers.",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/EventType" },
+          "system": { "type": ["string", "null"] },
+          "entityType": { "type": ["string", "null"] },
+          "entityId": { "type": ["integer", "null"] },
+          "payload": { "type": "object", "additionalProperties": true },
+          "status": { "type": "string", "enum": ["PENDING", "DISPATCHED", "FAILED", "DEAD_LETTER"] },
+          "occurredAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WebhookPayload": {
+        "type": "object",
+        "description": "Body delivered by DMS to a registered webhook endpoint.",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/EventType" },
+          "system": { "type": ["string", "null"] },
+          "entityType": { "type": ["string", "null"] },
+          "entityId": { "type": ["integer", "null"] },
+          "occurredAt": { "type": "string", "format": "date-time" },
+          "data": { "type": "object", "additionalProperties": true }
+        }
+      }
+    }
+  }
+}

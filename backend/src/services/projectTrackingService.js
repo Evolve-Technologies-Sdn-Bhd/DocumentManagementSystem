@@ -7,6 +7,8 @@ const confidentialAccessService = require('./confidentialAccessService')
 const notificationService = require('./notificationService')
 const divisionScopeService = require('./divisionScopeService')
 const folderService = require('./folderService')
+const integrationEventService = require('./integrationEventService')
+const { EVENT_TYPES } = require('./integrationEventService')
 
 const getAllowedDivisionIdsForUser = (user) => {
   return divisionScopeService.normalizeDivisionIds(user?.divisionIds || [])
@@ -836,6 +838,25 @@ exports.updateProject = async (
     }
   })
 
+  const statusChanged = Boolean(nextData.status) && existing.status !== project.status
+
+  await integrationEventService.publish({
+    type: statusChanged ? EVENT_TYPES.PROJECT_STATUS_CHANGED : EVENT_TYPES.PROJECT_UPDATED,
+    entityType: 'Project',
+    entityId: projectId,
+    payload: {
+      id: project.id,
+      code: project.code,
+      name: project.name,
+      status: project.status,
+      previousStatus: existing.status,
+      divisionId: project.divisionId,
+      projectCategoryId: project.projectCategoryId,
+      managerId: project.managerId,
+      changedFields: Object.keys(nextData)
+    }
+  })
+
   return project
 }
 
@@ -1018,7 +1039,7 @@ exports.createProject = async ({
       }
     })
 
-    return tx.project.findUnique({
+    const created = await tx.project.findUnique({
       where: { id: project.id },
       include: {
         division: true,
@@ -1028,6 +1049,30 @@ exports.createProject = async ({
         iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
       }
     });
+
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_CREATED,
+        entityType: 'Project',
+        entityId: project.id,
+        payload: {
+          id: created.id,
+          code: created.code,
+          name: created.name,
+          status: created.status,
+          divisionId: created.divisionId,
+          projectCategoryId: created.projectCategoryId,
+          managerId: created.managerId,
+          createdById: created.createdById,
+          clientName: created.clientName,
+          startDate: created.startDate,
+          plannedCompletionDate: created.plannedCompletionDate
+        }
+      },
+      { client: tx }
+    );
+
+    return created;
   });
 };
 
@@ -1372,6 +1417,22 @@ exports.createIteration = async (projectId, { name, createdById }) => {
       }
     });
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_ITERATION_CREATED,
+        entityType: 'Project',
+        entityId: projectId,
+        payload: {
+          projectId,
+          iterationId: iteration.id,
+          iterationNo: iteration.iterationNo,
+          name: iteration.name,
+          currentStageId: iteration.currentStageId
+        }
+      },
+      { client: tx }
+    );
+
     return iteration;
   });
 };
@@ -1649,6 +1710,24 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById, user }) =>
       });
     }
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_LINKED,
+        entityType: 'Project',
+        entityId: item.iteration.project.id,
+        payload: {
+          projectId: item.iteration.project.id,
+          iterationId: item.projectIterationId,
+          itemId: item.id,
+          stageId: item.stageId,
+          linkId: link.id,
+          documentId,
+          documentStatus: doc.status
+        }
+      },
+      { client: tx }
+    );
+
     return { link, item: updatedItem };
   });
 };
@@ -1712,6 +1791,23 @@ exports.unlinkDocumentFromItem = async (itemId, linkId, { user } = {}) => {
         data: { status: 'PENDING', completedAt: null }
       })
     }
+
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_UNLINKED,
+        entityType: 'Project',
+        entityId: item.iteration.project.id,
+        payload: {
+          projectId: item.iteration.project.id,
+          iterationId: item.projectIterationId,
+          itemId: item.id,
+          stageId: item.stageId,
+          linkId: link.id,
+          documentId: link.documentId
+        }
+      },
+      { client: tx }
+    );
 
     return { removedLinkId: link.id, item: updatedItem }
   })
@@ -1830,6 +1926,24 @@ exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedB
       }
     })
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_LINKED,
+        entityType: 'Project',
+        entityId: iteration.project.id,
+        payload: {
+          projectId: iteration.project.id,
+          iterationId,
+          itemId: null,
+          stageId,
+          linkId: link.id,
+          documentId,
+          documentStatus: doc.status
+        }
+      },
+      { client: tx }
+    )
+
     return { link }
   })
 }
@@ -1868,6 +1982,20 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId, { user } 
   }
 
   await prisma.projectDocumentLink.delete({ where: { id: link.id } })
+
+  await integrationEventService.publish({
+    type: EVENT_TYPES.PROJECT_DOCUMENT_UNLINKED,
+    entityType: 'Project',
+    entityId: iteration.project.id,
+    payload: {
+      projectId: iteration.project.id,
+      iterationId,
+      itemId: null,
+      stageId,
+      linkId: link.id
+    }
+  })
+
   return { removedLinkId: link.id }
 }
 
@@ -2094,10 +2222,52 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
     }
   })
 
+  await integrationEventService.publish({
+    type: EVENT_TYPES.PROJECT_STAGE_ADVANCED,
+    entityType: 'Project',
+    entityId: iteration.projectId,
+    payload: {
+      projectId: iteration.projectId,
+      iterationId,
+      iterationNo: iteration.iterationNo,
+      fromStageId: current.stageId,
+      toStageId: next.stageId
+    }
+  })
+
   return { iteration: updated }
 }
 
 exports.handleDocumentPublished = async (documentId) => {
+  // Single choke point shared by every publish path (review/acknowledge and the
+  // async follow-up queue), so the integration event is emitted exactly once.
+  const publishedDocument = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: {
+      id: true,
+      fileCode: true,
+      title: true,
+      documentTypeId: true,
+      projectCategoryId: true,
+      divisionId: true,
+      folderId: true,
+      status: true,
+      stage: true,
+      version: true,
+      ownerId: true,
+      publishedAt: true
+    }
+  })
+
+  if (publishedDocument) {
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_PUBLISHED,
+      entityType: 'Document',
+      entityId: documentId,
+      payload: publishedDocument
+    })
+  }
+
   const links = await prisma.projectDocumentLink.findMany({
     where: { documentId },
     select: { itemId: true }
@@ -2252,6 +2422,21 @@ exports.createProjectChangeRequest = async (projectId, payload) => {
           projectIterationId: created.projectIterationId,
           changeId: created.changeId
         }
+      }
+    })
+
+    await integrationEventService.publish({
+      type: EVENT_TYPES.PROJECT_CHANGE_REQUEST_CREATED,
+      entityType: 'Project',
+      entityId: pid,
+      payload: {
+        projectId: pid,
+        changeRequestId: created.id,
+        projectIterationId: created.projectIterationId,
+        changeId: created.changeId,
+        description: created.description,
+        phaseRef: created.phaseRef,
+        dateApproved: created.dateApproved
       }
     })
 

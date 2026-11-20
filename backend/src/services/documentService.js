@@ -6,6 +6,8 @@ const confidentialAccessService = require('./confidentialAccessService')
 const divisionScopeService = require('./divisionScopeService')
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const DocumentNumbering = require('../utils/documentNumbering');
+const integrationEventService = require('./integrationEventService');
+const { EVENT_TYPES } = require('./integrationEventService');
 const path = require('path');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
@@ -765,6 +767,28 @@ class DocumentService {
       // Keep create flow backward compatible even if code doesn't match current format
     }
 
+    // Publish to the integration outbox (never throws, fire-and-forget semantics)
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_CREATED,
+      entityType: 'Document',
+      entityId: document.id,
+      payload: {
+        id: document.id,
+        fileCode: document.fileCode,
+        title: document.title,
+        documentTypeId: document.documentTypeId,
+        projectCategoryId: document.projectCategoryId,
+        divisionId: document.divisionId,
+        folderId: document.folderId,
+        status: document.status,
+        stage: document.stage,
+        version: document.version,
+        createdById: document.createdById,
+        ownerId: document.ownerId,
+        dateOfDocument: document.dateOfDocument
+      }
+    });
+
     return document;
   }
 
@@ -1139,6 +1163,27 @@ class DocumentService {
         sourceRefId: document.id
       })
     }
+
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_CREATED,
+      entityType: 'Document',
+      entityId: document.id,
+      payload: {
+        id: document.id,
+        fileCode: document.fileCode,
+        title: document.title,
+        documentTypeId: document.documentTypeId,
+        projectCategoryId: document.projectCategoryId,
+        folderId: document.folderId,
+        isClientDocument: document.isClientDocument,
+        status: document.status,
+        stage: document.stage,
+        version: document.version,
+        createdById: document.createdById,
+        ownerId: document.ownerId,
+        source: 'BULK_IMPORT'
+      }
+    })
 
     return document
   }

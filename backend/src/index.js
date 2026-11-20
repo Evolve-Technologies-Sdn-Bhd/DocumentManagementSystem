@@ -29,7 +29,9 @@ const retentionService = require('./services/retentionService');
 const expiryReminderService = require('./services/expiryReminderService');
 const reviewApprovalReminderService = require('./services/reviewApprovalReminderService');
 const calendarReminderService = require('./services/calendarReminderService');
+const webhookService = require('./services/webhookService');
 const configService = require('./services/configService');
+const masterRecordSyncService = require('./services/masterRecordSyncService');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -89,4 +91,20 @@ app.listen(port, () => {
 
   calendarReminderService.scheduleProcessing();
   console.log('Calendar event reminder scheduler initialized');
+
+  // Integration layer: fan out outbox events and push webhook deliveries
+  webhookService.scheduleProcessing();
+  console.log('Integration webhook dispatcher initialized');
+
+  // Reconcile master record registers with the Document table (idempotent, non-blocking)
+  masterRecordSyncService.syncAll()
+    .then((result) => {
+      console.log(
+        'Master record register sync completed:',
+        JSON.stringify(result)
+      );
+    })
+    .catch((error) => {
+      console.error('Master record register sync failed:', error?.message || error);
+    });
 });
