@@ -858,7 +858,7 @@ function NewVersionRegister({ projectCategories = [], users = [] }) {
         projectCategory: record.projectCategory || '',
         previousVersion: record.previousVersion,
         newVersion: record.newVersion,
-        versionDate: new Date(record.versionDate).toLocaleDateString('en-GB'),
+        versionDate: record.versionDate ? new Date(record.versionDate).toLocaleDateString('en-GB') : '-',
         updatedBy: record.updatedBy,
         changeSummary: record.changeSummary || 'No summary provided'
       }))
@@ -1322,7 +1322,7 @@ function ObsoleteRegister({ projectCategories = [] }) {
         type: record.documentType,
         projectCategoryId: record.projectCategoryId ?? null,
         projectCategory: record.projectCategory || '',
-        obsoleteDate: new Date(record.obsoleteDate).toLocaleDateString('en-GB'),
+        obsoleteDate: record.obsoleteDate ? new Date(record.obsoleteDate).toLocaleDateString('en-GB') : '-',
         reason: record.reason,
         replacedBy: record.replacedBy || 'N/A',
         lastOwner: record.lastOwner
@@ -1831,7 +1831,7 @@ function OldVersionRegister({ projectCategories = [] }) {
         title: record.documentTitle,
         projectCategory: record.projectCategory || '',
         version: record.version,
-        archivedDate: new Date(record.archivedDate).toLocaleDateString('en-GB'),
+        archivedDate: record.archivedDate ? new Date(record.archivedDate).toLocaleDateString('en-GB') : '-',
         archivedBy: record.archivedBy,
         currentVersion: record.currentVersion,
         retentionUntil: record.retentionUntil ? new Date(record.retentionUntil).toLocaleDateString('en-GB') : 'N/A'

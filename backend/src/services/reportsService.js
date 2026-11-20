@@ -875,7 +875,7 @@ class ReportsService {
         projectCategory: vr.newDocument?.projectCategory?.name || vr.document?.projectCategory?.name || '',
         previousVersion: prevVersion,
         newVersion: newVersion,
-        versionDate: vr.approvedAt,
+        versionDate: vr.createdAt,
         updatedBy: vr.requestedBy ? `${vr.requestedBy.firstName} ${vr.requestedBy.lastName}` : 'Unknown',
         changeSummary: vr.reasonForRevision || vr.remarks || 'Version update'
       };
