@@ -84,21 +84,6 @@ const getProjectLinkedDivisionIds = async (projectId, db = prisma) => {
   return uniq(divisionIds).filter((id) => id != null)
 }
 
-// #region debug-point A:runtime-reporter
-const __ptDebugReport = (payload) => {
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'project-confidential-access',
-      runId: 'pre-fix',
-      ts: Date.now(),
-      ...payload
-    })
-  }).catch(() => {})
-}
-// #endregion
-
 const PROJECT_STATUSES = new Set(['ACTIVE', 'ON_HOLD', 'CLOSED', 'ARCHIVED'])
 
 const normalizeProjectStatus = (value) => {
@@ -230,54 +215,16 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 }
 
 const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
-  // #region debug-point A:linked-document-access-check
-  const __debugUserId = Number.isFinite(Number(user?.id)) ? Number(user.id) : null
-  const __debugRoleIds = Array.isArray(userRoleIds) ? userRoleIds.filter((id) => Number.isFinite(id)) : []
-  const __debugEntries = Array.isArray(document?.confidentialAccess)
-    ? document.confidentialAccess.map((entry) => ({ id: entry.id, userId: entry.userId, roleId: entry.roleId }))
-    : []
-  // #endregion
   if (!document) return false
   if (!document.isConfidential) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'A',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:non-confidential',
-      msg: '[DEBUG] linked document allowed because confidential flag is off',
-      data: { documentId: document?.id || null, userId: __debugUserId, roleIds: __debugRoleIds }
-    })
-    // #endregion
     return true
   }
   if (!user) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'A',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:no-user',
-      msg: '[DEBUG] linked confidential document denied because user context is missing',
-      data: { documentId: document?.id || null, entries: __debugEntries }
-    })
-    // #endregion
     return false
   }
 
   const userId = Number.isFinite(Number(user.id)) ? Number(user.id) : null
   if (userId && (document.ownerId === userId || document.createdById === userId)) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'C',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:owner-or-creator',
-      msg: '[DEBUG] linked confidential document allowed because user matches owner or creator',
-      data: {
-        documentId: document?.id || null,
-        userId,
-        ownerId: document?.ownerId || null,
-        createdById: document?.createdById || null,
-        roleIds: __debugRoleIds,
-        entries: __debugEntries
-      }
-    })
-    // #endregion
     return true
   }
 
@@ -290,40 +237,10 @@ const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
       return false
     })
     if (hasMatchingEntry) {
-      // #region debug-point A:linked-document-access-check
-      __ptDebugReport({
-        hypothesisId: 'B',
-        location: 'projectTrackingService.canInteractWithLinkedDocument:matched-entry',
-        msg: '[DEBUG] linked confidential document allowed because access entry matched current user or role',
-        data: {
-          documentId: document?.id || null,
-          userId,
-          ownerId: document?.ownerId || null,
-          createdById: document?.createdById || null,
-          roleIds: normalizedRoleIds,
-          entries: __debugEntries
-        }
-      })
-      // #endregion
       return true
     }
   }
 
-  // #region debug-point A:linked-document-access-check
-  __ptDebugReport({
-    hypothesisId: 'A',
-    location: 'projectTrackingService.canInteractWithLinkedDocument:denied',
-    msg: '[DEBUG] linked confidential document denied after evaluating owner creator and matching entries',
-    data: {
-      documentId: document?.id || null,
-      userId,
-      ownerId: document?.ownerId || null,
-      createdById: document?.createdById || null,
-      roleIds: __debugRoleIds,
-      entries: __debugEntries
-    }
-  })
-  // #endregion
   return false
 }
 
@@ -1492,20 +1409,6 @@ exports.listIterationItems = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  // #region debug-point D:iteration-items-role-resolution
-  __ptDebugReport({
-    hypothesisId: 'D',
-    location: 'projectTrackingService.listIterationItems:role-resolution',
-    msg: '[DEBUG] resolved role ids for iteration items request',
-    data: {
-      iterationId,
-      userId: user?.id || null,
-      roleNames: user?.roles || [],
-      roleIds
-    }
-  })
-  // #endregion
-
   const items = await prisma.projectIterationDocumentItem.findMany({
     where: { projectIterationId: iterationId },
     include: {
@@ -1829,20 +1732,6 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  // #region debug-point D:stage-documents-role-resolution
-  __ptDebugReport({
-    hypothesisId: 'D',
-    location: 'projectTrackingService.listIterationStageDocuments:role-resolution',
-    msg: '[DEBUG] resolved role ids for stage documents request',
-    data: {
-      iterationId,
-      userId: user?.id || null,
-      roleNames: user?.roles || [],
-      roleIds
-    }
-  })
-  // #endregion
-
   const links = await prisma.projectDocumentLink.findMany({
     where: {
       projectIterationId: iterationId,

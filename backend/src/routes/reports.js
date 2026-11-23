@@ -145,36 +145,8 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     const versionSegment = reportsService.extractVersionSegmentFromFileCode(doc.fileCode)
     return !versionSegment || versionSegment === '01'
   })
-  // #region debug-point A:new-documents-mapping
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'master-record-preview-link',
-      runId: 'pre-fix',
-      hypothesisId: 'A',
-      location: 'reports.js:/master-record/new-documents',
-      msg: '[DEBUG] Built master record document mapping',
-      data: {
-        userId: req.user?.id ?? null,
-        roleNames: req.user?.roles || [],
-        totalCandidateDocuments: allCandidateDocuments.length,
-        totalVersion01Documents: documents.length,
-        sampleMappings: documents.slice(0, 10).map((doc) => ({
-          documentId: doc.id,
-          fileCode: doc.fileCode,
-          projectCategoryId: doc.projectCategoryId ?? null,
-          title: doc.title,
-          status: doc.status,
-          fileName: doc.versions?.[0]?.fileName ?? null
-        }))
-      },
-      ts: Date.now()
-    })
-  }).catch(() => {})
-  // #endregion
-  
   // Format for frontend
+  
   let formattedRecords = documents.map(doc => ({
     id: doc.id,
     documentId: doc.id,
@@ -591,31 +563,6 @@ router.get('/system/data/:reportType', requirePermission('logsReport.reports', '
   };
 
   const reportData = await reportsService.getReportData(reportType, config);
-  // #region debug-point B:reports-route-response
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'document-request-report',
-      runId: 'pre-fix',
-      hypothesisId: 'B',
-      location: 'backend/src/routes/reports.js:519',
-      msg: '[DEBUG] Reports route returning report payload',
-      data: {
-        reportType,
-        dateFrom: config.dateFrom,
-        dateTo: config.dateTo,
-        summaryKeys: Object.keys(reportData?.summary || {}),
-        total: reportData?.summary?.total ?? null,
-        rowCount: Array.isArray(reportData?.rows) ? reportData.rows.length : null,
-        rowTypes: Array.isArray(reportData?.rows)
-          ? Array.from(new Set(reportData.rows.map((row) => row?.requestType).filter(Boolean)))
-          : []
-      },
-      ts: Date.now()
-    })
-  }).catch(() => {});
-  // #endregion
   // Return report data directly (with config merged in)
   return ResponseFormatter.success(res, { ...reportData, appliedConfig: config }, 'Report data retrieved successfully');
 }));

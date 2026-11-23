@@ -83,6 +83,12 @@ const getActionLabel = (cfg) => {
 
 api.interceptors.request.use(async (cfg) => {
   await _acquire()
+  // Every attempt — including retries of the same config — takes a fresh
+  // semaphore slot, so clear the release guard that axios copied over from a
+  // previous attempt. Without this, a retried request acquires a slot but
+  // skips releasing it, permanently shrinking the concurrency budget until all
+  // requests deadlock.
+  cfg.__semaphoreReleased = false
 
   const token = localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
@@ -120,6 +126,17 @@ api.interceptors.request.use(async (cfg) => {
 
   return cfg
 })
+
+// When the session can no longer be recovered (expired/tampered token and no
+// usable refresh token), send the user back to the login screen instead of
+// leaving them on a broken app shell.
+const redirectToLogin = () => {
+  try {
+    const path = window.location.pathname || ''
+    if (path === '/login' || path.startsWith('/login/')) return
+    window.location.href = '/login'
+  } catch {}
+}
 
 api.interceptors.response.use(
   (res) => {
@@ -237,6 +254,7 @@ api.interceptors.response.use(
       localStorage.removeItem('user')
       finishGlobalOnce()
       releaseOnce()
+      if (!isAuthEndpoint) redirectToLogin()
       return Promise.reject(error)
     }
 
@@ -246,6 +264,7 @@ api.interceptors.response.use(
       localStorage.removeItem('user')
       finishGlobalOnce()
       releaseOnce()
+      redirectToLogin()
       return Promise.reject(error)
     }
 
@@ -294,6 +313,7 @@ api.interceptors.response.use(
         _release()
         refreshErr.__semaphoreReleased = true
       }
+      redirectToLogin()
       return Promise.reject(refreshErr)
     }
   }

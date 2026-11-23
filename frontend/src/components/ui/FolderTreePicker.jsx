@@ -130,9 +130,6 @@ function FolderTreePickerItem({
   const isSelected = normalizeFolderId(selectedId) === normalizeFolderId(node.id)
 
   const handleSelect = () => {
-    // #region debug-point A:folder-tree-click
-    ;(window?.localStorage?.getItem('dms_debug') === '1') && fetch((window?.localStorage?.getItem('dms_debug_server_url') || 'http://127.0.0.1:7777/event'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'attach-folder-empty', runId: 'pre', hypothesisId: 'A', location: 'FolderTreePicker.jsx:handleSelect', msg: '[DEBUG] Folder tree click', data: { nodeId: node?.id || null, selectable: Boolean(node?.selectable), hasChildren: Boolean((node?.children || []).length), level, selectedId: selectedId || null } }) }).catch(() => {})
-    // #endregion
     if (node.selectable && node.id) {
       onSelect(node)
     }
@@ -168,9 +165,6 @@ function FolderTreePickerItem({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              // #region debug-point A:folder-tree-toggle
-              ;(window?.localStorage?.getItem('dms_debug') === '1') && fetch((window?.localStorage?.getItem('dms_debug_server_url') || 'http://127.0.0.1:7777/event'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: 'attach-folder-empty', runId: 'pre', hypothesisId: 'A', location: 'FolderTreePicker.jsx:toggle', msg: '[DEBUG] Folder tree toggle click', data: { nodeId: node?.id || null, selectable: Boolean(node?.selectable), hasChildren: Boolean((node?.children || []).length), level } }) }).catch(() => {})
-              // #endregion
               if (node.selectable && node.id) {
                 onSelect(node)
               }

@@ -60,19 +60,6 @@ export default function ReviewAndApproval() {
   const [approveSubmitError, setApproveSubmitError] = useState('')
   const [dragColIndex, setDragColIndex] = useState(null)
   const [dragOverColIndex, setDragOverColIndex] = useState(null)
-  const canSendDebugRef = useRef(null)
-
-  const canSendDebug = () => {
-    if (canSendDebugRef.current === null) {
-      try {
-        canSendDebugRef.current = localStorage.getItem('dms_debug') === '1'
-      } catch {
-        canSendDebugRef.current = false
-      }
-    }
-    return canSendDebugRef.current
-  }
-
   // Get current user ID for ownership check
   const getCurrentUserId = () => {
     try {
@@ -247,34 +234,6 @@ export default function ReviewAndApproval() {
   const handleDownload = async (doc) => {
     try {
       const downloadId = doc?.documentId ?? doc?.id
-      // #region debug-point A:download-click
-      if (canSendDebug()) {
-        fetch('http://127.0.0.1:7777/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'review-approval-title-download',
-            runId: 'pre-fix',
-            hypothesisId: 'A',
-            location: 'ReviewAndApproval.jsx:handleDownload',
-            msg: '[DEBUG] Download requested from review-approval list',
-            data: {
-              downloadId: downloadId ?? null,
-              doc: {
-                id: doc?.id ?? null,
-                documentId: doc?.documentId ?? null,
-                fileCode: doc?.fileCode ?? null,
-                title: doc?.title ?? null,
-                status: doc?.status ?? null,
-                stage: doc?.stage ?? null,
-                fileName: doc?.fileName ?? null
-              }
-            },
-            ts: Date.now()
-          })
-        }).catch(() => {})
-      }
-      // #endregion
       if (!downloadId) {
         setAlertModal({
           show: true,
@@ -288,28 +247,6 @@ export default function ReviewAndApproval() {
       const res = await api.get(`/documents/${downloadId}/download`, {
         responseType: 'blob'
       })
-      // #region debug-point B:download-success
-      if (canSendDebug()) {
-        fetch('http://127.0.0.1:7777/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'review-approval-title-download',
-            runId: 'pre-fix',
-            hypothesisId: 'B',
-            location: 'ReviewAndApproval.jsx:handleDownload',
-            msg: '[DEBUG] Download response OK',
-            data: {
-              downloadId,
-              contentType: res.headers?.['content-type'] || null,
-              contentDisposition: res.headers?.['content-disposition'] || null
-            },
-            ts: Date.now()
-          })
-        }).catch(() => {})
-      }
-      // #endregion
-
       const contentDisposition = res.headers?.['content-disposition'] || ''
       const contentTypeHeader = res.headers?.['content-type'] || ''
       const getFileNameFromContentDisposition = (value) => {
@@ -340,26 +277,6 @@ export default function ReviewAndApproval() {
     } catch (err) {
       console.error('Failed to download document:', err)
       const apiMessage = err?.response?.data?.message
-      // #region debug-point C:download-error
-      if (canSendDebug()) {
-        fetch('http://127.0.0.1:7777/event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'review-approval-title-download',
-            runId: 'pre-fix',
-            hypothesisId: 'C',
-            location: 'ReviewAndApproval.jsx:handleDownload',
-            msg: '[DEBUG] Download response error',
-            data: {
-              status: err?.response?.status ?? null,
-              message: apiMessage || err?.message || null
-            },
-            ts: Date.now()
-          })
-        }).catch(() => {})
-      }
-      // #endregion
       const status = err?.response?.status
       const message =
         status === 403

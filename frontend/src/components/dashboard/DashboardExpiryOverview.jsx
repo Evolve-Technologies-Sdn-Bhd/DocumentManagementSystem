@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import AppSurface from '../ui/AppSurface'
 import SectionHeader from '../ui/SectionHeader'
 import EmptyPanelState from '../ui/EmptyPanelState'
+import { canAccessRoute } from '../../utils/permissions'
 
 export default function DashboardExpiryOverview({
   title,
@@ -16,13 +17,14 @@ export default function DashboardExpiryOverview({
 }) {
   const total = stats?.totalTrackedDocuments || 0
   const hasData = Boolean(stats)
+  const canOpenExpiryTracking = canAccessRoute('/expiry-tracking')
 
   return (
     <AppSurface padding="lg" className="space-y-4">
       <SectionHeader
         title={title}
         subtitle={subtitle}
-        actions={hasData ? (
+        actions={hasData && canOpenExpiryTracking ? (
           <Link className="text-sm font-medium text-brand transition-colors hover:text-brand-hover hover:underline" to="/expiry-tracking">
             {actionLabel} →
           </Link>

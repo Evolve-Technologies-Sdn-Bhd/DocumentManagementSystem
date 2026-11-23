@@ -32,6 +32,7 @@ import { PreferencesProvider, usePreferences } from './contexts/PreferencesConte
 import api from './api/axios'
 import { applyCompanyInfo, applyTheme, applyThemeMode, persistBranding, readCompanyInfo, readStoredJson, readThemeSettings } from './utils/branding'
 import { isSystemAdmin } from './utils/permissions'
+import { getDefaultRoute } from './utils/defaultRoute'
 
 const ProjectTracking = lazy(() => import('./components/ProjectTracking'))
 const ProjectDashboardPage = lazy(() =>
@@ -539,6 +540,11 @@ export default function App() {
               </Layout>
             </ProtectedRoute>
           }
+        />
+        {/* Unknown URLs must not render a blank page. */}
+        <Route
+          path="*"
+          element={<Navigate to={localStorage.getItem('token') ? getDefaultRoute() : '/login'} replace />}
         />
         </Routes>
         </SystemFeatureRefresher>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
-import { hasPermission } from '../utils/permissions'
+import { hasPermission, canAccessRoute } from '../utils/permissions'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import DashboardHeader from './dashboard/DashboardHeader'
@@ -626,7 +626,7 @@ export default function Dashboard() {
                     icon={card.icon}
                     tone={card.tone}
                     surfaceStyle={card.surfaceStyle}
-                    to={card.to}
+                    to={card.to && canAccessRoute(card.to) ? card.to : undefined}
                     onClick={card.onClick}
                   />
                 ))}

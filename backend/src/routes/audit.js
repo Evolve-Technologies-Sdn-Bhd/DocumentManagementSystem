@@ -10,6 +10,17 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
+// Actions that represent a failed / blocked operation rather than a success
+const FAILURE_ACTIONS = new Set([
+  'LOGIN_FAILED',
+  'FAILED_LOGIN',
+  'ACCOUNT_LOCKED',
+  'LOGIN_BLOCKED',
+  'LOGIN_DENIED',
+  'ACCESS_DENIED',
+  'UNAUTHORIZED'
+])
+
 const formatDuration = (durationMs, isActive) => {
   const safe = Math.max(0, Number(durationMs) || 0)
   const hours = Math.floor(safe / (1000 * 60 * 60));
@@ -102,7 +113,7 @@ router.get('/logs', authorizePermission('logsReport.activityLogs', 'view'), asyn
     action: log.action,
     description: log.description || `${log.action} ${log.entity}`,
     ipAddress: log.ipAddress || 'N/A',
-    status: 'Success'
+    status: FAILURE_ACTIONS.has(String(log.action || '').toUpperCase()) ? 'Failed' : 'Success'
   }));
 
   return ResponseFormatter.paginated(

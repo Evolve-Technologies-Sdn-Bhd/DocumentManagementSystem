@@ -2725,27 +2725,33 @@ class DocumentService {
     }
 
     // Update document register
-    await prisma.documentRegister.upsert({
-      where: { fileCode_projectCategoryId: { fileCode, projectCategoryId: updated.projectCategoryId } },
-      update: {
-        documentTitle: document.title,
-        documentType: document.documentType.name,
-        version: '1.0',
-        owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
-        department: updated.owner.department || '',
-        status: 'ACKNOWLEDGED'
-      },
-      create: {
-        fileCode,
-        projectCategoryId: updated.projectCategoryId,
-        documentTitle: document.title,
-        documentType: document.documentType.name,
-        version: '1.0',
-        owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
-        department: updated.owner.department || '',
-        status: 'ACKNOWLEDGED'
-      }
-    });
+    // projectCategoryId is nullable and Prisma cannot resolve the compound unique
+    // (fileCode, projectCategoryId) when a member is null, so resolve by findFirst instead.
+    const registerRecordData = {
+      documentTitle: document.title,
+      documentType: document.documentType.name,
+      version: '1.0',
+      owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
+      department: updated.owner.department || '',
+      status: 'ACKNOWLEDGED'
+    }
+    const existingRegisterEntry = await prisma.documentRegister.findFirst({
+      where: { fileCode, projectCategoryId: updated.projectCategoryId ?? null }
+    })
+    if (existingRegisterEntry) {
+      await prisma.documentRegister.update({
+        where: { id: existingRegisterEntry.id },
+        data: registerRecordData
+      })
+    } else {
+      await prisma.documentRegister.create({
+        data: {
+          fileCode,
+          projectCategoryId: updated.projectCategoryId ?? null,
+          ...registerRecordData
+        }
+      })
+    }
 
     try {
       const settings = await DocumentNumbering.loadSettings()

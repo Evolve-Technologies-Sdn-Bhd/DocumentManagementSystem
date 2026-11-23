@@ -5,6 +5,7 @@ import { ArcElement, Chart as ChartJS, Tooltip } from 'chart.js'
 import AppSurface from '../ui/AppSurface'
 import SectionHeader from '../ui/SectionHeader'
 import EmptyPanelState from '../ui/EmptyPanelState'
+import { canAccessRoute } from '../../utils/permissions'
 
 ChartJS.register(ArcElement, Tooltip)
 
@@ -70,7 +71,9 @@ export default function DashboardStatusChart({
           <div className="space-y-3">
             {items.map((item) => {
               const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0
-              const route = statusRouteMap[item.key]
+              const mappedRoute = statusRouteMap[item.key]
+              // Only make a status clickable when the user may actually open that page.
+              const route = mappedRoute && canAccessRoute(mappedRoute) ? mappedRoute : null
 
               return (
                 <div

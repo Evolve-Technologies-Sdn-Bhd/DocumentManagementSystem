@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
+const { NotFoundError, BadRequestError, ForbiddenError, ConflictError } = require('../utils/errors');
 const notificationService = require('./notificationService');
 const documentAssignmentService = require('./documentAssignmentService');
 const projectTrackingService = require('./projectTrackingService');
@@ -33,6 +33,13 @@ async function isUserIdAdmin(userId) {
   });
   return isUserAdmin(user);
 }
+
+// Stages from which a review action (approve / return / skip-approval) is valid.
+// Used both for the upfront validation and as an atomic guard on the status update.
+const REVIEW_STAGES = ['REVIEW', 'DRAFT', 'APPROVAL']
+
+// Stages from which a first-approval action is valid (includes legacy stage names).
+const FIRST_APPROVAL_STAGES = ['FIRST_APPROVAL', 'APPROVAL']
 
 class WorkflowService {
   async assertUserHasRole(userId, roleName, message) {
@@ -213,15 +220,24 @@ class WorkflowService {
       throw new BadRequestError('Document must have at least one file uploaded before submission');
     }
 
-    // Update document status
-    const updated = await prisma.document.update({
-      where: { id: documentId },
+    // Update document status (guarded on DRAFT stage so a double-submit cannot
+    // create duplicate submission history / progress the workflow twice)
+    const submitResult = await prisma.document.updateMany({
+      where: { id: documentId, stage: 'DRAFT' },
       data: {
         status: 'PENDING_REVIEW',
         stage: 'REVIEW',
         submittedById: userId,
         submittedAt: new Date()
-      },
+      }
+    });
+
+    if (submitResult.count === 0) {
+      throw new ConflictError('Document is no longer in draft. It may have already been submitted or updated by another action.');
+    }
+
+    const updated = await prisma.document.findUnique({
+      where: { id: documentId },
       include: {
         owner: true,
         documentType: true
@@ -273,8 +289,7 @@ class WorkflowService {
     }
 
     // Check if document is in review stage (support legacy documents that might be in DRAFT or APPROVAL)
-    const validReviewStages = ['REVIEW', 'DRAFT', 'Approval', 'APPROVAL'];
-    if (!validReviewStages.includes(document.stage)) {
+    if (!REVIEW_STAGES.includes(document.stage)) {
       throw new BadRequestError(`Document is not in review stage. Current stage: ${document.stage}`);
     }
 
@@ -313,8 +328,8 @@ class WorkflowService {
       }
 
       if (skipApproval) {
-        const updated = await prisma.document.update({
-          where: { id: documentId },
+        const skipResult = await prisma.document.updateMany({
+          where: { id: documentId, stage: { in: REVIEW_STAGES } },
           data: {
             status: 'READY_TO_PUBLISH',
             stage: 'READY_TO_PUBLISH',
@@ -322,6 +337,12 @@ class WorkflowService {
             reviewedAt: new Date()
           }
         });
+
+        if (skipResult.count === 0) {
+          throw new ConflictError('Document is no longer in review. It may have been processed by another action.');
+        }
+
+        const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
         try {
           const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -367,8 +388,8 @@ class WorkflowService {
       }
 
       // Move to first approval stage
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const approveResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: { in: REVIEW_STAGES } },
         data: {
           status: 'PENDING_FIRST_APPROVAL',
           stage: 'FIRST_APPROVAL',
@@ -377,6 +398,12 @@ class WorkflowService {
           firstApproverId: approverId
         }
       });
+
+      if (approveResult.count === 0) {
+        throw new ConflictError('Document is no longer in review. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -450,8 +477,8 @@ class WorkflowService {
       }
 
       // Return to draft
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const returnResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: { in: REVIEW_STAGES } },
         data: {
           status: 'RETURNED',
           stage: 'DRAFT',
@@ -459,6 +486,12 @@ class WorkflowService {
           reviewedAt: new Date()
         }
       });
+
+      if (returnResult.count === 0) {
+        throw new ConflictError('Document is no longer in review. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -525,8 +558,7 @@ class WorkflowService {
     }
 
     // Check if document is in first approval stage (support legacy stages)
-    const validFirstApprovalStages = ['FIRST_APPROVAL', 'Approval', 'APPROVAL', 'Pending Approval', 'PENDING_APPROVAL'];
-    if (!validFirstApprovalStages.includes(document.stage)) {
+    if (!FIRST_APPROVAL_STAGES.includes(document.stage)) {
       throw new BadRequestError(`Document is not in first approval stage. Current stage: ${document.stage}`);
     }
 
@@ -563,8 +595,8 @@ class WorkflowService {
       const newStatus = secondApproverId ? 'PENDING_SECOND_APPROVAL' : 'READY_TO_PUBLISH';
       const newStage = secondApproverId ? 'SECOND_APPROVAL' : 'READY_TO_PUBLISH';
 
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const firstApproveResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: { in: FIRST_APPROVAL_STAGES } },
         data: {
           status: newStatus,
           stage: newStage,
@@ -572,6 +604,12 @@ class WorkflowService {
           ...(secondApproverId && { secondApproverId })
         }
       });
+
+      if (firstApproveResult.count === 0) {
+        throw new ConflictError('Document is no longer in first approval. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -650,14 +688,20 @@ class WorkflowService {
       }
 
       // Return to draft for amendments
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const firstReturnResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: { in: FIRST_APPROVAL_STAGES } },
         data: {
           status: 'RETURNED',
           stage: 'DRAFT',
           firstApprovedAt: new Date()
         }
       });
+
+      if (firstReturnResult.count === 0) {
+        throw new ConflictError('Document is no longer in first approval. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -714,14 +758,20 @@ class WorkflowService {
       }
 
       // Mark as ready to publish
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const secondApproveResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: 'SECOND_APPROVAL' },
         data: {
           status: 'READY_TO_PUBLISH',
           stage: 'READY_TO_PUBLISH',
           secondApprovedAt: new Date()
         }
       });
+
+      if (secondApproveResult.count === 0) {
+        throw new ConflictError('Document is no longer in second approval. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -774,14 +824,20 @@ class WorkflowService {
       }
 
       // Return to draft for amendments
-      const updated = await prisma.document.update({
-        where: { id: documentId },
+      const secondReturnResult = await prisma.document.updateMany({
+        where: { id: documentId, stage: 'SECOND_APPROVAL' },
         data: {
           status: 'RETURNED',
           stage: 'DRAFT',
           secondApprovedAt: new Date()
         }
       });
+
+      if (secondReturnResult.count === 0) {
+        throw new ConflictError('Document is no longer in second approval. It may have been processed by another action.');
+      }
+
+      const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
       try {
         const latestVersion = await prisma.documentVersion.findFirst({ where: { documentId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] });
@@ -890,9 +946,10 @@ class WorkflowService {
     }
     const versionSegment = normalizeVersionSegment(String(document.fileCode || '').split('/')[1] || '')
 
-    // Publish document
-    const updated = await prisma.document.update({
-      where: { id: documentId },
+    // Publish document (guarded on the expected status so two concurrent publish
+    // requests cannot both succeed and duplicate history / register entries)
+    const publishResult = await prisma.document.updateMany({
+      where: { id: documentId, status: 'READY_TO_PUBLISH' },
       data: {
         status: 'PUBLISHED',
         stage: 'PUBLISHED',
@@ -902,6 +959,12 @@ class WorkflowService {
         publishedAt: new Date()
       }
     });
+
+    if (publishResult.count === 0) {
+      throw new ConflictError('Document is no longer ready to publish. It may have been published or updated by another action.');
+    }
+
+    const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
     // Remove all assignments when published (published docs are accessible to all)
     await documentAssignmentService.removeAllAssignments(documentId);
@@ -954,13 +1017,16 @@ class WorkflowService {
 
     if (!document.isClientDocument) {
       const projectCategoryId = document.projectCategoryId ?? null
-      const existingRegister = await prisma.documentRegister.findUnique({
-        where: { fileCode_projectCategoryId: { fileCode: document.fileCode, projectCategoryId } }
+      // DocumentRegister.projectCategoryId is nullable, and Prisma cannot resolve a compound
+      // unique (fileCode, projectCategoryId) when a member is null. Use findFirst/update-by-id
+      // so documents without a project category still receive a Master Record row.
+      const existingRegister = await prisma.documentRegister.findFirst({
+        where: { fileCode: document.fileCode, projectCategoryId }
       })
 
       if (existingRegister) {
         await prisma.documentRegister.update({
-          where: { fileCode_projectCategoryId: { fileCode: document.fileCode, projectCategoryId } },
+          where: { id: existingRegister.id },
           data: { 
             status: 'PUBLISHED',
             version: versionSegment || existingRegister.version,
@@ -1048,9 +1114,9 @@ class WorkflowService {
       throw new BadRequestError('Document is not in acknowledgment stage');
     }
 
-    // Publish document
-    const updated = await prisma.document.update({
-      where: { id: documentId },
+    // Publish document (guarded on acknowledgment stage to block concurrent double-acknowledgment)
+    const acknowledgeResult = await prisma.document.updateMany({
+      where: { id: documentId, stage: 'ACKNOWLEDGMENT' },
       data: {
         status: 'PUBLISHED',
         stage: 'PUBLISHED',
@@ -1060,6 +1126,12 @@ class WorkflowService {
         publishedAt: new Date()
       }
     });
+
+    if (acknowledgeResult.count === 0) {
+      throw new ConflictError('Document is no longer awaiting acknowledgment. It may have been acknowledged or updated by another action.');
+    }
+
+    const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
     try {
       await projectTrackingService.handleDocumentPublished(documentId);
@@ -1107,7 +1179,10 @@ class WorkflowService {
 
     if (!document.isClientDocument) {
       await prisma.documentRegister.updateMany({
-        where: { fileCode: document.fileCode },
+        where: {
+          fileCode: document.fileCode,
+          projectCategoryId: document.projectCategoryId ?? null
+        },
         data: { status: 'PUBLISHED' }
       });
     }
@@ -1257,15 +1332,21 @@ class WorkflowService {
     });
     const archivedByName = actionUser ? `${actionUser.firstName} ${actionUser.lastName}` : 'System';
 
-    // Update document
-    const updated = await prisma.document.update({
-      where: { id: documentId },
+    // Update document (guarded on status to block concurrent / repeated supersede)
+    const supersedeResult = await prisma.document.updateMany({
+      where: { id: documentId, status: 'PUBLISHED' },
       data: {
         status: 'SUPERSEDED',
         stage: 'SUPERSEDED',
         supersededById
       }
     });
+
+    if (supersedeResult.count === 0) {
+      throw new ConflictError('Document is no longer published. It may have been superseded, obsoleted or updated by another action.');
+    }
+
+    const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
     // Create history entry
     await prisma.approvalHistory.create({
@@ -1371,9 +1452,9 @@ class WorkflowService {
       throw new BadRequestError('Reason is required for marking document as obsolete');
     }
 
-    // Update document
-    const updated = await prisma.document.update({
-      where: { id: documentId },
+    // Update document (guarded on status to block concurrent / repeated obsoletion)
+    const obsoleteResult = await prisma.document.updateMany({
+      where: { id: documentId, status: { in: ['PUBLISHED', 'SUPERSEDED'] } },
       data: {
         status: 'OBSOLETE',
         stage: 'OBSOLETE',
@@ -1381,6 +1462,12 @@ class WorkflowService {
         obsoleteDate: new Date()
       }
     });
+
+    if (obsoleteResult.count === 0) {
+      throw new ConflictError('Document is no longer eligible to be marked obsolete. It may have been obsoleted or updated by another action.');
+    }
+
+    const updated = await prisma.document.findUnique({ where: { id: documentId } });
 
     // Create history entry
     await prisma.approvalHistory.create({
@@ -1408,6 +1495,18 @@ class WorkflowService {
         lastOwner: `${document.owner.firstName} ${document.owner.lastName}`
       }
     });
+
+    // Keep the master record (document register) in sync with the new obsolete status.
+    // Scoped by project category because the same fileCode can exist across categories.
+    if (!document.isClientDocument) {
+      await prisma.documentRegister.updateMany({
+        where: {
+          fileCode: document.fileCode,
+          projectCategoryId: document.projectCategoryId ?? null
+        },
+        data: { status: 'OBSOLETE' }
+      });
+    }
 
     // Send broadcast notification to all users
     try {
