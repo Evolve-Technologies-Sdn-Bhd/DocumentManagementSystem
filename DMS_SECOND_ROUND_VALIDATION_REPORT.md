@@ -14,7 +14,7 @@
 | Backend E2E lifecycle harness | Sections 3–5, 7, 8 (Workflows A–E, negative/edge, concurrency, permissions, reconciliation) | **90 / 90 PASS, 0 FAIL** |
 | Frontend Playwright UI suite | Sections 6 + 9 (UI flows, navigation, console/network, error handling) | **11 / 11 tests PASS** (all sub-assertions PASS) |
 
-**Verdict:** All **Critical** and **High** severity defects found in this round have been fixed in place and re-verified. The system meets the acceptance gate. Two items remain open by policy (require an approved migration plan) and are documented in §6.
+**Verdict:** All **Critical** and **High** severity defects found in this round have been fixed in place and re-verified. The system meets the acceptance gate. The integration-layer migration has since been approved and applied (§6). Remaining non-blocking items are documented in §6.
 
 **Defects discovered and fixed this round:** 4 (1 Critical, 2 High, 1 Medium).
 
@@ -109,7 +109,7 @@
 
 | # | Query / probe | Finding |
 |---|---|---|
-| 1 | `SHOW TABLES` / inspect `_prisma_migrations` | `_prisma_migrations` **absent** → 5 Integration-Layer tables missing: `ApiKey`, `ExternalReference`, `WebhookEndpoint`, `IntegrationEvent`, `WebhookDelivery` |
+| 1 | `SHOW TABLES` / inspect `_prisma_migrations` | 5 Integration-Layer tables were missing: `ApiKey`, `ExternalReference`, `WebhookEndpoint`, `IntegrationEvent`, `WebhookDelivery` (now created — see §6) |
 | 2 | Inspect `VersionRegister` writers | **Zero writers** — table is never populated |
 | 3 | Group `documentVersion` by `(documentId, version)` | Duplicate `(documentId, version)` rows exist (e.g. `1.0` × 2) — created at draft stage (B7) |
 | 4 | `reportsService.getDocumentRegister` logic vs `documentregister` rows | Intentionally filters to version segment `'01'` — `report=6`, `dbSeg01=6`, `dbTotal=7` (revision rows excluded by design) |
@@ -124,8 +124,8 @@ All probes were **read-only**; no production data was modified.
 
 ## 6. Outstanding Issues
 
-### OPEN — Decision required (policy-gated, Section 10)
-1. **Migration `20261118000100_add_integration_layer` not applied.** Five Integration-Layer tables are missing (`ApiKey`, `ExternalReference`, `WebhookEndpoint`, `IntegrationEvent`, `WebhookDelivery`). Applying it is a **production DB schema change**, which Section 10 forbids without an approved migration plan. **Awaiting your decision.**
+### RESOLVED — Integration layer applied
+1. **Migration `20261118000100_add_integration_layer` applied** (approved by user). The 5 tables (`ApiKey`, `ExternalReference`, `WebhookEndpoint`, `IntegrationEvent`, `WebhookDelivery`) now exist in `dms_dev`, and the migration is recorded in `_prisma_migrations`. Applied surgically (direct SQL + `prisma migrate resolve --applied`) because 7 unrelated smart-document/calendar migrations were also pending — those were **not** touched. The generated Prisma client already exposes all 5 models.
 
 ### OPEN — Design / data-quality notes (not blocking)
 2. **`VersionRegister` has zero writers.** The "New Version Register" report currently reads from `VersionRequest`. Either wire up writers or document the table as deprecated.
@@ -135,12 +135,13 @@ All probes were **read-only**; no production data was modified.
    - `frontend/src/components/ProjectTracking.jsx:1760-1761`
    - `frontend/src/components/PublishDocumentModal.jsx:179`
    - `backend/scripts/runLocalConfidentialRepro.js` (standalone script)
-5. **Scratch artifacts to clean** (untracked): `backend/_v_err.txt`, `backend/_v_out.txt`, `backend/_validate-data/`, `backend/_validate.err`, `backend/_validate_err.txt`, `backend/_validate_out.txt`, `frontend/test-results/`.
-6. **`backend/mysql-local-data/*` must not be committed** (live MariaDB datadir; shows as modified in `git status`).
-7. **Uncommitted work:** all backend + frontend fixes in §7 are still uncommitted.
+5. **7 migrations remain pending** in `_prisma_migrations` (smart-document + calendar). Their target objects already exist in the DB (applied out-of-band), so they were intentionally left unapplied to avoid unrelated schema changes.
+6. **`backend/mysql-local-data/*` is tracked in git** and shows as modified (a MariaDB datadir copy). It is intentionally **excluded** from the commit. The live 3306 database actually uses `C:\xampp\mysql\data`.
+7. **Untracked doc** `DMS_GLOBAL_REVIEW_AND_IMPROVEMENT_PROPOSAL.md` left uncommitted (pre-existing; not authored this round).
 
 ### RESOLVED this round
 - CRITICAL-1 semaphore deadlock, HIGH-1 token rejection, HIGH-2 blank page, MEDIUM-1 dashboard permission leak — all fixed and verified (§2).
+- Cleanup: scratch files (`backend/_v_err.txt`, `backend/_v_out.txt`, `backend/_validate*.err/txt`, `backend/_validate-data/`, `frontend/test-results/`) removed; fixes committed as `be0e20c`.
 
 ---
 
@@ -176,7 +177,7 @@ All probes were **read-only**; no production data was modified.
 - **503 maintenance-mode redirect** (non-admin → `/maintenance`) — not exercised.
 - **Refresh-token rotation flow** — code path reviewed; end-to-end rotation not directly exercised (covered indirectly by UI-9 terminal-401 handling).
 - **Modal-heavy flows not yet automated:** New Document Request modal, Acknowledge / Supersede / Obsolete modals, Master Record detail & compare views, Reports / ReportViewer export.
-- **Integration-Layer endpoints** — untestable until the migration is applied (see §6.1).
+- **Integration-Layer endpoints** — the 5 tables now exist (see §6), but the API-key / webhook endpoints were not exercised.
 - **Playwright run exit code** is `1` due to TRAE Sandbox blocking Edge's own files (`TokenBroker`, `OneAuth`, `Intel\ShaderCache`, `Recent\CustomDestinations`) — this is harness noise, **not** a test failure; the authoritative result is `11 passed`.
 
 ---
