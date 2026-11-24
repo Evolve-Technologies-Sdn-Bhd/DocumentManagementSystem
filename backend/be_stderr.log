@@ -1,0 +1,87 @@
+⚠️  [AI_ROUTES] Skipping AI mount: aiRoutes missing /health or /config public endpoint (undefined callback risk)
+❌ Database connection failed: Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+Expiry tracking daily processor failed: PrismaClientInitializationError: 
+Invalid `prisma.documentExpiryProfile.findMany()` invocation:
+
+
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ExpiryTrackingService.processDailyStatusAndReminders (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\expiryTrackingService.js:1500:22)
+    at async run (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\expiryReminderService.js:7:9) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Review and approval reminder processor failed: PrismaClientInitializationError: 
+Invalid `prisma.documentAssignment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ReviewApprovalReminderService.processPendingAssignmentReminders (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\reviewApprovalReminderService.js:121:25)
+    at async run (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\reviewApprovalReminderService.js:214:9) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Error cleaning up old drafts: PrismaClientInitializationError: 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ConfigService.getRetentionPolicySettings (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\configService.js:703:20)
+    at async RetentionService.cleanupOldDrafts (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:15:24)
+    at async RetentionService.runRetentionCleanup (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:193:24) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Error during retention cleanup: PrismaClientInitializationError: 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ConfigService.getRetentionPolicySettings (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\configService.js:703:20)
+    at async RetentionService.cleanupOldDrafts (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:15:24)
+    at async RetentionService.runRetentionCleanup (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:193:24) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Scheduled retention cleanup failed: PrismaClientInitializationError: 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `localhost:3306`
+
+Please make sure your database server is running at `localhost:3306`.
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async ConfigService.getRetentionPolicySettings (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\configService.js:703:20)
+    at async RetentionService.cleanupOldDrafts (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:15:24)
+    at async RetentionService.runRetentionCleanup (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\retentionService.js:193:24) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}

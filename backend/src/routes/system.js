@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize, requireSystemAdmin } = require('../middleware/auth');
+const { authenticate, authorize, requireSystemAdmin, authorizePermission } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
 const ResponseFormatter = require('../utils/responseFormatter');
 const prisma = require('../config/database');
@@ -175,7 +175,7 @@ router.delete('/config/document-types/:id', authenticate, configController.delet
 
 // Project Categories
 router.get('/config/project-categories', authenticate, configController.getProjectCategories);
-router.post('/config/project-categories', authenticate, configController.createProjectCategory);
+router.post('/config/project-categories', authenticate, authorizePermission('configuration.masterData', 'create'), configController.createProjectCategory);
 router.put('/config/project-categories/:id', authenticate, configController.updateProjectCategory);
 router.delete('/config/project-categories/:id', authenticate, configController.deleteProjectCategory);
 

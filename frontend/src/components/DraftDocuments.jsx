@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
 import api from '../api/axios'
 import NewDraftModal from './NewDraftModal'
 import ReuploadFileModal from './ReuploadFileModal'
@@ -768,17 +769,13 @@ export default function DraftDocuments() {
       />
 
       {deleteConfirmModal.show && deleteConfirmModal.document ? (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[95] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden animate-fadeIn">
-            <div className="bg-red-600 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h3 className="text-lg font-semibold text-white">Delete Draft Document</h3>
-              </div>
-            </div>
-            <div className="px-6 py-4 space-y-4">
+        <Modal isOpen size="sm">
+          <ModalHeader
+            title="Delete Draft Document"
+            subtitle="Confirm your identity before permanently deleting this draft."
+            onClose={!deleteConfirmModal.loading ? () => setDeleteConfirmModal({ show: false, document: null, password: '', passwordError: '', loading: false }) : undefined}
+          />
+          <ModalBody className="space-y-4">
               <div className="bg-red-50 border border-red-100 rounded-lg p-3">
                 <p className="text-sm text-red-800 font-medium mb-2">
                   Permanently delete draft {deleteConfirmModal.document?.fileCode ? `(${deleteConfirmModal.document.fileCode})` : ''}
@@ -814,8 +811,8 @@ export default function DraftDocuments() {
                   <p className="text-xs text-ink-muted">This action cannot be undone.</p>
                 )}
               </div>
-            </div>
-            <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
+          </ModalBody>
+          <ModalFooter>
               <button
                 onClick={() => setDeleteConfirmModal({ show: false, document: null, password: '', passwordError: '', loading: false })}
                 disabled={deleteConfirmModal.loading}
@@ -836,9 +833,8 @@ export default function DraftDocuments() {
                 )}
                 Delete Permanently
               </button>
-            </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       ) : null}
       
       <NewDraftModal 

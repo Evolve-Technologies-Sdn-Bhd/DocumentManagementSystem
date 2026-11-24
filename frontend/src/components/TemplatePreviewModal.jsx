@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalBody, ModalFooter } from '../components/ui/Modal'
 import mammoth from 'mammoth'
 import useDocxFitToWidth from '../hooks/useDocxFitToWidth'
 
@@ -144,10 +144,9 @@ export default function TemplatePreviewModal({ template, onClose }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <Modal isOpen size="3xl" onClose={onClose} closeOnBackdrop>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-200">
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-semibold text-gray-900 truncate">
               Template Preview: {template.templateName}
@@ -209,8 +208,9 @@ export default function TemplatePreviewModal({ template, onClose }) {
           </div>
         </div>
 
+        <ModalBody className="p-0 flex-1 min-h-0 overflow-hidden">
         {/* Preview Content */}
-        <div className="flex-1 overflow-hidden bg-gray-100">
+        <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
@@ -251,25 +251,22 @@ export default function TemplatePreviewModal({ template, onClose }) {
             </div>
           ) : null}
         </div>
+        </ModalBody>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-gray-500">
-              This is a read-only preview. Download the file to edit.
-            </p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <ModalFooter className="justify-between">
+          <p className="text-sm text-gray-500">
+            This is a read-only preview. Download the file to edit.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Close
+          </button>
+        </ModalFooter>
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+  return modal
 }

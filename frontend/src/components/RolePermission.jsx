@@ -17,7 +17,7 @@ function SubTabNavigation({ activeTab, onTabChange }) {
   ]
 
   return (
-    <div className="border-b border-gray-200 mb-6" data-tour-id="rp-tabbar">
+    <div className="border-b border-[var(--dms-color-border-default)] mb-6" data-tour-id="rp-tabbar">
       <nav className="flex space-x-8">
         {tabs.map((tab) => (
           <button
@@ -26,8 +26,8 @@ function SubTabNavigation({ activeTab, onTabChange }) {
             data-tour-id={`rp-tab-${tab.id}`}
             className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-[var(--dms-color-brand-primary)] text-[var(--dms-color-brand-primary)]'
+                : 'border-transparent text-ink-muted hover:text-ink-secondary hover:border-[var(--dms-color-border-default)]'
             }`}
           >
             {tab.label}
@@ -229,8 +229,8 @@ function RolesManagement() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      Active: 'bg-green-100 text-green-800',
-      Inactive: 'bg-gray-100 text-gray-800'
+      Active: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)]',
+      Inactive: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] text-ink'
     }
     return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status]}`}>{status}</span>
   }
@@ -271,8 +271,8 @@ function RolesManagement() {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('rp_roles_list')}</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <h3 className="text-lg font-semibold text-ink">{t('rp_roles_list')}</h3>
+          <p className="text-sm text-ink-secondary mt-1">
             {t('rp_showing')} {filteredRoles.length} {filteredRoles.length !== 1 ? t('rp_roles_mgmt').toLowerCase() : t('rp_role_name').toLowerCase()}
           </p>
         </div>
@@ -283,7 +283,7 @@ function RolesManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -291,13 +291,13 @@ function RolesManagement() {
             placeholder={t('rp_search_roles_desc')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] pl-11 pr-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+          className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
         >
           <option value="all">{t('rp_all_status')}</option>
           <option value="active">{t('rp_active')}</option>
@@ -308,42 +308,44 @@ function RolesManagement() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_role_name')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('description')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_users_count')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_active')}</th>
-              <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('action')}</th>
+            <tr className="border-b-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]">
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_role_name')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('description')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_users_count')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('status')}</th>
+              <th className="text-ink-secondary text-center py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_active')}</th>
+              <th className="sticky right-0 z-30 bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide border-l-2 border-[var(--dms-color-border-default)]">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" className="text-center py-8 text-gray-500">{t('rp_loading_roles')}</td></tr>
+              <tr><td colSpan="6" className="text-center py-10 text-ink-muted font-medium">{t('rp_loading_roles')}</td></tr>
             ) : filteredRoles.length === 0 ? (
-              <tr><td colSpan="6" className="text-center py-12 text-gray-500">{t('rp_no_roles')}</td></tr>
+              <tr><td colSpan="6" className="text-center py-10 text-ink-muted font-medium">{t('rp_no_roles')}</td></tr>
             ) : (
               pageItems.map((role) => (
-                <tr key={role.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-4 font-medium text-gray-900">{role.roleName}</td>
-                  <td className="py-4 px-4 text-gray-600">{role.description}</td>
-                  <td className="py-4 px-4 text-gray-700">{role.usersCount}</td>
+                <tr key={role.id} className="group border-b border-[var(--dms-color-border-default)]/50 hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors">
+                  <td className="py-4 px-4 font-medium text-ink">{role.roleName}</td>
+                  <td className="py-4 px-4 text-ink-secondary">{role.description}</td>
+                  <td className="py-4 px-4 text-ink-secondary">{role.usersCount}</td>
                   <td className="py-4 px-4">{getStatusBadge(role.status)}</td>
                   <td className="py-4 px-4">
                     <div className="flex items-center justify-center">
                       <button
                         onClick={() => handleStatusChange(role.id, role.status === 'Active' ? 'Inactive' : 'Active')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                          role.status === 'Active' ? 'bg-green-600' : 'bg-gray-300'
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/40 focus:ring-offset-2 p-0.5 ${
+                          role.status === 'Active'
+                            ? 'border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)]'
+                            : 'border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]'
                         }`}
                       >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          role.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                        <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-1 ring-black/5 transition-transform duration-200 ${
+                          role.status === 'Active' ? 'translate-x-6' : 'translate-x-0'
                         }`} />
                       </button>
                     </div>
                   </td>
-                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
+                  <td className="sticky right-0 z-20 bg-[var(--dms-color-bg-surface)] group-hover:bg-[var(--dms-color-bg-surface-muted)] border-l-2 border-[var(--dms-color-border-default)] py-4 px-4">
                     <ActionMenu
                       actions={role._originalData?.isSystem ? [
                         { label: t('rp_edit_permissions'), onClick: () => handleEdit(role) }
@@ -648,8 +650,8 @@ function UsersManagement() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      Active: 'bg-green-100 text-green-800',
-      Inactive: 'bg-gray-100 text-gray-800'
+      Active: 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)]',
+      Inactive: 'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] text-ink'
     }
     return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status]}`}>{status}</span>
   }
@@ -683,8 +685,8 @@ function UsersManagement() {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('rp_users_list')}</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <h3 className="text-lg font-semibold text-ink">{t('rp_users_list')}</h3>
+          <p className="text-sm text-ink-secondary mt-1">
             {t('rp_showing')} {filteredUsers.length} {t('rp_users_mgmt').toLowerCase()}
           </p>
         </div>
@@ -695,7 +697,7 @@ function UsersManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -703,13 +705,13 @@ function UsersManagement() {
             placeholder={t('rp_search_users_desc')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] pl-11 pr-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
           />
         </div>
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+          className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
         >
           <option value="all">{t('rp_all_roles')}</option>
           {roles.map((role, index) => (
@@ -721,52 +723,54 @@ function UsersManagement() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_user_name')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_email')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_role_col')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_department')}</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-              <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_active')}</th>
-              <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('action')}</th>
+            <tr className="border-b-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]">
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_user_name')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_email')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_role_col')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_department')}</th>
+              <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('status')}</th>
+              <th className="text-ink-secondary text-center py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_active')}</th>
+              <th className="sticky right-0 z-30 bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide border-l-2 border-[var(--dms-color-border-default)]">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="7" className="text-center py-8 text-gray-500">{t('rp_loading_users')}</td></tr>
+              <tr><td colSpan="7" className="text-center py-10 text-ink-muted font-medium">{t('rp_loading_users')}</td></tr>
             ) : filteredUsers.length === 0 ? (
-              <tr><td colSpan="7" className="text-center py-12 text-gray-500">{t('rp_no_users')}</td></tr>
+              <tr><td colSpan="7" className="text-center py-10 text-ink-muted font-medium">{t('rp_no_users')}</td></tr>
             ) : (
               pageItems.map((user) => (
-                <tr key={user.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="py-4 px-4 font-medium text-gray-900">{user.userName}</td>
-                  <td className="py-4 px-4 text-gray-600">{user.email}</td>
+                <tr key={user.id} className="group border-b border-[var(--dms-color-border-default)]/50 hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors">
+                  <td className="py-4 px-4 font-medium text-ink">{user.userName}</td>
+                  <td className="py-4 px-4 text-ink-secondary">{user.email}</td>
                   <td className="py-4 px-4">
                     <div className="flex flex-wrap gap-1">
                       {(Array.isArray(user.roles) ? user.roles : []).map((role, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                        <span key={idx} className="px-2 py-1 bg-[color-mix(in_srgb,var(--dms-color-info-soft)_70%,var(--dms-color-bg-card))] text-[var(--dms-color-info-ink)] rounded text-xs font-medium">
                           {role}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-gray-700">{user.department}</td>
+                  <td className="py-4 px-4 text-ink-secondary">{user.department}</td>
                   <td className="py-4 px-4">{getStatusBadge(user.status)}</td>
                   <td className="py-4 px-4">
                     <div className="flex items-center justify-center">
                       <button
                         onClick={() => handleStatusChange(user.id, user.status === 'Active' ? 'Inactive' : 'Active')}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                          user.status === 'Active' ? 'bg-green-600' : 'bg-gray-300'
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/40 focus:ring-offset-2 p-0.5 ${
+                          user.status === 'Active'
+                            ? 'border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)]'
+                            : 'border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]'
                         }`}
                       >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          user.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                        <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-1 ring-black/5 transition-transform duration-200 ${
+                          user.status === 'Active' ? 'translate-x-6' : 'translate-x-0'
                         }`} />
                       </button>
                     </div>
                   </td>
-                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
+                  <td className="sticky right-0 z-20 bg-[var(--dms-color-bg-surface)] group-hover:bg-[var(--dms-color-bg-surface-muted)] border-l-2 border-[var(--dms-color-border-default)] py-4 px-4">
                     <ActionMenu
                       actions={[
                         { label: t('rp_edit'), onClick: () => handleEdit(user), dividerAfter: true },
@@ -802,9 +806,9 @@ export default function RolePermission() {
   return (
     <div className="space-y-6">
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t('rp_title')}</h2>
-        <p className="text-sm text-gray-600 mt-1">{t('rp_desc')}</p>
-        <p className="text-sm text-gray-600">{t('rp_desc2')}</p>
+        <h2 className="text-2xl font-bold text-ink">{t('rp_title')}</h2>
+        <p className="text-sm text-ink-secondary mt-1">{t('rp_desc')}</p>
+        <p className="text-sm text-ink-secondary">{t('rp_desc2')}</p>
       </div>
 
       <div className="card p-6">

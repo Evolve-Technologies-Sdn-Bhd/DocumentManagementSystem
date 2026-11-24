@@ -735,7 +735,7 @@ class ReportsService {
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
       prisma.auditLog.count({ where: { action: 'LOGIN', createdAt: { gte: dateFrom, lte: dateTo } } }),
-      prisma.auditLog.count({ where: { action: 'FAILED_LOGIN', createdAt: { gte: dateFrom, lte: dateTo } } }),
+      prisma.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: dateFrom, lte: dateTo } } }),
       prisma.document.count({ where: { createdAt: { gte: dateFrom, lte: dateTo } } })
     ]);
 
@@ -875,7 +875,7 @@ class ReportsService {
         projectCategory: vr.newDocument?.projectCategory?.name || vr.document?.projectCategory?.name || '',
         previousVersion: prevVersion,
         newVersion: newVersion,
-        versionDate: vr.approvedAt,
+        versionDate: vr.createdAt,
         updatedBy: vr.requestedBy ? `${vr.requestedBy.firstName} ${vr.requestedBy.lastName}` : 'Unknown',
         changeSummary: vr.reasonForRevision || vr.remarks || 'Version update'
       };
@@ -1057,15 +1057,17 @@ class ReportsService {
         pendingApproval,
         published,
         obsolete,
+        superseded,
         totalUsers,
         activeUsers
       ] = await Promise.all([
         prisma.document.count(),
         prisma.document.count({ where: { status: 'DRAFT' } }),
         prisma.document.count({ where: { stage: 'REVIEW' } }),
-        prisma.document.count({ where: { stage: 'APPROVAL' } }),
+        prisma.document.count({ where: { stage: { in: ['FIRST_APPROVAL', 'SECOND_APPROVAL', 'APPROVAL'] } } }),
         prisma.document.count({ where: { status: 'PUBLISHED' } }),
         prisma.document.count({ where: { status: 'OBSOLETE' } }),
+        prisma.document.count({ where: { status: 'SUPERSEDED' } }),
         prisma.user.count(),
         prisma.user.count({ where: { status: 'ACTIVE' } })
       ]);
@@ -1077,7 +1079,8 @@ class ReportsService {
           pendingReview,
           pendingApproval,
           published,
-          obsolete
+          obsolete,
+          superseded
         },
         users: {
           total: totalUsers,
@@ -1092,14 +1095,16 @@ class ReportsService {
       pendingReviewWhere,
       pendingApprovalWhere,
       publishedWhere,
-      obsoleteWhere
+      obsoleteWhere,
+      supersededWhere
     ] = await Promise.all([
       divisionScopeService.buildAccessibleDocumentWhere(user, {}),
       divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'DRAFT' }),
       divisionScopeService.buildAccessibleDocumentWhere(user, { stage: 'REVIEW' }),
-      divisionScopeService.buildAccessibleDocumentWhere(user, { stage: 'APPROVAL' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { stage: { in: ['FIRST_APPROVAL', 'SECOND_APPROVAL', 'APPROVAL'] } }),
       divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'PUBLISHED' }),
-      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'OBSOLETE' })
+      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'OBSOLETE' }),
+      divisionScopeService.buildAccessibleDocumentWhere(user, { status: 'SUPERSEDED' })
     ])
 
     const [
@@ -1109,6 +1114,7 @@ class ReportsService {
       pendingApproval,
       published,
       obsolete,
+      superseded,
       totalUsers,
       activeUsers
     ] = await Promise.all([
@@ -1118,6 +1124,7 @@ class ReportsService {
       prisma.document.count({ where: pendingApprovalWhere }),
       prisma.document.count({ where: publishedWhere }),
       prisma.document.count({ where: obsoleteWhere }),
+      prisma.document.count({ where: supersededWhere }),
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } })
     ]);
@@ -1129,7 +1136,8 @@ class ReportsService {
         pendingReview,
         pendingApproval,
         published,
-        obsolete
+        obsolete,
+        superseded
       },
       users: {
         total: totalUsers,
@@ -1968,7 +1976,7 @@ class ReportsService {
       prisma.user.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
       prisma.auditLog.count({ where: { action: 'LOGIN', createdAt: { gte: thirtyDaysAgo } } }),
-      prisma.auditLog.count({ where: { action: 'FAILED_LOGIN', createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.auditLog.count({ where: { action: 'LOGIN_FAILED', createdAt: { gte: thirtyDaysAgo } } }),
       prisma.document.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
       prisma.document.count({ where: { status: 'PUBLISHED', updatedAt: { gte: thirtyDaysAgo } } })
     ]);

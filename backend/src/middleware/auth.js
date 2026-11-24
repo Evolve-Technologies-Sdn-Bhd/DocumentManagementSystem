@@ -5,6 +5,31 @@ const divisionScopeService = require('../services/divisionScopeService');
 const ResponseFormatter = require('../utils/responseFormatter');
 const configService = require('../services/configService');
 
+const SYSTEM_ADMIN_ROLE_NAMES = new Set([
+  'admin',
+  'system_admin',
+  'system administrator',
+  'system-admin'
+]);
+
+const isSystemAdminRequestUser = (user) => {
+  if (!user) return false;
+  if (user.permissions?.all === true) return true;
+
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+
+  return roles.some((roleData) => {
+    const role = roleData?.role || roleData;
+    const roleName = typeof role === 'string'
+      ? role
+      : (role?.name || role?.displayName || '');
+
+    return SYSTEM_ADMIN_ROLE_NAMES.has(
+      String(roleName).trim().toLowerCase()
+    );
+  });
+};
+
 /**
  * Authenticate user from JWT token
  */
@@ -102,12 +127,16 @@ const authenticate = async (req, res, next) => {
       email: session.user.email,
       roles: session.user.roles.map(r => r.role.name),
       permissions: mergedPermissions,
+      isSystemAdmin: isSystemAdminRequestUser({
+        roles: session.user.roles,
+        permissions: mergedPermissions
+      }),
       divisionIds
     };
 
     try {
       const maintenance = await configService.getMaintenanceSettings();
-      if (maintenance?.enabled && req.user.permissions?.all !== true) {
+      if (maintenance?.enabled && !req.user.isSystemAdmin) {
         return ResponseFormatter.error(
           res,
           maintenance.message || 'System is under maintenance',
@@ -187,7 +216,7 @@ const requireSystemAdmin = (req, res, next) => {
     return next(new UnauthorizedError('User not authenticated'));
   }
 
-  if (req.user.permissions?.all === true) {
+  if (req.user.isSystemAdmin || req.user.permissions?.all === true) {
     return next();
   }
 

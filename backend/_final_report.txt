@@ -1,0 +1,80 @@
+========== FINAL SUMMARY ==========
+Started: 2026-09-22T13:43:00.0064878+08:00
+
+--- Step 1: Clean stale MySQL PID files ---
+Deleted PID files: none (no stale files)
+
+--- Step 2: Copy aria_log.00000001 ---
+Source file exists: True
+Dest   exists before: True
+Tmp dir exists: c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-tmp
+aria_log.00000001 already existed at dest (no copy needed)
+Dest exists after: True
+
+--- Step 3: Start MySQL (port 3306) ---
+MySQL process launched, PID = 18120
+Stderr -> c:\Users\USER\Desktop\DocumentManagementSystem\backend\_mysqld_final.err
+Waiting 10 seconds for startup...
+MySQL process alive after 10s: False
+MySQL exit code: 
+Port 3306 verification: NOT LISTENING
+
+--- Step 4: Start backend (port 4001) ---
+Backend process launched, PID = 18076
+Stdout -> c:\Users\USER\Desktop\DocumentManagementSystem\backend\_backend_final.out
+Stderr -> c:\Users\USER\Desktop\DocumentManagementSystem\backend\_backend_final.err
+Waiting 12 seconds for startup...
+Backend process alive after 12s: False
+Backend exit code: 
+Port 4001 verification: NOT LISTENING
+
+--- Step 5: Start frontend (port 5173) ---
+Frontend process launched, PID = 20296
+Stdout -> c:\Users\USER\Desktop\DocumentManagementSystem\frontend\_vite_final.out
+Stderr -> c:\Users\USER\Desktop\DocumentManagementSystem\frontend\_vite_final.err
+Waiting 15 seconds for startup...
+Frontend process alive after 15s: True
+Port 5173 verification: LISTENING
+  TCP    127.0.0.1:5173         0.0.0.0:0              LISTENING       21780
+
+--- Process IDs ---
+MySQL    PID: 18120    (alive=False)
+Backend  PID: 18076  (alive=False)
+Frontend PID: 20296 (alive=True)
+
+--- Port Status Summary ---
+Port 3306 (MySQL):    NOT LISTENING
+Port 4001 (Backend):  NOT LISTENING
+Port 5173 (Frontend): LISTENING
+
+--- MySQL stderr (last 10 lines) [c:\Users\USER\Desktop\DocumentManagementSystem\backend\_mysqld_final.err] ---
+  (empty file)
+
+--- Backend stdout (last 10 lines) [c:\Users\USER\Desktop\DocumentManagementSystem\backend\_backend_final.out] ---
+  {"timestamp":"2026-09-22T05:43:20.841Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+  {"timestamp":"2026-09-22T05:43:21.863Z","level":"WARN","message":"[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env"}
+  {"timestamp":"2026-09-22T05:43:21.866Z","level":"INFO","message":"[aiService] Using AI provider: gemini (default)"}
+  Upload directories verified
+  Backend listening on http://localhost:4001
+  Retention policy cleanup scheduled (runs every 24 hours)
+  Retention policy scheduler initialized
+  Expiry tracking scheduler initialized
+  Review and approval reminder scheduler initialized
+
+--- Backend stderr (last 10 lines) [c:\Users\USER\Desktop\DocumentManagementSystem\backend\_backend_final.err] ---
+  ⚠️  [AI_ROUTES] Skipping AI mount: aiRoutes missing /health or /config public endpoint (undefined callback risk)
+
+--- Frontend stdout (last 10 lines) [c:\Users\USER\Desktop\DocumentManagementSystem\frontend\_vite_final.out] ---
+  
+    [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m2627[22m[2m[0m ms[22m
+  
+    [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+  [2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+
+--- Frontend stderr (last 10 lines) [c:\Users\USER\Desktop\DocumentManagementSystem\frontend\_vite_final.err] ---
+  (empty file)
+
+Ended: 2026-09-22T13:43:40.1791877+08:00
+========== END SUMMARY ==========
+
+Report saved to: c:\Users\USER\Desktop\DocumentManagementSystem\backend\_final_report.txt

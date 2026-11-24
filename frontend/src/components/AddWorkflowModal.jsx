@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 
 export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
   const [documentTypes, setDocumentTypes] = useState([])
@@ -133,27 +134,15 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full my-8">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900">
-              {initialData ? 'Edit Workflow' : 'Add New Workflow'}
-            </h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Configure approval workflow steps and routing rules for document processing
-          </p>
-        </div>
+    <Modal isOpen size="2xl" onClose={onClose}>
+        <ModalHeader
+          title={initialData ? 'Edit Workflow' : 'Add New Workflow'}
+          subtitle="Configure approval workflow steps and routing rules for document processing."
+          onClose={onClose}
+        />
 
         {/* Form Content */}
-        <div className="px-6 py-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+        <ModalBody className="space-y-6">
           <div className="space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
@@ -178,18 +167,22 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                   <label className="block text-sm font-medium text-gray-900 mb-2">
                     Document Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="documentTypeId"
-                    value={formData.documentTypeId}
-                    onChange={handleInputChange}
+                  <SearchableSingleSelect
+                    value={String(formData.documentTypeId ?? '')}
+                    options={[
+                      { value: '', label: loading ? 'Loading...' : 'Select document type' },
+                      ...documentTypes.map((type) => ({
+                        value: String(type.id),
+                        label: type.name,
+                        searchText: type.name || ''
+                      }))
+                    ]}
+                    onChange={(value) => setFormData(prev => ({ ...prev, documentTypeId: value }))}
+                    placeholder="Select document type"
+                    searchPlaceholder="Search document types..."
                     disabled={loading || !!initialData}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{loading ? 'Loading...' : 'Select document type'}</option>
-                    {documentTypes.map((type) => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
+                    zIndex={180}
+                  />
                   {initialData && (
                     <p className="text-xs text-gray-500 mt-1">Document type cannot be changed when editing</p>
                   )}
@@ -295,17 +288,22 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Role Required <span className="text-red-500">*</span></label>
-                        <select
-                          value={step.roleId}
-                          onChange={(e) => handleStepChange(step.id, 'roleId', e.target.value)}
+                        <SearchableSingleSelect
+                          value={String(step.roleId ?? '')}
+                          options={[
+                            { value: '', label: loading ? 'Loading...' : 'Select role' },
+                            ...roles.map((role) => ({
+                              value: String(role.id),
+                              label: role.name,
+                              searchText: role.name || ''
+                            }))
+                          ]}
+                          onChange={(value) => handleStepChange(step.id, 'roleId', value)}
+                          placeholder="Select role"
+                          searchPlaceholder="Search roles..."
                           disabled={loading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        >
-                          <option value="">{loading ? 'Loading...' : 'Select role'}</option>
-                          {roles.map((role) => (
-                            <option key={role.id} value={role.id}>{role.name}</option>
-                          ))}
-                        </select>
+                          zIndex={180}
+                        />
                         {!loading && roles.length === 0 && (
                           <p className="text-xs text-amber-600 mt-1">⚠ No roles available. Please add roles in User Management first.</p>
                         )}
@@ -349,10 +347,10 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
             </div>
 
           </div>
-        </div>
+        </ModalBody>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+        <ModalFooter>
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
@@ -366,11 +364,7 @@ export default function AddWorkflowModal({ onClose, onSubmit, initialData }) {
           >
             {loading ? 'Loading...' : initialData ? 'Update Workflow' : 'Create Workflow'}
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }

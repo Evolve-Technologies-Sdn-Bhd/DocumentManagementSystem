@@ -1,0 +1,20 @@
+[2026-09-22T05:42:25.492Z] Step 1: Clean stale PID files
+[2026-09-22T05:42:25.511Z]   No PID files found
+[2026-09-22T05:42:25.520Z] Step 2: Copy aria_log
+[2026-09-22T05:42:25.523Z]   Source exists: true, Dest already exists: true
+[2026-09-22T05:42:25.525Z] Step 3: Start MySQL
+[2026-09-22T05:42:25.695Z]   MySQL spawned, PID=17112
+[2026-09-22T05:42:25.704Z]   Waiting 10 seconds for MySQL to start...
+[2026-09-22T05:42:35.820Z]   Port 3306 check: NOT LISTENING
+[2026-09-22T05:42:35.822Z] Step 4: Start backend
+[2026-09-22T05:42:35.921Z]   Backend spawned, PID=17732
+[2026-09-22T05:42:35.923Z]   Waiting 12 seconds for backend to start...
+[2026-09-22T05:42:48.105Z]   Port 4001 check: NOT LISTENING
+[2026-09-22T05:42:48.112Z] Step 5: Start frontend
+[2026-09-22T05:42:48.121Z] FATAL ERROR: spawn EINVAL
+Error: spawn EINVAL
+    at ChildProcess.spawn (node:internal/child_process:421:11)
+    at spawn (node:child_process:796:9)
+    at step5_startFrontend (c:\Users\USER\Desktop\DocumentManagementSystem\backend\_orchestrator.js:149:22)
+    at main (c:\Users\USER\Desktop\DocumentManagementSystem\backend\_orchestrator.js:177:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)

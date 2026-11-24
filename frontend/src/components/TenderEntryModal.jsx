@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
@@ -184,37 +184,28 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{isEdit ? 'Edit Tender' : 'Add New Tender'}</h3>
-              <p className="text-xs text-gray-600 mt-1">Tender Book Register</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 rounded-lg p-2 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title={isEdit ? 'Edit Tender' : 'Add New Tender'}
+          subtitle="Tender Book Register"
+          onClose={onClose}
+        />
 
-        <div className="max-h-[78vh] overflow-y-auto px-6 py-5 space-y-4">
+        <ModalBody className="space-y-4">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
             {isEdit && (
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-900">Tender No / Ref</label>
                 <TextInput value={entry?.tenderRefNo || '-'} disabled />
               </div>
             )}
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Tender / Project Title</label>
               <TextInput value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
             </div>
@@ -252,7 +243,7 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-900">Status</label>
-              <SelectField value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+              <SelectField className="h-[38px] cursor-pointer shadow-sm" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
                 {statusOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -264,29 +255,27 @@ export default function TenderEntryModal({ open, entry, onClose, onSaved }) {
               <label className="mb-2 block text-sm font-medium text-gray-900">Source</label>
               <TextInput value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Documents (Link / Reference)</label>
               <TextInput value={form.documentLink} onChange={(e) => setForm((p) => ({ ...p, documentLink: e.target.value }))} />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="mb-2 block text-sm font-medium text-gray-900">Follow-up Notes</label>
               <TextArea rows={4} value={form.followUpNotes} onChange={(e) => setForm((p) => ({ ...p, followUpNotes: e.target.value }))} />
             </div>
           </div>
-        </div>
+        </ModalBody>
 
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 sticky bottom-0 flex justify-end gap-3">
+<ModalFooter>
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} loading={saving} loadingText="Saving...">
             Save Entry
           </Button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+  return modal
 }

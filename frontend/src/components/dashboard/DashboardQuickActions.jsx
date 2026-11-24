@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import AppSurface from '../ui/AppSurface'
 import SectionHeader from '../ui/SectionHeader'
 import { usePreferences } from '../../contexts/PreferencesContext'
+import { canAccessRoute } from '../../utils/permissions'
 
 const actions = [
   {
@@ -33,6 +34,8 @@ const actions = [
 
 export default function DashboardQuickActions() {
   const { t } = usePreferences()
+  // Only surface shortcuts the user is allowed to open, matching the sidebar.
+  const visibleActions = actions.filter((action) => canAccessRoute(action.to))
 
   return (
     <AppSurface padding="lg" className="space-y-4">
@@ -41,7 +44,7 @@ export default function DashboardQuickActions() {
         subtitle={t('quick_actions_subtitle')}
       />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {actions.map((action) => (
+        {visibleActions.map((action) => (
           <Link
             key={action.key}
             to={action.to}

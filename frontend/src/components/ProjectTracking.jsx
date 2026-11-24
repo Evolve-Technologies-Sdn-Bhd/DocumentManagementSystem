@@ -5,11 +5,12 @@ import Pagination from './Pagination'
 import EmptyState from './EmptyState'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import ShareDocumentModal from './ShareDocumentModal'
-import { getUserPermissions, hasPermission, isAdmin as isAdminUser } from '../utils/permissions'
+import { hasPermission, isAdmin as isAdminUser } from '../utils/permissions'
 import { usePreferences } from '../contexts/PreferencesContext'
 import PageHeader from './ui/PageHeader'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
@@ -24,6 +25,7 @@ import ActionMenu from './ActionMenu'
 import ColumnSettingsButton from './ui/ColumnSettingsButton'
 import useTableFeatures from '../hooks/useTableFeatures'
 import DataTableToolbar from './ui/DataTableToolbar'
+import NewDraftModal from './NewDraftModal'
 
 function ItemStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -33,17 +35,27 @@ function ItemStatusBadge({ status }) {
   return <span className={`${base} bg-[var(--dms-color-warning-soft)] text-[var(--dms-color-warning-ink)]`}>Pending</span>
 }
 
-function ModalShell({ title, children, onClose, maxWidthClass = 'max-w-xl' }) {
+function ModalShell({ title, subtitle, children, onClose, maxWidthClass = 'max-w-xl' }) {
   return (
     <Modal
       onClose={onClose}
       className={`w-full overflow-hidden rounded-dms-lg ${maxWidthClass}`}
     >
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h3 className="text-lg font-semibold text-ink">{title}</h3>
-        <IconButton size="sm" onClick={onClose} aria-label="Close">
-          <span className="text-lg leading-none">×</span>
-        </IconButton>
+      <div className="flex-shrink-0 flex items-start justify-between gap-3 border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-6 py-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-bold text-ink leading-snug">{title}</h3>
+          {subtitle ? <p className="mt-1.5 text-sm text-ink-secondary leading-relaxed">{subtitle}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-ink-muted hover:text-ink transition-colors shrink-0 -mt-1"
+          aria-label="Close"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       <div className="max-h-[85vh] overflow-y-auto p-6">{children}</div>
     </Modal>
@@ -305,7 +317,10 @@ function ProjectFormFields({
   showCategory = false,
   projectCategories = [],
   stageStatusLabel = 'Will follow workflow stage after creation',
-  showLifecycleStatus = false
+  showLifecycleStatus = false,
+  searchableDropdowns = false,
+  canQuickAddCategory = false,
+  onQuickAddCategory
 }) {
   const inputClass = 'w-full rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-ink outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/30'
 
@@ -347,51 +362,118 @@ function ProjectFormFields({
 
       {showCategory && (
         <ProjectField label="Project Category">
-          <select
-            value={form.projectCategoryId}
-            onChange={(e) => setForm((p) => ({ ...p, projectCategoryId: e.target.value }))}
-            className={inputClass}
-            required
-          >
-            <option value="">Select</option>
-            {projectCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          {searchableDropdowns ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <SearchableSingleSelect
+                value={form.projectCategoryId}
+                options={projectCategories.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                  searchText: `${c.name || ''} ${c.code || ''}`,
+                  meta: c.code ? [`Code: ${c.code}`] : []
+                }))}
+                onChange={(value) => setForm((p) => ({ ...p, projectCategoryId: String(value || '') }))}
+                placeholder="Select project category"
+                searchPlaceholder="Search category name or code..."
+                noResultsLabel="No project categories found"
+              />
+              {canQuickAddCategory && (
+                <button
+                  type="button"
+                  onClick={onQuickAddCategory}
+                  aria-label="Add new project category"
+                  title="Add new project category"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-transparent text-2xl font-bold leading-none text-black transition hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                >
+                  +
+                </button>
+              )}
+            </div>
+          ) : (
+            <select
+              value={form.projectCategoryId}
+              onChange={(e) => setForm((p) => ({ ...p, projectCategoryId: e.target.value }))}
+              className={inputClass}
+              required
+            >
+              <option value="">Select</option>
+              {projectCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
         </ProjectField>
       )}
 
       {showDivision && (
         <ProjectField label="Division">
-          <select
-            value={form.divisionId}
-            onChange={(e) => setForm((p) => ({ ...p, divisionId: e.target.value }))}
-            className={`${inputClass}${divisionLocked ? ' bg-surface-muted text-ink-muted' : ''}`}
-            required
-            disabled={divisionLocked}
-          >
-            <option value="">Select</option>
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
+          {searchableDropdowns ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <SearchableSingleSelect
+                value={form.divisionId}
+                options={divisions.map((d) => ({
+                  value: String(d.id),
+                  label: d.name,
+                  searchText: `${d.name || ''} ${d.code || ''}`,
+                  meta: d.code ? [`Code: ${d.code}`] : []
+                }))}
+                onChange={(value) => setForm((p) => ({ ...p, divisionId: String(value || '') }))}
+                placeholder="Select division"
+                searchPlaceholder="Search division name or code..."
+                noResultsLabel="No divisions found"
+                disabled={divisionLocked}
+              />
+            </div>
+          ) : (
+            <select
+              value={form.divisionId}
+              onChange={(e) => setForm((p) => ({ ...p, divisionId: e.target.value }))}
+              className={`${inputClass}${divisionLocked ? ' bg-surface-muted text-ink-muted' : ''}`}
+              required
+              disabled={divisionLocked}
+            >
+              <option value="">Select</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          )}
         </ProjectField>
       )}
 
       <ProjectField label="Internal Project Manager">
-        <select
-          value={form.managerId}
-          onChange={(e) => setForm((p) => ({ ...p, managerId: e.target.value }))}
-          className={inputClass}
-          required
-        >
-          <option value="">Select</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
-            </option>
-          ))}
-        </select>
+        {searchableDropdowns ? (
+          <SearchableSingleSelect
+            value={form.managerId}
+            options={users.map((u) => {
+              const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim()
+              return {
+                value: String(u.id),
+                label: fullName || u.email,
+                searchText: u.email || '',
+                meta: fullName && u.email ? [u.email] : []
+              }
+            })}
+            onChange={(value) => setForm((p) => ({ ...p, managerId: String(value || '') }))}
+            placeholder="Select project manager"
+            searchPlaceholder="Search name or email..."
+            noResultsLabel="No project managers found"
+          />
+        ) : (
+          <select
+            value={form.managerId}
+            onChange={(e) => setForm((p) => ({ ...p, managerId: e.target.value }))}
+            className={inputClass}
+            required
+          >
+            <option value="">Select</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
+              </option>
+            ))}
+          </select>
+        )}
       </ProjectField>
 
       <ProjectField label="Project Start Date">
@@ -1616,7 +1698,7 @@ function ChangeRequestModal({ projectId, iterationId, phase, initialItem, onClos
           </Table>
         </TableContainer>
         {!initialItem && (
-          <div className="flex justify-between gap-2">
+          <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={addRow}>Add Row</Button>
             <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
           </div>
@@ -1906,15 +1988,23 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
-      <form onSubmit={submit} className="space-y-4">
+    <ModalShell
+      title="Attach Existing Document"
+      subtitle={`${getPhaseTitle(phase, '-')} • ${stage?.name || '-'}`}
+      onClose={onClose}
+      maxWidthClass="max-w-[1870px]"
+    >
+      <form onSubmit={submit} className="space-y-5">
+        <div className="text-sm text-ink-muted">
+          Link one or more existing documents to this stage. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
+        </div>
         <AssignmentSummary
           modeLabel="Attach existing document to stage"
           phaseLabel={getPhaseTitle(phase, '-')}
           stageLabel={stage?.name}
           documentTypeLabel="Keep original document type"
         />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
@@ -1942,7 +2032,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-72"
+                  treeClassName="max-h-[28rem]"
                 />
               )}
             </AppSurface>
@@ -1953,7 +2043,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
             <div className="flex gap-2">
               <TextInput
@@ -1969,7 +2059,7 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             </div>
             <div className="text-xs text-ink-soft">
               {selectedFolderId
-                ? 'Search covers accessible documents inside the chosen folder.'
+                ? 'Search covers accessible documents inside the chosen folder and all its subfolders.'
                 : 'Search covers all accessible documents in the system, including published documents outside this project.'}
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -1989,36 +2079,43 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-[28rem] overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
                   const matchingItem = resolveMatchingItem(r)
+                  const folderPath = r.folderPath || r.document?.folderPath || []
 
                   return (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
-                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
+                      className={`w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-surface-muted ring-1 ring-inset ring-brand/30' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="font-semibold text-ink truncate">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary truncate">{getDocumentTitleLabel(r.document || r)}</div>
                           <div className="mt-1 text-xs text-ink-soft">
                             {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
                           </div>
-                          <div className="mt-1 inline-flex items-center gap-2">
+                          {folderPath.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-ink-muted" title={folderPath.join(' \u203A ')}>
+                              <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></svg>
+                              <span className="truncate">{folderPath.join(' \u203A ')}</span>
+                            </div>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
                             <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
                             <DocumentStatusBadge status={r.document?.status || r.status} />
                           </div>
                           <div className="mt-1 text-xs text-ink-soft">
                             {`${r.iteration?.project?.code || '-'} • ${getPhaseTitle(r.iteration, 'Phase')} • ${r.stage?.name || '-'}`}
                           </div>
-                          <div className="mt-2 text-xs font-medium text-brand">
+                          <div className="mt-1 text-xs font-medium text-brand">
                             {matchingItem
                               ? `Will attach under required item: ${matchingItem.documentType?.name || 'Document Type'}`
                               : 'Will attach under Other Documents for this stage'}
@@ -2042,11 +2139,11 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             )}
           </div>
         </div>
-        <div className="text-xs text-ink-soft">
-          {selectedCount > 0
-            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected. ${attachmentBreakdown.required > 0 ? `${attachmentBreakdown.required} will go to required item${attachmentBreakdown.required === 1 ? '' : 's'}. ` : ''}${attachmentBreakdown.other > 0 ? `${attachmentBreakdown.other} will go to Other Documents.` : ''}`
-            : 'Search and select one or more documents from the list above.'}
-        </div>
+        {selectedCount > 0 && (
+          <div className="text-xs text-ink-soft">
+            {`${selectedCount} document${selectedCount === 1 ? '' : 's'} selected. ${attachmentBreakdown.required > 0 ? `${attachmentBreakdown.required} will go to required item${attachmentBreakdown.required === 1 ? '' : 's'}. ` : ''}${attachmentBreakdown.other > 0 ? `${attachmentBreakdown.other} will go to Other Documents.` : ''}`}
+          </div>
+        )}
         {attachmentBreakdown.autoConfidential > 0 && (
           <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
             {attachmentBreakdown.autoConfidential} selected document{attachmentBreakdown.autoConfidential === 1 ? '' : 's'} will be updated to confidential automatically after attach.
@@ -2057,12 +2154,17 @@ function StageLinkDocumentModal({ projectId, iterationId, phase, stage, stageIte
             {submitError}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={submitting || selectedCount === 0} type="submit">
-            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {submitting ? 'Attaching...' : attachmentBreakdown.autoConfidential > 0 ? `Attach ${selectedCount} as Needed` : `Attach ${selectedCount || ''}`.trim()}
-          </Button>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-between gap-3 border-t border-border bg-surface px-6 py-3">
+          <span className="text-sm text-ink-secondary">
+            {selectedCount > 0 ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected` : 'No documents selected'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={submitting || selectedCount === 0} type="submit">
+              {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {submitting ? 'Attaching...' : attachmentBreakdown.autoConfidential > 0 ? `Attach ${selectedCount} as Needed` : `Attach ${selectedCount || ''}`.trim()}
+            </Button>
+          </div>
         </div>
       </form>
     </ModalShell>
@@ -2176,6 +2278,17 @@ function CreateProjectModal({ onClose, onCreated }) {
   const [projectCategories, setProjectCategories] = useState([])
   const [divisions, setDivisions] = useState([])
   const [users, setUsers] = useState([])
+  const [createError, setCreateError] = useState('')
+
+  const [quickAddType, setQuickAddType] = useState(null)
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    code: '',
+    description: ''
+  })
+  const [quickAddCodeManuallyEdited, setQuickAddCodeManuallyEdited] = useState(false)
+  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  const [quickAddError, setQuickAddError] = useState('')
 
   const [form, setForm] = useState({
     code: '',
@@ -2195,6 +2308,10 @@ function CreateProjectModal({ onClose, onCreated }) {
     managerId: ''
   })
 
+  // Match the backend project-category authorization exactly.
+  // Auth responses store assigned roles as { role: { name, ... } } records.
+  const canQuickAddCategory = hasPermission('configuration.masterData', 'create')
+
   useEffect(() => {
     const load = async () => {
       const [cats, usersRes, divisionsRes] = await Promise.all([
@@ -2202,8 +2319,10 @@ function CreateProjectModal({ onClose, onCreated }) {
         api.get('/users'),
         api.get('/divisions')
       ])
+
       setProjectCategories(cats?.data?.data?.projectCategories || [])
       setUsers(usersRes?.data?.data?.users || [])
+
       const loadedDivisions = divisionsRes?.data?.data?.divisions || []
       setDivisions(loadedDivisions)
 
@@ -2226,8 +2345,124 @@ function CreateProjectModal({ onClose, onCreated }) {
     if (value) localStorage.setItem('lastActiveDivisionId', value)
   }, [form.divisionId])
 
+  const openQuickAdd = (type) => {
+    setQuickAddType(type)
+    setQuickAddForm({ name: '', code: '', description: '' })
+    setQuickAddCodeManuallyEdited(false)
+    setQuickAddError('')
+  }
+
+  const closeQuickAdd = () => {
+    if (quickAddSaving) return
+    setQuickAddType(null)
+    setQuickAddError('')
+  }
+
+  const handleQuickAddNameChange = (value) => {
+    setQuickAddForm((previous) => {
+      const next = { ...previous, name: value }
+
+      if (quickAddType === 'category' && !quickAddCodeManuallyEdited) {
+        const words = String(value || '').trim().split(/\s+/).filter(Boolean)
+        next.code = !words.length
+          ? ''
+          : words.length > 1
+            ? words.map((word) => word[0]).join('').toUpperCase().slice(0, 12)
+            : words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3)
+      }
+
+      return next
+    })
+  }
+
+  const submitQuickAdd = async (event) => {
+    event.preventDefault()
+    if (!quickAddType || quickAddSaving) return
+
+    const name = quickAddForm.name.trim()
+    const code = quickAddForm.code.trim().toUpperCase()
+
+    if (!name || !code) {
+      setQuickAddError('Please enter both a name and a code.')
+      return
+    }
+
+    const duplicate = projectCategories.some(
+      (item) => String(item.code || '').trim().toUpperCase() === code
+    )
+
+    if (duplicate) {
+      setQuickAddError(`The code "${code}" is already in use. Please choose another code.`)
+      return
+    }
+
+    setQuickAddSaving(true)
+    setQuickAddError('')
+
+    try {
+      const response = await api.post('/system/config/project-categories', {
+        name,
+        code,
+        description: quickAddForm.description.trim() || null
+      })
+
+      let createdRecord = response?.data?.data?.projectCategory
+
+      // Refresh if the API response does not include the created record.
+      if (!createdRecord?.id) {
+        const refreshResponse = await api.get('/system/config/project-categories')
+        const refreshedItems = refreshResponse?.data?.data?.projectCategories || []
+
+        createdRecord = refreshedItems.find(
+          (item) => String(item.code || '').trim().toUpperCase() === code
+        )
+      }
+
+      if (!createdRecord?.id) {
+        throw new Error('The record was created, but the new item could not be retrieved. Please refresh the list.')
+      }
+
+      setProjectCategories((previous) => [
+        ...previous.filter((item) => String(item.id) !== String(createdRecord.id)),
+        createdRecord
+      ])
+      setForm((previous) => ({
+        ...previous,
+        projectCategoryId: String(createdRecord.id)
+      }))
+
+      setQuickAddType(null)
+      setQuickAddError('')
+    } catch (error) {
+      setQuickAddError(
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to create this record. Please try again.'
+      )
+    } finally {
+      setQuickAddSaving(false)
+    }
+  }
+
   const submit = async (e) => {
     e.preventDefault()
+    setCreateError('')
+
+    if (!form.projectCategoryId) {
+      setCreateError('Please select a Project Category.')
+      return
+    }
+
+    if (divisions.length > 1 && !form.divisionId) {
+      setCreateError('Please select a Division.')
+      return
+    }
+
+    if (!form.managerId) {
+      setCreateError('Please select an Internal Project Manager.')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
@@ -2247,39 +2482,152 @@ function CreateProjectModal({ onClose, onCreated }) {
         divisionId: form.divisionId ? Number(form.divisionId) : null,
         managerId: Number(form.managerId)
       }
+
       const res = await api.post('/project-tracking/projects', payload)
       const project = res?.data?.data?.project
       if (project) onCreated(project)
+    } catch (error) {
+      setCreateError(
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to create the project. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
+  const quickAddTitle = 'Add Project Category'
+
   return (
-    <ModalShell title="Create Project" onClose={onClose} maxWidthClass="max-w-5xl">
-      <form onSubmit={submit} className="space-y-4">
-        <AppSurface padding="md" variant="panel" className="border border-[var(--dms-color-border-default)] bg-[var(--dms-color-info-soft)] text-[var(--dms-color-info-ink)]">
-          Capture the core project brief here. `Project Category` is kept because it drives the workflow stages and document checklist templates.
-        </AppSurface>
-        <ProjectFormFields
-          form={form}
-          setForm={setForm}
-          users={users}
-          divisions={divisions}
-          showDivision={divisions.length > 1}
-          showCategory
-          projectCategories={projectCategories}
-          stageStatusLabel="Will follow the initial workflow stage after creation"
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={loading} type="submit">
-            {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {loading ? 'Creating...' : 'Create'}
-          </Button>
-        </div>
-      </form>
-    </ModalShell>
+    <>
+      <ModalShell title="Create Project" onClose={onClose} maxWidthClass="max-w-5xl">
+        <form onSubmit={submit} className="space-y-4">
+          {createError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+            >
+              {createError}
+            </div>
+          ) : null}
+
+          <ProjectFormFields
+            form={form}
+            setForm={setForm}
+            users={users}
+            divisions={divisions}
+            showDivision={divisions.length > 1}
+            showCategory
+            projectCategories={projectCategories}
+            stageStatusLabel="Will follow the initial workflow stage after creation"
+            searchableDropdowns
+            canQuickAddCategory={canQuickAddCategory}
+            onQuickAddCategory={() => openQuickAdd('category')}
+          />
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={loading} type="submit">
+              {loading && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {loading ? 'Creating...' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      </ModalShell>
+
+      {quickAddType && (
+        <Modal onClose={closeQuickAdd} closeOnBackdrop={!quickAddSaving} size="sm">
+          <ModalHeader
+            title={quickAddTitle}
+            subtitle="Add the new item without leaving the Create Project form."
+            onClose={quickAddSaving ? undefined : closeQuickAdd}
+          />
+
+          <form onSubmit={submitQuickAdd} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ModalBody>
+              <div className="space-y-4">
+                {quickAddError ? (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                  >
+                    {quickAddError}
+                  </div>
+                ) : null}
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    autoFocus
+                    value={quickAddForm.name}
+                    onChange={(event) => handleQuickAddNameChange(event.target.value)}
+                    placeholder="e.g., Internal Project"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Code <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    value={quickAddForm.code}
+                    onChange={(event) => {
+                      setQuickAddCodeManuallyEdited(true)
+                      setQuickAddForm((previous) => ({
+                        ...previous,
+                        code: event.target.value.toUpperCase()
+                      }))
+                    }}
+                    placeholder="e.g., INT"
+                  />
+                  <p className="mt-1.5 text-xs text-ink-soft">
+                    Codes are automatically converted to uppercase.
+                  </p>
+                </div>
+
+                {quickAddType === 'category' && (
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink">
+                      Description <span className="text-xs font-normal text-ink-muted">(Optional)</span>
+                    </label>
+                    <TextArea
+                      value={quickAddForm.description}
+                      onChange={(event) => setQuickAddForm((previous) => ({
+                        ...previous,
+                        description: event.target.value
+                      }))}
+                      rows={3}
+                      placeholder="Enter a short description"
+                    />
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={quickAddSaving}
+                onClick={closeQuickAdd}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={quickAddSaving}>
+                {quickAddSaving ? 'Saving...' : 'Save & Select'}
+              </Button>
+            </ModalFooter>
+          </form>
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -2464,15 +2812,23 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
   }
 
   return (
-    <ModalShell title="Attach Existing Document" onClose={onClose} maxWidthClass="max-w-4xl">
-      <form onSubmit={submit} className="space-y-4">
+    <ModalShell
+      title="Attach Existing Document"
+      subtitle={`${getPhaseTitle(phase, '-')} • ${item.stage?.name || '-'}${item.documentType?.name ? ` • ${item.documentType.name}` : ''}`}
+      onClose={onClose}
+      maxWidthClass="max-w-[1870px]"
+    >
+      <form onSubmit={submit} className="space-y-5">
+        <div className="text-sm text-ink-muted">
+          Link one or more existing documents to this required item. Pick a folder to narrow the list, or search globally by file code or title, then select the documents you want to attach.
+        </div>
         <AssignmentSummary
           modeLabel="Attach existing document to required item"
           phaseLabel={getPhaseTitle(phase, '-')}
           stageLabel={item.stage?.name}
           documentTypeLabel={item.documentType?.name}
         />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-sm font-semibold text-ink-secondary">Browse Folder</label>
@@ -2500,7 +2856,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
                   searchPlaceholder="Search folder name or path"
                   emptySelectionText="All folders"
                   selectedLabel="Selected folder"
-                  treeClassName="max-h-72"
+                  treeClassName="max-h-[28rem]"
                 />
               )}
             </AppSurface>
@@ -2511,7 +2867,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="block text-sm font-semibold text-ink-secondary">Find Existing Document</label>
             <div className="flex gap-2">
               <TextInput
@@ -2527,7 +2883,7 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             </div>
             <div className="text-xs text-ink-soft">
               {selectedFolderId
-                ? 'Search covers accessible documents inside the chosen folder.'
+                ? 'Search covers accessible documents inside the chosen folder and all its subfolders.'
                 : 'Search covers all accessible documents in the system, including published documents outside this project.'}
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -2547,24 +2903,34 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
               ))}
             </div>
             {filteredResults.length > 0 && (
-              <AppSurface padding="none" variant="panel" className="max-h-72 overflow-auto">
+              <AppSurface padding="none" variant="panel" className="max-h-[28rem] overflow-auto">
                 {filteredResults.map((r) => {
                   const isSelected = Boolean(selectedDocuments[String(r.id)])
+                  const folderPath = r.folderPath || r.document?.folderPath || []
                   return (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => toggleDocument(r)}
-                      className={`w-full border-b border-border px-3 py-3 text-left text-sm transition-colors hover:bg-gray-50 last:border-b-0 ${
-                        isSelected ? 'bg-gray-50 ring-1 ring-inset ring-gray-200' : ''
+                      className={`w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted last:border-b-0 ${
+                        isSelected ? 'bg-surface-muted ring-1 ring-inset ring-brand/30' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4" />
+                        <input type="checkbox" readOnly checked={isSelected} className="mt-1 h-4 w-4 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-ink">{getDocumentCodeLabel(r.document || r)}</div>
-                          <div className="text-ink-secondary">{getDocumentTitleLabel(r.document || r)}</div>
-                          <div className="mt-1 inline-flex items-center gap-2">
+                          <div className="font-semibold text-ink truncate">{getDocumentCodeLabel(r.document || r)}</div>
+                          <div className="text-ink-secondary truncate">{getDocumentTitleLabel(r.document || r)}</div>
+                          <div className="mt-1 text-xs text-ink-soft">
+                            {r.document?.documentType?.name || r.item?.documentType?.name || 'Document type unavailable'}
+                          </div>
+                          {folderPath.length > 0 && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-ink-muted" title={folderPath.join(' \u203A ')}>
+                              <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></svg>
+                              <span className="truncate">{folderPath.join(' \u203A ')}</span>
+                            </div>
+                          )}
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
                             <ConfidentialBadge isConfidential={r.document?.isConfidential || r.isConfidential} />
                             <DocumentStatusBadge status={r.document?.status || r.status} />
                           </div>
@@ -2590,22 +2956,27 @@ function LinkDocumentModal({ projectId, item, phase, onClose, onLinked }) {
             )}
           </div>
         </div>
-        <div className="text-xs text-ink-soft">
-          {selectedCount > 0
-            ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected and ready to attach to this required item.`
-            : 'Search and select one or more documents from the list above.'}
-        </div>
+        {selectedCount > 0 && (
+          <div className="text-xs text-ink-soft">
+            {`${selectedCount} document${selectedCount === 1 ? '' : 's'} selected and ready to attach to this required item.`}
+          </div>
+        )}
         {submitError && (
           <div className="rounded-xl border border-[var(--dms-color-danger-soft)] bg-[var(--dms-color-danger-soft)] px-3 py-2 text-xs text-[var(--dms-color-danger-ink)]">
             {submitError}
           </div>
         )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button disabled={submitting || selectedCount === 0} type="submit">
-            {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
-            {submitting ? 'Attaching...' : `Attach ${selectedCount || ''}`.trim()}
-          </Button>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-between gap-3 border-t border-border bg-surface px-6 py-3">
+          <span className="text-sm text-ink-secondary">
+            {selectedCount > 0 ? `${selectedCount} document${selectedCount === 1 ? '' : 's'} selected` : 'No documents selected'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={submitting || selectedCount === 0} type="submit">
+              {submitting && <InlineSpinner className="h-4 w-4 border-white/30 border-t-white" />}
+              {submitting ? 'Attaching...' : `Attach ${selectedCount || ''}`.trim()}
+            </Button>
+          </div>
         </div>
       </form>
     </ModalShell>
@@ -2857,6 +3228,9 @@ function ProjectsList({ onOpenProject }) {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-ink">Project Directory</h2>
+      </div>
       <DataTableToolbar
         left={
           <div className="flex-1">
@@ -3871,6 +4245,25 @@ function ProjectDashboard({ onOpenProject }) {
   )
 }
 
+export function ProjectDashboardPage() {
+  const navigate = useNavigate()
+  const canSearchProjects = hasPermission('projectTracking', 'searchProject')
+
+  return (
+    <div className="space-y-6" data-tour-id="pt-dashboard-page">
+      <PageHeader
+        title="Project Dashboard"
+        subtitle="Overview of project progress, phases, activities, and linked documents."
+      />
+      {canSearchProjects ? (
+        <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
+      ) : (
+        <EmptyState title="No access" message="You do not have permission to view the Project Dashboard." />
+      )}
+    </div>
+  )
+}
+
 function ProjectDetail({ projectId }) {
   const navigate = useNavigate()
   const uiVersionStamp = 'PT-20260617-R3'
@@ -3903,6 +4296,7 @@ function ProjectDetail({ projectId }) {
   const [showCreateDoc, setShowCreateDoc] = useState(null)
   const [showStageLink, setShowStageLink] = useState(null)
   const [showStageCreate, setShowStageCreate] = useState(null)
+  const [newDraftTarget, setNewDraftTarget] = useState(null)
   const [showCreatePhase, setShowCreatePhase] = useState(false)
   const [showEditPhase, setShowEditPhase] = useState(null)
   const [showDocumentAccess, setShowDocumentAccess] = useState(null)
@@ -4465,6 +4859,43 @@ function ProjectDetail({ projectId }) {
     navigate(`/documents/drafts?docId=${docId}&origin=project-tracking`)
   }
 
+  const handleNewDraftFromProject = async ({ docId, documentTypeId }) => {
+    const target = newDraftTarget
+    setNewDraftTarget(null)
+    if (!docId || !target) return
+    try {
+      if (target.type === 'item') {
+        await api.post(`/project-tracking/items/${target.item.id}/link-document`, { documentId: docId })
+      } else if (target.type === 'stage' && selectedIterationId) {
+        const stageItems = itemsByStage.get(target.stage.id) || []
+        const matchingItem = documentTypeId
+          ? stageItems.find((it) => String(it.documentTypeId) === String(documentTypeId))
+          : null
+        if (matchingItem) {
+          await api.post(`/project-tracking/items/${matchingItem.id}/link-document`, { documentId: docId })
+        } else {
+          await api.post(`/project-tracking/iterations/${selectedIterationId}/stages/${target.stage.id}/link-document`, { documentId: docId })
+        }
+      }
+      if (selectedIterationId) await loadItems(selectedIterationId)
+      setAlertModal({
+        show: true,
+        title: 'Draft Created & Linked',
+        message: 'The new draft has been created and linked to this project successfully. You can manage the reviewer and upload the file from the Draft Documents page.',
+        type: 'success'
+      })
+    } catch (error) {
+      console.error('Failed to link draft to project:', error)
+      const message = error?.response?.data?.message || error?.message || 'Draft was created but could not be linked to the project automatically. You can attach it manually using "Attach Existing".'
+      setAlertModal({
+        show: true,
+        title: 'Link Failed',
+        message,
+        type: 'warning'
+      })
+    }
+  }
+
   const createNamedIteration = async ({ name }) => {
     const res = await api.post(`/project-tracking/projects/${projectId}/iterations`, { name })
     const iter = res?.data?.data?.iteration
@@ -4995,7 +5426,7 @@ function ProjectDetail({ projectId }) {
                 Attach Existing
               </button>
               {canCreate ? (
-                <button type="button" onClick={() => setShowCreateDoc(it)} className="font-medium text-ink-secondary hover:text-ink hover:underline">
+                <button type="button" onClick={() => setNewDraftTarget({ type: 'item', item: it })} className="font-medium text-ink-secondary hover:text-ink hover:underline">
                   Add New File
                 </button>
               ) : null}
@@ -6080,7 +6511,7 @@ function ProjectDetail({ projectId }) {
                       </Button>
                     ) : null}
                     {canCreate && isProjectActive ? (
-                      <Button onClick={() => setShowStageCreate(st)}>
+                      <Button onClick={() => setNewDraftTarget({ type: 'stage', stage: st })}>
                         Create New
                       </Button>
                     ) : null}
@@ -6289,15 +6720,17 @@ function ProjectDetail({ projectId }) {
         </Modal>
       )}
 
-      {showCreateDoc && (
-        <CreateDocumentModal
-          item={showCreateDoc}
-          phase={selectedPhase}
-          onClose={() => setShowCreateDoc(null)}
-          onCreated={async (result) => {
-            setShowCreateDoc(null)
-            await handoffCreatedDraft(result)
-          }}
+      {newDraftTarget && (
+        <NewDraftModal
+          isOpen={Boolean(newDraftTarget)}
+          onClose={() => setNewDraftTarget(null)}
+          onSubmit={handleNewDraftFromProject}
+          prefillDocumentTypeId={newDraftTarget.type === 'item' ? newDraftTarget.item.documentTypeId : null}
+          prefillTitle={
+            newDraftTarget.type === 'item'
+              ? `${newDraftTarget.item.documentType?.name || 'Document'} - ${newDraftTarget.item.stage?.name || ''}`.trim()
+              : `${newDraftTarget.stage?.name || 'Document'} - Document`
+          }
         />
       )}
 
@@ -6335,21 +6768,6 @@ function ProjectDetail({ projectId }) {
               message: buildAttachSummaryMessage(summary),
               type: summary?.failedCount ? 'warning' : 'success'
             })
-          }}
-        />
-      )}
-
-      {showStageCreate && selectedIterationId && (
-        <StageCreateDocumentModal
-          iterationId={selectedIterationId}
-          phase={selectedPhase}
-          stage={showStageCreate}
-          stageItems={itemsByStage.get(showStageCreate.id) || []}
-          documentTypes={docTypes}
-          onClose={() => setShowStageCreate(null)}
-          onCreated={async (result) => {
-            setShowStageCreate(null)
-            await handoffCreatedDraft(result)
           }}
         />
       )}
@@ -7571,10 +7989,17 @@ function Setup() {
         ) : null}
 
         {hasStageChanges ? (
-          <div className="mt-4 rounded-xl border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)]/35 px-4 py-3">
-            <div className="text-sm font-semibold text-ink">Stage flow has unsaved changes</div>
-            <div className="mt-1 text-xs text-ink-secondary">
-              Save the stage flow before switching scope or handing this setup to end users.
+          <div className="mt-4 rounded-xl border-2 border-[var(--dms-color-warning-ink)]/25 bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] px-4 py-3 ring-1 ring-[var(--dms-color-warning-ink)]/15 shadow-[0_4px_14px_rgba(146,64,14,0.08)]">
+            <div className="flex items-start gap-2.5">
+              <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--dms-color-warning-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold text-[var(--dms-color-warning-ink)] uppercase tracking-wider">Stage flow has unsaved changes</div>
+                <div className="mt-1 text-xs text-ink-secondary">
+                  Save the stage flow before switching scope or handing this setup to end users.
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
@@ -8136,14 +8561,9 @@ export default function ProjectTracking() {
   const canOpenProjectSetup = hasPermission('projectTracking', 'projectSetup')
   const canViewProjectDetail = hasPermission('projectTracking', 'view')
 
-  const activeTab = String(searchParams.get('tab') || 'dashboard')
+  const activeTab = String(searchParams.get('tab') || 'projects')
 
   const setTab = (tab) => {
-    if (tab === 'dashboard') {
-      navigate('/project-tracking')
-      return
-    }
-
     const basePath = projectId ? `/project-tracking/${projectId}` : '/project-tracking'
     navigate(`${basePath}?tab=${encodeURIComponent(tab)}`)
   }
@@ -8155,7 +8575,6 @@ export default function ProjectTracking() {
   const tabs = useMemo(() => {
     const base = []
     if (canSearchProjects) {
-      base.push({ id: 'dashboard', label: 'Dashboard' })
       base.push({ id: 'projects', label: 'Project Lists' })
       base.push({ id: 'search', label: 'Search Documents' })
     }
@@ -8165,7 +8584,7 @@ export default function ProjectTracking() {
     return base
   }, [canOpenProjectSetup, canSearchProjects])
 
-  const fallbackTab = tabs[0]?.id || 'dashboard'
+  const fallbackTab = tabs[0]?.id || 'projects'
 
   useEffect(() => {
     if (projectId) return
@@ -8207,10 +8626,6 @@ export default function ProjectTracking() {
           {activeTab === 'setup' && canOpenProjectSetup ? (
             <div data-tour-id="pt-setup-panel">
               <Setup />
-            </div>
-          ) : activeTab === 'dashboard' && canSearchProjects ? (
-            <div data-tour-id="pt-dashboard-panel">
-              <ProjectDashboard onOpenProject={(id) => navigate(`/project-tracking/${id}`)} />
             </div>
           ) : activeTab === 'search' && canSearchProjects ? (
             <div data-tour-id="pt-search-panel">

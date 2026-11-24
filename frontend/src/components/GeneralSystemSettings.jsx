@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
-import { applyTheme, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
-import { getUserPermissions } from '../utils/permissions'
+import { applyTheme, applyThemeMode, persistBranding, persistLandingPageSettings, readCompanyInfo, readLandingPageSettings, readThemeSettings } from '../utils/branding'
+import { getUserPermissions, isSystemAdmin } from '../utils/permissions'
 import MarkdownEditor from './MarkdownEditor'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
@@ -23,6 +23,10 @@ function SubTabNavigation({ activeTab, onTabChange }) {
     { id: 'notification', label: t('gss_notification_settings') },
     { id: 'security', label: t('gss_security') }
   ]
+
+  if (isSystemAdmin()) {
+    tabs.push({ id: 'maintenance', label: 'Maintenance' })
+  }
 
   return (
     <div className="mb-6 border-b border-border" data-tour-id="gss-tabbar">
@@ -571,7 +575,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('heroImage', e)} 
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.heroImage && (
@@ -645,7 +649,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('aboutImage', e)} 
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.aboutImage && (
@@ -721,7 +725,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="image/*" 
                       onChange={(e) => handleIconImageUpload(idx, e)} 
-                      className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 outline-none file:mr-2 file:rounded-lg file:border-0 file:bg-gray-200 file:px-3 file:py-1 file:text-xs file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                      className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-2 text-xs text-ink outline-none file:mr-2 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-3 file:py-1 file:text-xs file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                     />
                     <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                   </div>
@@ -901,7 +905,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('workflowImage', e)} 
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.workflowImage && (
@@ -990,7 +994,7 @@ function LandingPageSettings() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => handleSectionImageUpload('contactImage', e)} 
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
                 <p className="mt-1 text-xs text-ink-muted">{maxLpImageHint}</p>
                 {content.contactImage && (
@@ -1065,7 +1069,7 @@ function LandingPageSettings() {
                       type="file" 
                       accept="application/pdf" 
                       onChange={(e) => handleFooterPdfUpload(idx, e)} 
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+                      className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                     />
                     {link.pdf && (
                       <Button
@@ -1154,7 +1158,7 @@ function ThemeAssetField({
             type="file"
             accept={accept}
             onChange={onChange}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-gray-200 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-300 focus:ring-2 focus:ring-[#003366]/30 focus:border-[#003366]"
+            className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--dms-color-bg-surface-muted)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-secondary hover:file:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
           />
           <p className="mt-1 text-xs text-ink-muted">{hint}</p>
         </div>
@@ -1180,7 +1184,7 @@ function ThemeAssetField({
               <button
                 type="button"
                 onClick={handleRetry}
-                className="mb-1 cursor-pointer text-[11px] font-medium underline underline-offset-2 text-[#003366] hover:text-[#0b57a8]"
+                className="mb-1 cursor-pointer text-[11px] font-medium underline underline-offset-2 text-brand-primary hover:text-[color-mix(in_srgb,var(--dms-color-brand-primary)_75%,var(--dms-color-text-ink))] transition-colors"
               >
                 Retry
               </button>
@@ -1345,75 +1349,32 @@ const ThemeBranding = () => {
 
   useEffect(() => {
     // Load saved theme or get current CSS variables
-    // #region debug-point A,C:themeBrandingLoad
-    console.log(`%c[DEBUG-THEMEBRAND] ===== ThemeBranding useEffect[load] RUN =====`, 'color:#7C2D12;font-weight:bold')
-    console.log(`[DEBUG-THEMEBRAND] INITIAL logoPreview=`, logoPreview, `| theme.mainLogo (initial state)=`, theme.mainLogo)
-    // #endregion
     let mounted = true
 
     const applyLoadedTheme = (savedTheme) => {
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`[DEBUG-THEMEBRAND] --- applyLoadedTheme() called ---`)
-      console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogo (RAW from param)=`, savedTheme?.mainLogo, typeof savedTheme?.mainLogo)
-      console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogoPlaceholder=`, savedTheme?.mainLogoPlaceholder)
-      console.log(`[DEBUG-THEMEBRAND]   CURRENT theme.mainLogo (stale closure)=`, theme.mainLogo)
-      // #endregion
       const mergedTheme = { ...theme, ...(savedTheme && typeof savedTheme === 'object' ? savedTheme : {}) }
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`[DEBUG-THEMEBRAND]   mergedTheme.mainLogo (AFTER merge with stale theme)=`, mergedTheme.mainLogo)
-      // #endregion
       setTheme(mergedTheme)
       setOriginalTheme(mergedTheme)
       applyTheme(mergedTheme)
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`%c[DEBUG-THEMEBRAND]   📌 setLogoPreview(${mergedTheme.mainLogo ?? null}) — LOGO PREVIEW STATE WILL CHANGE TO THIS`, mergedTheme.mainLogo ? 'color:#065F46' : 'color:#DC2626;font-weight:bold')
-      if (!mergedTheme.mainLogo) {
-        console.log(`%c[DEBUG-THEMEBRAND]   ⚠️ mergedTheme.mainLogo IS NULL — THIS WILL CAUSE LOGO TO DISAPPEAR FROM PREVIEW!`, 'color:#DC2626;font-weight:bold')
-      }
-      // #endregion
       setLogoPreview(mergedTheme.mainLogo ?? null)
       setFaviconPreview(mergedTheme.favicon ?? null)
       setBgImagePreview(mergedTheme.bgImage ?? null)
     }
 
     const load = async () => {
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`[DEBUG-THEMEBRAND] load() → fetching /system/config/theme-settings...`)
-      // #endregion
       try {
         const res = await api.get('/system/config/theme-settings')
         const savedTheme = res.data?.data?.theme
-        // #region debug-point A,C:themeBrandingLoad
-        console.log(`[DEBUG-THEMEBRAND] ✅ API response received!`)
-        console.log(`[DEBUG-THEMEBRAND]   res.data.data=`, res.data?.data)
-        console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogo (FROM SERVER)=`, savedTheme?.mainLogo, typeof savedTheme?.mainLogo)
-        console.log(`[DEBUG-THEMEBRAND]   savedTheme.mainLogoPlaceholder (FROM SERVER)=`, savedTheme?.mainLogoPlaceholder)
-        if (!savedTheme?.mainLogo) {
-          console.log(`%c[DEBUG-THEMEBRAND]   ⚠️⚠️⚠️ SERVER RETURNED mainLogo=null/undefined! THIS MEANS resolveBrandingFile IN BACKEND FAILED TO FIND THE FILE!`, 'color:#DC2626;font-weight:bold')
-        }
-        // #endregion
         if (savedTheme && typeof savedTheme === 'object') {
-          // #region debug-point A,C:themeBrandingLoad
-          console.log(`[DEBUG-THEMEBRAND]   calling persistBranding({ theme: savedTheme })...`)
-          // #endregion
           persistBranding({ theme: savedTheme })
           if (!mounted) return
           applyLoadedTheme(savedTheme)
           return
         }
       } catch (err) {
-        // #region debug-point A,C:themeBrandingLoad
-        console.log(`%c[DEBUG-THEMEBRAND] ❌ API fetch ERROR:`, 'color:#DC2626', err?.message || err)
-        // #endregion
       }
 
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`[DEBUG-THEMEBRAND] ⬇️ FALLBACK to readThemeSettings() from localStorage/inMemoryBranding`)
-      // #endregion
       const savedTheme = readThemeSettings()
-      // #region debug-point A,C:themeBrandingLoad
-      console.log(`[DEBUG-THEMEBRAND]   readThemeSettings returned → mainLogo=`, savedTheme?.mainLogo)
-      // #endregion
       if (savedTheme) {
         if (!mounted) return
         applyLoadedTheme(savedTheme)
@@ -2484,6 +2445,64 @@ const ThemeBranding = () => {
         fontFamily: 'Inter',
         borderRadiusMedium: '0.5rem',
         spacingScale: 'normal'
+      },
+      zorapro: {
+        // Core Colors — Zora Pro Dark Teal / Cyan theme
+        primaryColor: '#22d3ee',
+        secondaryColor: '#14b8a6',
+        accentColor: '#0ea5e9',
+        successColor: '#10b981',
+        warningColor: '#f59e0b',
+        errorColor: '#ef4444',
+        infoColor: '#06b6d4',
+
+        // Sidebar & Navigation
+        sidebarBgColor: '#0a0e20',
+        sidebarTextColor: '#e2e8f0',
+        mainBgColor: '#0c1226',
+        tabTextColor: '#94a3b8',
+        tabActiveColor: '#22d3ee',
+
+        // Buttons
+        btnPrimaryBg: '#22d3ee',
+        btnPrimaryText: '#0a0e20',
+        btnPrimaryHover: '#67e8f9',
+        btnSecondaryBg: '#141d3a',
+        btnSecondaryText: '#22d3ee',
+        btnSecondaryHover: '#1e2a55',
+
+        // Landing Page
+        landingNavBg: '#0a0e20',
+        landingNavText: '#ffffff',
+        landingHeroGradientStart: '#0a0e20',
+        landingHeroGradientMid: '#0f1630',
+        landingHeroGradientEnd: '#14b8a6',
+        landingHeroText: '#ffffff',
+        landingButtonPrimary: '#22d3ee',
+        landingButtonPrimaryText: '#0a0e20',
+        landingButtonSecondary: 'transparent',
+        landingButtonSecondaryText: '#ffffff',
+        landingAboutBg: '#0c1226',
+        landingCoreFeaturesBg: '#0f1630',
+        landingSystemFeaturesBg: 'linear-gradient(145deg, #0f1630, #141d3a)',
+        landingRolesBg: 'linear-gradient(145deg, #141d3a, #0f1630, #0c1226)',
+        landingWorkflowBg: 'linear-gradient(145deg, #0c1226, #0f1630)',
+        landingContactBg: '#0f1630',
+
+        // Login Page
+        loginBgGradientStart: '#0a0e20',
+        loginBgGradientEnd: '#0c1226',
+        loginCardBg: '#111833',
+        loginButtonBg: '#22d3ee',
+        loginButtonText: '#0a0e20',
+        loginButtonHover: '#67e8f9',
+        loginAccentBg: '#141d3a',
+        loginAccentIcon: '#22d3ee',
+
+        // Typography & Spacing
+        fontFamily: 'Inter',
+        borderRadiusMedium: '0.875rem',
+        spacingScale: 'normal'
       }
     }
 
@@ -2492,6 +2511,9 @@ const ThemeBranding = () => {
       const newTheme = { ...theme, ...selectedPreset }
       setTheme(newTheme)
       applyTheme(newTheme)
+      if (presetName === 'zorapro') {
+        applyThemeMode('zorapro')
+      }
       setHasChanges(true)
     }
   }
@@ -2551,7 +2573,10 @@ const ThemeBranding = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {hasChanges && (
-              <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-[var(--dms-color-info-ink)]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_60%,var(--dms-color-bg-surface))] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/25 shadow-[0_2px_8px_rgba(146,64,14,0.10)]">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
                 Unsaved changes
               </span>
             )}
@@ -2721,6 +2746,18 @@ const ThemeBranding = () => {
             </div>
             <span className="text-xs font-medium text-ink group-hover:text-brand">Amber</span>
           </button>
+
+          {/* Zora Pro */}
+          <button
+            onClick={() => applyPreset('zorapro')}
+            className="group flex flex-col items-center gap-2 rounded-xl border-2 border-border bg-surface p-3 text-center transition-all hover:border-[#22d3ee] hover:shadow-dms-soft"
+          >
+            <div className="flex gap-1 rounded-md p-1" style={{ backgroundColor: '#0a0e20' }}>
+              <div className="w-5 h-5 rounded" style={{ backgroundColor: '#22d3ee' }}></div>
+              <div className="w-5 h-5 rounded" style={{ backgroundColor: '#14b8a6' }}></div>
+            </div>
+            <span className="text-xs font-semibold text-ink group-hover:text-[#22d3ee]">Zora Pro</span>
+          </button>
         </div>
       </AppSurface>
 
@@ -2889,19 +2926,23 @@ const ThemeBranding = () => {
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="block text-xs text-ink-secondary mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                    />
+                  <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                    <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                      <input
+                        type="color"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2919,19 +2960,23 @@ const ThemeBranding = () => {
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="block text-xs text-ink-secondary mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                    />
+                  <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                    <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                      <input
+                        type="color"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2949,19 +2994,23 @@ const ThemeBranding = () => {
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="block text-xs text-ink-secondary mb-2">{label}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                    />
-                    <input
-                      type="text"
-                      value={theme[key]}
-                      onChange={(e) => handleThemeChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                    />
+                  <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                    <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                      <input
+                        type="color"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={theme[key]}
+                        onChange={(e) => handleThemeChange(key, e.target.value)}
+                        className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2986,41 +3035,49 @@ const ThemeBranding = () => {
                   value={theme.tableRowHeight}
                   onChange={(e) => handleThemeChange('tableRowHeight', e.target.value)}
                   placeholder="3rem"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Header Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.tableHeaderBg}
-                    onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.tableHeaderBg}
-                    onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.tableHeaderBg}
+                      onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.tableHeaderBg}
+                      onChange={(e) => handleThemeChange('tableHeaderBg', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Header Text</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.tableHeaderText}
-                    onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.tableHeaderText}
-                    onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.tableHeaderText}
+                      onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.tableHeaderText}
+                      onChange={(e) => handleThemeChange('tableHeaderText', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3037,7 +3094,7 @@ const ThemeBranding = () => {
                   value={theme.badgePaddingX}
                   onChange={(e) => handleThemeChange('badgePaddingX', e.target.value)}
                   placeholder="0.625rem"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
               </div>
               <div>
@@ -3047,7 +3104,7 @@ const ThemeBranding = () => {
                   value={theme.badgePaddingY}
                   onChange={(e) => handleThemeChange('badgePaddingY', e.target.value)}
                   placeholder="0.25rem"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
               </div>
             </div>
@@ -3065,36 +3122,44 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Background Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingNavBg}
-                    onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingNavBg}
-                    onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingNavBg}
+                      onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingNavBg}
+                      onChange={(e) => handleThemeChange('landingNavBg', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Text Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingNavText}
-                    onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingNavText}
-                    onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingNavText}
+                      onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingNavText}
+                      onChange={(e) => handleThemeChange('landingNavText', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3106,71 +3171,87 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Start Color (Left)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingHeroGradientStart}
-                    onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingHeroGradientStart}
-                    onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingHeroGradientStart}
+                      onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingHeroGradientStart}
+                      onChange={(e) => handleThemeChange('landingHeroGradientStart', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Middle Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingHeroGradientMid}
-                    onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingHeroGradientMid}
-                    onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingHeroGradientMid}
+                      onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingHeroGradientMid}
+                      onChange={(e) => handleThemeChange('landingHeroGradientMid', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">End Color (Right)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingHeroGradientEnd}
-                    onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingHeroGradientEnd}
-                    onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingHeroGradientEnd}
+                      onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingHeroGradientEnd}
+                      onChange={(e) => handleThemeChange('landingHeroGradientEnd', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
             <div className="mt-4">
               <label className="block text-xs text-ink-secondary mb-2">Hero Text Color</label>
-              <div className="flex gap-2 md:w-1/3">
-                <input
-                  type="color"
-                  value={theme.landingHeroText}
-                  onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
-                  className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                />
-                <input
-                  type="text"
-                  value={theme.landingHeroText}
-                  onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                />
+              <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150 md:w-1/3">
+                <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                  <input
+                    type="color"
+                    value={theme.landingHeroText}
+                    onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
+                    className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={theme.landingHeroText}
+                    onChange={(e) => handleThemeChange('landingHeroText', e.target.value)}
+                    className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -3181,71 +3262,87 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Primary Button Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingButtonPrimary}
-                    onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingButtonPrimary}
-                    onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingButtonPrimary}
+                      onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingButtonPrimary}
+                      onChange={(e) => handleThemeChange('landingButtonPrimary', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Primary Button Text</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingButtonPrimaryText}
-                    onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingButtonPrimaryText}
-                    onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingButtonPrimaryText}
+                      onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingButtonPrimaryText}
+                      onChange={(e) => handleThemeChange('landingButtonPrimaryText', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Secondary Button Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingButtonSecondary?.startsWith('#') ? theme.landingButtonSecondary : '#FFFFFF'}
-                    onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingButtonSecondary}
-                    onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
-                    placeholder="transparent"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingButtonSecondary?.startsWith('#') ? theme.landingButtonSecondary : '#FFFFFF'}
+                      onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingButtonSecondary}
+                      onChange={(e) => handleThemeChange('landingButtonSecondary', e.target.value)}
+                      placeholder="transparent"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Secondary Button Text</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingButtonSecondaryText}
-                    onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingButtonSecondaryText}
-                    onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingButtonSecondaryText}
+                      onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingButtonSecondaryText}
+                      onChange={(e) => handleThemeChange('landingButtonSecondaryText', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3258,110 +3355,134 @@ const ThemeBranding = () => {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">What is DMS Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingAboutBg?.startsWith('#') ? theme.landingAboutBg : '#F9FAFB'}
-                    onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingAboutBg || ''}
-                    onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
-                    placeholder="#F9FAFB or linear-gradient(...)"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingAboutBg?.startsWith('#') ? theme.landingAboutBg : '#F9FAFB'}
+                      onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingAboutBg || ''}
+                      onChange={(e) => handleThemeChange('landingAboutBg', e.target.value)}
+                      placeholder="#F9FAFB or linear-gradient(...)"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Core Features Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingCoreFeaturesBg?.startsWith('#') ? theme.landingCoreFeaturesBg : '#F9FAFB'}
-                    onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingCoreFeaturesBg || ''}
-                    onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
-                    placeholder="#F9FAFB or linear-gradient(...)"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingCoreFeaturesBg?.startsWith('#') ? theme.landingCoreFeaturesBg : '#F9FAFB'}
+                      onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingCoreFeaturesBg || ''}
+                      onChange={(e) => handleThemeChange('landingCoreFeaturesBg', e.target.value)}
+                      placeholder="#F9FAFB or linear-gradient(...)"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">System Features Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingSystemFeaturesBg?.startsWith('#') ? theme.landingSystemFeaturesBg : '#EFF6FF'}
-                    onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingSystemFeaturesBg || ''}
-                    onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
-                    placeholder="linear-gradient(to bottom right, #EFF6FF, #FAF5FF)"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingSystemFeaturesBg?.startsWith('#') ? theme.landingSystemFeaturesBg : '#EFF6FF'}
+                      onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingSystemFeaturesBg || ''}
+                      onChange={(e) => handleThemeChange('landingSystemFeaturesBg', e.target.value)}
+                      placeholder="linear-gradient(to bottom right, #EFF6FF, #FAF5FF)"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Who Uses This System Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingRolesBg?.startsWith('#') ? theme.landingRolesBg : '#ECFEFF'}
-                    onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingRolesBg || ''}
-                    onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
-                    placeholder="linear-gradient(to bottom right, #ECFEFF, #EFF6FF, #FAF5FF)"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingRolesBg?.startsWith('#') ? theme.landingRolesBg : '#ECFEFF'}
+                      onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingRolesBg || ''}
+                      onChange={(e) => handleThemeChange('landingRolesBg', e.target.value)}
+                      placeholder="linear-gradient(to bottom right, #ECFEFF, #EFF6FF, #FAF5FF)"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Workflow Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingWorkflowBg?.startsWith('#') ? theme.landingWorkflowBg : '#F8FAFC'}
-                    onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingWorkflowBg || ''}
-                    onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
-                    placeholder="linear-gradient(to bottom right, #F8FAFC, #EFF6FF)"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingWorkflowBg?.startsWith('#') ? theme.landingWorkflowBg : '#F8FAFC'}
+                      onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingWorkflowBg || ''}
+                      onChange={(e) => handleThemeChange('landingWorkflowBg', e.target.value)}
+                      placeholder="linear-gradient(to bottom right, #F8FAFC, #EFF6FF)"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Contact Section</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.landingContactBg?.startsWith('#') ? theme.landingContactBg : '#F3F4F6'}
-                    onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.landingContactBg || ''}
-                    onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
-                    placeholder="#F3F4F6"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.landingContactBg?.startsWith('#') ? theme.landingContactBg : '#F3F4F6'}
+                      onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.landingContactBg || ''}
+                      onChange={(e) => handleThemeChange('landingContactBg', e.target.value)}
+                      placeholder="#F3F4F6"
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3379,36 +3500,44 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Gradient Start Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginBgGradientStart}
-                    onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginBgGradientStart}
-                    onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginBgGradientStart}
+                      onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginBgGradientStart}
+                      onChange={(e) => handleThemeChange('loginBgGradientStart', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Gradient End Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginBgGradientEnd}
-                    onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginBgGradientEnd}
-                    onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginBgGradientEnd}
+                      onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginBgGradientEnd}
+                      onChange={(e) => handleThemeChange('loginBgGradientEnd', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3420,19 +3549,23 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Card Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginCardBg}
-                    onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginCardBg}
-                    onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginCardBg}
+                      onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginCardBg}
+                      onChange={(e) => handleThemeChange('loginCardBg', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
@@ -3442,7 +3575,7 @@ const ThemeBranding = () => {
                   value={theme.loginCardShadow}
                   onChange={(e) => handleThemeChange('loginCardShadow', e.target.value)}
                   placeholder="0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                  className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
                 />
               </div>
             </div>
@@ -3454,53 +3587,65 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Button Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginButtonBg}
-                    onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginButtonBg}
-                    onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginButtonBg}
+                      onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginButtonBg}
+                      onChange={(e) => handleThemeChange('loginButtonBg', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Button Text</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginButtonText}
-                    onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginButtonText}
-                    onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginButtonText}
+                      onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginButtonText}
+                      onChange={(e) => handleThemeChange('loginButtonText', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Button Hover</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginButtonHover}
-                    onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginButtonHover}
-                    onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginButtonHover}
+                      onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginButtonHover}
+                      onChange={(e) => handleThemeChange('loginButtonHover', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3512,36 +3657,44 @@ const ThemeBranding = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Accent Background</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginAccentBg}
-                    onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginAccentBg}
-                    onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginAccentBg}
+                      onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginAccentBg}
+                      onChange={(e) => handleThemeChange('loginAccentBg', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-ink-secondary mb-2">Icon Color</label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={theme.loginAccentIcon}
-                    onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
-                    className="w-16 h-10 border border-border rounded cursor-pointer bg-surface"
-                  />
-                  <input
-                    type="text"
-                    value={theme.loginAccentIcon}
-                    onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
-                  />
+                <div className="flex gap-2 items-center rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-2 py-1.5 focus-within:border-[var(--dms-color-brand-primary)] focus-within:ring-2 focus-within:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150">
+                  <div className="shrink-0 rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] p-1">
+                    <input
+                      type="color"
+                      value={theme.loginAccentIcon}
+                      onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
+                      className="h-9 w-14 min-w-[56px] cursor-pointer rounded border-none bg-transparent outline-none p-0"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={theme.loginAccentIcon}
+                      onChange={(e) => handleThemeChange('loginAccentIcon', e.target.value)}
+                      className="!w-full !border-0 !ring-0 !bg-transparent !px-1 !py-0 focus:!ring-0 focus:!border-0 text-sm text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3555,7 +3708,7 @@ const ThemeBranding = () => {
               value={theme.loginWelcomeMessage || 'Welcome to {companyName}'}
               onChange={(e) => handleThemeChange('loginWelcomeMessage', e.target.value)}
               placeholder="Welcome to {companyName}"
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 transition-all duration-150"
             />
             <p className="text-xs text-ink-muted mt-1">Use {'{companyName}'} to dynamically insert company name</p>
           </div>
@@ -3960,8 +4113,8 @@ function DocumentSettings() {
 
       {/* File Upload Settings */}
       <AppSurface padding="lg" variant="panel">
-        <h4 className="mb-4 text-sm font-semibold text-ink">{t('gss_ds_file_upload')}</h4>
-        <div className="space-y-4">
+        <h4 className="mb-5 text-sm font-semibold text-ink">{t('gss_ds_file_upload')}</h4>
+        <div className="space-y-5">
           <div>
             <label className="mb-2 block text-sm font-semibold text-ink">Max File Size (MB)</label>
             <TextInput
@@ -3974,20 +4127,20 @@ function DocumentSettings() {
             <p className="mt-1 text-xs text-ink-soft">Maximum file size for document uploads (1-500 MB)</p>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-semibold text-ink">Allowed File Types</label>
-            <div className="overflow-x-auto">
-              <div className="flex flex-nowrap gap-x-10 gap-y-3 min-w-max">
+            <label className="mb-3 block text-sm font-semibold text-ink">Allowed File Types</label>
+            <div className="overflow-x-auto rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] p-5">
+              <div className="flex flex-nowrap gap-x-10 gap-y-4 min-w-max">
                 {allowedTypeColumns.map((col, colIdx) => (
-                  <div key={colIdx} className="flex flex-col gap-3 min-w-[120px]">
+                  <div key={colIdx} className="flex flex-col gap-4 min-w-[120px]">
                     {col.map((type) => (
-                      <label key={type} className="flex items-center gap-2 cursor-pointer">
+                      <label key={type} className="flex items-center gap-3 cursor-pointer group">
                         <input
-                          type="checkbox"
-                          checked={settings.allowedTypes[type]}
-                          onChange={(e) => setSettings(prev => ({ ...prev, allowedTypes: { ...prev.allowedTypes, [type]: e.target.checked } }))}
-                          className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                        />
-                        <span className="text-sm font-semibold text-ink-secondary uppercase">{type}</span>
+                            type="checkbox"
+                            checked={settings.allowedTypes[type]}
+                            onChange={(e) => setSettings(prev => ({ ...prev, allowedTypes: { ...prev.allowedTypes, [type]: e.target.checked } }))}
+                            className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+                          />
+                        <span className="text-sm font-semibold text-ink uppercase">{type}</span>
                       </label>
                     ))}
                   </div>
@@ -4011,29 +4164,29 @@ function DocumentSettings() {
 
       {/* Document Numbering */}
       <AppSurface padding="lg" variant="panel" className="space-y-6 overflow-hidden">
-        <div className="space-y-1 border-b border-border pb-4">
+        <div className="space-y-1 border-b border-border pb-5">
           <h4 className="text-base font-semibold text-ink">Document Numbering Configuration</h4>
           <p className="text-sm text-ink-muted">Configure automatic document code generation and formatting</p>
         </div>
           <label className="flex items-start gap-3 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={settings.autoGenerateCode} 
-              onChange={(e) => setSettings(prev => ({ ...prev, autoGenerateCode: e.target.checked }))} 
-              className="mt-1 h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30" 
-            />
+            <input
+                type="checkbox" 
+                checked={settings.autoGenerateCode} 
+                onChange={(e) => setSettings(prev => ({ ...prev, autoGenerateCode: e.target.checked }))} 
+                className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" 
+              />
             <div>
               <span className="text-sm font-semibold text-ink">Enable Auto-generate Document Code</span>
               <p className="mt-0.5 text-sm text-ink-muted">Automatically generate unique document codes based on your format</p>
             </div>
           </label>
           {settings.autoGenerateCode && (
-            <div className="space-y-6 pl-7">
+            <div className="space-y-6 pl-14">
               {/* Format Builder */}
               <div>
-                <h5 className="mb-4 text-sm font-semibold text-ink">Format Builder</h5>
+                <h5 className="mb-5 text-sm font-semibold text-ink">Format Builder</h5>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Prefix Placeholder */}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-ink">
@@ -4051,18 +4204,20 @@ function DocumentSettings() {
                   </div>
 
                   <div>
-                    <label className="flex items-center gap-2 mb-1.5">
+                    <label className="flex items-start gap-3 mb-1.5">
                       <input
-                        type="checkbox"
-                        checked={settings.includeProjectCategoryCode}
-                        onChange={(e) => setSettings(prev => ({ ...prev, includeProjectCategoryCode: e.target.checked }))}
-                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                      />
-                      <span className="text-xs font-semibold text-ink-secondary">Include Project Category Code</span>
+                          type="checkbox"
+                          checked={settings.includeProjectCategoryCode}
+                          onChange={(e) => setSettings(prev => ({ ...prev, includeProjectCategoryCode: e.target.checked }))}
+                          className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+                        />
+                      <div>
+                        <span className="text-xs font-semibold text-ink">Include Project Category Code</span>
+                        <p className="mt-1 text-xs text-ink-soft">
+                          When enabled, the file code adds `project category code` as its own leading segment before the document type prefix.
+                        </p>
+                      </div>
                     </label>
-                    <p className="mt-1 text-xs text-ink-soft">
-                      When enabled, the file code adds `project category code` as its own leading segment before the document type prefix.
-                    </p>
                   </div>
 
                   {/* Separator */}
@@ -4085,27 +4240,29 @@ function DocumentSettings() {
 
                   {/* Version */}
                   <div>
-                    <label className="flex items-center gap-2 mb-1.5">
-                      <input 
-                        type="checkbox" 
-                        checked={settings.includeVersion} 
-                        onChange={(e) => setSettings(prev => ({ ...prev, includeVersion: e.target.checked }))} 
-                        className="h-4 w-4 rounded border-border text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                      />
-                      <span className="text-xs font-semibold text-ink-secondary">Include Version Number</span>
+                    <label className="flex items-start gap-3 mb-1.5">
+                      <input
+                          type="checkbox" 
+                          checked={settings.includeVersion} 
+                          onChange={(e) => setSettings(prev => ({ ...prev, includeVersion: e.target.checked }))} 
+                          className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+                        />
+                      <div>
+                        <span className="text-xs font-semibold text-ink">Include Version Number</span>
+                        {settings.includeVersion && (
+                          <SelectField 
+                            value={settings.versionDigits} 
+                            onChange={(e) => setSettings(prev => ({ ...prev, versionDigits: e.target.value }))} 
+                            className="font-mono mt-2"
+                          >
+                            <option value="1">1 digit (1-9)</option>
+                            <option value="2">2 digits (01-99)</option>
+                            <option value="3">3 digits (001-999)</option>
+                          </SelectField>
+                        )}
+                        <p className="mt-1 text-xs text-ink-soft">Version padding: 01, 001, etc.</p>
+                      </div>
                     </label>
-                    {settings.includeVersion && (
-                      <SelectField 
-                        value={settings.versionDigits} 
-                        onChange={(e) => setSettings(prev => ({ ...prev, versionDigits: e.target.value }))} 
-                        className="font-mono"
-                      >
-                        <option value="1">1 digit (1-9)</option>
-                        <option value="2">2 digits (01-99)</option>
-                        <option value="3">3 digits (001-999)</option>
-                      </SelectField>
-                    )}
-                    <p className="mt-1 text-xs text-ink-soft">Version padding: 01, 001, etc.</p>
                   </div>
 
                   {/* Date Format */}
@@ -4143,14 +4300,14 @@ function DocumentSettings() {
                   </div>
 
                   {/* Starting Number */}
-                  <div>
-                    <label className="block text-xs font-medium text-ink-secondary mb-1.5">Starting Counter Value</label>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-ink-secondary mb-2">Starting Counter Value</label>
                     <input 
                       type="number" 
                       min="1"
                       value={settings.startingNumber} 
                       onChange={(e) => setSettings(prev => ({ ...prev, startingNumber: e.target.value }))} 
-                      className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand font-mono text-sm" 
+                      className="w-48 px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 font-mono text-sm" 
                       placeholder="1"
                     />
                     <p className="text-xs text-ink-muted mt-1">Auto-increments with each document</p>
@@ -4242,31 +4399,33 @@ function DocumentSettings() {
       </AppSurface>
 
       {/* Version Control */}
-      <div className="border border-border rounded-lg p-4 bg-surface">
-        <h4 className="font-medium text-ink mb-4">{t('gss_ds_version_control')}</h4>
-        <div className="space-y-4">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
-            <span className="text-sm font-medium text-ink">Enable Automatic Versioning</span>
-          </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_ds_version_control')}</h4>
+        <div className="space-y-5">
+          <label className="flex items-start gap-3">
+            <input type="checkbox" checked={settings.autoVersion} onChange={(e) => setSettings(prev => ({ ...prev, autoVersion: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
             <div>
-              <label className="block text-sm font-medium text-ink mb-2">Version Format</label>
-              <select value={settings.versionFormat} onChange={(e) => setSettings(prev => ({ ...prev, versionFormat: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-ink outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand">
+              <span className="text-sm font-semibold text-ink">Enable Automatic Versioning</span>
+            </div>
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-semibold text-ink mb-2">Version Format</label>
+              <select value={settings.versionFormat} onChange={(e) => setSettings(prev => ({ ...prev, versionFormat: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl bg-[var(--dms-color-bg-surface)] text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20">
                 <option>v1.0</option>
                 <option>v1.0.0</option>
                 <option>1.0</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink mb-2">Max Versions Kept</label>
+              <label className="block text-sm font-semibold text-ink mb-2">Max Versions Kept</label>
               <input 
                 type="number" 
                 min="1" 
                 max="50" 
                 value={settings.maxVersions} 
                 onChange={(e) => setSettings(prev => ({ ...prev, maxVersions: parseInt(e.target.value) || 1 }))} 
-                className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
+                className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" 
               />
               <p className="text-xs text-ink-muted mt-1">Number of versions to retain (1-50)</p>
             </div>
@@ -4275,42 +4434,42 @@ function DocumentSettings() {
       </div>
 
       {/* Retention Policy */}
-      <div className="border border-border rounded-lg p-4 bg-surface">
-        <h4 className="font-medium text-ink mb-4">{t('gss_ds_retention')}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_ds_retention')}</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">Draft Retention (days)</label>
+            <label className="block text-sm font-semibold text-ink mb-2">Draft Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="3650" 
               value={settings.draftRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, draftRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
+              className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" 
             />
             <p className="text-xs text-ink-muted mt-1">Days to keep draft documents before cleanup</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">Archived Retention (days)</label>
+            <label className="block text-sm font-semibold text-ink mb-2">Archived Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="3650" 
               value={settings.archivedRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, archivedRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
+              className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" 
             />
             <p className="text-xs text-ink-muted mt-1">Days to keep archived documents before permanent removal</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">Deleted Retention (days)</label>
+            <label className="block text-sm font-semibold text-ink mb-2">Deleted Retention (days)</label>
             <input 
               type="number" 
               min="0" 
               max="365" 
               value={settings.deletedRetention} 
               onChange={(e) => setSettings(prev => ({ ...prev, deletedRetention: parseInt(e.target.value) || 0 }))} 
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" 
+              className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" 
             />
             <p className="text-xs text-ink-muted mt-1">Days to keep deleted items in trash before permanent deletion</p>
           </div>
@@ -4345,8 +4504,8 @@ function DocumentSettings() {
           </div>
         </div>
         <p className="text-xs text-ink-soft">Status logic uses `Expiring Soon Days`, while reminders are sent on the configured day thresholds before expiry.</p>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted/60 p-4">
-          <p className="text-sm text-ink-muted">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] p-5">
+          <p className="text-sm text-ink-secondary">
             Existing tracked documents keep their saved reminder rules until you apply the current global settings to them.
           </p>
           <Button
@@ -4360,61 +4519,61 @@ function DocumentSettings() {
         </div>
       </AppSurface>
 
-      <div className="border border-border rounded-lg overflow-hidden bg-surface">
-        <div className="bg-surface border-b border-border px-6 py-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] overflow-hidden bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <div className="border-b-2 border-[var(--dms-color-border-default)] px-6 py-5">
           <h4 className="font-semibold text-ink text-base">EPC Registry</h4>
           <p className="text-sm text-ink-secondary mt-1">Enable optional EPC registry generation after draft upload</p>
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
-              type="checkbox"
-              checked={settings.rfidEpcRegistryEnabled}
-              onChange={(e) => setSettings((prev) => ({ ...prev, rfidEpcRegistryEnabled: e.target.checked }))}
-              className="mt-1 w-4 h-4 text-brand rounded focus:ring-2 focus:ring-brand/20"
-            />
+                type="checkbox"
+                checked={settings.rfidEpcRegistryEnabled}
+                onChange={(e) => setSettings((prev) => ({ ...prev, rfidEpcRegistryEnabled: e.target.checked }))}
+                className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+              />
             <div>
-              <span className="text-sm font-medium text-ink">Enable EPC Registry</span>
+              <span className="text-sm font-semibold text-ink">Enable EPC Registry</span>
               <p className="text-sm text-ink-secondary mt-0.5">
                 When enabled, the system generates a fixed-length 96-bit EPC value from the document file code and stores it for later RFID encoding.
               </p>
             </div>
           </label>
-          <div className="rounded-lg border border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-soft)] p-4">
-            <p className="text-sm font-medium text-[var(--dms-color-info-ink)]">How it works</p>
-            <p className="mt-1 text-sm text-[var(--dms-color-info-ink)]">
+          <div className="rounded-xl border-2 border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-soft)] p-5">
+            <p className="text-sm font-semibold text-[var(--dms-color-info-ink)]">How it works</p>
+            <p className="mt-2 text-sm text-[var(--dms-color-info-ink)]">
               The system takes the generated document file code, creates a deterministic fixed-length EPC hex value, and saves the result in the EPC registry.
             </p>
-            <p className="mt-2 text-xs text-[var(--dms-color-info-ink)]">
+            <p className="mt-3 text-xs text-[var(--dms-color-info-ink)]">
               No GS1, SGTIN-96, company prefix, or item reference setup is required for this simplified flow. The EPC output is capped at 24 hex characters for better tag compatibility.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="border border-border rounded-lg overflow-hidden bg-surface">
-        <div className="bg-surface border-b border-border px-6 py-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] overflow-hidden bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <div className="border-b-2 border-[var(--dms-color-border-default)] px-6 py-5">
           <h4 className="font-semibold text-ink text-base">Smart Documents</h4>
           <p className="text-sm text-ink-secondary mt-1">Enable Smart Document editor with dynamic forms, field mapping, and PDF generation</p>
         </div>
         <div className="p-6 space-y-6">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
-              type="checkbox"
-              checked={settings.smartDocumentEnabled}
-              onChange={(e) => setSettings((prev) => ({ ...prev, smartDocumentEnabled: e.target.checked }))}
-              className="mt-1 w-4 h-4 text-brand rounded focus:ring-2 focus:ring-brand/20"
-            />
+                type="checkbox"
+                checked={settings.smartDocumentEnabled}
+                onChange={(e) => setSettings((prev) => ({ ...prev, smartDocumentEnabled: e.target.checked }))}
+                className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+              />
             <div>
-              <span className="text-sm font-medium text-ink">Enable Smart Document Feature</span>
+              <span className="text-sm font-semibold text-ink">Enable Smart Document Feature</span>
               <p className="text-sm text-ink-secondary mt-0.5">
                 When enabled, users can design Smart Templates with custom form sections, map fields to Word placeholders, and use the Smart Document editor for data-driven PDF generation.
               </p>
             </div>
           </label>
-          <div className="rounded-lg border border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)] p-4">
-            <p className="text-sm font-medium text-[var(--dms-color-warning-ink)]">Impact</p>
-            <ul className="mt-2 space-y-1 text-sm text-[var(--dms-color-warning-ink)]">
+          <div className="rounded-xl border-2 border-[var(--dms-color-warning-ink)]/20 bg-[var(--dms-color-warning-soft)] p-5">
+            <p className="text-sm font-semibold text-[var(--dms-color-warning-ink)]">Impact</p>
+            <ul className="mt-3 space-y-2 text-sm text-[var(--dms-color-warning-ink)]">
               <li>• When disabled: Smart Templates tab, Document Style Profiles, and the Smart Document editor are hidden.</li>
               <li>• Existing documents created with Smart Templates remain accessible for download as normal PDFs.</li>
               <li>• The "Edit Smart Document" action in Draft Documents will redirect to standard file upload instead.</li>
@@ -4428,7 +4587,7 @@ function DocumentSettings() {
         <button 
           onClick={handleSave} 
           disabled={saving}
-          className="px-6 py-2 text-sm font-medium text-ink-inverse bg-brand rounded-lg hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 text-sm font-semibold text-ink-inverse bg-brand rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? t('gss_saving') : t('gss_save_changes')}
         </button>
@@ -4610,20 +4769,20 @@ function NotificationSettings() {
       </div>
 
       {/* Email Configuration */}
-      <div className="border border-border rounded-lg p-4 bg-surface">
-        <h4 className="font-medium text-ink mb-4">{t('gss_ns_smtp')}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_ns_smtp')}</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-ink mb-2">SMTP Host</label>
-            <input type="text" value={settings.smtpHost} onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="text" value={settings.smtpHost} onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">SMTP Port</label>
-            <input type="text" value={settings.smtpPort} onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="text" value={settings.smtpPort} onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">SMTP Username</label>
-            <input type="text" value={settings.smtpUsername} onChange={(e) => setSettings(prev => ({ ...prev, smtpUsername: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="text" value={settings.smtpUsername} onChange={(e) => setSettings(prev => ({ ...prev, smtpUsername: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">SMTP Password</label>
@@ -4635,7 +4794,7 @@ function NotificationSettings() {
                     value={settings.smtpPassword}
                     onChange={(e) => setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))}
                     placeholder="Enter new password"
-                    className="w-full px-3 py-2 pr-10 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+                    className="w-full px-4 py-3 pr-11 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
                   />
                   <button
                     type="button"
@@ -4656,7 +4815,7 @@ function NotificationSettings() {
                     setShowPasswordField(false)
                     setShowSmtpPassword(false)
                   }}
-                  className="px-3 py-2 text-sm text-ink-secondary border border-border rounded-lg hover:bg-surface-muted hover:text-ink"
+                  className="px-4 py-3 text-sm font-medium text-ink-secondary border-2 border-[var(--dms-color-border-default)] rounded-xl hover:bg-[var(--dms-color-bg-surface-muted)] hover:text-ink transition-colors"
                 >
                   Cancel
                 </button>
@@ -4666,7 +4825,7 @@ function NotificationSettings() {
                 <input 
                   type="password" 
                   value={settings.smtpPassword ? '••••••••' : ''} 
-                  className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface-muted text-ink-soft" 
+                  className="flex-1 px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface-muted)] text-ink placeholder:text-ink-muted" 
                   readOnly 
                   placeholder="No password set"
                 />
@@ -4677,7 +4836,7 @@ function NotificationSettings() {
                     setShowPasswordField(true)
                     setShowSmtpPassword(false)
                   }}
-                  className="px-3 py-2 text-sm text-brand border border-brand rounded-lg hover:bg-surface-muted"
+                  className="px-4 py-3 text-sm font-medium text-brand-primary border-2 border-[var(--dms-color-brand-primary)] rounded-xl hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors"
                 >
                   Change
                 </button>
@@ -4686,11 +4845,11 @@ function NotificationSettings() {
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">From Name</label>
-            <input type="text" value={settings.fromName} onChange={(e) => setSettings(prev => ({ ...prev, fromName: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="text" value={settings.fromName} onChange={(e) => setSettings(prev => ({ ...prev, fromName: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">From Email</label>
-            <input type="email" value={settings.fromEmail} onChange={(e) => setSettings(prev => ({ ...prev, fromEmail: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="email" value={settings.fromEmail} onChange={(e) => setSettings(prev => ({ ...prev, fromEmail: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink mb-2">Frontend URL (for email buttons)</label>
@@ -4699,7 +4858,7 @@ function NotificationSettings() {
               value={settings.frontendUrl || ''}
               onChange={(e) => setSettings(prev => ({ ...prev, frontendUrl: e.target.value }))}
               placeholder="e.g. https://dms.clbgroups.com"
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
           <div className="md:col-span-2">
@@ -4709,23 +4868,23 @@ function NotificationSettings() {
               value={testEmail}
               onChange={(e) => setTestEmail(e.target.value)}
               placeholder="e.g. you@company.com"
-              className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand"
+              className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
             />
           </div>
         </div>
         <button 
           onClick={handleTestEmail} 
           disabled={testingEmail}
-          className="mt-4 px-4 py-2 text-sm font-medium text-brand bg-surface-muted rounded-lg hover:bg-surface-strong disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-5 px-5 py-3 text-sm font-semibold text-brand-primary bg-[var(--dms-color-bg-surface)] border-2 border-[var(--dms-color-brand-primary)] rounded-xl hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-surface))] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           {testingEmail ? 'Sending test email...' : 'Test Email Connection'}
         </button>
       </div>
 
       {/* Notification Events */}
-      <div className="border border-border rounded-lg p-4 bg-surface">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="font-medium text-ink">{t('gss_ns_events')}</h4>
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <div className="flex items-center justify-between mb-5">
+          <h4 className="font-semibold text-ink">{t('gss_ns_events')}</h4>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -4737,7 +4896,7 @@ function NotificationSettings() {
                   }, {})
                 }));
               }}
-              className="px-3 py-1.5 text-xs font-medium text-brand bg-surface-muted rounded-lg hover:bg-surface-strong transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-brand-primary bg-[var(--dms-color-bg-surface)] border border-[var(--dms-color-border-default)] rounded-xl hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-surface))] transition-colors"
             >
               ✓ {t('gss_ns_select_all')}
             </button>
@@ -4751,30 +4910,30 @@ function NotificationSettings() {
                   }, {})
                 }));
               }}
-              className="px-3 py-1.5 text-xs font-medium text-ink-secondary bg-surface-muted rounded-lg hover:bg-surface-strong transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-ink-secondary bg-[var(--dms-color-bg-surface)] border border-[var(--dms-color-border-default)] rounded-xl hover:bg-[var(--dms-color-bg-surface-muted)] hover:text-ink transition-colors"
             >
               ✕ {t('gss_ns_deselect_all')}
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 px-2 font-medium text-ink-secondary">Event</th>
-                <th className="text-center py-2 px-2 font-medium text-ink-secondary">Email</th>
-                <th className="text-center py-2 px-2 font-medium text-ink-secondary">In-App</th>
+              <tr className="border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]">
+                <th className="text-left py-3 px-4 font-semibold text-ink-secondary">Event</th>
+                <th className="text-center py-3 px-4 font-semibold text-ink-secondary">Email</th>
+                <th className="text-center py-3 px-4 font-semibold text-ink-secondary">In-App</th>
               </tr>
             </thead>
             <tbody>
               {settings.notifications && Object.entries(settings.notifications).map(([key, value]) => (
-                <tr key={key} className="border-b border-border">
-                  <td className="py-2 px-2 text-ink-secondary capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</td>
-                  <td className="py-2 px-2 text-center">
-                    <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
+                <tr key={key} className="border-b border-[var(--dms-color-border-default)] last:border-b-0 hover:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))]">
+                  <td className="py-3 px-4 text-ink-secondary capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td className="py-3 px-4 text-center">
+                    <input type="checkbox" checked={value.email} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], email: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
                   </td>
-                  <td className="py-2 px-2 text-center">
-                    <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="w-4 h-4 text-brand rounded focus:ring-brand/20" />
+                  <td className="py-3 px-4 text-center">
+                    <input type="checkbox" checked={value.inApp} onChange={(e) => setSettings(prev => ({ ...prev, notifications: { ...prev.notifications, [key]: { ...prev.notifications[key], inApp: e.target.checked } } }))} className="h-4 w-4 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
                   </td>
                 </tr>
               ))}
@@ -4784,22 +4943,22 @@ function NotificationSettings() {
       </div>
 
       {/* Reminder Settings */}
-      <div className="border border-border rounded-lg p-4 bg-surface">
-        <h4 className="font-medium text-ink mb-4">{t('gss_ns_reminder')}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_ns_reminder')}</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Review Reminder (days)</label>
-            <input type="number" value={settings.reviewReminder} onChange={(e) => setSettings(prev => ({ ...prev, reviewReminder: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="number" value={settings.reviewReminder} onChange={(e) => setSettings(prev => ({ ...prev, reviewReminder: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Approval Reminder (days)</label>
-            <input type="number" value={settings.approvalReminder} onChange={(e) => setSettings(prev => ({ ...prev, approvalReminder: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand" />
+            <input type="number" value={settings.approvalReminder} onChange={(e) => setSettings(prev => ({ ...prev, approvalReminder: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Daily Digest</label>
-            <div className="flex gap-2">
-              <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="w-4 h-4 mt-2 text-brand rounded focus:ring-brand/20" />
-              <input type="time" value={settings.digestTime} onChange={(e) => setSettings(prev => ({ ...prev, digestTime: e.target.value }))} disabled={!settings.dailyDigest} className="flex-1 px-3 py-2 border border-border rounded-lg outline-none bg-surface text-ink focus:ring-2 focus:ring-brand/20 focus:border-brand disabled:bg-surface-muted disabled:text-ink-soft" />
+            <div className="flex gap-3 items-stretch">
+              <input type="checkbox" checked={settings.dailyDigest} onChange={(e) => setSettings(prev => ({ ...prev, dailyDigest: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <input type="time" value={settings.digestTime} onChange={(e) => setSettings(prev => ({ ...prev, digestTime: e.target.value }))} disabled={!settings.dailyDigest} className="flex-1 px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed transition-all duration-150" />
             </div>
           </div>
         </div>
@@ -4839,11 +4998,6 @@ function SecuritySettings() {
     encryptDocuments: true,
     encryptDatabase: true
   })
-  const canManageMaintenance = getUserPermissions()?.all === true
-  const [maintenance, setMaintenance] = useState({
-    enabled: false,
-    message: 'System is under maintenance'
-  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -4876,19 +5030,6 @@ function SecuritySettings() {
           }))
         }
 
-        if (canManageMaintenance) {
-          const mRes = await fetch('/api/system/config/maintenance-settings', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-          if (mRes.ok) {
-            const mBody = await mRes.json()
-            const mData = mBody?.data?.settings || mBody?.settings || mBody
-            setMaintenance({
-              enabled: Boolean(mData?.enabled),
-              message: mData?.message || 'System is under maintenance'
-            })
-          }
-        }
       } catch (error) {
         console.error('Failed to load security settings:', error)
       } finally {
@@ -4931,24 +5072,6 @@ function SecuritySettings() {
         })
       })
       if (response.ok) {
-        if (canManageMaintenance) {
-          const mResponse = await fetch('/api/system/config/maintenance-settings', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              enabled: Boolean(maintenance.enabled),
-              message: maintenance.message
-            })
-          })
-          if (!mResponse.ok) {
-            const mErr = await mResponse.json().catch(() => null)
-            alert(`Security settings saved, but maintenance settings failed: ${mErr?.message || 'Unknown error'}`)
-            return
-          }
-        }
         alert('Security settings saved successfully!')
       } else {
         const error = await response.json()
@@ -4965,7 +5088,7 @@ function SecuritySettings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">{t('gss_sec_loading')}</div>
+        <div className="text-ink-muted">{t('gss_sec_loading')}</div>
       </div>
     )
   }
@@ -4973,119 +5096,92 @@ function SecuritySettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('gss_sec_title')}</h3>
-        <p className="text-sm text-gray-600 mt-1">{t('gss_sec_desc')}</p>
+        <h3 className="text-lg font-semibold text-ink">{t('gss_sec_title')}</h3>
+        <p className="text-sm text-ink-secondary mt-1">{t('gss_sec_desc')}</p>
       </div>
 
       {/* Password Policy */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_sec_password')}</h4>
-        <div className="space-y-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_sec_password')}</h4>
+        <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Min Length (characters)</label>
-            <input type="number" value={settings.minPasswordLength} onChange={(e) => setSettings(prev => ({ ...prev, minPasswordLength: e.target.value }))} className="w-32 px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Min Length (characters)</label>
+            <input type="number" value={settings.minPasswordLength} onChange={(e) => setSettings(prev => ({ ...prev, minPasswordLength: e.target.value }))} className="w-40 px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={settings.requireUppercase} onChange={(e) => setSettings(prev => ({ ...prev, requireUppercase: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-              <span className="text-sm text-gray-700">Require uppercase letters</span>
+          <div className="space-y-3">
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={settings.requireUppercase} onChange={(e) => setSettings(prev => ({ ...prev, requireUppercase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <span className="text-sm font-medium text-ink">Require uppercase letters</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={settings.requireNumbers} onChange={(e) => setSettings(prev => ({ ...prev, requireNumbers: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-              <span className="text-sm text-gray-700">Require numbers</span>
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={settings.requireNumbers} onChange={(e) => setSettings(prev => ({ ...prev, requireNumbers: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <span className="text-sm font-medium text-ink">Require numbers</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={settings.requireSymbols} onChange={(e) => setSettings(prev => ({ ...prev, requireSymbols: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-              <span className="text-sm text-gray-700">Require symbols</span>
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={settings.requireSymbols} onChange={(e) => setSettings(prev => ({ ...prev, requireSymbols: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <span className="text-sm font-medium text-ink">Require symbols</span>
             </label>
           </div>
         </div>
       </div>
 
       {/* Session Management */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_sec_session')}</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_sec_session')}</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Session Timeout (minutes)</label>
-            <input type="number" value={settings.sessionTimeout} onChange={(e) => setSettings(prev => ({ ...prev, sessionTimeout: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Session Timeout (minutes)</label>
+            <input type="number" value={settings.sessionTimeout} onChange={(e) => setSettings(prev => ({ ...prev, sessionTimeout: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Max Login Attempts</label>
-            <input type="number" value={settings.maxLoginAttempts} onChange={(e) => setSettings(prev => ({ ...prev, maxLoginAttempts: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Max Login Attempts</label>
+            <input type="number" value={settings.maxLoginAttempts} onChange={(e) => setSettings(prev => ({ ...prev, maxLoginAttempts: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Lockout Duration (minutes)</label>
-            <input type="number" value={settings.lockoutDuration} onChange={(e) => setSettings(prev => ({ ...prev, lockoutDuration: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+            <label className="block text-sm font-medium text-ink mb-2">Lockout Duration (minutes)</label>
+            <input type="number" value={settings.lockoutDuration} onChange={(e) => setSettings(prev => ({ ...prev, lockoutDuration: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
           </div>
         </div>
       </div>
 
       {/* 2FA */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_sec_2fa')}</h4>
-        <label className="flex items-center gap-2 mb-4">
-          <input type="checkbox" checked={settings.enable2FA} onChange={(e) => setSettings(prev => ({ ...prev, enable2FA: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-          <span className="text-sm font-medium text-gray-900">Enable 2FA for all users</span>
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_sec_2fa')}</h4>
+        <label className="flex items-center gap-3 mb-5">
+          <input type="checkbox" checked={settings.enable2FA} onChange={(e) => setSettings(prev => ({ ...prev, enable2FA: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+          <span className="text-sm font-semibold text-ink">Enable 2FA for all users</span>
         </label>
         {settings.enable2FA && (
-          <div className="space-y-2 pl-6">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={settings.twoFAMethods.email} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, email: e.target.checked } }))} className="w-4 h-4 text-blue-600 rounded" />
-              <span className="text-sm text-gray-700">Email verification</span>
+          <div className="space-y-3 pl-14">
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={settings.twoFAMethods.email} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, email: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <span className="text-sm font-medium text-ink-secondary">Email verification</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={settings.twoFAMethods.app} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, app: e.target.checked } }))} className="w-4 h-4 text-blue-600 rounded" />
-              <span className="text-sm text-gray-700">Authenticator app</span>
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={settings.twoFAMethods.app} onChange={(e) => setSettings(prev => ({ ...prev, twoFAMethods: { ...prev.twoFAMethods, app: e.target.checked } }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+              <span className="text-sm font-medium text-ink-secondary">Authenticator app</span>
             </label>
           </div>
         )}
       </div>
 
-      {canManageMaintenance ? (
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-4">Maintenance Mode</h4>
-          <div className="space-y-3">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={maintenance.enabled}
-                onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <span className="text-sm font-medium text-gray-900">Enable maintenance mode (System Admin only)</span>
-            </label>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Message</label>
-              <textarea
-                value={maintenance.message}
-                onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
-                rows={3}
-                disabled={!maintenance.enabled}
-                className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none disabled:bg-gray-50"
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Audit Logging */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_sec_audit')}</h4>
-        <div className="space-y-4">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={settings.enableAuditLog} onChange={(e) => setSettings(prev => ({ ...prev, enableAuditLog: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-            <span className="text-sm font-medium text-gray-900">Enable audit logging</span>
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_sec_audit')}</h4>
+        <div className="space-y-5">
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={settings.enableAuditLog} onChange={(e) => setSettings(prev => ({ ...prev, enableAuditLog: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+            <span className="text-sm font-semibold text-ink">Enable audit logging</span>
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">Log Retention (days)</label>
-              <input type="number" value={settings.logRetention} onChange={(e) => setSettings(prev => ({ ...prev, logRetention: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none" />
+              <label className="block text-sm font-medium text-ink mb-2">Log Retention (days)</label>
+              <input type="number" value={settings.logRetention} onChange={(e) => setSettings(prev => ({ ...prev, logRetention: e.target.value }))} className="w-full px-4 py-3 border-2 border-[var(--dms-color-border-default)] rounded-xl outline-none bg-[var(--dms-color-bg-surface)] text-ink placeholder:text-ink-muted transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20" />
             </div>
             <div className="flex items-end">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={settings.logFailedLogins} onChange={(e) => setSettings(prev => ({ ...prev, logFailedLogins: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-                <span className="text-sm text-gray-700">Log failed login attempts</span>
+              <label className="flex items-center gap-3">
+                <input type="checkbox" checked={settings.logFailedLogins} onChange={(e) => setSettings(prev => ({ ...prev, logFailedLogins: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+                <span className="text-sm font-medium text-ink-secondary">Log failed login attempts</span>
               </label>
             </div>
           </div>
@@ -5093,16 +5189,16 @@ function SecuritySettings() {
       </div>
 
       {/* Data Encryption */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">{t('gss_sec_encryption')}</h4>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={settings.encryptDocuments} onChange={(e) => setSettings(prev => ({ ...prev, encryptDocuments: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-            <span className="text-sm text-gray-700">Encrypt documents (AES-256)</span>
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">{t('gss_sec_encryption')}</h4>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={settings.encryptDocuments} onChange={(e) => setSettings(prev => ({ ...prev, encryptDocuments: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+            <span className="text-sm font-medium text-ink-secondary">Encrypt documents (AES-256)</span>
           </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={settings.encryptDatabase} onChange={(e) => setSettings(prev => ({ ...prev, encryptDatabase: e.target.checked }))} className="w-4 h-4 text-blue-600 rounded" />
-            <span className="text-sm text-gray-700">Encrypt database</span>
+          <label className="flex items-center gap-3">
+            <input type="checkbox" checked={settings.encryptDatabase} onChange={(e) => setSettings(prev => ({ ...prev, encryptDatabase: e.target.checked }))} className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer" />
+            <span className="text-sm font-medium text-ink-secondary">Encrypt database</span>
           </label>
         </div>
       </div>
@@ -5111,9 +5207,358 @@ function SecuritySettings() {
         <button 
           onClick={handleSave} 
           disabled={saving}
-          className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-3 text-sm font-semibold text-ink-inverse bg-brand rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? t('gss_saving') : t('gss_save_changes')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Maintenance Mode Settings
+function MaintenanceSettings() {
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    message: 'System is under maintenance',
+    schedule: {
+      enabled: false,
+      startAt: '',
+      endAt: '',
+      message: 'System is under maintenance'
+    }
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const toMalaysiaDateTime = (value) => {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+
+    const formatted = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    }).format(date)
+
+    return formatted.replace(' ', 'T')
+  }
+
+  const fromMalaysiaDateTime = (value) => {
+    if (!value) return null
+    const date = new Date(`${value}:00+08:00`)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+
+  const handleScheduleToggle = (enabled) => {
+    setMaintenance((prev) => {
+      if (!enabled) {
+        return {
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            enabled: false,
+            startAt: '',
+            endAt: ''
+          }
+        }
+      }
+
+      const now = Date.now()
+      return {
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          enabled: true,
+          startAt: toMalaysiaDateTime(new Date(now).toISOString()),
+          endAt: toMalaysiaDateTime(new Date(now + 60 * 60 * 1000).toISOString())
+        }
+      }
+    })
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchMaintenanceSettings = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/system/config/maintenance-settings', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          throw new Error(error?.message || 'Failed to load maintenance settings')
+        }
+
+        const body = await response.json()
+        const data = body?.data?.settings || body?.settings || body
+        const schedule = data?.schedule || {}
+
+        if (!cancelled) {
+          setMaintenance({
+            enabled: Boolean(data?.manualEnabled ?? data?.enabled),
+            message: data?.manualMessage || data?.message || 'System is under maintenance',
+            schedule: {
+              enabled: Boolean(schedule.enabled),
+              startAt: toMalaysiaDateTime(schedule.startAt),
+              endAt: toMalaysiaDateTime(schedule.endAt),
+              message: schedule.message || data?.message || 'System is under maintenance'
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load maintenance settings:', error)
+        if (!cancelled) {
+          alert(error.message || 'Failed to load maintenance settings')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetchMaintenanceSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!maintenance.schedule.enabled || !maintenance.schedule.endAt) return
+
+    let expiryHandled = false
+
+    const checkScheduleExpiry = () => {
+      const endTime = Date.parse(`${maintenance.schedule.endAt}:00+08:00`)
+      if (
+        !expiryHandled &&
+        Number.isFinite(endTime) &&
+        Date.now() >= endTime
+      ) {
+        expiryHandled = true
+
+        setMaintenance((prev) => ({
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            enabled: false,
+            startAt: '',
+            endAt: ''
+          }
+        }))
+
+        const token = localStorage.getItem('token')
+        fetch('/api/system/config/maintenance-settings', {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch((error) => {
+          console.error('Failed to persist expired maintenance schedule:', error)
+        })
+      }
+    }
+
+    checkScheduleExpiry()
+    const timer = setInterval(checkScheduleExpiry, 5000)
+    return () => clearInterval(timer)
+  }, [maintenance.schedule.enabled, maintenance.schedule.endAt])
+
+  const handleSave = async () => {
+    const schedule = maintenance.schedule
+    let startAt = null
+    let endAt = null
+
+    if (schedule.enabled) {
+      if (!schedule.startAt || !schedule.endAt) {
+        alert('Please select both scheduled start and end date/time.')
+        return
+      }
+
+      startAt = fromMalaysiaDateTime(schedule.startAt)
+      endAt = fromMalaysiaDateTime(schedule.endAt)
+
+      if (!startAt || !endAt || new Date(endAt) <= new Date(startAt)) {
+        alert('Scheduled end date/time must be later than the start date/time.')
+        return
+      }
+    }
+
+    setSaving(true)
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/system/config/maintenance-settings', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          manualEnabled: Boolean(maintenance.enabled),
+          message: maintenance.message,
+          schedule: {
+            enabled: Boolean(schedule.enabled),
+            startAt,
+            endAt,
+            message: schedule.message
+          }
+        })
+      })
+
+      if (response.ok) {
+        alert('Maintenance settings saved successfully!')
+      } else {
+        const error = await response.json().catch(() => null)
+        alert(`Failed to save maintenance settings: ${error?.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Failed to save maintenance settings:', error)
+      alert('Failed to save maintenance settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-ink-muted">Loading maintenance settings...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-ink">Maintenance Mode</h3>
+        <p className="text-sm text-ink-secondary mt-1">
+          Control manual maintenance access or schedule maintenance automatically.
+        </p>
+      </div>
+
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <h4 className="font-semibold text-ink mb-5">Manual Maintenance</h4>
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={maintenance.enabled}
+              onChange={(e) => setMaintenance((prev) => ({ ...prev, enabled: e.target.checked }))}
+              className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-ink">
+              Enable maintenance mode immediately
+            </span>
+          </label>
+
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Maintenance Message
+            </label>
+            <textarea
+              value={maintenance.message}
+              onChange={(e) => setMaintenance((prev) => ({ ...prev, message: e.target.value }))}
+              rows={3}
+              disabled={!maintenance.enabled}
+              className="w-full resize-y rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink placeholder:text-ink-muted outline-none bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))]">
+        <div className="mb-5">
+          <h4 className="font-semibold text-ink">Scheduled Maintenance</h4>
+          <p className="text-sm text-ink-secondary mt-1">
+            Automatically enable maintenance mode during the selected period.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={maintenance.schedule.enabled}
+              onChange={(e) => handleScheduleToggle(e.target.checked)}
+              className="h-5 w-5 accent-[var(--dms-color-brand-primary)] cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-ink">
+              Enable scheduled maintenance
+            </span>
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">
+                Start Date &amp; Time (Malaysia Time)
+              </label>
+              <input
+                type="datetime-local"
+                value={maintenance.schedule.startAt}
+                disabled={!maintenance.schedule.enabled}
+                onChange={(e) => setMaintenance((prev) => ({
+                  ...prev,
+                  schedule: { ...prev.schedule, startAt: e.target.value }
+                }))}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">
+                End Date &amp; Time (Malaysia Time)
+              </label>
+              <input
+                type="datetime-local"
+                value={maintenance.schedule.endAt}
+                disabled={!maintenance.schedule.enabled}
+                min={maintenance.schedule.startAt || undefined}
+                onChange={(e) => setMaintenance((prev) => ({
+                  ...prev,
+                  schedule: { ...prev.schedule, endAt: e.target.value }
+                }))}
+                className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Scheduled Maintenance Message
+            </label>
+            <textarea
+              value={maintenance.schedule.message}
+              disabled={!maintenance.schedule.enabled}
+              onChange={(e) => setMaintenance((prev) => ({
+                ...prev,
+                schedule: { ...prev.schedule, message: e.target.value }
+              }))}
+              rows={3}
+              className="w-full resize-y rounded-xl border-2 border-[var(--dms-color-border-default)] px-4 py-3 text-sm text-ink bg-[var(--dms-color-bg-surface)] disabled:bg-[var(--dms-color-bg-surface-muted)] disabled:text-ink-muted disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <p className="text-xs text-ink-secondary">
+            Time zone: Asia/Kuala_Lumpur (UTC+08:00). Maintenance starts automatically
+            at the start time and ends automatically at the end time. Manual maintenance
+            remains active independently of this schedule.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-3 text-sm font-semibold text-ink-inverse bg-brand rounded-xl hover:bg-brand-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>
@@ -5239,6 +5684,7 @@ export default function GeneralSystemSettings() {
         {activeTab === 'document' && <DocumentSettings />}
         {activeTab === 'notification' && <NotificationSettings />}
         {activeTab === 'security' && <SecuritySettings />}
+        {activeTab === 'maintenance' && isSystemAdmin() && <MaintenanceSettings />}
       </div>
     </div>
   )

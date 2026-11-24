@@ -1,0 +1,4 @@
+[2026-09-22T05:54:14.309Z] [BOOT] Starting orchestrator
+[2026-09-22T05:54:14.314Z] [MYSQL] SPAWN: C:\xampp\mysql\bin\mysqld.exe --datadir=C:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data --tmpdir=C:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-tmp --port=3306 --bind-address=127.0.0.1
+[2026-09-22T05:54:14.456Z] [BOOT] Waiting for MySQL :3306 via Prisma ping...
+[2026-09-22T05:54:15.131Z] [MYSQL] EXIT code=1

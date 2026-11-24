@@ -3,6 +3,7 @@ import Button from '../ui/Button'
 import TextInput from '../ui/TextInput'
 import TextArea from '../ui/TextArea'
 import AppSurface from '../ui/AppSurface'
+import Modal, { ModalHeader, ModalBody } from '../ui/Modal'
 import InlineSpinner from '../ui/InlineSpinner'
 import FormFieldRenderer, { FIELD_LABELS, FIELD_ICONS, hasOptions } from './FormFieldRenderer'
 
@@ -608,26 +609,18 @@ export default function FormBuilder({
       </div>
 
       {pickTypeFor ? (
-        <div
-          className="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4"
-          onClick={() => setPickTypeFor(null)}
+        <Modal
+          isOpen
+          size="md"
+          onClose={() => setPickTypeFor(null)}
+          closeOnBackdrop
         >
-          <div
-            className="bg-surface rounded-[18px] border border-border shadow-dms-lg max-w-md w-full p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-ink">
-                {pickTypeFor === 'new' ? 'Choose a field type' : 'Change field type'}
-              </div>
-              <button
-                type="button"
-                onClick={() => setPickTypeFor(null)}
-                className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
+          <ModalHeader
+            title={pickTypeFor === 'new' ? 'Choose a field type' : 'Change field type'}
+            subtitle="Select the type of question you want to add to this form."
+            onClose={() => setPickTypeFor(null)}
+          />
+          <ModalBody>
             <div className="grid grid-cols-2 gap-2">
               {FIELD_TYPES.map((t) => (
                 <button
@@ -649,15 +642,15 @@ export default function FormBuilder({
                       setPickTypeFor(null)
                     }
                   }}
-                  className="text-left px-3 py-2.5 rounded-[14px] border border-border bg-surface hover:border-brand hover:bg-brand/5 text-sm text-ink-secondary hover:text-ink transition-colors"
+                  className="text-left px-3 py-2.5 rounded-lg border border-border bg-surface hover:border-brand hover:bg-brand/5 text-sm text-ink-secondary hover:text-ink transition-colors"
                 >
                   <div className="text-base mb-0.5">{t.icon}</div>
                   <div className="font-medium">{t.label}</div>
                 </button>
               ))}
             </div>
-          </div>
-        </div>
+          </ModalBody>
+        </Modal>
       ) : null}
     </div>
   )

@@ -5,6 +5,7 @@ import ActionMenu from './ActionMenu'
 import { PermissionGate } from './PermissionGate'
 import { hasPermission } from '../utils/permissions'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
+import { TableContainer, Table, Th, Td, Tr } from './ui/Table'
 
 export default function WorkflowConfiguration() {
   const [workflows, setWorkflows] = useState([])
@@ -240,15 +241,15 @@ export default function WorkflowConfiguration() {
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-surface-muted">
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Workflow Name</th>
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Document Type</th>
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Description</th>
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Steps</th>
-                <th className="text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Status</th>
-                <th className="text-center py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide">Active</th>
-                <th className="sticky right-0 z-30 bg-surface-muted text-left py-3 px-4 font-semibold text-ink-secondary text-xs uppercase tracking-wide border-l border-border">Action</th>
-              </tr>
+              <Tr>
+                <Th>Workflow Name</Th>
+                <Th>Document Type</Th>
+                <Th>Description</Th>
+                <Th>Steps</Th>
+                <Th>Status</Th>
+                <Th align="center">Active</Th>
+                <Th stickyRight>Action</Th>
+              </Tr>
             </thead>
             <tbody>
               {loading ? (

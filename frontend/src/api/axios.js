@@ -83,12 +83,23 @@ const getActionLabel = (cfg) => {
 
 api.interceptors.request.use(async (cfg) => {
   await _acquire()
+  // Every attempt — including retries of the same config — takes a fresh
+  // semaphore slot, so clear the release guard that axios copied over from a
+  // previous attempt. Without this, a retried request acquires a slot but
+  // skips releasing it, permanently shrinking the concurrency budget until all
+  // requests deadlock.
+  cfg.__semaphoreReleased = false
 
   const token = localStorage.getItem('token')
   if (token) cfg.headers.Authorization = `Bearer ${token}`
 
   if (isFormDataPayload(cfg.data)) {
     cfg._isUpload = true
+    // Allow large/slow uploads to exceed the default 20s global timeout.
+    // Applies to file uploads (documents, templates, profile images, etc.).
+    if (cfg.timeout === undefined || cfg.timeout === 20000) {
+      cfg.timeout = 300000 // 5 minutes
+    }
     if (!cfg._uploadProgressStarted) {
       cfg._uploadProgressStarted = true
       startUploadProgress(getUploadLabel(cfg))
@@ -115,6 +126,17 @@ api.interceptors.request.use(async (cfg) => {
 
   return cfg
 })
+
+// When the session can no longer be recovered (expired/tampered token and no
+// usable refresh token), send the user back to the login screen instead of
+// leaving them on a broken app shell.
+const redirectToLogin = () => {
+  try {
+    const path = window.location.pathname || ''
+    if (path === '/login' || path.startsWith('/login/')) return
+    window.location.href = '/login'
+  } catch {}
+}
 
 api.interceptors.response.use(
   (res) => {
@@ -157,6 +179,13 @@ api.interceptors.response.use(
       }
     }
 
+    const releaseOnce = () => {
+      if (!original.__semaphoreReleased) {
+        original.__semaphoreReleased = true
+        _release()
+      }
+    }
+
     if (status === 503 && maintenanceCode === 'MAINTENANCE_MODE') {
       try {
         localStorage.setItem(
@@ -165,11 +194,8 @@ api.interceptors.response.use(
         )
       } catch {}
 
-      localStorage.removeItem('token')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
       if (window.location.pathname !== '/maintenance') {
         window.location.href = '/maintenance'
       }
@@ -201,6 +227,7 @@ api.interceptors.response.use(
     }
 
     if (shouldRetry) {
+      releaseOnce()
       original._retryAttempt = attempt
       const delay = retryDelay(attempt)
       await new Promise((r) => setTimeout(r, delay))
@@ -217,7 +244,7 @@ api.interceptors.response.use(
     }
 
     if (!original || status !== 401) {
-      _release()
+      releaseOnce()
       return Promise.reject(error)
     }
 
@@ -226,7 +253,8 @@ api.interceptors.response.use(
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
+      if (!isAuthEndpoint) redirectToLogin()
       return Promise.reject(error)
     }
 
@@ -235,7 +263,8 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       finishGlobalOnce()
-      _release()
+      releaseOnce()
+      redirectToLogin()
       return Promise.reject(error)
     }
 
@@ -266,6 +295,7 @@ api.interceptors.response.use(
           })
       }
 
+      releaseOnce()
       const nextAccess = await refreshing
       if (nextAccess) {
         original.headers = original.headers || {}
@@ -283,6 +313,7 @@ api.interceptors.response.use(
         _release()
         refreshErr.__semaphoreReleased = true
       }
+      redirectToLogin()
       return Promise.reject(refreshErr)
     }
   }

@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import AppSurface from '../ui/AppSurface'
 
 const toneMap = {
-  indigo: 'bg-white text-ink ring-1 ring-[var(--dms-color-info-ink)]/12 shadow-[0_8px_18px_rgba(20,81,123,0.12)]',
-  warning: 'bg-white text-ink ring-1 ring-[var(--dms-color-warning-ink)]/12 shadow-[0_8px_18px_rgba(180,83,9,0.12)]',
-  success: 'bg-white text-ink ring-1 ring-[var(--dms-color-success-ink)]/12 shadow-[0_8px_18px_rgba(5,150,105,0.12)]',
-  neutral: 'bg-white text-ink ring-1 ring-black/8 shadow-[0_8px_18px_rgba(15,23,42,0.10)]'
+  indigo:
+    'bg-[color-mix(in_srgb,var(--dms-color-info-soft)_70%,var(--dms-color-bg-surface-strong))] text-[var(--dms-color-info-ink)] ring-1 ring-[var(--dms-color-info-ink)]/20 shadow-[0_8px_18px_rgba(15,23,42,0.14)]',
+  warning:
+    'bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_70%,var(--dms-color-bg-surface-strong))] text-[var(--dms-color-warning-ink)] ring-1 ring-[var(--dms-color-warning-ink)]/20 shadow-[0_8px_18px_rgba(15,23,42,0.14)]',
+  success:
+    'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_70%,var(--dms-color-bg-surface-strong))] text-[var(--dms-color-success-ink)] ring-1 ring-[var(--dms-color-success-ink)]/20 shadow-[0_8px_18px_rgba(15,23,42,0.14)]',
+  neutral:
+    'bg-[color-mix(in_srgb,var(--dms-color-bg-surface-strong)_75%,var(--dms-color-border-default))] text-ink ring-1 ring-[var(--dms-color-border-strong)]/25 shadow-[0_8px_18px_rgba(15,23,42,0.12)]'
 }
 
 export default function DashboardMetricCard({
@@ -60,10 +64,10 @@ export default function DashboardMetricCard({
           <h3 className="min-w-0 flex-1 text-[13px] font-semibold leading-5 text-ink">{title}</h3>
         </div>
         <div className="mb-2 text-[1.875rem] font-semibold leading-none text-ink">{value}</div>
-        <p className="mt-auto text-xs leading-5 text-ink">
+        <p className="mt-auto text-xs leading-5 text-ink-secondary">
           {description}
           {isClickable && (
-            <span className="mt-1 block font-medium text-ink">View all →</span>
+            <span className="mt-1 block font-semibold text-[var(--dms-color-brand-primary)]">View all →</span>
           )}
         </p>
       </div>

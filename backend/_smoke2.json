@@ -1,0 +1,8 @@
+﻿{
+    "mysql":  true,
+    "backend_pid":  10104,
+    "frontend_up":  true,
+    "cal_status":  200,
+    "cal_body_800":  "{\"success\":true,\"message\":\"Calendar events retrieved\",\"data\":{\"events\":[],\"categoryMeta\":{\"CRITICAL\":{\"label\":\"Critical\",\"color\":\"#b91c1c\"},\"DEADLINE\":{\"label\":\"Deadline\",\"color\":\"#dc2626\"},\"WARNING\":{\"label\":\"Warning\",\"color\":\"#d97706\"},\"TASK\":{\"label\":\"Task\",\"color\":\"#b45309\"},\"MILESTONE\":{\"label\":\"Milestone\",\"color\":\"#2563eb\"},\"INFO\":{\"label\":\"Info\",\"color\":\"#047857\"},\"CUSTOM\":{\"label\":\"Custom\",\"color\":\"#7c3aed\"}},\"from\":\"2026-09-01T00:00:00.000Z\",\"to\":\"2026-09-30T00:00:00.000Z\"}}",
+    "prisma_error_field_if_any":  null
+}

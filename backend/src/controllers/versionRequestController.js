@@ -38,6 +38,14 @@ class VersionRequestController {
       changeType
     });
 
+    // Notify acknowledgers that a new version request is waiting (parity with NDR)
+    try {
+      const notificationService = require('../services/notificationService');
+      await notificationService.notifyAcknowledgmentRequired(request.document.id, request.document);
+    } catch (error) {
+      console.error('Failed to send NVR creation notification:', error);
+    }
+
     return ResponseFormatter.success(
       res,
       { request },
@@ -65,9 +73,7 @@ class VersionRequestController {
         sortOrder: sortOrder || 'desc'
       };
 
-      console.log('[VR Controller] Fetching version requests with filters:', filters);
       const result = await versionRequestService.listRequests(filters, pagination);
-      console.log('[VR Controller] Found', result.requests.length, 'version requests');
       
       // Format for frontend (matching NDR format)
       const requests = result.requests.map((req, index) => {
@@ -105,7 +111,6 @@ class VersionRequestController {
         }
       });
 
-      console.log('[VR Controller] Successfully formatted', requests.length, 'requests');
       return ResponseFormatter.success(
         res,
         { 

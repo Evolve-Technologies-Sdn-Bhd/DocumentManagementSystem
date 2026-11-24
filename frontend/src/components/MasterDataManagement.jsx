@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { usePreferences } from '../contexts/PreferencesContext'
 import api from '../api/axios'
+import ProjectCategoryModal from './ProjectCategoryModal'
+import DocumentTypeModal from './DocumentTypeModal'
 import ActionMenu from './ActionMenu'
 import ConfirmModal, { AlertModal } from './ConfirmModal'
 import Pagination from './Pagination'
@@ -63,221 +65,6 @@ function flattenFolderTree(nodes, depth = 0, parentPath = '') {
   })
 }
 
-// Add/Edit Modal for Document Type
-function DocumentTypeModal({ isOpen, onClose, onSubmit, initialData }) {
-  const { t } = usePreferences()
-  const [formData, setFormData] = useState({
-    name: '',
-    prefix: '',
-    description: '',
-    requiresExpiryTracking: false,
-    allowRenewal: true
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        prefix: initialData.prefix || '',
-        description: initialData.description || '',
-        requiresExpiryTracking: Boolean(initialData.requiresExpiryTracking),
-        allowRenewal: initialData.allowRenewal !== undefined ? Boolean(initialData.allowRenewal) : true
-      })
-    } else {
-      setFormData({
-        name: '',
-        prefix: '',
-        description: '',
-        requiresExpiryTracking: false,
-        allowRenewal: true
-      })
-    }
-  }, [initialData, isOpen])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <Modal onClose={onClose} closeOnBackdrop size="sm">
-      <ModalHeader title={initialData ? t('mdm_edit_doc_type') : t('mdm_add_doc_type')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
-        <ModalBody>
-          <div className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Minutes of Meeting"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_prefix')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.prefix}
-                onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                placeholder="e.g., MoM"
-              />
-              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_prefix_help')}</p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
-              <TextArea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                placeholder={t('mdm_optional_desc')}
-              />
-            </div>
-
-            <AppSurface variant="panel" padding="md" className="space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold text-ink">Expiry Tracking</h4>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Control whether documents of this type are enrolled into the expiry tracking module by default.
-                </p>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={formData.requiresExpiryTracking}
-                  onChange={(e) => setFormData({ ...formData, requiresExpiryTracking: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-ink">Require Expiry Tracking</span>
-                  <span className="mt-1 block text-xs text-ink-soft">
-                    Published documents of this type will prompt for expiry information in the publish flow.
-                  </span>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={formData.allowRenewal}
-                  onChange={(e) => setFormData({ ...formData, allowRenewal: e.target.checked })}
-                  className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-ink">Allow Renewal</span>
-                  <span className="mt-1 block text-xs text-ink-soft">
-                    Lets tracked documents of this type use the renewal flow to create a new document version.
-                  </span>
-                </div>
-              </label>
-            </AppSurface>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
-          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
-        </ModalFooter>
-      </form>
-    </Modal>
-  )
-}
-
-// Add/Edit Modal for Project Category
-function ProjectCategoryModal({ isOpen, onClose, onSubmit, initialData }) {
-  const { t } = usePreferences()
-  const [formData, setFormData] = useState({
-    name: '',
-    code: '',
-    description: ''
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        code: initialData.code || '',
-        description: initialData.description || ''
-      })
-    } else {
-      setFormData({
-        name: '',
-        code: '',
-        description: ''
-      })
-    }
-  }, [initialData, isOpen])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <Modal onClose={onClose} closeOnBackdrop size="sm">
-      <ModalHeader title={initialData ? t('mdm_edit_project_cat') : t('mdm_add_project_cat')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
-        <ModalBody>
-          <div className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_name')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Internal Project"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">
-                {t('mdm_code')} <span className="text-[var(--dms-color-danger-ink)]">*</span>
-              </label>
-              <TextInput
-                type="text"
-                required
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                placeholder="e.g., INT"
-              />
-              <p className="mt-1.5 text-xs text-ink-soft">{t('mdm_code_project_help')}</p>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-ink">{t('description')}</label>
-              <TextArea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                placeholder={t('mdm_optional_desc')}
-              />
-            </div>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button type="button" variant="secondary" onClick={onClose}>{t('cancel')}</Button>
-          <Button type="submit">{initialData ? t('mdm_update') : t('mdm_create')}</Button>
-        </ModalFooter>
-      </form>
-    </Modal>
-  )
-}
-
 // Add/Edit Modal for Department
 function DepartmentModal({ isOpen, onClose, onSubmit, initialData }) {
   const { t } = usePreferences()
@@ -313,7 +100,7 @@ function DepartmentModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_dept') : t('mdm_add_dept')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -395,7 +182,7 @@ function DivisionModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <Modal onClose={onClose} closeOnBackdrop size="sm">
       <ModalHeader title={initialData ? t('mdm_edit_division') : t('mdm_add_division')} onClose={onClose} />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody>
           <div className="space-y-5">
             <div>
@@ -484,7 +271,7 @@ function DivisionAssignmentModal({
   return (
     <Modal onClose={onClose} closeOnBackdrop size="lg">
       <ModalHeader title={title} onClose={onClose} />
-      <div className="space-y-4">
+      <div className="space-y-4 flex flex-col flex-1 min-h-0 overflow-hidden">
         {description && (
           <div className="px-6 pt-4">
             <p className="text-sm text-ink-soft">{description}</p>
@@ -493,7 +280,7 @@ function DivisionAssignmentModal({
         <ModalBody>
           <div className="space-y-4">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <TextInput
@@ -531,22 +318,22 @@ function DivisionAssignmentModal({
                   {itemType === 'user' ? t('mdm_no_users') : t('mdm_no_folders')}
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-[var(--dms-color-border-default)]">
                   {filteredItems.map((item) => (
                     <label
                       key={item.id}
-                      className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-white transition-colors"
+                      className="flex items-start gap-3 px-4 py-3.5 cursor-pointer hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors rounded-xl"
                     >
                       <input
-                        type="checkbox"
-                        checked={localSelected.includes(item.id)}
-                        onChange={() => toggleItem(item.id)}
-                        className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-ink truncate">{item.label}</div>
+                          type="checkbox"
+                          checked={localSelected.includes(item.id)}
+                          onChange={() => toggleItem(item.id)}
+                          className="h-5 w-5 rounded accent-brand-primary text-brand focus:ring-0 border-0 cursor-pointer"
+                        />
+                      <div className="min-w-0 flex-1 pt-1">
+                        <div className="text-sm font-semibold text-ink truncate">{item.label}</div>
                         {item.secondary && (
-                          <div className="text-xs text-ink-soft truncate mt-0.5">{item.secondary}</div>
+                          <div className="text-xs font-medium text-ink-secondary truncate mt-0.5">{item.secondary}</div>
                         )}
                       </div>
                     </label>
@@ -903,7 +690,7 @@ function DocumentTypesManagement() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <TextInput
@@ -1147,7 +934,7 @@ function DepartmentsManagement() {
       label: t('mdm_name'),
       sortable: true,
       required: true,
-      render: (value) => <span className="font-medium text-gray-900">{value}</span>
+      render: (value) => <span className="font-medium text-ink">{value}</span>
     },
     {
       id: 'code',
@@ -1156,7 +943,7 @@ function DepartmentsManagement() {
       label: t('mdm_code'),
       sortable: true,
       render: (value) => (
-        <span className="inline-flex items-center rounded-md bg-green-50 px-2.5 py-1 font-mono text-sm font-semibold text-green-700">
+        <span className="inline-flex items-center rounded-md bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] px-2.5 py-1 font-mono text-sm font-semibold text-[var(--dms-color-success-ink)]">
           {value}
         </span>
       )
@@ -1167,7 +954,7 @@ function DepartmentsManagement() {
       accessor: 'description',
       label: t('description'),
       sortable: true,
-      render: (value) => value ? <span className="text-sm text-gray-600">{value}</span> : <span className="text-gray-400">-</span>
+      render: (value) => value ? <span className="text-sm text-ink-secondary">{value}</span> : <span className="text-ink-muted">-</span>
     },
     {
       id: 'isActive',
@@ -1285,8 +1072,8 @@ function DepartmentsManagement() {
       {/* Header */}
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('mdm_departments')}</h3>
-          <p className="mt-1 text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-ink">{t('mdm_departments')}</h3>
+          <p className="mt-1 text-sm text-ink-secondary">
             {t('mdm_dept_desc')}
           </p>
         </div>
@@ -1300,7 +1087,7 @@ function DepartmentsManagement() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
@@ -1308,7 +1095,7 @@ function DepartmentsManagement() {
           placeholder={t('mdm_search_name_code')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+          className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] pl-11 pr-4 py-3.5 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
         />
       </div>
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -1647,8 +1434,8 @@ function DivisionsManagement() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('mdm_divisions')}</h3>
-          <p className="mt-1 text-sm text-gray-600">{t('mdm_division_desc')}</p>
+          <h3 className="text-lg font-semibold text-ink">{t('mdm_divisions')}</h3>
+          <p className="mt-1 text-sm text-ink-secondary">{t('mdm_division_desc')}</p>
         </div>
         <Button onClick={handleAdd}>
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1667,13 +1454,13 @@ function DivisionsManagement() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 text-sm text-ink-secondary font-medium">
             <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+              />
             {t('show_inactive')}
           </label>
         </div>
@@ -1682,48 +1469,50 @@ function DivisionsManagement() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('mdm_name')}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('mdm_code')}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('users')}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('folders')}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">{t('status')}</th>
-              <th className="sticky right-0 z-30 bg-gray-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-700 border-l border-gray-200">{t('action')}</th>
+            <tr className="border-b-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]">
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary">{t('mdm_name')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary">{t('mdm_code')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary">{t('users')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary">{t('folders')}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-secondary">{t('status')}</th>
+              <th className="sticky right-0 z-30 bg-[var(--dms-color-bg-surface-muted)] px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-secondary border-l border-[var(--dms-color-border-default)]">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-gray-500">
+                <td colSpan="6" className="py-8 text-center text-ink-muted">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
                     <span>{t('loading')}</span>
                   </div>
                 </td>
               </tr>
             ) : filteredItems.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-gray-500">{t('mdm_no_divisions')}</td>
+                <td colSpan="6" className="py-8 text-center text-ink-muted">{t('mdm_no_divisions')}</td>
               </tr>
             ) : (
               pageItems.map((item) => (
-                <tr key={item.id} className="group border-b border-gray-100 transition-colors hover:bg-gray-50">
-                  <td className="px-4 py-4 font-medium text-gray-900">{item.name}</td>
+                <tr key={item.id} className="group border-b border-[var(--dms-color-border-default)]/50 transition-colors hover:bg-[var(--dms-color-bg-surface-muted)]">
+                  <td className="px-4 py-4 font-medium text-ink">{item.name}</td>
                   <td className="px-4 py-4">
-                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 font-mono text-sm font-semibold text-blue-700">
+                    <span className="inline-flex items-center rounded-xl border border-brand/20 bg-brand/10 px-2.5 py-1 font-mono text-sm font-semibold text-brand">
                       {item.code}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-gray-700">{item._count?.users || 0}</td>
-                  <td className="px-4 py-4 text-gray-700">{item._count?.folders || 0}</td>
+                  <td className="px-4 py-4 text-ink-secondary">{item._count?.users || 0}</td>
+                  <td className="px-4 py-4 text-ink-secondary">{item._count?.folders || 0}</td>
                   <td className="px-4 py-4">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                      item.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    <span className={`rounded-lg px-2.5 py-1 border-2 font-semibold ${
+                      item.isActive
+                        ? 'border-[var(--dms-color-success-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)]'
+                        : 'border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_65%,var(--dms-color-bg-surface))] text-ink-secondary'
                     }`}>
                       {item.isActive ? t('mdm_active') : t('mdm_inactive')}
                     </span>
                   </td>
-                  <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 px-4 py-4 text-right border-l border-gray-200">
+                  <td className="sticky right-0 z-20 bg-[var(--dms-color-bg-surface)] group-hover:bg-[var(--dms-color-bg-surface-muted)] px-4 py-4 text-right border-l border-[var(--dms-color-border-default)]">
                     <ActionMenu
                       actions={[
                         { label: t('rp_edit'), onClick: () => handleEdit(item) },
@@ -1829,8 +1618,8 @@ function CrmLookupsManagement() {
   const LookupSection = ({ title, description, type, draftKey, placeholder }) => (
     <AppSurface variant="panel" padding="md" className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="mt-1 text-sm text-gray-600">{description}</p>
+        <h3 className="text-lg font-semibold text-ink">{title}</h3>
+        <p className="mt-1 text-sm text-ink-secondary">{description}</p>
       </div>
 
       <div className="flex gap-3">
@@ -1842,17 +1631,17 @@ function CrmLookupsManagement() {
         <Button onClick={() => addItem(type)}>Add</Button>
       </div>
 
-      <div className="flex min-h-[120px] flex-wrap gap-2 rounded-2xl border border-border bg-surface p-4">
+      <div className="flex min-h-[120px] flex-wrap gap-2 rounded-2xl border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_4%,var(--dms-color-bg-card))] p-5">
         {(lookups[type] || []).length === 0 ? (
-          <span className="text-sm text-ink-soft">No values added yet.</span>
+          <span className="text-sm font-medium text-ink-secondary">No values added yet. Add channels or industry types using the field above.</span>
         ) : (
           lookups[type].map((item) => (
-            <span key={item} className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-1 text-sm text-ink">
+            <span key={item} className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-2 text-sm font-semibold text-ink">
               {item}
               <button
                 type="button"
                 onClick={() => removeItem(type, item)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="h-6 w-6 flex items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted hover:text-ink transition-colors"
                 aria-label={`Remove ${item}`}
               >
                 ×
@@ -1877,8 +1666,8 @@ function CrmLookupsManagement() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">CRM Lookup Values</h3>
-            <p className="mt-1 text-sm text-gray-600">Maintain FB Enquiry dropdown values for Enquiry Channel and Industry Type.</p>
+            <h3 className="text-lg font-semibold text-ink">CRM Lookup Values</h3>
+            <p className="mt-1 text-sm text-ink-secondary">Maintain FB Enquiry dropdown values for Enquiry Channel and Industry Type.</p>
           </div>
           <Button onClick={saveLookups} loading={saving} disabled={loading}>
             Save Changes
@@ -2054,7 +1843,7 @@ function ProjectCategoriesManagement() {
       label: t('mdm_name'),
       sortable: true,
       required: true,
-      render: (value) => <span className="font-medium text-gray-900">{value}</span>
+      render: (value) => <span className="font-medium text-ink">{value}</span>
     },
     {
       id: 'code',
@@ -2074,7 +1863,7 @@ function ProjectCategoriesManagement() {
       accessor: 'description',
       label: t('description'),
       sortable: true,
-      render: (value) => value ? <span className="text-sm text-gray-600">{value}</span> : <span className="text-gray-400">-</span>
+      render: (value) => value ? <span className="text-sm text-ink-secondary">{value}</span> : <span className="text-ink-muted">-</span>
     },
     {
       id: 'isActive',
@@ -2188,8 +1977,8 @@ function ProjectCategoriesManagement() {
       {/* Header */}
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('mdm_project_categories')}</h3>
-          <p className="mt-1 text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-ink">{t('mdm_project_categories')}</h3>
+          <p className="mt-1 text-sm text-ink-secondary">
             {t('mdm_project_cat_desc')}
           </p>
         </div>
@@ -2203,7 +1992,7 @@ function ProjectCategoriesManagement() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         <input
@@ -2211,7 +2000,7 @@ function ProjectCategoriesManagement() {
           placeholder={t('mdm_search_name_code')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+          className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] pl-11 pr-4 py-3.5 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20"
         />
       </div>
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -2352,8 +2141,8 @@ export default function MasterDataManagement() {
     <div className="space-y-6">
       {/* Header */}
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t('mdm_title')}</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-ink">{t('mdm_title')}</h2>
+        <p className="text-sm text-ink-secondary mt-1">
           {t('mdm_title_desc')}
         </p>
       </div>

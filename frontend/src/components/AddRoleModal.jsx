@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 
 export default function AddRoleModal({ onClose, onSubmit, initialData }) {
   const [formData, setFormData] = useState({
@@ -13,10 +13,10 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
       .replace(/\b\w/g, (char) => char.toUpperCase())
 
   const [permissions, setPermissions] = useState(initialData?.permissions || {})
-  const [currentStep, setCurrentStep] = useState(1) // 1 = Basic Info, 2 = Permissions
+  const [currentStep, setCurrentStep] = useState(1)
+  const [activeModuleId, setActiveModuleId] = useState('dashboard')
+  const [moduleSearch, setModuleSearch] = useState('')
 
-  // Define available modules - MUST match EditSystemRolePermissionsModal exactly
-  // NOTE: Permission actions should match exactly what components check with hasPermission()
   const modules = [
     {
       id: 'dashboard',
@@ -42,7 +42,7 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
         {
           id: 'documents.published',
           name: 'Published Documents',
-          actions: ['view', 'read', 'create', 'publish', 'update', 'delete', 'download']
+          actions: ['view', 'read', 'create', 'publish', 'update', 'delete', 'download', 'manageAccess']
         },
         {
           id: 'documents.superseded',
@@ -336,77 +336,95 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
     setCurrentStep(2)
   }
 
-  const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] p-4 modal-uniform">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {initialData ? 'Edit Role' : 'Create New Role'}
-              </h2>
-              <p className="text-sm text-gray-600 mt-2">
-                {currentStep === 1 ? 'Step 1 of 2: Basic Information' : 'Step 2 of 2: Assign Permissions'}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+  const filteredModules = modules.filter(module => {
+    const search = moduleSearch.trim().toLowerCase()
+    return !search ||
+      module.name.toLowerCase().includes(search) ||
+      (module.description || '').toLowerCase().includes(search)
+  })
 
-        {/* Progress Steps */}
-        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center">
-            <div className="flex items-center">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full font-semibold ${
-                currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-green-600 text-white'
+  const activeModule = modules.find(module => module.id === activeModuleId) || modules[0]
+
+  const modal = (
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title={initialData ? 'Edit Role' : 'Create New Role'}
+          subtitle={currentStep === 1 ? 'Step 1 of 2: Basic Information' : 'Step 2 of 2: Assign Permissions'}
+          onClose={onClose}
+        />
+
+        <div className="border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-5 py-3">
+          <div className="mx-auto flex max-w-md items-center">
+            {/* Step 1 */}
+            <div className="flex shrink-0 items-center gap-2.5">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                currentStep === 1
+                  ? 'bg-[var(--dms-color-brand-primary)] text-white shadow-sm'
+                  : 'bg-[var(--dms-color-success-ink)] text-white'
               }`}>
-                {currentStep === 1 ? '1' : '✓'}
+                {currentStep === 1 ? '1' : (
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.2 7.2a1 1 0 01-1.415 0l-3.3-3.3a1 1 0 011.414-1.42l2.593 2.594 6.493-6.494a1 1 0 011.415 0z" clipRule="evenodd" />
+                  </svg>
+                )}
               </div>
-              <span className={`ml-2 text-sm font-medium ${
-                currentStep === 1 ? 'text-blue-600' : 'text-green-600'
-              }`}>
-                Basic Info
-              </span>
+              <div className="leading-tight">
+                <p className={`whitespace-nowrap text-xs font-semibold ${
+                  currentStep === 1 ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink'
+                }`}>
+                  Basic Info
+                </p>
+                <p className={`mt-0.5 text-[10px] ${
+                  currentStep === 1 ? 'text-[var(--dms-color-brand-primary)]' : 'text-[var(--dms-color-success-ink)]'
+                }`}>
+                  {currentStep === 1 ? 'Current step' : 'Completed'}
+                </p>
+              </div>
             </div>
-            <div className={`flex-1 h-1 mx-4 rounded ${
-              currentStep === 2 ? 'bg-blue-600' : 'bg-gray-200'
-            }`} />
-            <div className="flex items-center">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full font-semibold ${
-                currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+
+            {/* Progress connector */}
+            <div className="mx-4 h-px min-w-6 flex-1 overflow-hidden rounded-full bg-[var(--dms-color-border-default)]">
+              <div className={`h-full rounded-full transition-all duration-300 ${
+                currentStep === 2 ? 'w-full bg-[var(--dms-color-success-ink)]' : 'w-0'
+              }`} />
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex shrink-0 items-center gap-2.5">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                currentStep === 2
+                  ? 'bg-[var(--dms-color-brand-primary)] text-white shadow-sm'
+                  : 'border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] text-ink-muted'
               }`}>
                 2
               </div>
-              <span className={`ml-2 text-sm font-medium ${
-                currentStep === 2 ? 'text-blue-600' : 'text-gray-500'
-              }`}>
-                Permissions
-              </span>
+              <div className="leading-tight">
+                <p className={`whitespace-nowrap text-xs font-semibold ${
+                  currentStep === 2 ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink-muted'
+                }`}>
+                  Permissions
+                </p>
+                <p className={`mt-0.5 text-[10px] ${
+                  currentStep === 2 ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink-muted'
+                }`}>
+                  {currentStep === 2 ? 'Current step' : 'Up next'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <ModalBody className="p-0">
           {currentStep === 1 ? (
-            /* Step 1: Basic Information */
             <div className="p-6 space-y-6">
-              <div className="rounded-lg p-4 border border-blue-200 bg-blue-50">
+              <div className="rounded-[16px] border-2 border-[var(--dms-color-info-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-bg-info-soft)_70%,var(--dms-color-bg-card))] p-4">
                 <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-5 h-5 text-[var(--dms-color-info-ink)] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                   <div>
-                    <h4 className="font-medium text-blue-800">Role Information</h4>
-                    <p className="text-sm text-blue-700 mt-1">
+                    <h4 className="font-medium text-[var(--dms-color-info-ink)]">Role Information</h4>
+                    <p className="text-sm text-[var(--dms-color-info-ink)] mt-1">
                       Define the basic details for this role. You'll assign permissions in the next step.
                     </p>
                   </div>
@@ -415,8 +433,8 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Role Name <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-ink mb-2">
+                    Role Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
                   </label>
                   <input
                     type="text"
@@ -424,15 +442,15 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
                     value={formData.roleName}
                     onChange={handleInputChange}
                     placeholder="e.g., Document Controller, Quality Manager"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-sm text-gray-900"
+                    className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 text-sm"
                     autoFocus
                   />
-                  <p className="text-xs text-gray-500 mt-1">Enter a descriptive name for this role</p>
+                  <p className="text-xs text-ink-muted mt-1">Enter a descriptive name for this role</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
-                    Description <span className="text-gray-500">(Optional)</span>
+                  <label className="block text-sm font-medium text-ink mb-2">
+                    Description <span className="text-ink-muted">(Optional)</span>
                   </label>
                   <textarea
                     name="description"
@@ -440,207 +458,295 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
                     onChange={handleInputChange}
                     placeholder="Describe the responsibilities and purpose of this role..."
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-sm bg-white text-gray-900"
+                    className="w-full rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 resize-none text-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Optional: Provide a detailed description of the role's purpose</p>
+                  <p className="text-xs text-ink-muted mt-1">Optional: Provide a detailed description of the role's purpose</p>
                 </div>
               </div>
 
-              <div className="rounded-lg p-4 border border-yellow-200 bg-yellow-50">
+              <div className="rounded-[16px] border-2 border-[var(--dms-color-warning-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-warning-soft)_70%,var(--dms-color-bg-card))] p-4">
                 <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-5 h-5 text-[var(--dms-color-warning-ink)] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <div className="text-sm text-yellow-800">
+                  <div className="text-sm text-[var(--dms-color-warning-ink)]">
                     <strong>Important:</strong> After creating the role, you'll need to assign it to users from the Users Management section.
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* Step 2: Permissions */
             <div className="p-6 space-y-6">
-              <div className="rounded-lg p-4 border border-blue-200 bg-blue-50">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-blue-800">Configure Permissions for &ldquo;{formData.roleName}&rdquo;</h4>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Selected: <span className="font-semibold">{getGrandTotal().selected} / {getGrandTotal().total}</span> permissions
-                        </p>
+              <div className="space-y-4">
+                {/* Permission overview */}
+                <div className="flex flex-col gap-3 rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">
+                      Permissions for {formData.roleName || 'New Role'}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-secondary">
+                      Select a module to configure its access permissions.
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--dms-color-bg-surface-muted)] sm:w-48 sm:flex-none">
+                        <div
+                          className="h-full rounded-full bg-[var(--dms-color-brand-primary)] transition-all"
+                          style={{
+                            width: `${getGrandTotal().total > 0
+                              ? (getGrandTotal().selected / getGrandTotal().total) * 100
+                              : 0}%`
+                          }}
+                        />
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          type="button"
-                          onClick={handleSelectAllGlobal}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                        >
-                          Select All
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleClearAllGlobal}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      </div>
+                      <span className="text-xs font-semibold tabular-nums text-ink">
+                        {getGrandTotal().selected} / {getGrandTotal().total} selected
+                      </span>
                     </div>
                   </div>
+
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllGlobal}
+                      className="rounded-lg border border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] px-3 py-2 text-xs font-semibold text-white transition-colors hover:opacity-90"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllGlobal}
+                      className="rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-2 text-xs font-semibold text-ink-secondary transition-colors hover:border-[var(--dms-color-brand-primary)] hover:text-ink"
+                    >
+                      Clear All
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Permissions Grid */}
-              <div className="space-y-4">
-                {modules.map(module => {
-                  const totalSelected = getTotalSelectedCount(module)
-                  const totalActions = getTotalActionsCount(module)
-                  const hasSubmodules = module.submodules && module.submodules.length > 0
-                  
-                  return (
-                    <div key={module.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                      {/* Module Header */}
-                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-bold text-gray-900 text-base">{module.name}</h3>
-                              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                                totalSelected === 0 ? 'bg-gray-100 text-gray-600' :
-                                totalSelected === totalActions ? 'bg-green-600 text-white' :
-                                'bg-blue-600 text-white'
-                              }`}>
-                                {totalSelected} / {totalActions}
-                              </span>
-                            </div>
-                            {module.description && (
-                              <p className="text-xs text-gray-600 mt-1.5">{module.description}</p>
-                            )}
-                          </div>
-                        </div>
+                {/* Module navigation and permission workspace */}
+                <div className="grid min-h-[420px] grid-cols-1 gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+
+                  {/* Left: module navigation */}
+                  <aside className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]">
+                    <div className="border-b border-[var(--dms-color-border-default)] p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h3 className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                          Modules
+                        </h3>
+                        <span className="text-xs text-ink-muted">
+                          {modules.length} total
+                        </span>
                       </div>
+                      <div className="relative">
+                        <svg
+                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle cx="11" cy="11" r="7" strokeWidth="2" />
+                          <path strokeLinecap="round" strokeWidth="2" d="m16 16 4 4" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={moduleSearch}
+                          onChange={(e) => setModuleSearch(e.target.value)}
+                          placeholder="Search modules..."
+                          aria-label="Search permission modules"
+                          className="h-9 w-full rounded-lg border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] pl-9 pr-3 text-xs text-ink outline-none transition-colors placeholder:text-ink-muted focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/15"
+                        />
+                      </div>
+                    </div>
 
-                      {/* Main Module Actions */}
-                      {module.actions && module.actions.length > 0 && (
-                        <div className="bg-white p-4 border-b border-gray-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-semibold text-gray-700">
-                                {hasSubmodules ? 'General Permissions' : 'Permissions'}
-                              </h4>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">
-                                {getSelectedCount(module.id)} / {module.actions.length}
-                              </span>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleSelectAll(module.id)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                              >
-                                Select All
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeselectAll(module.id)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                              >
-                                Clear
-                              </button>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                            {module.actions.map(action => (
-                              <label
-                                key={action}
-                                className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                                  permissions[module.id]?.[action]
-                                    ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                    : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={permissions[module.id]?.[action] || false}
-                                  onChange={() => handleToggle(module.id, action)}
-                                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                                />
-                                <span className={`text-sm font-medium capitalize ${
-                                  permissions[module.id]?.[action] ? 'text-blue-700' : 'text-gray-700'
-                                }`}>
-                                  {formatActionLabel(action)}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex flex-col gap-1 overflow-y-auto p-2 md:max-h-[470px]">
+                      {filteredModules.length > 0 ? (
+                        filteredModules.map(module => {
+                          const selected = getTotalSelectedCount(module)
+                          const total = getTotalActionsCount(module)
+                          const isActive = activeModule?.id === module.id
 
-                      {/* Submodules */}
-                      {hasSubmodules && (
-                        <div className="bg-gray-50">
-                          {module.submodules.map((submodule, index) => (
-                            <div 
-                              key={submodule.id} 
-                              className={`p-4 ${
-                                index !== module.submodules.length - 1 ? 'border-b border-gray-200' : ''
+                          return (
+                            <button
+                              key={module.id}
+                              type="button"
+                              onClick={() => setActiveModuleId(module.id)}
+                              className={`w-full rounded-lg border p-3 text-left transition-all ${
+                                isActive
+                                  ? 'border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_9%,var(--dms-color-bg-card))] shadow-sm'
+                                  : 'border-transparent hover:border-[var(--dms-color-border-default)] hover:bg-[var(--dms-color-bg-surface-muted)]'
                               }`}
                             >
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="flex items-center justify-center w-5 h-5 rounded bg-white border border-gray-200">
-                                    <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                  </div>
-                                  <h4 className="text-sm font-semibold text-gray-900">{submodule.name}</h4>
-                                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                    getSelectedCount(submodule.id) === 0 ? 'bg-gray-100 text-gray-600' :
-                                    getSelectedCount(submodule.id) === submodule.actions.length ? 'bg-green-50 text-green-700' :
-                                    'bg-blue-50 text-blue-700'
-                                  }`}>
-                                    {getSelectedCount(submodule.id)} / {submodule.actions.length}
-                                  </span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`min-w-0 truncate text-xs font-semibold ${
+                                  isActive ? 'text-[var(--dms-color-brand-primary)]' : 'text-ink'
+                                }`}>
+                                  {module.name}
+                                </span>
+                                {isActive && (
+                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--dms-color-brand-primary)]" />
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--dms-color-bg-surface-muted)]">
+                                  <div
+                                    className="h-full rounded-full bg-[var(--dms-color-brand-primary)]"
+                                    style={{
+                                      width: `${total > 0 ? (selected / total) * 100 : 0}%`
+                                    }}
+                                  />
                                 </div>
-                                <div className="flex gap-2">
+                                <span className="shrink-0 text-[10px] tabular-nums text-ink-muted">
+                                  {selected}/{total}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div className="px-3 py-8 text-center">
+                          <p className="text-xs font-medium text-ink-secondary">No modules found</p>
+                          <p className="mt-1 text-[11px] text-ink-muted">Try another search term.</p>
+                        </div>
+                      )}
+                    </div>
+                  </aside>
+
+                  {/* Right: selected module permissions */}
+                  <section className="min-w-0 overflow-hidden rounded-xl border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)]">
+                    {activeModule ? (
+                      <>
+                        <div className="border-b border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] px-4 py-4 sm:px-5">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="text-base font-bold text-ink">
+                                {activeModule.name}
+                              </h3>
+                              {activeModule.description && (
+                                <p className="mt-1 text-xs leading-relaxed text-ink-secondary">
+                                  {activeModule.description}
+                                </p>
+                              )}
+                            </div>
+                            <span className="shrink-0 rounded-full border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-3 py-1 text-xs font-semibold tabular-nums text-ink">
+                              {getTotalSelectedCount(activeModule)} / {getTotalActionsCount(activeModule)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="max-h-[470px] space-y-4 overflow-y-auto p-4 sm:p-5">
+
+                          {/* General module permissions */}
+                          {activeModule.actions && activeModule.actions.length > 0 && (
+                            <div>
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                  <h4 className="text-sm font-semibold text-ink">
+                                    {activeModule.submodules?.length > 0
+                                      ? 'General Permissions'
+                                      : 'Available Permissions'}
+                                  </h4>
+                                  <p className="mt-0.5 text-xs text-ink-muted">
+                                    Access controls for this module
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium tabular-nums text-ink-secondary">
+                                    {getSelectedCount(activeModule.id)} / {activeModule.actions.length}
+                                  </span>
                                   <button
                                     type="button"
-                                    onClick={() => handleSelectAll(submodule.id, submodule.actions)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                    onClick={() => handleSelectAll(activeModule.id)}
+                                    className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--dms-color-brand-primary)] hover:bg-[var(--dms-color-bg-surface-muted)]"
                                   >
-                                    Select All
+                                    Select all
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeselectAll(submodule.id)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                    onClick={() => handleDeselectAll(activeModule.id)}
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-ink-secondary hover:bg-[var(--dms-color-bg-surface-muted)]"
                                   >
                                     Clear
                                   </button>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                                {activeModule.actions.map(action => (
+                                  <label
+                                    key={action}
+                                    className="flex min-w-0 cursor-pointer items-center gap-2 py-1.5"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={permissions[activeModule.id]?.[action] || false}
+                                      onChange={() => handleToggle(activeModule.id, action)}
+                                      className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--dms-color-brand-primary)]"
+                                    />
+                                    <span className={`truncate text-xs font-medium ${
+                                      permissions[activeModule.id]?.[action]
+                                        ? 'text-[var(--dms-color-brand-primary)]'
+                                        : 'text-ink-secondary'
+                                    }`}>
+                                      {formatActionLabel(action)}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Submodule permissions */}
+                          {activeModule.submodules?.map((submodule, index) => (
+                            <div
+                              key={submodule.id}
+                              className={`${
+                                index > 0 || activeModule.actions?.length > 0
+                                  ? 'border-t border-[var(--dms-color-border-default)] pt-4'
+                                  : ''
+                              }`}
+                            >
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <h4 className="text-sm font-semibold text-ink">
+                                    {submodule.name}
+                                  </h4>
+                                  <p className="mt-0.5 text-xs text-ink-muted">
+                                    {getSelectedCount(submodule.id)} of {submodule.actions.length} permissions selected
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAll(submodule.id, submodule.actions)}
+                                    className="rounded-md px-2 py-1 text-xs font-semibold text-[var(--dms-color-brand-primary)] hover:bg-[var(--dms-color-bg-surface-muted)]"
+                                  >
+                                    Select all
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeselectAll(submodule.id)}
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-ink-secondary hover:bg-[var(--dms-color-bg-surface-muted)]"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                                 {submodule.actions.map(action => (
                                   <label
                                     key={action}
-                                    className={`flex items-center gap-2 p-2.5 rounded-md border-2 cursor-pointer transition-all ${
-                                      permissions[submodule.id]?.[action]
-                                        ? 'border-blue-500 bg-blue-50 shadow-sm'
-                                        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50'
-                                    }`}
+                                    className="flex min-w-0 cursor-pointer items-center gap-2 py-1.5"
                                   >
                                     <input
                                       type="checkbox"
                                       checked={permissions[submodule.id]?.[action] || false}
                                       onChange={() => handleToggle(submodule.id, action)}
-                                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                      className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--dms-color-brand-primary)]"
                                     />
-                                    <span className={`text-xs font-medium capitalize ${
-                                      permissions[submodule.id]?.[action] ? 'text-blue-700' : 'text-gray-700'
+                                    <span className={`truncate text-xs font-medium ${
+                                      permissions[submodule.id]?.[action]
+                                        ? 'text-[var(--dms-color-brand-primary)]'
+                                        : 'text-ink-secondary'
                                     }`}>
                                       {formatActionLabel(action)}
                                     </span>
@@ -649,28 +755,43 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
                               </div>
                             </div>
                           ))}
+
+                          {(!activeModule.actions || activeModule.actions.length === 0) &&
+                            (!activeModule.submodules || activeModule.submodules.length === 0) && (
+                              <div className="py-12 text-center">
+                                <p className="text-sm font-medium text-ink-secondary">
+                                  No permissions configured
+                                </p>
+                                <p className="mt-1 text-xs text-ink-muted">
+                                  This module does not have any configurable actions.
+                                </p>
+                              </div>
+                            )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
+                      </>
+                    ) : (
+                      <div className="flex min-h-[300px] items-center justify-center p-6 text-center">
+                        <p className="text-sm text-ink-secondary">Select a module to view its permissions.</p>
+                      </div>
+                    )}
+                  </section>
+                </div>
               </div>
             </div>
           )}
-        </div>
+        </ModalBody>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between sticky bottom-0">
+        <ModalFooter className="justify-between">
           {currentStep === 2 ? (
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-brand-primary)] hover:text-ink text-xs"
             >
               ← Back
             </button>
           ) : (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-ink-secondary">
               <span className="font-medium">Step 1 of 2</span>
             </div>
           )}
@@ -678,7 +799,7 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold transition-all hover:border-[var(--dms-color-brand-primary)] hover:text-ink text-xs"
             >
               Cancel
             </button>
@@ -686,7 +807,7 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
+                className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold transition-all hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_90%,black)] text-sm"
               >
                 Next: Permissions →
               </button>
@@ -694,17 +815,16 @@ export default function AddRoleModal({ onClose, onSubmit, initialData }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors"
+                className="rounded-xl h-10 px-4 border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold transition-all hover:bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_90%,black)] text-sm"
               >
                 {initialData ? 'Update Role' : 'Create Role'}
               </button>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+
+  return modal
 }

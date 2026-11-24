@@ -6,6 +6,9 @@ const folderPermissionService = require('./folderPermissionService')
 const confidentialAccessService = require('./confidentialAccessService')
 const notificationService = require('./notificationService')
 const divisionScopeService = require('./divisionScopeService')
+const folderService = require('./folderService')
+const integrationEventService = require('./integrationEventService')
+const { EVENT_TYPES } = require('./integrationEventService')
 
 const getAllowedDivisionIdsForUser = (user) => {
   return divisionScopeService.normalizeDivisionIds(user?.divisionIds || [])
@@ -80,21 +83,6 @@ const getProjectLinkedDivisionIds = async (projectId, db = prisma) => {
 
   return uniq(divisionIds).filter((id) => id != null)
 }
-
-// #region debug-point A:runtime-reporter
-const __ptDebugReport = (payload) => {
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'project-confidential-access',
-      runId: 'pre-fix',
-      ts: Date.now(),
-      ...payload
-    })
-  }).catch(() => {})
-}
-// #endregion
 
 const PROJECT_STATUSES = new Set(['ACTIVE', 'ON_HOLD', 'CLOSED', 'ARCHIVED'])
 
@@ -227,54 +215,16 @@ const buildLinkedDocumentAccessSelect = (user, roleIds = [], extraSelect = {}) =
 }
 
 const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
-  // #region debug-point A:linked-document-access-check
-  const __debugUserId = Number.isFinite(Number(user?.id)) ? Number(user.id) : null
-  const __debugRoleIds = Array.isArray(userRoleIds) ? userRoleIds.filter((id) => Number.isFinite(id)) : []
-  const __debugEntries = Array.isArray(document?.confidentialAccess)
-    ? document.confidentialAccess.map((entry) => ({ id: entry.id, userId: entry.userId, roleId: entry.roleId }))
-    : []
-  // #endregion
   if (!document) return false
   if (!document.isConfidential) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'A',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:non-confidential',
-      msg: '[DEBUG] linked document allowed because confidential flag is off',
-      data: { documentId: document?.id || null, userId: __debugUserId, roleIds: __debugRoleIds }
-    })
-    // #endregion
     return true
   }
   if (!user) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'A',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:no-user',
-      msg: '[DEBUG] linked confidential document denied because user context is missing',
-      data: { documentId: document?.id || null, entries: __debugEntries }
-    })
-    // #endregion
     return false
   }
 
   const userId = Number.isFinite(Number(user.id)) ? Number(user.id) : null
   if (userId && (document.ownerId === userId || document.createdById === userId)) {
-    // #region debug-point A:linked-document-access-check
-    __ptDebugReport({
-      hypothesisId: 'C',
-      location: 'projectTrackingService.canInteractWithLinkedDocument:owner-or-creator',
-      msg: '[DEBUG] linked confidential document allowed because user matches owner or creator',
-      data: {
-        documentId: document?.id || null,
-        userId,
-        ownerId: document?.ownerId || null,
-        createdById: document?.createdById || null,
-        roleIds: __debugRoleIds,
-        entries: __debugEntries
-      }
-    })
-    // #endregion
     return true
   }
 
@@ -287,40 +237,10 @@ const canInteractWithLinkedDocument = (document, user, userRoleIds = []) => {
       return false
     })
     if (hasMatchingEntry) {
-      // #region debug-point A:linked-document-access-check
-      __ptDebugReport({
-        hypothesisId: 'B',
-        location: 'projectTrackingService.canInteractWithLinkedDocument:matched-entry',
-        msg: '[DEBUG] linked confidential document allowed because access entry matched current user or role',
-        data: {
-          documentId: document?.id || null,
-          userId,
-          ownerId: document?.ownerId || null,
-          createdById: document?.createdById || null,
-          roleIds: normalizedRoleIds,
-          entries: __debugEntries
-        }
-      })
-      // #endregion
       return true
     }
   }
 
-  // #region debug-point A:linked-document-access-check
-  __ptDebugReport({
-    hypothesisId: 'A',
-    location: 'projectTrackingService.canInteractWithLinkedDocument:denied',
-    msg: '[DEBUG] linked confidential document denied after evaluating owner creator and matching entries',
-    data: {
-      documentId: document?.id || null,
-      userId,
-      ownerId: document?.ownerId || null,
-      createdById: document?.createdById || null,
-      roleIds: __debugRoleIds,
-      entries: __debugEntries
-    }
-  })
-  // #endregion
   return false
 }
 
@@ -835,6 +755,25 @@ exports.updateProject = async (
     }
   })
 
+  const statusChanged = Boolean(nextData.status) && existing.status !== project.status
+
+  await integrationEventService.publish({
+    type: statusChanged ? EVENT_TYPES.PROJECT_STATUS_CHANGED : EVENT_TYPES.PROJECT_UPDATED,
+    entityType: 'Project',
+    entityId: projectId,
+    payload: {
+      id: project.id,
+      code: project.code,
+      name: project.name,
+      status: project.status,
+      previousStatus: existing.status,
+      divisionId: project.divisionId,
+      projectCategoryId: project.projectCategoryId,
+      managerId: project.managerId,
+      changedFields: Object.keys(nextData)
+    }
+  })
+
   return project
 }
 
@@ -1017,7 +956,7 @@ exports.createProject = async ({
       }
     })
 
-    return tx.project.findUnique({
+    const created = await tx.project.findUnique({
       where: { id: project.id },
       include: {
         division: true,
@@ -1027,6 +966,30 @@ exports.createProject = async ({
         iterations: { orderBy: { iterationNo: 'desc' }, include: { currentStage: true } }
       }
     });
+
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_CREATED,
+        entityType: 'Project',
+        entityId: project.id,
+        payload: {
+          id: created.id,
+          code: created.code,
+          name: created.name,
+          status: created.status,
+          divisionId: created.divisionId,
+          projectCategoryId: created.projectCategoryId,
+          managerId: created.managerId,
+          createdById: created.createdById,
+          clientName: created.clientName,
+          startDate: created.startDate,
+          plannedCompletionDate: created.plannedCompletionDate
+        }
+      },
+      { client: tx }
+    );
+
+    return created;
   });
 };
 
@@ -1371,6 +1334,22 @@ exports.createIteration = async (projectId, { name, createdById }) => {
       }
     });
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_ITERATION_CREATED,
+        entityType: 'Project',
+        entityId: projectId,
+        payload: {
+          projectId,
+          iterationId: iteration.id,
+          iterationNo: iteration.iterationNo,
+          name: iteration.name,
+          currentStageId: iteration.currentStageId
+        }
+      },
+      { client: tx }
+    );
+
     return iteration;
   });
 };
@@ -1430,20 +1409,6 @@ exports.listIterationItems = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  // #region debug-point D:iteration-items-role-resolution
-  __ptDebugReport({
-    hypothesisId: 'D',
-    location: 'projectTrackingService.listIterationItems:role-resolution',
-    msg: '[DEBUG] resolved role ids for iteration items request',
-    data: {
-      iterationId,
-      userId: user?.id || null,
-      roleNames: user?.roles || [],
-      roleIds
-    }
-  })
-  // #endregion
-
   const items = await prisma.projectIterationDocumentItem.findMany({
     where: { projectIterationId: iterationId },
     include: {
@@ -1648,6 +1613,24 @@ exports.linkDocumentToItem = async (itemId, { documentId, linkedById, user }) =>
       });
     }
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_LINKED,
+        entityType: 'Project',
+        entityId: item.iteration.project.id,
+        payload: {
+          projectId: item.iteration.project.id,
+          iterationId: item.projectIterationId,
+          itemId: item.id,
+          stageId: item.stageId,
+          linkId: link.id,
+          documentId,
+          documentStatus: doc.status
+        }
+      },
+      { client: tx }
+    );
+
     return { link, item: updatedItem };
   });
 };
@@ -1712,6 +1695,23 @@ exports.unlinkDocumentFromItem = async (itemId, linkId, { user } = {}) => {
       })
     }
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_UNLINKED,
+        entityType: 'Project',
+        entityId: item.iteration.project.id,
+        payload: {
+          projectId: item.iteration.project.id,
+          iterationId: item.projectIterationId,
+          itemId: item.id,
+          stageId: item.stageId,
+          linkId: link.id,
+          documentId: link.documentId
+        }
+      },
+      { client: tx }
+    );
+
     return { removedLinkId: link.id, item: updatedItem }
   })
 }
@@ -1732,20 +1732,6 @@ exports.listIterationStageDocuments = async (iterationId, { user }) => {
   )
 
   const roleIds = user ? await folderPermissionService.getRoleIdsByNames(user.roles || []) : []
-  // #region debug-point D:stage-documents-role-resolution
-  __ptDebugReport({
-    hypothesisId: 'D',
-    location: 'projectTrackingService.listIterationStageDocuments:role-resolution',
-    msg: '[DEBUG] resolved role ids for stage documents request',
-    data: {
-      iterationId,
-      userId: user?.id || null,
-      roleNames: user?.roles || [],
-      roleIds
-    }
-  })
-  // #endregion
-
   const links = await prisma.projectDocumentLink.findMany({
     where: {
       projectIterationId: iterationId,
@@ -1829,6 +1815,24 @@ exports.linkDocumentToStage = async (iterationId, stageId, { documentId, linkedB
       }
     })
 
+    await integrationEventService.publish(
+      {
+        type: EVENT_TYPES.PROJECT_DOCUMENT_LINKED,
+        entityType: 'Project',
+        entityId: iteration.project.id,
+        payload: {
+          projectId: iteration.project.id,
+          iterationId,
+          itemId: null,
+          stageId,
+          linkId: link.id,
+          documentId,
+          documentStatus: doc.status
+        }
+      },
+      { client: tx }
+    )
+
     return { link }
   })
 }
@@ -1867,6 +1871,20 @@ exports.unlinkDocumentFromStage = async (iterationId, stageId, linkId, { user } 
   }
 
   await prisma.projectDocumentLink.delete({ where: { id: link.id } })
+
+  await integrationEventService.publish({
+    type: EVENT_TYPES.PROJECT_DOCUMENT_UNLINKED,
+    entityType: 'Project',
+    entityId: iteration.project.id,
+    payload: {
+      projectId: iteration.project.id,
+      iterationId,
+      itemId: null,
+      stageId,
+      linkId: link.id
+    }
+  })
+
   return { removedLinkId: link.id }
 }
 
@@ -2093,10 +2111,52 @@ exports.advanceIterationStage = async (iterationId, { advancedById }) => {
     }
   })
 
+  await integrationEventService.publish({
+    type: EVENT_TYPES.PROJECT_STAGE_ADVANCED,
+    entityType: 'Project',
+    entityId: iteration.projectId,
+    payload: {
+      projectId: iteration.projectId,
+      iterationId,
+      iterationNo: iteration.iterationNo,
+      fromStageId: current.stageId,
+      toStageId: next.stageId
+    }
+  })
+
   return { iteration: updated }
 }
 
 exports.handleDocumentPublished = async (documentId) => {
+  // Single choke point shared by every publish path (review/acknowledge and the
+  // async follow-up queue), so the integration event is emitted exactly once.
+  const publishedDocument = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: {
+      id: true,
+      fileCode: true,
+      title: true,
+      documentTypeId: true,
+      projectCategoryId: true,
+      divisionId: true,
+      folderId: true,
+      status: true,
+      stage: true,
+      version: true,
+      ownerId: true,
+      publishedAt: true
+    }
+  })
+
+  if (publishedDocument) {
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_PUBLISHED,
+      entityType: 'Document',
+      entityId: documentId,
+      payload: publishedDocument
+    })
+  }
+
   const links = await prisma.projectDocumentLink.findMany({
     where: { documentId },
     select: { itemId: true }
@@ -2254,6 +2314,21 @@ exports.createProjectChangeRequest = async (projectId, payload) => {
       }
     })
 
+    await integrationEventService.publish({
+      type: EVENT_TYPES.PROJECT_CHANGE_REQUEST_CREATED,
+      entityType: 'Project',
+      entityId: pid,
+      payload: {
+        projectId: pid,
+        changeRequestId: created.id,
+        projectIterationId: created.projectIterationId,
+        changeId: created.changeId,
+        description: created.description,
+        phaseRef: created.phaseRef,
+        dateApproved: created.dateApproved
+      }
+    })
+
     return created
   } catch (e) {
     if (e?.code === 'P2002') {
@@ -2397,7 +2472,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     andWhere.push({ projectLinks: { some: { iteration: { projectId } } } })
   }
   if (folderId) {
-    andWhere.push({ folderId })
+    const folderIds = await folderService.getDescendantFolderIds(folderId, { includeSelf: true })
+    andWhere.push({ folderId: { in: folderIds } })
   }
 
   if (query) {
@@ -2436,6 +2512,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         isConfidential: true,
         updatedAt: true,
         documentTypeId: true,
+        folderId: true,
+        folder: { select: { id: true, name: true, parentId: true } },
         documentType: { select: { id: true, name: true } }
       },
       orderBy: { updatedAt: 'desc' },
@@ -2460,6 +2538,8 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
         isConfidential: true,
         updatedAt: true,
         documentTypeId: true,
+        folderId: true,
+        folder: { select: { id: true, name: true, parentId: true } },
         documentType: { select: { id: true, name: true } },
         projectLinks: {
           where: projectId ? { iteration: { projectId } } : undefined,
@@ -2479,8 +2559,49 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     })
   }
 
-  const toResult = (doc) => {
+  const buildFolderMap = async (docs) => {
+    const folderIds = new Set()
+    docs.forEach((d) => {
+      if (d?.folder?.id) folderIds.add(d.folder.id)
+    })
+    if (folderIds.size === 0) return new Map()
+
+    const map = new Map()
+    let frontier = Array.from(folderIds)
+    while (frontier.length > 0) {
+      const rows = await prisma.folder.findMany({
+        where: { id: { in: frontier } },
+        select: { id: true, name: true, parentId: true }
+      })
+      const next = []
+      rows.forEach((r) => {
+        if (!map.has(r.id)) {
+          map.set(r.id, r)
+          if (r.parentId != null && !map.has(r.parentId)) next.push(r.parentId)
+        }
+      })
+      frontier = next
+    }
+    return map
+  }
+
+  const folderPathFor = (folder, folderMap) => {
+    if (!folder) return []
+    const path = []
+    let cur = folder
+    const seen = new Set()
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id)
+      path.unshift(cur.name)
+      if (cur.parentId == null) break
+      cur = folderMap.get(cur.parentId) || null
+    }
+    return path
+  }
+
+  const toResult = (doc, folderMap) => {
     const latestLink = doc.projectLinks[0] || null
+    const folderPath = folderPathFor(doc.folder, folderMap)
     return {
       id: doc.id,
       fileCode: doc.fileCode,
@@ -2491,6 +2612,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
       updatedAt: doc.updatedAt,
       documentTypeId: doc.documentTypeId,
       documentType: doc.documentType,
+      folderId: doc.folderId,
+      folderName: doc.folder?.name || null,
+      folderPath,
       document: {
         id: doc.id,
         fileCode: doc.fileCode,
@@ -2511,8 +2635,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
   if (!query) {
     const ids = candidates.slice(0, 200).map((d) => d.id)
     const docs = await fetchWithLinks(ids)
+    const folderMap = await buildFolderMap(docs)
     const byId = new Map(docs.map((d) => [d.id, d]))
-    return ids.map((id) => toResult(byId.get(id))).filter(Boolean)
+    return ids.map((id) => toResult(byId.get(id), folderMap)).filter(Boolean)
   }
 
   const scored = candidates
@@ -2554,8 +2679,9 @@ exports.searchDocuments = async ({ projectId, folderId, q, attachedOnly }, { use
     .map((entry) => entry.id)
 
   const docs = await fetchWithLinks(scored)
+  const folderMap = await buildFolderMap(docs)
   const byId = new Map(docs.map((d) => [d.id, d]))
-  return scored.map((id) => toResult(byId.get(id))).filter(Boolean)
+  return scored.map((id) => toResult(byId.get(id), folderMap)).filter(Boolean)
 };
 
 exports.getCategoryStages = async (projectCategoryId) => {

@@ -1,0 +1,11 @@
+Col1 skip: 
+Invalid `prisma.$executeRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `1060`. Message: `Duplicate column name 'reminderOffset'`
+Col2 skip: 
+Invalid `prisma.$executeRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `1060`. Message: `Duplicate column name 'categoryMeta'`
+Columns: ["id","calendarEventId","recurrenceRule","colorOverride","location","createdById","createdAt","updatedAt","reminderOffset","categoryMeta"]

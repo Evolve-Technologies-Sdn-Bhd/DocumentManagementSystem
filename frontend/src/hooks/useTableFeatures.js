@@ -44,18 +44,52 @@ const naturalCompare = (a, b) => {
   if (a == null && b == null) return 0
   if (a == null) return -1
   if (b == null) return 1
-  const aStr = String(a)
-  const bStr = String(b)
-  const aNum = Number(aStr.replace(/[^\d.\-]/g, ''))
-  const bNum = Number(bStr.replace(/[^\d.\-]/g, ''))
-  const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && aStr !== '' && bStr !== ''
+  const aStr = String(a).trim()
+  const bStr = String(b).trim()
+  // Only treat as numeric when the whole value is a number.
+  // This avoids mangling date strings (e.g. "20/11/2026") by stripping separators.
+  const aNum = Number(aStr)
+  const bNum = Number(bStr)
+  const bothNumeric = aStr !== '' && bStr !== '' && Number.isFinite(aNum) && Number.isFinite(bNum)
   if (bothNumeric && aNum !== bNum) return aNum - bNum
   return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
 }
 
+const parseDateValue = (value) => {
+  if (value == null || value === '') return NaN
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'number') return value
+  const str = String(value).trim()
+  if (!str) return NaN
+  // dd/mm/yyyy or dd-mm-yyyy (en-GB) — MUST be checked before new Date(),
+  // because V8's Date parser reads ambiguous 2-digit/2-digit dates as mm/dd/yyyy.
+  const dm = str.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)
+  if (dm) {
+    const day = parseInt(dm[1], 10)
+    const month = parseInt(dm[2], 10) - 1
+    const year = parseInt(dm[3], 10)
+    const fullYear = year < 100 ? 2000 + year : year
+    const d = new Date(fullYear, month, day)
+    if (!Number.isNaN(d.getTime())) return d.getTime()
+  }
+  // yyyy/mm/dd
+  const ymd = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/)
+  if (ymd) {
+    const d = new Date(parseInt(ymd[1], 10), parseInt(ymd[2], 10) - 1, parseInt(ymd[3], 10))
+    if (!Number.isNaN(d.getTime())) return d.getTime()
+  }
+  // ISO / RFC formats (e.g. 2026-11-20T10:30:00.000Z)
+  const iso = new Date(str)
+  if (!Number.isNaN(iso.getTime())) return iso.getTime()
+  // Numeric timestamp as string
+  const ts = Number(str)
+  if (Number.isFinite(ts) && str.length >= 10) return ts
+  return NaN
+}
+
 const dateCompare = (a, b) => {
-  const ta = a ? new Date(a).getTime() : NaN
-  const tb = b ? new Date(b).getTime() : NaN
+  const ta = parseDateValue(a)
+  const tb = parseDateValue(b)
   if (Number.isNaN(ta) && Number.isNaN(tb)) return 0
   if (Number.isNaN(ta)) return -1
   if (Number.isNaN(tb)) return 1
@@ -128,8 +162,14 @@ export default function useTableFeatures({
 
   const [columnOrder, setColumnOrderState] = useState(initialColumnOrder)
   const [hiddenColumns, setHiddenColumnsState] = useState(initialHiddenColumns)
-  const [sortKey, setSortKey] = useState(initialSort.sortKey)
-  const [sortDirection, setSortDirection] = useState(initialSort.sortDirection)
+  // Single sort state object so toggling is a pure updater (no nested setState,
+  // which misbehaves under React StrictMode's double-invocation of updaters).
+  const [sortState, setSortState] = useState({
+    key: initialSort.sortKey,
+    direction: initialSort.sortDirection
+  })
+  const sortKey = sortState.key
+  const sortDirection = sortState.direction
 
   useEffect(() => {
     const currentUserId = getCurrentUserId()
@@ -141,8 +181,10 @@ export default function useTableFeatures({
       const newSort = computeSort(sk, stableColumnIds, columns, defaultSortKey, defaultSortDirection)
       setColumnOrderState((prev) => arraysEqual(prev, newColumnOrder) ? prev : newColumnOrder)
       setHiddenColumnsState((prev) => arraysEqual(prev, newHiddenColumns) ? prev : newHiddenColumns)
-      setSortKey((prevKey) => (prevKey === newSort.sortKey ? prevKey : newSort.sortKey))
-      setSortDirection((prevDir) => (prevDir === newSort.sortDirection ? prevDir : newSort.sortDirection))
+      setSortState((prev) => {
+        if (prev.key === newSort.sortKey && prev.direction === newSort.sortDirection) return prev
+        return { key: newSort.sortKey, direction: newSort.sortDirection }
+      })
     }
   }, [stableColumnIds, columns, defaultSortKey, defaultSortDirection, getStorageKey, computeColumnOrder, computeHiddenColumns, computeSort])
 
@@ -239,26 +281,24 @@ export default function useTableFeatures({
     })
   }, [columnMetaById])
 
+  // Single-column sort only: clicking a column sets it as the active sort column
+  // (resetting any previous column), and cycling the same column goes
+  // asc -> desc -> none -> asc.
   const toggleSort = useCallback((key) => {
-    setSortKey((prevKey) => {
-      if (prevKey === key) {
-        setSortDirection((prevDir) => {
-          if (prevDir === 'asc') return 'desc'
-          if (prevDir === 'desc') return null
-          return 'asc'
-        })
-        return prevKey
+    setSortState((prev) => {
+      if (prev.key === key) {
+        const nextDir = prev.direction === 'asc' ? 'desc' : prev.direction === 'desc' ? null : 'asc'
+        return { key, direction: nextDir }
       }
-      setSortDirection('asc')
-      return key
+      return { key, direction: 'asc' }
     })
   }, [])
 
   const setSort = useCallback((key, direction) => {
-    setSortKey((prevKey) => (prevKey === key ? prevKey : key))
-    setSortDirection((prevDir) => {
-      const nextDir = direction || 'asc'
-      return prevDir === nextDir ? prevDir : nextDir
+    const nextDir = direction || 'asc'
+    setSortState((prev) => {
+      if (prev.key === key && prev.direction === nextDir) return prev
+      return { key, direction: nextDir }
     })
   }, [])
 
@@ -298,13 +338,11 @@ export default function useTableFeatures({
   const resetTableSettings = useCallback(() => {
     setColumnOrderState((prev) => arraysEqual(prev, stableColumnIds) ? prev : stableColumnIds)
     setHiddenColumnsState((prev) => (prev.length === 0 ? prev : []))
-    setSortKey((prevKey) => {
+    setSortState((prev) => {
       const desiredKey = defaultSortKey || null
-      return prevKey === desiredKey ? prevKey : desiredKey
-    })
-    setSortDirection((prevDir) => {
       const desiredDir = defaultSortKey ? defaultSortDirection : 'asc'
-      return prevDir === desiredDir ? prevDir : desiredDir
+      if (prev.key === desiredKey && prev.direction === desiredDir) return prev
+      return { key: desiredKey, direction: desiredDir }
     })
     if (storageKey) {
       localStorage.removeItem(`${storageKey}:columnOrder`)

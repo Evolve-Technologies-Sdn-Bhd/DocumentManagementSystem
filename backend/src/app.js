@@ -32,6 +32,9 @@ const smartTemplatesRoutes = require('./routes/smartTemplates');
 const smartDocumentStyleRoutes = require('./routes/smartDocumentStyle');
 const smartDocumentsRoutes = require('./routes/smartDocuments');
 const aiRoutes = require('./routes/ai');
+const calendarRoutes = require('./routes/calendar');
+const integrationRoutes = require('./routes/integrations');
+const apiV1Routes = require('./routes/apiV1');
 const notificationService = require('./services/notificationService');
 const configService = require('./services/configService');
 
@@ -100,13 +103,17 @@ app.use(cors(corsOptionsDelegate));
 // Request logging middleware (development only)
 if (config.nodeEnv === 'development') {
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
   });
 }
 
 // Body parsing middleware
-app.use(express.json({ limit: config.jsonBodyLimit }));
+// `verify` captures the raw JSON payload so inbound HMAC signatures (integration
+// layer) can be validated against the exact bytes the caller signed.
+const captureRawBody = (req, res, buf) => {
+  if (buf && buf.length) req.rawBody = buf.toString('utf8');
+};
+app.use(express.json({ limit: config.jsonBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: true, limit: config.jsonBodyLimit }));
 
 // Memory usage guard: reject incoming requests with 503 when Node heap is dangerously high
@@ -192,7 +199,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
       const wildcard = req.params && req.params[0] ? String(req.params[0]) : '';
       const fname = safeBasename(path.basename(wildcard));
       if (!fname) return next();
-      const traceId = Math.random().toString(36).slice(2, 8);
       let served = false;
       for (const dir of dirs) {
         try {
@@ -200,7 +206,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
           if (!fs.existsSync(candidate)) continue;
           const stat = fs.statSync(candidate);
           if (!stat.isFile()) continue;
-          console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ✅ Found ${fname} in altDir: ${dir} → serving via sendFile (mountPath=${mountPath})`, 'color:#065F46;font-weight:bold');
           served = true;
           res.sendFile(candidate, {
             maxAge: mountPath === '/uploads/branding' ? '30d' : mountPath === '/uploads/landing' ? '30d' : '1d',
@@ -212,9 +217,6 @@ app.use('/uploads/profiles', express.static(path.join(config.uploadDir, 'profile
           });
           return;
         } catch (_e) { /* continue scanning */ }
-      }
-      if (!served) {
-        console.log(`%c[DEBUG-UPLOADS-FALLBACK:${traceId}] ❌ ${fname} NOT FOUND in ANY dir (mountPath=${mountPath}, dirs count=${dirs.length}) → next() 404`, 'color:#DC2626;font-weight:bold');
       }
       next();
     });
@@ -283,6 +285,12 @@ app.use('/api/epc-registry', epcRegistryRoutes);
 app.use('/api/project-tracking', projectTrackingRoutes);
 app.use('/api/expiry-tracking', expiryTrackingRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/calendar', calendarRoutes);
+
+// Integration layer: admin console (JWT + system admin) and public API v1
+// (API key + HMAC). Machine auth is handled by middleware/integrationAuth.
+app.use('/api/integrations', integrationRoutes);
+app.use('/api/v1', apiV1Routes);
 
 // Alias routes helpers (require BEFORE first use to avoid TDZ)
 const { authenticate, authorizePermission } = require('./middleware/auth');
@@ -294,7 +302,7 @@ const { uploadDocument } = require('./middleware/upload');
 const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
   try {
     const settings = await configService.getSmartDocumentSettings()
-    if (!settings.enabled) {
+    if (!settings?.enabled) {
       return ResponseFormatter.error(
         res,
         'Smart Document feature is currently disabled. Please contact your administrator.',
@@ -305,7 +313,12 @@ const requireSmartDocumentEnabled = asyncHandler(async (req, res, next) => {
     next()
   } catch (error) {
     console.error('Smart Document gating error:', error)
-    next()
+    return ResponseFormatter.error(
+      res,
+      'Smart Document feature is currently unavailable. Please try again later.',
+      503,
+      { code: 'SMART_DOCUMENT_UNAVAILABLE' }
+    )
   }
 })
 

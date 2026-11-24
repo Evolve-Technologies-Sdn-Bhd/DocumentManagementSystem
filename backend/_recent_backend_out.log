@@ -1,0 +1,73 @@
+{"timestamp":"2026-09-23T02:26:25.934Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+{"timestamp":"2026-09-23T02:26:27.539Z","level":"WARN","message":"[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env"}
+{"timestamp":"2026-09-23T02:26:27.542Z","level":"INFO","message":"[aiService] Using AI provider: gemini (default)"}
+Upload directories verified
+Backend listening on http://localhost:4001
+Retention policy cleanup scheduled (runs every 24 hours)
+Retention policy scheduler initialized
+Expiry tracking scheduler initialized
+Review and approval reminder scheduler initialized
+prisma:error 
+Invalid `prisma.documentExpiryProfile.findMany()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.documentAssignment.findMany()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.
+Starting retention policy cleanup...
+prisma:error 
+Invalid `prisma.configuration.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3306`
+
+Please make sure your database server is running at `127.0.0.1:3306`.

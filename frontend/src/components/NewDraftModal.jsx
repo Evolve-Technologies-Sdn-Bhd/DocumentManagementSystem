@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import api from '../api/axios'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useNavigate } from 'react-router-dom'
+import { usePermissions } from '../hooks/usePermissions'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
@@ -11,168 +13,18 @@ import InlineSpinner from './ui/InlineSpinner'
 import SmartForm from './smartdocuments/SmartForm'
 
 
-function SearchableSingleSelect({
-  value,
-  options,
-  onChange,
-  placeholder,
-  searchPlaceholder,
-  noResultsLabel,
-  disabled = false,
-  loading = false,
-  clearLabel = 'Clear',
-  loadingLabel = 'Loading...',
-  ...rest
-}) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const containerRef = useRef(null)
-  const inputRef = useRef(null)
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.value) === String(value)) || null,
-    [options, value]
-  )
-
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
-    if (!normalizedSearch) return options
-
-    return options.filter((option) =>
-      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
-    )
-  }, [options, searchValue])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const handlePointerDown = (event) => {
-      if (!containerRef.current?.contains(event.target)) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const timer = window.setTimeout(() => {
-      inputRef.current?.focus()
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [open])
-
-  useEffect(() => {
-    if (disabled) {
-      setOpen(false)
-      setSearchValue('')
-    }
-  }, [disabled])
-
-  const handleSelect = (option) => {
-    onChange(option.value, option)
-    setOpen(false)
-    setSearchValue('')
-  }
-
-  return (
-    <div ref={containerRef} className="relative" {...rest}>
-      <button
-        type="button"
-        onClick={() => {
-          if (!disabled) setOpen((prev) => !prev)
-        }}
-        disabled={disabled}
-        className={`flex min-h-[42px] w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
-          disabled ? 'cursor-not-allowed bg-gray-50 text-gray-500' : ''
-        } ${open ? 'ring-2 ring-blue-500/20' : ''}`}
-      >
-        <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span className="ml-3 text-xs text-gray-500">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open ? (
-        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-dms-lg">
-          <div className="border-b border-gray-200 p-3">
-            <input
-              ref={inputRef}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition-shadow placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/30"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-gray-500">
-              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchValue('')}
-                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-gray-50 hover:text-gray-900"
-                >
-                  {clearLabel}
-                </button>
-              ) : (
-                <span>Type to filter</span>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-64 overflow-y-auto p-2">
-            {loading ? (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{loadingLabel}</div>
-            ) : filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = String(option.value) === String(value)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
-                      isSelected ? 'bg-blue-50 text-gray-900' : 'text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium">{option.label}</div>
-                      {option.meta?.length ? (
-                        <div className="mt-1 space-y-0.5">
-                          {option.meta.map((metaLine) => (
-                            <div key={metaLine} className="text-xs text-gray-500">
-                              {metaLine}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isSelected ? <span className="text-xs font-medium text-blue-600">Selected</span> : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{noResultsLabel}</div>
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 const getReviewerDisplayName = (reviewer) => {
   if (!reviewer) return ''
   const fullName = `${reviewer.firstName || ''} ${reviewer.lastName || ''}`.trim()
   return fullName || reviewer.email || ''
 }
 
-export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
+export default function NewDraftModal({ isOpen, onClose, onSubmit, prefillDocumentTypeId, prefillTitle }) {
   const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
+  const { hasPermission } = usePermissions()
+  const canAddDocumentType = hasPermission('configuration.documentTypes', 'create')
+  const canAddDivision = hasPermission('configuration.masterData', 'create')
   const [formData, setFormData] = useState({
     fileCode: '',
     title: '',
@@ -182,6 +34,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     reviewerId: null,
     divisionId: ''
   })
+  const isDocumentTypeLocked = Boolean(prefillDocumentTypeId)
   const [loading, setLoading] = useState(false)
   const [documentTypes, setDocumentTypes] = useState([])
   const [loadingDocTypes, setLoadingDocTypes] = useState(true)
@@ -209,6 +62,32 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const [smartFieldValues, setSmartFieldValues] = useState({})
   const [creationMode, setCreationMode] = useState(smartDocumentEnabled ? 'SMART_DOCUMENT' : 'FILE_BASED')
   const [uploadedFile, setUploadedFile] = useState(null)
+
+  // In-modal preview of the selected file ("view before submit"). The preview
+  // is rendered as a sibling of the draft modal (see return) so that closing it
+  // never triggers the draft modal's backdrop/close handler.
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewKind, setPreviewKind] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewDocxBuffer, setPreviewDocxBuffer] = useState(null)
+  const [previewText, setPreviewText] = useState('')
+  const [previewError, setPreviewError] = useState('')
+  const previewUrlRef = useRef('')
+  const previewDocxContainerRef = useRef(null)
+
+  // Quick Add overlays — keep the New Draft form mounted and preserve its state.
+  const [quickAddType, setQuickAddType] = useState(null)
+  const [quickAddSaving, setQuickAddSaving] = useState(false)
+  const [quickAddError, setQuickAddError] = useState('')
+  const [quickAddForm, setQuickAddForm] = useState({
+    name: '',
+    prefix: '',
+    description: '',
+    requiresExpiryTracking: false,
+    allowRenewal: true,
+    code: ''
+  })
 
   const documentTypeOptions = useMemo(
     () => documentTypes.map((type) => ({
@@ -436,7 +315,20 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setLoadingDocTypes(true)
     try {
       const res = await api.get('/system/config/document-types')
-      setDocumentTypes(res.data.data.documentTypes || [])
+      const types = res.data.data.documentTypes || []
+      setDocumentTypes(types)
+      if (prefillDocumentTypeId) {
+        const matched = types.find((d) => String(d.id) === String(prefillDocumentTypeId))
+        if (matched) {
+          setFormData((prev) => ({
+            ...prev,
+            documentType: matched.name,
+            title: prefillTitle || prev.title
+          }))
+        }
+      } else if (prefillTitle) {
+        setFormData((prev) => ({ ...prev, title: prefillTitle }))
+      }
     } catch (error) {
       console.error('Failed to load document types:', error)
     } finally {
@@ -562,12 +454,157 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setFormData((prev) => ({ ...prev, reviewerId: userId }))
   }
 
+  const openQuickAdd = (type) => {
+    setQuickAddError('')
+    setQuickAddForm({
+      name: '',
+      prefix: '',
+      description: '',
+      requiresExpiryTracking: false,
+      allowRenewal: true,
+      code: ''
+    })
+    setQuickAddType(type)
+  }
+
+  const handleAddDocumentType = () => openQuickAdd('documentType')
+  const handleAddDivision = () => openQuickAdd('division')
+
+  const closeQuickAdd = () => {
+    if (quickAddSaving) return
+    setQuickAddType(null)
+    setQuickAddError('')
+  }
+
   const handleDivisionSelect = (divisionId) => {
     const next = divisionId ? String(divisionId) : ''
     setFormData((prev) => ({ ...prev, divisionId: next, reviewerId: null }))
     try {
       if (next) localStorage.setItem('lastActiveDivisionId', next)
     } catch {}
+  }
+
+  const handleQuickAddSubmit = async (event) => {
+    event.preventDefault()
+    if (!quickAddType || quickAddSaving) return
+
+    const name = String(quickAddForm.name || '').trim()
+
+    if (!name) {
+      setQuickAddError('Name is required.')
+      return
+    }
+
+    if (quickAddType === 'documentType' && !String(quickAddForm.prefix || '').trim()) {
+      setQuickAddError('Document type prefix is required.')
+      return
+    }
+
+    if (quickAddType === 'division' && !String(quickAddForm.code || '').trim()) {
+      setQuickAddError('Division code is required.')
+      return
+    }
+
+    setQuickAddSaving(true)
+    setQuickAddError('')
+
+    try {
+      if (quickAddType === 'documentType') {
+        const payload = {
+          name,
+          prefix: String(quickAddForm.prefix || '').trim(),
+          description: String(quickAddForm.description || '').trim(),
+          requiresExpiryTracking: Boolean(quickAddForm.requiresExpiryTracking),
+          allowRenewal: Boolean(quickAddForm.allowRenewal)
+        }
+
+        const createRes = await api.post('/system/config/document-types', payload)
+        const created =
+          createRes?.data?.data?.documentType ||
+          createRes?.data?.documentType ||
+          null
+
+        let refreshedTypes = []
+        try {
+          const listRes = await api.get('/system/config/document-types')
+          refreshedTypes = listRes?.data?.data?.documentTypes || []
+        } catch (refreshError) {
+          console.warn('Document type created; dropdown refresh will use the created record.', refreshError)
+        }
+
+        const selectedType =
+          refreshedTypes.find((item) =>
+            (created?.id && String(item.id) === String(created.id)) ||
+            String(item.prefix || '').toLowerCase() === payload.prefix.toLowerCase() ||
+            String(item.name || '').toLowerCase() === name.toLowerCase()
+          ) || created
+
+        if (refreshedTypes.length) {
+          setDocumentTypes(refreshedTypes)
+        } else if (created) {
+          setDocumentTypes((prev) => [
+            ...prev.filter((item) => String(item.id) !== String(created.id)),
+            created
+          ])
+        }
+
+        // Select the new value without resetting any other New Draft fields.
+        handleDocumentTypeSelect(selectedType?.name || name)
+      } else if (quickAddType === 'division') {
+        const payload = {
+          name,
+          code: String(quickAddForm.code || '').trim().toUpperCase()
+        }
+
+        const createRes = await api.post('/divisions', payload)
+        const created =
+          createRes?.data?.data?.division ||
+          createRes?.data?.division ||
+          null
+
+        let refreshedDivisions = []
+        try {
+          const listRes = await api.get('/divisions')
+          refreshedDivisions = listRes?.data?.data?.divisions || []
+        } catch (refreshError) {
+          console.warn('Division created; dropdown refresh will use the created record.', refreshError)
+        }
+
+        const selectedDivision =
+          refreshedDivisions.find((item) =>
+            (created?.id && String(item.id) === String(created.id)) ||
+            String(item.code || '').toUpperCase() === payload.code
+          ) || created
+
+        if (refreshedDivisions.length) {
+          setDivisions(refreshedDivisions)
+        } else if (created) {
+          setDivisions((prev) => [
+            ...prev.filter((item) => String(item.id) !== String(created.id)),
+            created
+          ])
+        }
+
+        if (!selectedDivision?.id) {
+          throw new Error('Division was created, but its ID could not be retrieved. Please refresh the division list before continuing.')
+        }
+
+        // This also clears the old reviewer and triggers the reviewer reload effect.
+        handleDivisionSelect(String(selectedDivision.id))
+      }
+
+      setQuickAddType(null)
+      setQuickAddError('')
+    } catch (error) {
+      console.error('Quick Add failed:', error)
+      setQuickAddError(
+        error?.response?.data?.message ||
+        error?.message ||
+        'Unable to create this item. Please try again.'
+      )
+    } finally {
+      setQuickAddSaving(false)
+    }
   }
 
   const filteredAcknowledgedDocs = acknowledgedDocs.filter(doc =>
@@ -585,6 +622,57 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showFileCodeDropdown])
+
+  // Render DOCX preview into the container once the buffer is available.
+  useEffect(() => {
+    if (!previewOpen || previewKind !== 'docx' || !previewDocxBuffer) return
+    if (!previewDocxContainerRef.current) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const mod = await import('docx-preview')
+        const renderAsync = mod?.renderAsync
+        if (typeof renderAsync !== 'function') throw new Error('DOCX renderer not available')
+        if (cancelled || !previewDocxContainerRef.current) return
+        previewDocxContainerRef.current.innerHTML = ''
+        await renderAsync(previewDocxBuffer, previewDocxContainerRef.current, undefined, {
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+          ignoreFonts: false,
+          useBase64URL: true
+        })
+      } catch (err) {
+        if (!cancelled) setPreviewError(err?.message || 'Failed to render document preview')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [previewOpen, previewKind, previewDocxBuffer])
+
+  // Revoke any object URL when the component unmounts.
+  useEffect(() => () => {
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+  }, [])
+
+  // Reset the preview whenever the draft modal is closed so a stale preview
+  // never reappears the next time the modal is opened.
+  useEffect(() => {
+    if (isOpen) return
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+    setPreviewOpen(false)
+    setPreviewFile(null)
+    setPreviewKind('')
+    setPreviewUrl('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewError('')
+  }, [isOpen])
 
   const handleSmartFieldChange = useCallback((fieldKey, newValue) => {
     setSmartFieldValues((prev) => ({ ...prev, [fieldKey]: newValue }))
@@ -681,7 +769,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       }
 
       onClose()
-      if (typeof onSubmit === 'function') onSubmit({ docId, verId })
+      if (typeof onSubmit === 'function') onSubmit({ docId, verId, documentTypeId: doc.documentTypeId || doc.documentType?.id || null })
       else try { navigate('/documents/drafts') } catch (_) { window.location.reload() }
     } catch (error) {
       console.error('Error saving draft:', error)
@@ -742,7 +830,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
       }
 
       onClose()
-      if (typeof onSubmit === 'function') onSubmit({ docId, verId })
+      if (typeof onSubmit === 'function') onSubmit({ docId, verId, documentTypeId: doc.documentTypeId || doc.documentType?.id || null })
       else try { navigate('/documents/drafts') } catch (_) { window.location.reload() }
     } catch (error) {
       console.error('Error submitting for review:', error)
@@ -791,7 +879,63 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
     setSubmitError(null)
   }
 
+  const getPreviewKind = (file) => {
+    const name = String(file?.name || '').toLowerCase()
+    const type = String(file?.type || '').toLowerCase()
+    if (type.startsWith('image/') || /\.(png|jpe?g|gif|bmp|webp|svg)$/.test(name)) return 'image'
+    if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+    if (name.endsWith('.docx') || type.includes('wordprocessingml')) return 'docx'
+    if (type.startsWith('text/') || /\.(txt|csv|log|md)$/.test(name)) return 'text'
+    return 'other'
+  }
+
+  const revokePreviewUrl = () => {
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = ''
+    }
+    setPreviewUrl('')
+  }
+
+  const closePreview = () => {
+    revokePreviewUrl()
+    setPreviewOpen(false)
+    setPreviewFile(null)
+    setPreviewKind('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewError('')
+  }
+
+  const openPreview = async () => {
+    if (!uploadedFile) return
+    const kind = getPreviewKind(uploadedFile)
+    revokePreviewUrl()
+    setPreviewError('')
+    setPreviewDocxBuffer(null)
+    setPreviewText('')
+    setPreviewFile(uploadedFile)
+    setPreviewKind(kind)
+    setPreviewOpen(true)
+    try {
+      if (kind === 'image' || kind === 'pdf') {
+        const url = window.URL.createObjectURL(uploadedFile)
+        previewUrlRef.current = url
+        setPreviewUrl(url)
+      } else if (kind === 'docx') {
+        const buf = await uploadedFile.arrayBuffer()
+        setPreviewDocxBuffer(buf)
+      } else if (kind === 'text') {
+        const text = await uploadedFile.text()
+        setPreviewText(text)
+      }
+    } catch (err) {
+      setPreviewError(err?.message || 'Failed to load preview')
+    }
+  }
+
   const handleClose = () => {
+    closePreview()
     setFormData({
       fileCode: '',
       title: '',
@@ -816,33 +960,33 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   const stepOneFields = (
     <div className="space-y-4">
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-900 mb-1">
-            How would you like to create this draft? <span className="text-red-500">*</span>
+          <label className="block text-sm font-semibold text-ink mb-2">
+            How would you like to create this draft? <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
           </label>
-          <div className={`grid gap-3 ${smartDocumentEnabled ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-4 ${smartDocumentEnabled ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
             {smartDocumentEnabled && (
               <button
                 type="button"
                 onClick={() => setCreationMode('SMART_DOCUMENT')}
-                className={`text-left rounded-lg border-2 p-4 transition-all ${
+                className={`text-left rounded-[16px] border-2 p-5 transition-all ${
                   isSmartMode
-                    ? 'border-[#003366] bg-[#003366]/5 ring-2 ring-[#003366]/20'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-2 border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-surface))] ring-2 ring-[var(--dms-color-brand-primary)]/30'
+                    : 'border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] hover:border-[var(--dms-color-border-strong)] hover:bg-[var(--dms-color-bg-surface-muted)]'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-base font-semibold ${
-                    isSmartMode ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500'
+                    isSmartMode ? 'bg-[var(--dms-color-brand-primary)] text-white' : 'bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary'
                   }`}>
                     ✦
                   </div>
                   <div className="space-y-0.5">
                     <div className={`text-sm font-semibold ${
-                      isSmartMode ? 'text-[#003366]' : 'text-gray-900'
+                      isSmartMode ? 'text-[var(--dms-color-brand-primary)] font-semibold' : 'text-ink font-semibold'
                     }`}>
                       Use Smart Template
                     </div>
-                    <div className="text-xs text-gray-500 leading-relaxed">
+                    <div className="text-ink-secondary font-medium leading-relaxed">
                       Auto-generate document from a pre-defined template with sections, form fields, and placeholders.
                     </div>
                   </div>
@@ -853,25 +997,25 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
             <button
               type="button"
               onClick={() => setCreationMode('FILE_BASED')}
-              className={`text-left rounded-lg border-2 p-4 transition-all ${
+              className={`text-left rounded-[16px] border-2 p-5 transition-all ${
                 isUploadMode
-                  ? 'border-[#003366] bg-[#003366]/5 ring-2 ring-[#003366]/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-2 border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-surface))] ring-2 ring-[var(--dms-color-brand-primary)]/30'
+                  : 'border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] hover:border-[var(--dms-color-border-strong)] hover:bg-[var(--dms-color-bg-surface-muted)]'
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-base font-semibold ${
-                  isUploadMode ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500'
+                  isUploadMode ? 'bg-[var(--dms-color-brand-primary)] text-white' : 'bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary'
                 }`}>
                   ⤴
                 </div>
                 <div className="space-y-0.5">
                   <div className={`text-sm font-semibold ${
-                    isUploadMode ? 'text-[#003366]' : 'text-gray-900'
+                    isUploadMode ? 'text-[var(--dms-color-brand-primary)] font-semibold' : 'text-ink font-semibold'
                   }`}>
                     Upload Own Document
                   </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
+                  <div className="text-ink-secondary font-medium leading-relaxed">
                     Upload your own DOCX, PDF, or other file directly. No template fields required.
                   </div>
                 </div>
@@ -882,9 +1026,17 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              {t('doc_type')} <span className="text-red-500">*</span>
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink">
+                {t('doc_type')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
+              </label>
+              {canAddDocumentType && !isDocumentTypeLocked && (
+                <button type="button" onClick={handleAddDocumentType}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-800">
+                  + Add New
+                </button>
+              )}
+            </div>
             <SearchableSingleSelect
               value={formData.documentType}
               options={documentTypeOptions}
@@ -892,7 +1044,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               placeholder={loadingDocTypes ? t('loading_ellipsis') : t('select_doc_type')}
               searchPlaceholder={t('search_doc_type')}
               noResultsLabel={t('no_doc_type_found')}
-              disabled={loadingDocTypes}
+              disabled={loadingDocTypes || isDocumentTypeLocked}
               loading={loadingDocTypes}
               clearLabel={t('clear_filter')}
               loadingLabel={t('loading_ellipsis')}
@@ -902,8 +1054,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         </div>
 
         <div className="relative file-code-search">
-          <label className="block text-sm font-medium text-gray-900 mb-2">
-            {t('file_code')} <span className="text-red-500">*</span>
+          <label className="block text-sm font-semibold text-ink mb-2">
+            {t('file_code')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
           </label>
           <TextInput
             type="text"
@@ -923,31 +1075,31 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
             disabled={!formData.documentType}
           />
           {!formData.documentType && (
-            <p className="text-xs text-amber-700 mt-1">{t('select_doc_type_first')}</p>
+            <p className="text-xs font-semibold text-[var(--dms-color-warning-ink)] mt-1.5">{t('select_doc_type_first')}</p>
           )}
           
           {showFileCodeDropdown && formData.documentType && (
             <AppSurface padding="none" className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto rounded-lg">
               {loadingAcknowledgedDocs ? (
-                <div className="px-3 py-2 text-sm text-gray-500">{t('loading_ellipsis')}</div>
+                <div className="text-sm font-medium text-ink-muted px-4 py-3">{t('loading_ellipsis')}</div>
               ) : filteredAcknowledgedDocs.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-500">{t('no_file_codes_found')}</div>
+                <div className="text-sm font-medium text-ink-muted px-4 py-3">{t('no_file_codes_found')}</div>
               ) : (
                 filteredAcknowledgedDocs.map((doc) => (
                   <button
                     key={doc.id}
                     type="button"
                     onClick={() => handleFileCodeSelect(doc)}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors border-b border-gray-200/70 last:border-0"
+                    className="w-full text-left px-3 py-2 hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors border-b border-[var(--dms-color-border-default)]/70 last:border-0"
                   >
-                    <div className="text-sm font-semibold text-gray-900">{doc.fileCode}</div>
-                    <div className="text-xs text-gray-500">{doc.title}</div>
+                    <div className="text-sm font-semibold text-ink">{doc.fileCode}</div>
+                    <div className="text-sm font-medium text-ink-muted">{doc.title}</div>
                     {doc.projectCategory && (
-                      <div className="text-xs text-blue-600 mt-0.5">
+                      <div className="text-xs text-[var(--dms-color-info-ink)] mt-0.5">
                         {t('project_cat_label')} {doc.projectCategory.name}
                       </div>
                     )}
-                    <div className="text-xs text-gray-500">{t('version_label')} {doc.version}</div>
+                    <div className="text-sm font-medium text-ink-muted">{t('version_label')} {doc.version}</div>
                   </button>
                 ))
               )}
@@ -957,8 +1109,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              {t('document_title_col')} <span className="text-red-500">*</span>
+            <label className="block text-sm font-semibold text-ink mb-2">
+              {t('document_title_col')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
             </label>
             <TextInput
               type="text"
@@ -969,7 +1121,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
+            <label className="block text-sm font-semibold text-ink mb-2">
               {t('version_revision')}
             </label>
             <TextInput
@@ -984,7 +1136,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         {isSmartMode && (
           <div className="space-y-4 pt-1">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
+              <label className="block text-sm font-semibold text-ink mb-2">
                 Smart Template (required) — The template with the sections, fields, and placeholders that will auto-generate your document.
               </label>
               <SearchableSingleSelect
@@ -999,8 +1151,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Document Style Profile <span className="text-red-500">*</span> — Font families, company letterhead header, footer, etc. Default is set by the Smart Template. Manage in Configuration &gt; Template Management &gt; Document Style Profiles.
+              <label className="block text-sm font-semibold text-ink mb-2">
+                Document Style Profile <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span> — Font families, company letterhead header, footer, etc. Default is set by the Smart Template. Manage in Configuration &gt; Template Management &gt; Document Style Profiles.
               </label>
               <SearchableSingleSelect
                 value={selectedSmartStyleProfileId}
@@ -1019,11 +1171,11 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
         {isUploadMode && (
           <div className="space-y-2 pt-1">
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Upload Document <span className="text-red-500">*</span>
+            <label className="block text-sm font-semibold text-ink mb-2">
+              Upload Document <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
             </label>
-            <div className={`rounded-lg border-2 border-dashed transition-colors ${
-              uploadedFile ? 'border-[#003366] bg-[#003366]/5' : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
+            <div className={`rounded-[16px] border-2 border-dashed transition-colors ${
+              uploadedFile ? 'border-[var(--dms-color-brand-primary)] bg-[color-mix(in_srgb,var(--dms-color-brand-primary)_10%,var(--dms-color-bg-surface))]' : 'border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)] hover:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_80%,var(--dms-color-bg-card))] hover:border-[var(--dms-color-border-strong)]'
             } p-5`}>
               <input
                 type="file"
@@ -1039,36 +1191,55 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
                 htmlFor="ndm-file-upload"
                 className="flex flex-col items-center justify-center cursor-pointer w-full"
               >
-                <div className="w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center mb-3 shadow-sm">
-                  <svg className="w-6 h-6 text-[#003366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 rounded-full bg-[var(--dms-color-bg-surface)] border border-[var(--dms-color-border-default)] flex items-center justify-center mb-3 shadow-sm">
+                  <svg className="w-6 h-6 text-[var(--dms-color-brand-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
                 {uploadedFile ? (
                   <div className="text-center space-y-1 w-full">
-                    <div className="text-sm font-semibold text-gray-900 truncate max-w-full">
+                    <div className="text-sm font-semibold text-ink truncate max-w-full">
                       {uploadedFile.name}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs font-medium text-ink-secondary">
                       {uploadedFile.size ? `${(uploadedFile.size / 1024).toFixed(1)} KB` : ''}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setUploadedFile(null)
-                      }}
-                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700"
-                    >
-                      ✕ Remove file
-                    </button>
+                    <div className="mt-2 flex items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openPreview()
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--dms-color-brand-primary)] hover:underline"
+                        data-tour-id="new-draft-preview-file"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View file
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setUploadedFile(null)
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--dms-color-danger-ink)] hover:text-[color-mix(in_srgb,var(--dms-color-danger-ink)_90%,black)]"
+                      >
+                        ✕ Remove file
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center space-y-1">
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-ink">
                       Click to choose a file
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs font-medium text-ink-secondary">
                       or drag and drop — DOCX, PDF, XLSX, PPTX, images (max 50MB)
                     </div>
                   </div>
@@ -1079,7 +1250,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">
+          <label className="block text-sm font-semibold text-ink mb-2">
             {t('comments_notes')}
           </label>
           <TextArea
@@ -1093,11 +1264,19 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
         {divisions.length > 1 || loadingDivisions ? (
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              Division <span className="text-red-500">*</span>
-            </label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label className="block text-sm font-semibold text-ink">
+                Division <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
+              </label>
+              {canAddDivision && (
+                <button type="button" onClick={handleAddDivision}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-800">
+                  + Add New
+                </button>
+              )}
+            </div>
             {loadingDivisions ? (
-              <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-gray-500">
+              <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm font-medium text-ink-secondary">
                 <InlineSpinner className="h-4 w-4 border-2" />
                 <span>{t('loading_ellipsis')}</span>
               </AppSurface>
@@ -1117,20 +1296,20 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         ) : null}
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">
-            {t('assign_reviewer_label')} <span className="text-red-500">*</span>
+          <label className="block text-sm font-semibold text-ink mb-2">
+            {t('assign_reviewer_label')} <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
           </label>
           {loadingReviewers ? (
-            <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-gray-500" data-tour-id="new-draft-assign-reviewer">
+            <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm font-medium text-ink-secondary" data-tour-id="new-draft-assign-reviewer">
               <InlineSpinner className="h-4 w-4 border-2" />
               <span>{t('loading_reviewers')}</span>
             </AppSurface>
           ) : !formData.divisionId ? (
-            <AppSurface variant="muted" padding="md" className="text-sm text-gray-500" data-tour-id="new-draft-assign-reviewer">
+            <AppSurface variant="muted" padding="md" className="text-sm font-medium text-ink-secondary" data-tour-id="new-draft-assign-reviewer">
               Select division first
             </AppSurface>
           ) : availableReviewers.length === 0 ? (
-            <AppSurface variant="muted" padding="md" className="text-sm text-gray-500" data-tour-id="new-draft-assign-reviewer">
+            <AppSurface variant="muted" padding="md" className="text-sm font-medium text-ink-secondary" data-tour-id="new-draft-assign-reviewer">
               {t('no_reviewers')}
             </AppSurface>
           ) : (
@@ -1147,7 +1326,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
               />
             </div>
           )}
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs font-medium text-ink-secondary mt-1">
             {formData.reviewerId ? t('reviewer_selected') : t('select_reviewer')}
           </p>
         </div>
@@ -1161,59 +1340,59 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
   const stepTwoFields = (
     <div className="space-y-6">
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+      <div className="rounded-[16px] border-2 border-[var(--dms-color-border-default)] bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_50%,var(--dms-color-bg-card))] p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h4 className="text-sm font-semibold text-gray-900">Step 1 Summary</h4>
+          <h4 className="text-sm font-bold text-ink">Step 1 Summary</h4>
           <button
             type="button"
             onClick={handleBackToStep1}
-            className="text-xs font-medium text-[#003366] hover:underline"
+            className="text-xs font-semibold text-[var(--dms-color-brand-primary)] hover:underline"
           >
             ← Edit details
           </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2 text-xs">
           <div>
-            <span className="text-gray-500 font-medium">File Code:</span>
-            <span className="ml-2 text-gray-900">{formData.fileCode}</span>
+            <span className="text-ink-secondary font-medium">File Code:</span>
+            <span className="ml-2 text-ink">{formData.fileCode}</span>
           </div>
           <div>
-            <span className="text-gray-500 font-medium">Document Title:</span>
-            <span className="ml-2 text-gray-900">{formData.title}</span>
+            <span className="text-ink-secondary font-medium">Document Title:</span>
+            <span className="ml-2 text-ink">{formData.title}</span>
           </div>
           <div>
-            <span className="text-gray-500 font-medium">Document Type:</span>
-            <span className="ml-2 text-gray-900">{formData.documentType}</span>
+            <span className="text-ink-secondary font-medium">Document Type:</span>
+            <span className="ml-2 text-ink">{formData.documentType}</span>
           </div>
           <div>
-            <span className="text-gray-500 font-medium">Template:</span>
-            <span className="ml-2 text-gray-900 truncate">{selectedTplLabel}</span>
+            <span className="text-ink-secondary font-medium">Template:</span>
+            <span className="ml-2 text-ink">{selectedTplLabel}</span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">
-            Step 2 — Fill Document Form <span className="text-red-500">*</span>
+          <h3 className="text-base font-bold text-ink">
+            Step 2 — Fill Document Form <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>
           </h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Complete the fields below. Mandatory fields are marked with <span className="text-red-500">*</span>.
+          <p className="text-xs font-medium text-ink-secondary mt-1">
+            Complete the fields below. Mandatory fields are marked with <span className="text-[var(--dms-color-danger-ink)] font-semibold">*</span>.
           </p>
         </div>
       </div>
 
       {loadingTemplateFields ? (
-        <AppSurface variant="muted" padding="lg" className="flex items-center justify-center gap-3 text-sm text-gray-500">
+        <AppSurface variant="muted" padding="lg" className="flex items-center justify-center gap-3 text-sm font-medium text-ink-secondary">
           <InlineSpinner className="h-5 w-5 border-2" />
           <span>Loading Smart Template sections and fields…</span>
         </AppSurface>
       ) : !loadedTemplateVersion ? (
-        <AppSurface variant="muted" padding="lg" className="text-sm text-gray-500">
+        <AppSurface variant="muted" padding="lg" className="text-sm font-medium text-ink-secondary">
           Could not load the selected Smart Template fields.
           <button
             type="button"
-            className="ml-2 font-medium text-[#003366] underline"
+            className="ml-2 font-semibold text-[var(--dms-color-brand-primary)] underline"
             onClick={() => loadTemplateFields(selectedSmartTemplateVersionId)}
           >
             Retry loading fields
@@ -1221,20 +1400,19 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         </AppSurface>
       ) : loadedTemplateVersion.formFields.length === 0 ? (
         <AppSurface variant="muted" padding="lg" className="space-y-2">
-          <p className="text-sm font-medium text-gray-900">No form fields defined for this Smart Template.</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm font-semibold text-ink">No form fields defined for this Smart Template.</p>
+          <p className="text-xs font-medium text-ink-secondary">
             This template does not have any sections or form fields yet. You can still submit the draft
             and fill in content later, or ask the template administrator to add fields.
           </p>
         </AppSurface>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-[16px] border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] p-5">
           <SmartForm
             templateVersion={loadedTemplateVersion}
             initialValues={smartFieldValues}
             onChange={handleSmartFieldChange}
             readonly={false}
-            className="max-h-[480px] overflow-y-auto pr-2"
           />
         </div>
       )}
@@ -1242,7 +1420,7 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   )
 
   const stepIndicator = (
-    <ol className="flex items-center w-full mb-4 px-1">
+    <ol className="flex items-center w-full mb-4 px-3">
       {[
         { n: 1, label: 'Basic Info' },
         { n: 2, label: isSmartMode ? 'Smart Form' : 'Upload & Submit' }
@@ -1252,27 +1430,27 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
         const isLast = i === arr.length - 1
         return (
           <li key={s.n} className={isLast ? 'flex items-center' : 'flex items-center w-full'}>
-            <span className={`flex items-center justify-center shrink-0 w-8 h-8 rounded-full text-xs font-semibold border-2 transition-colors ${
+            <span className={`flex items-center justify-center shrink-0 h-9 w-9 rounded-full text-sm font-semibold border-2 transition-colors ${
               isActive && !isDone
-                ? 'bg-[#003366] border-[#003366] text-white'
+                ? 'bg-[var(--dms-color-brand-primary)] border-[var(--dms-color-brand-primary)] text-white'
                 : isDone
-                  ? 'bg-[#003366] border-[#003366] text-white'
-                  : 'bg-white border-gray-300 text-gray-400'
+                  ? 'bg-[var(--dms-color-brand-primary)] border-[var(--dms-color-brand-primary)] text-white'
+                  : 'bg-[var(--dms-color-bg-surface)] border-2 border-[var(--dms-color-border-default)] text-ink-muted'
             }`}>
               {isDone ? '✓' : s.n}
             </span>
-            <span className={`ml-2.5 text-sm font-medium truncate ${
+            <span className={`ml-2.5 text-sm font-medium shrink-0 min-w-0 ${
               isActive && !isDone
-                ? 'text-[#003366]'
+                ? 'text-[var(--dms-color-brand-primary)]'
                 : isDone
-                  ? 'text-gray-700'
-                  : 'text-gray-400'
+                  ? 'text-ink-secondary'
+                  : 'text-ink-muted'
             }`}>
               {s.label}
             </span>
             {!isLast && (
               <div className={`w-full h-0.5 mx-3 ${
-                isDone ? 'bg-[#003366]' : 'bg-gray-200'
+                isDone ? 'bg-[var(--dms-color-brand-primary)]' : 'bg-[var(--dms-color-bg-surface-muted)]'
               }`} />
             )}
           </li>
@@ -1282,14 +1460,14 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   )
 
   const errorBanner = submitError ? (
-    <div className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+    <div className="w-full rounded-[16px] border-2 border-[var(--dms-color-danger-ink)]/20 bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_70%,var(--dms-color-bg-card))] px-5 py-4 text-sm">
       <div className="flex items-start gap-2">
-        <svg className="w-4 h-4 shrink-0 mt-0.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 shrink-0 mt-0.5 text-[var(--dms-color-danger-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <div>
-          <div className="font-medium">Could not create draft</div>
-          <div className="text-xs text-red-700 mt-0.5">{submitError}</div>
+          <div className="font-semibold text-[var(--dms-color-danger-ink)]">Could not create draft</div>
+          <div className="text-xs font-medium text-[var(--dms-color-danger-ink)] mt-0.5">{submitError}</div>
         </div>
       </div>
     </div>
@@ -1411,7 +1589,8 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
   })()
 
   return (
-    <Modal onClose={handleClose} closeOnBackdrop size="3xl" className="overflow-hidden" data-tour-id="new-draft-modal">
+    <>
+    <Modal isOpen={isOpen} onClose={handleClose} closeOnBackdrop size="3xl" data-tour-id="new-draft-modal">
       <ModalHeader
         title={t('new_draft_doc')}
         subtitle={t('modal_draft_desc')}
@@ -1425,5 +1604,212 @@ export default function NewDraftModal({ isOpen, onClose, onSubmit }) {
 
       {effectiveFooter}
     </Modal>
+
+    <Modal
+      isOpen={Boolean(quickAddType)}
+      onClose={closeQuickAdd}
+      closeOnBackdrop={!quickAddSaving}
+      size="sm"
+    >
+      <ModalHeader
+        title={quickAddType === 'documentType' ? 'Add Document Type' : 'Add Division'}
+        subtitle={
+          quickAddType === 'documentType'
+            ? 'Create a document type without leaving New Draft.'
+            : 'Create a division without leaving New Draft.'
+        }
+        onClose={closeQuickAdd}
+      />
+
+      <form onSubmit={handleQuickAddSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <ModalBody>
+          <div className="space-y-4">
+            {quickAddError ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+              >
+                {quickAddError}
+              </div>
+            ) : null}
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-ink">
+                Name <span className="text-[var(--dms-color-danger-ink)]">*</span>
+              </label>
+              <TextInput
+                type="text"
+                required
+                autoFocus
+                value={quickAddForm.name}
+                disabled={quickAddSaving}
+                onChange={(e) => setQuickAddForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder={quickAddType === 'documentType' ? 'e.g., Minutes of Meeting' : 'e.g., Private Division'}
+              />
+            </div>
+
+            {quickAddType === 'documentType' ? (
+              <>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">
+                    Prefix <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                  </label>
+                  <TextInput
+                    type="text"
+                    required
+                    value={quickAddForm.prefix}
+                    disabled={quickAddSaving}
+                    onChange={(e) => setQuickAddForm((prev) => ({ ...prev, prefix: e.target.value }))}
+                    placeholder="e.g., MoM"
+                  />
+                  <p className="mt-1.5 text-xs text-ink-soft">
+                    A short prefix used to identify this document type.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink">Description</label>
+                  <TextArea
+                    value={quickAddForm.description}
+                    disabled={quickAddSaving}
+                    onChange={(e) => setQuickAddForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    placeholder="Optional description"
+                  />
+                </div>
+
+                <AppSurface variant="panel" padding="md" className="space-y-3">
+                  <label className="flex items-start gap-3 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={quickAddForm.requiresExpiryTracking}
+                      disabled={quickAddSaving}
+                      onChange={(e) => setQuickAddForm((prev) => ({
+                        ...prev,
+                        requiresExpiryTracking: e.target.checked
+                      }))}
+                      className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+                    />
+                    <span>
+                      <span className="block font-medium">Require Expiry Tracking</span>
+                      <span className="mt-1 block text-xs text-ink-soft">
+                        Documents of this type will require expiry information when published.
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={quickAddForm.allowRenewal}
+                      disabled={quickAddSaving}
+                      onChange={(e) => setQuickAddForm((prev) => ({
+                        ...prev,
+                        allowRenewal: e.target.checked
+                      }))}
+                      className="mt-0.5 h-4 w-4 rounded border-border text-brand focus:ring-brand/30"
+                    />
+                    <span>
+                      <span className="block font-medium">Allow Renewal</span>
+                      <span className="mt-1 block text-xs text-ink-soft">
+                        Allow tracked documents of this type to use the renewal workflow.
+                      </span>
+                    </span>
+                  </label>
+                </AppSurface>
+              </>
+            ) : (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink">
+                  Code <span className="text-[var(--dms-color-danger-ink)]">*</span>
+                </label>
+                <TextInput
+                  type="text"
+                  required
+                  value={quickAddForm.code}
+                  disabled={quickAddSaving}
+                  onChange={(e) => setQuickAddForm((prev) => ({
+                    ...prev,
+                    code: e.target.value.toUpperCase()
+                  }))}
+                  placeholder="e.g., PRV"
+                />
+                <p className="mt-1.5 text-xs text-ink-soft">
+                  Division codes are automatically converted to uppercase.
+                </p>
+              </div>
+            )}
+          </div>
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={closeQuickAdd}
+            disabled={quickAddSaving}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={quickAddSaving}>
+            {quickAddSaving ? 'Saving...' : 'Create'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
+
+    {previewOpen ? (
+      <Modal
+        onClose={closePreview}
+        closeOnBackdrop
+        size="xl"
+        className="w-[95vw] max-w-[1200px] h-[90vh] max-h-[90vh] overflow-hidden"
+      >
+        <div className="flex h-full flex-col overflow-hidden">
+          <ModalHeader
+            title={t('document_preview')}
+            subtitle={previewFile?.name || ''}
+            onClose={closePreview}
+          />
+          <ModalBody className="flex-1 overflow-hidden bg-surface-muted p-0">
+            {previewError ? (
+              <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+                <p className="text-[var(--dms-color-danger-ink)] mb-4">{previewError}</p>
+              </div>
+            ) : previewKind === 'image' && previewUrl ? (
+              <div className="h-full overflow-auto p-8 bg-surface-muted flex items-center justify-center">
+                <img src={previewUrl} alt={previewFile?.name || 'Preview'} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : previewKind === 'pdf' && previewUrl ? (
+              <iframe src={previewUrl} className="w-full h-full border-0" title="Document Preview" />
+            ) : previewKind === 'docx' ? (
+              <div className="h-full overflow-auto bg-surface-muted">
+                <div className="min-h-full py-8 px-4">
+                  <div className="w-fit mx-auto bg-surface rounded-2xl shadow-dms-soft border border-border">
+                    <div ref={previewDocxContainerRef} className="p-6" />
+                  </div>
+                </div>
+              </div>
+            ) : previewKind === 'text' ? (
+              <div className="h-full overflow-auto p-8 bg-surface">
+                <pre className="whitespace-pre-wrap break-words text-sm text-ink" style={{ fontFamily: 'Calibri, Arial, sans-serif' }}>
+                  {previewText}
+                </pre>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+                <p className="text-ink-muted">{t('preview_not_available')}</p>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter className="justify-end">
+            <Button type="button" variant="secondary" onClick={closePreview}>
+              {t('close')}
+            </Button>
+          </ModalFooter>
+        </div>
+      </Modal>
+    ) : null}
+    </>
   )
 }

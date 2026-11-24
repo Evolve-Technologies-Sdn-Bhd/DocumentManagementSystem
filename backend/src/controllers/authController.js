@@ -25,11 +25,13 @@ class AuthController {
     if (user?.permissions?.all === true) return true
 
     const roles = Array.isArray(user.roles) ? user.roles : []
-    const systemNames = new Set(['system administrator', 'system_admin', 'system-admin'])
+    const systemNames = new Set(['admin', 'system administrator', 'system_admin', 'system-admin'])
 
     return roles.some((roleData) => {
       const role = roleData?.role || roleData
-      const roleName = String(role?.name || role?.displayName || '').toLowerCase()
+      const roleName = String(
+        typeof role === 'string' ? role : (role?.name || role?.displayName || '')
+      ).trim().toLowerCase()
       if (systemNames.has(roleName)) return true
 
       let permissions = role?.permissions

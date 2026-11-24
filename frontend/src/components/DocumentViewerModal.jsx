@@ -34,7 +34,6 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
   const docxViewportRef = useRef(null)
   const activeRequestRef = useRef(0)
   const objectUrlRef = useRef(null)
-  const canSendDebugRef = useRef(null)
   const [docxZoomMode, setDocxZoomMode] = useState('fit')
   const effectiveDocumentId = document?.documentId ?? document?.id
   const effectiveVersionId = document?.versionId ?? null
@@ -60,13 +59,6 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
       }
 
       try {
-        if (canSendDebugRef.current === null) {
-          try {
-            canSendDebugRef.current = localStorage.getItem('dms_debug') === '1'
-          } catch {
-            canSendDebugRef.current = false
-          }
-        }
         if (!effectiveDocumentId) {
           revokeObjectUrl()
           setError('Missing document id')
@@ -84,36 +76,6 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
         setDocxZoomMode('fit')
         setFallbackMode(null)
         setFallbackReason(null)
-        // #region debug-point C:preview-request-start
-        if (canSendDebugRef.current) {
-          fetch('http://127.0.0.1:7777/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'master-record-preview-link',
-              runId: 'pre-fix',
-              hypothesisId: 'C',
-              location: 'DocumentViewerModal.jsx:loadDocument:start',
-              msg: '[DEBUG] Starting preview load',
-              data: {
-                requestId,
-                effectiveDocumentId,
-                effectiveVersionId,
-                incomingDocument: {
-                  id: document?.id ?? null,
-                  documentId: document?.documentId ?? null,
-                  fileCode: document?.fileCode ?? null,
-                  projectCategoryId: document?.projectCategoryId ?? null,
-                  title: document?.title ?? null,
-                  fileName: document?.fileName ?? null
-                }
-              },
-              ts: Date.now()
-            })
-          }).catch(() => {})
-        }
-        // #endregion
-        
         const res = await api.get(`/documents/${effectiveDocumentId}/preview`, {
           params: effectiveVersionId ? { versionId: effectiveVersionId } : undefined,
           responseType: 'blob'
@@ -142,31 +104,6 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
         const mimeType = res.headers['content-type'] || ''
         const fileName = document.fileName || document.title || ''
         const fileExtension = fileName.toLowerCase().split('.').pop()
-        // #region debug-point D:preview-response
-        if (canSendDebugRef.current) {
-          fetch('http://127.0.0.1:7777/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'master-record-preview-link',
-              runId: 'pre-fix',
-              hypothesisId: 'D',
-              location: 'DocumentViewerModal.jsx:loadDocument:response',
-              msg: '[DEBUG] Preview response received',
-              data: {
-                requestId,
-                effectiveDocumentId,
-                effectiveVersionId,
-                mimeType,
-                fileName,
-                fileExtension
-              },
-              ts: Date.now()
-            })
-          }).catch(() => {})
-        }
-        // #endregion
-        
         const isDocxLike =
           fileExtension === 'docx' ||
           fileExtension === 'dotx' ||
@@ -235,29 +172,6 @@ export default function DocumentViewerModal({ document, onClose, onUploadNew }) 
           setContentType('other')
         }
       } catch (err) {
-        // #region debug-point E:preview-error
-        if (canSendDebugRef.current) {
-          fetch('http://127.0.0.1:7777/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'master-record-preview-link',
-              runId: 'pre-fix',
-              hypothesisId: 'E',
-              location: 'DocumentViewerModal.jsx:loadDocument:error',
-              msg: '[DEBUG] Preview request failed',
-              data: {
-                requestId,
-                effectiveDocumentId,
-                effectiveVersionId,
-                status: err?.response?.status ?? null,
-                message: err?.response?.data?.message || err?.message || null
-              },
-              ts: Date.now()
-            })
-          }).catch(() => {})
-        }
-        // #endregion
         if (isStale()) {
           return
         }

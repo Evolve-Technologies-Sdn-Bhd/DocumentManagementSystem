@@ -12,9 +12,6 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-router.get('/health', aiController.healthCheck);
-router.get('/config', aiController.getConfig);
-
 const wrapOrFallback = (handler, label) => {
   if (typeof handler === 'function') return handler;
   return (req, res) => {
@@ -25,6 +22,9 @@ const wrapOrFallback = (handler, label) => {
     });
   };
 };
+
+router.get('/health', wrapOrFallback(aiController.healthCheck, 'health'));
+router.get('/config', wrapOrFallback(aiController.getConfig, 'config'));
 
 router.post('/chat', authenticate, wrapOrFallback(aiController.chat, 'chat'));
 router.post('/search-documents', authenticate, wrapOrFallback(aiController.searchDocumentsNL, 'search-documents'));

@@ -1,0 +1,19 @@
+{"timestamp":"2026-09-22T06:19:30.731Z","level":"INFO","message":"[GeminiAIService] Initialized with model: gemini-3.6-flash"}
+{"timestamp":"2026-09-22T06:19:31.120Z","level":"WARN","message":"[OpenAIAIService] AI is disabled or API key not configured. Hint: Set AI_ENABLED=true and OPENAI_API_KEY in .env"}
+{"timestamp":"2026-09-22T06:19:31.122Z","level":"INFO","message":"[aiService] Using AI provider: gemini (default)"}
+Upload directories verified
+Backend listening on http://localhost:4001
+Retention policy cleanup scheduled (runs every 24 hours)
+Retention policy scheduler initialized
+Expiry tracking scheduler initialized
+Review and approval reminder scheduler initialized
+✅ Database connected successfully (pool=20)
+Review and approval reminder processor completed
+Expiry tracking daily processor completed
+Starting retention policy cleanup...
+Cleaned up 0 old draft documents (older than 30 days)
+Cleaned up 0 old archived documents (older than 365 days)
+Soft-delete cleanup skipped - not implemented in current schema
+Deleted 0 audit logs older than 90 days
+Audit log cleanup: 0 deleted, 0 archived
+Retention cleanup completed. Total documents deleted: 0

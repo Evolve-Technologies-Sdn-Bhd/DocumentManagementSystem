@@ -1,0 +1,7 @@
+﻿MYSQL=UP PID=14404
+BACKEND=UP PID=18228
+CALENDAR=FAIL
+  LOGIN_HTTP=200  JWT_OK=True
+  CAL_HTTP=500  PRISMA_DATE_ERROR=True
+  CAL_BODY400={"success":false,"message":"\nInvalid `prisma.documentShareLink.findMany()` invocation:\n\n{\n  where: {\n    expiresAt: {\n      gte: new Date(\"2026-09-01T00:00:00.000Z\"),\n      lte: new Date(\"2026-09-30T00:00:00.000Z\"),\n+     not: DateTime\n    }\n  },\n  include: {\n    createdBy: true,\n    document: true\n  }\n}\n\nArgument `not` must not be null."}
+FRONTEND=UP PID=26940

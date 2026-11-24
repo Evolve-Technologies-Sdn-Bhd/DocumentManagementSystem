@@ -153,7 +153,9 @@ export function readThemeSettings() {
 
 export function readThemeMode() {
   const preferences = readStoredJson('userPreferences')
-  return preferences?.themeMode === 'dark' ? 'dark' : 'light'
+  const mode = preferences?.themeMode
+  if (mode === 'zorapro') return 'zorapro'
+  return mode === 'dark' ? 'dark' : 'light'
 }
 
 export function readCompanyInfo() {
@@ -234,7 +236,7 @@ export function applyTheme(themeObj) {
   if (!themeObj || typeof themeObj !== 'object') return
   inMemoryBranding.theme = cloneValue(themeObj)
   const root = document.documentElement
-  const isDark = root.dataset.theme === 'dark'
+  const isDark = root.dataset.theme === 'dark' || root.dataset.theme === 'zorapro'
   const computed = getComputedStyle(root)
   const surfaceBg = computed.getPropertyValue('--dms-color-bg-surface').trim() || getComputedStyle(document.body).backgroundColor
   if (!isDark) {
@@ -389,10 +391,17 @@ export function applyTheme(themeObj) {
 
 export function applyThemeMode(mode = 'light') {
   const root = document.documentElement
-  const nextMode = mode === 'dark' ? 'dark' : 'light'
+  let nextMode
+  if (mode === 'zorapro') {
+    nextMode = 'zorapro'
+  } else if (mode === 'dark') {
+    nextMode = 'dark'
+  } else {
+    nextMode = 'light'
+  }
   root.dataset.theme = nextMode
-  root.style.colorScheme = nextMode
-  if (nextMode === 'dark') {
+  root.style.colorScheme = nextMode === 'light' ? 'light' : 'dark'
+  if (nextMode === 'dark' || nextMode === 'zorapro') {
     const clearVars = [
       '--dms-sidebar-bg',
       '--dms-sidebar-text',
@@ -430,14 +439,6 @@ export function applyCompanyInfo(companyInfo) {
 }
 
 export function persistBranding({ companyInfo, theme }) {
-  // #region debug-point A,H:persistBranding
-  console.log(`%c[DEBUG-BRAND-PERSIST] ===== persistBranding() CALLED =====`, 'color:#0E7490;font-weight:bold')
-  if (theme) {
-    console.log(`[DEBUG-BRAND-PERSIST] theme.mainLogo (raw before inMemoryBranding)=`, theme.mainLogo, typeof theme.mainLogo)
-    console.log(`[DEBUG-BRAND-PERSIST] theme.mainLogoPlaceholder=`, theme.mainLogoPlaceholder)
-    console.log(`[DEBUG-BRAND-PERSIST] theme.favicon=`, theme.favicon ? '(set)' : 'null/undefined')
-  }
-  // #endregion
   if (companyInfo && typeof companyInfo === 'object') {
     inMemoryBranding.companyInfo = cloneValue(companyInfo)
     try {
@@ -447,42 +448,22 @@ export function persistBranding({ companyInfo, theme }) {
     }
   }
   if (theme && typeof theme === 'object') {
-    // 🌟 CRITICAL GUARD AGAINST "LOGO DISAPPEARS" RACE:
-    // If backend returned mainLogo=null (failed to resolve file / pre-fix behavior) BUT we already have
-    // a cached mainLogo in memory (from previous state/navigation), PRESERVE the cached one.
-    // This prevents: appears briefly from cache → gets overwritten to null → disappears.
-    // Only overwrite when incoming explicitly provides a logo (even if path later errors, it will fallback via onerror).
     const hasIncomingLogo = typeof theme.mainLogo === 'string' && theme.mainLogo.trim() !== '';
     const hasCachedLogo = typeof inMemoryBranding.theme?.mainLogo === 'string' && inMemoryBranding.theme.mainLogo.trim() !== '';
     let effectiveTheme = theme;
     if (!hasIncomingLogo && hasCachedLogo) {
       effectiveTheme = { ...theme, mainLogo: inMemoryBranding.theme.mainLogo };
-      // Also preserve placeholder if incoming has none and cached has one
       if (!theme.mainLogoPlaceholder && inMemoryBranding.theme.mainLogoPlaceholder) {
         effectiveTheme.mainLogoPlaceholder = inMemoryBranding.theme.mainLogoPlaceholder;
       }
-      // #region debug-point A,H:persistBranding
-      console.log(`%c[DEBUG-BRAND-PERSIST] 🛡️ GUARD TRIGGERED: incoming theme.mainLogo is NULL/EMPTY but cache has logo — PRESERVING cached logo instead of nullifying!`, 'color:#065F46;font-weight:bold');
-      console.log(`[DEBUG-BRAND-PERSIST]   preserved mainLogo=`, inMemoryBranding.theme.mainLogo);
-      // #endregion
     }
     inMemoryBranding.theme = cloneValue(effectiveTheme)
-    // #region debug-point A,H:persistBranding
-    console.log(`[DEBUG-BRAND-PERSIST] ✅ inMemoryBranding.theme.mainLogo set to=`, inMemoryBranding.theme.mainLogo)
-    // #endregion
     const sanitizedTheme = sanitizeThemeForStorage(effectiveTheme)
-    // #region debug-point A,H:persistBranding
-    console.log(`[DEBUG-BRAND-PERSIST] sanitizedTheme (for localStorage, mainLogo stripped if localFileRef)=`, sanitizedTheme.mainLogo ? 'still has it' : 'WAS REMOVED by sanitizeThemeForStorage')
-    console.log(`[DEBUG-BRAND-PERSIST] isLocalFileRef(effectiveTheme.mainLogo)?=`, isLocalFileRef(effectiveTheme.mainLogo))
-    // #endregion
     try {
       localStorage.setItem('dms_theme_settings', JSON.stringify(sanitizedTheme))
     } catch (error) {
       console.warn('Failed to persist theme branding to localStorage; using in-memory fallback.', error)
     }
   }
-  // #region debug-point A,H:persistBranding
-  console.log(`%c[DEBUG-BRAND-PERSIST] 📢 dispatchEvent BRANDING_UPDATED_EVENT — ALL SUBSCRIBERS WILL RE-RENDER`, 'color:#F59E0B;font-weight:bold')
-  // #endregion
   window.dispatchEvent(new Event(BRANDING_UPDATED_EVENT))
 }

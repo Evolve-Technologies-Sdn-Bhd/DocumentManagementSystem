@@ -289,10 +289,16 @@ class VersionRequestService {
       throw new BadRequestError('Request has already been processed');
     }
 
+    // Prevent self-acknowledgment - user cannot acknowledge their own request
+    if (request.requestedById === acknowledgerId) {
+      throw new ForbiddenError('You cannot acknowledge your own version request. Another acknowledger must process this request.');
+    }
+
     // Generate new file code with incremented version
     const originalDocument = request.document;
     const bump = String(request.reasonForRevision || '').toLowerCase() === 'minor' ? 'minor' : 'major'
     const newFileCode = await this.incrementFileCodeVersion(originalDocument.fileCode, bump);
+    const newVersion = this.incrementDocumentVersion(originalDocument.version, bump);
 
     // Check if new file code already exists
     const existingDoc = await prisma.document.findFirst({
@@ -314,7 +320,7 @@ class VersionRequestService {
         folderId: originalDocument.folderId,
         status: 'ACKNOWLEDGED', // Same as NDR - ready for drafting
         stage: 'DRAFT',
-        version: originalDocument.version,
+        version: newVersion,
         createdById: request.requestedById,
         ownerId: request.requestedById,
         acknowledgedById: acknowledgerId,
@@ -353,7 +359,7 @@ class VersionRequestService {
         await prisma.documentVersion.create({
           data: {
             documentId: newDocument.id,
-            version: originalDocument.version,
+            version: newVersion,
             filePath: newFilePath,
             fileName: newFileName,
             mimeType: mimeType,
@@ -366,6 +372,58 @@ class VersionRequestService {
         console.error('Error copying file:', error);
         // Continue even if file copy fails
       }
+    }
+
+    // Set up storage, register and code ledger for the new document (parity with NDR)
+    try {
+      const fileStorageService = require('./fileStorageService');
+      await fileStorageService.createDocumentDirectory(newFileCode, originalDocument.projectCategoryId || null);
+    } catch (error) {
+      console.error('Failed to create document directory for NVR:', error);
+    }
+
+    try {
+      const ownerName = `${request.requestedBy?.firstName || ''} ${request.requestedBy?.lastName || ''}`.trim()
+      await prisma.documentRegister.upsert({
+        where: { fileCode_projectCategoryId: { fileCode: newFileCode, projectCategoryId: originalDocument.projectCategoryId } },
+        update: {
+          documentTitle: newDocument.title,
+          documentType: originalDocument.documentType?.name || '',
+          version: newDocument.version,
+          owner: ownerName,
+          department: '',
+          status: 'ACKNOWLEDGED'
+        },
+        create: {
+          fileCode: newFileCode,
+          projectCategoryId: originalDocument.projectCategoryId,
+          documentTitle: newDocument.title,
+          documentType: originalDocument.documentType?.name || '',
+          version: newDocument.version,
+          owner: ownerName,
+          department: '',
+          status: 'ACKNOWLEDGED'
+        }
+      });
+    } catch (error) {
+      console.error('Failed to upsert document register for NVR:', error);
+    }
+
+    try {
+      const DocumentNumbering = require('../utils/documentNumbering');
+      const documentService = require('./documentService');
+      const settings = await DocumentNumbering.loadSettings();
+      const parsed = documentService.parseAndNormalizeFileCodeStrict(newFileCode, settings);
+      await documentService.registerFileCodeLedger({
+        fileCode: newFileCode,
+        projectCategoryId: originalDocument.projectCategoryId,
+        documentTypeId: originalDocument.documentTypeId,
+        runningNumber: parsed.runningNumber,
+        source: 'NVR_ACKNOWLEDGE',
+        sourceRefId: newDocument.id
+      });
+    } catch (error) {
+      console.error('Failed to register file code ledger for NVR:', error);
     }
 
     // Update request status with link to new document
@@ -385,6 +443,14 @@ class VersionRequestService {
         requestedBy: true
       }
     });
+
+    // Notify the requester that the new version document has been created
+    try {
+      const notificationService = require('./notificationService');
+      await notificationService.notifyNDRAcknowledged(newDocument.id, newDocument, acknowledgerId);
+    } catch (error) {
+      console.error('Failed to send NVR acknowledgment notification:', error);
+    }
 
     return updated;
   }
@@ -471,6 +537,25 @@ class VersionRequestService {
     }
   }
 
+  /**
+   * Increment the document's version string (e.g. "1.0") to match a file code bump.
+   * - major: bump the major part and reset minor ("1.0" -> "2.0")
+   * - minor: bump the minor part ("1.0" -> "1.1")
+   */
+  incrementDocumentVersion(version, bump = 'major') {
+    const raw = String(version || '1.0').trim()
+    const [majorRaw, minorRaw] = raw.split('.')
+    const major = parseInt(majorRaw, 10)
+    const minor = parseInt(minorRaw || '0', 10)
+
+    if (!Number.isFinite(major)) return String(bump).toLowerCase() === 'minor' ? '1.1' : '2.0'
+
+    if (String(bump).toLowerCase() === 'minor') {
+      return `${major}.${Number.isFinite(minor) ? minor + 1 : 1}`
+    }
+    return `${major + 1}.0`
+  }
+
   async incrementFileCodeVersion(fileCode, bump = 'major') {
     const parts = String(fileCode || '').split('/');
     
@@ -516,6 +601,7 @@ class VersionRequestService {
     const originalDocument = request.document;
     const bump = String(request.reasonForRevision || '').toLowerCase() === 'minor' ? 'minor' : 'major'
     const newFileCode = await this.incrementFileCodeVersion(originalDocument.fileCode, bump);
+    const newVersion = this.incrementDocumentVersion(originalDocument.version, bump);
 
     // Check if new file code already exists
     const existingDoc = await prisma.document.findFirst({
@@ -537,7 +623,7 @@ class VersionRequestService {
         folderId: originalDocument.folderId,
         status: 'DRAFT',
         stage: 'DRAFT',
-        version: originalDocument.version, // Keep same version, will be updated during workflow
+        version: newVersion, // Keep same version, will be updated during workflow
         createdById: request.requestedById,
         ownerId: request.requestedById,
         dateOfDocument: new Date()
@@ -574,7 +660,7 @@ class VersionRequestService {
         await prisma.documentVersion.create({
           data: {
             documentId: newDocument.id,
-            version: originalDocument.version,
+            version: newVersion,
             filePath: newFilePath,
             fileName: newFileName,
             mimeType: mimeType,

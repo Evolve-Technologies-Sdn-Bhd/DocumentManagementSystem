@@ -10,7 +10,7 @@ class FolderPermissionService {
       if (!name) return false
       if ([
         'admin', 'administrator', 'system administrator', 'system_admin', 'system-admin',
-        'document_controller', 'reviewer', 'approver'
+        'document_controller'
       ].includes(name)) return true
       return name.includes('administrator') || name.includes('admin')
         || name.includes('document_controller') || name.includes('controller')
@@ -132,12 +132,16 @@ class FolderPermissionService {
 
   async assertCanManage(folderId, user) {
     const folder = await this.getFolderById(folderId)
+
     if (user?.permissions?.all === true) return true
-    const withinDivisionScope = await divisionScopeService.canUserAccessFolder(user, folder.id)
-    if (!withinDivisionScope) throw new ForbiddenError(`You don't have permission to manage this folder`)
     if (this.isAdminRoleNames(user?.roles || [])) return true
-    if (folder.createdById === user?.id) return true
-    throw new ForbiddenError(`You don't have permission to manage this folder`)
+
+    const allowed = await divisionScopeService.canUserManageFolder(user, folder.id)
+    if (!allowed) {
+      throw new ForbiddenError(`You don't have permission to manage this folder`)
+    }
+
+    return true
   }
 
   async getFolderAccessConfig(folderId) {

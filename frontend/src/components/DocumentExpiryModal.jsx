@@ -110,7 +110,7 @@ export default function DocumentExpiryModal({
         subtitle={document.fileCode ? `${document.fileCode} - ${document.fileName}` : document.fileName}
         onClose={onClose}
       />
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalBody className="space-y-6">
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

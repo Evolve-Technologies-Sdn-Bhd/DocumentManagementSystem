@@ -1,164 +1,18 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import api from '../api/axios'
 import { AlertModal } from './ConfirmModal'
 import useFileUploadSettings from '../hooks/useFileUploadSettings'
 import { usePreferences } from '../contexts/PreferencesContext'
 import { useNavigate } from 'react-router-dom'
+import { usePermissions } from '../hooks/usePermissions'
 import Modal, { ModalBody, ModalFooter, ModalHeader } from './ui/Modal'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import AppSurface from './ui/AppSurface'
 import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import InlineSpinner from './ui/InlineSpinner'
 import SmartForm from './smartdocuments/SmartForm'
-
-function SearchableSingleSelect({
-  value,
-  options,
-  onChange,
-  placeholder,
-  searchPlaceholder,
-  noResultsLabel,
-  disabled = false,
-  loading = false,
-  clearLabel = 'Clear',
-  loadingLabel = 'Loading...',
-  ...rest
-}) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const containerRef = useRef(null)
-  const inputRef = useRef(null)
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.value) === String(value)) || null,
-    [options, value]
-  )
-
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
-    if (!normalizedSearch) return options
-    return options.filter((option) =>
-      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
-    )
-  }, [options, searchValue])
-
-  useEffect(() => {
-    if (!open) return undefined
-    const handlePointerDown = (event) => {
-      if (!containerRef.current?.contains(event.target)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-    const timer = window.setTimeout(() => {
-      inputRef.current?.focus()
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [open])
-
-  useEffect(() => {
-    if (disabled) {
-      setOpen(false)
-      setSearchValue('')
-    }
-  }, [disabled])
-
-  const handleSelect = (option) => {
-    onChange(option.value, option)
-    setOpen(false)
-    setSearchValue('')
-  }
-
-  return (
-    <div ref={containerRef} className="relative" {...rest}>
-      <button
-        type="button"
-        onClick={() => {
-          if (!disabled) setOpen((prev) => !prev)
-        }}
-        disabled={disabled}
-        className={`flex min-h-[42px] w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500/30 ${
-          disabled ? 'cursor-not-allowed bg-gray-50 text-gray-500' : ''
-        } ${open ? 'ring-2 ring-blue-500/20' : ''}`}
-      >
-        <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span className="ml-3 text-xs text-gray-500">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open ? (
-        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-dms-lg">
-          <div className="border-b border-gray-200 p-3">
-            <input
-              ref={inputRef}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition-shadow placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/30"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-gray-500">
-              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchValue('')}
-                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-gray-50 hover:text-gray-900"
-                >
-                  {clearLabel}
-                </button>
-              ) : (
-                <span>Type to filter</span>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-64 overflow-y-auto p-2">
-            {loading ? (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{loadingLabel}</div>
-            ) : filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = String(option.value) === String(value)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
-                      isSelected ? 'bg-blue-50 text-gray-900' : 'text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium">{option.label}</div>
-                      {option.meta?.length ? (
-                        <div className="mt-1 space-y-0.5">
-                          {option.meta.map((metaLine) => (
-                            <div key={metaLine} className="text-xs text-gray-500">
-                              {metaLine}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isSelected ? <span className="text-xs font-medium text-blue-600">Selected</span> : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="rounded-xl px-3 py-4 text-sm text-gray-500">{noResultsLabel}</div>
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
 
 const getReviewerDisplayName = (reviewer) => {
   if (!reviewer) return ''
@@ -169,6 +23,9 @@ const getReviewerDisplayName = (reviewer) => {
 export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess }) {
   const { t, smartDocumentEnabled } = usePreferences()
   const navigate = useNavigate()
+  const { hasPermission } = usePermissions()
+  const canAddDocumentType = hasPermission('configuration.documentTypes', 'create')
+  const canAddDivision = hasPermission('configuration.masterData', 'create')
   const { validateFile, getAcceptString, getAllowedTypesDisplay } = useFileUploadSettings()
 
   const [formData, setFormData] = useState({
@@ -637,6 +494,14 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
       setSmartTemplatesLoading(false)
       setSmartStyleProfilesLoading(false)
     }
+  }
+
+  const handleAddDocumentType = () => {
+    navigate('/config?tab=masterdata&mdTab=document-types&mdAction=add')
+  }
+
+  const handleAddDivision = () => {
+    navigate('/config?tab=masterdata&mdTab=divisions')
   }
 
   const handleDivisionSelect = (divisionId) => {
@@ -1163,9 +1028,17 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900 mb-2">
-          Document Type
-        </label>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="block text-sm font-medium text-gray-900">
+            Document Type
+          </label>
+          {canAddDocumentType && (
+            <button type="button" onClick={handleAddDocumentType}
+              className="text-xs font-medium text-blue-700 hover:text-blue-800">
+              + Add New
+            </button>
+          )}
+        </div>
         <SearchableSingleSelect
           value={formData.documentType}
           options={documentTypeOptions}
@@ -1180,9 +1053,17 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
 
       {divisions.length > 1 || loadingDivisions ? (
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">
-            Division
-          </label>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <label className="block text-sm font-medium text-gray-900">
+              Division
+            </label>
+            {canAddDivision && (
+              <button type="button" onClick={handleAddDivision}
+                className="text-xs font-medium text-blue-700 hover:text-blue-800">
+                + Add New
+              </button>
+            )}
+          </div>
           {loadingDivisions ? (
             <AppSurface variant="muted" padding="md" className="flex items-center gap-2 text-sm text-gray-500">
               <InlineSpinner className="h-4 w-4 border-2" />
@@ -1454,7 +1335,6 @@ export default function ReuploadFileModal({ isOpen, onClose, document, onSuccess
                 initialValues={smartFieldValues}
                 onChange={handleSmartFieldChange}
                 readonly={false}
-                className="max-h-[480px] overflow-y-auto pr-2"
               />
             </div>
           )}

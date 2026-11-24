@@ -942,6 +942,32 @@ class DocumentController {
   });
 
   /**
+   * Generate the next file code for a document type + project category
+   * GET /api/documents/file-code/generate?documentTypeId=&projectCategoryId=&version=
+   */
+  generateFileCode = asyncHandler(async (req, res) => {
+    const documentTypeId = parseInt(req.query.documentTypeId, 10);
+    const projectCategoryId = req.query.projectCategoryId ? parseInt(req.query.projectCategoryId, 10) : null;
+    const version = String(req.query.version || '1');
+
+    if (!documentTypeId || Number.isNaN(documentTypeId)) {
+      throw new BadRequestError('documentTypeId is required');
+    }
+
+    const fileCode = await documentService.generateFileCode(
+      documentTypeId,
+      projectCategoryId,
+      version
+    );
+
+    return ResponseFormatter.success(
+      res,
+      { fileCode },
+      'File code generated successfully'
+    );
+  });
+
+  /**
    * Search documents
    * GET /api/documents/search
    */
@@ -1659,7 +1685,7 @@ class DocumentController {
 
     const documents = await prisma.document.findMany({
       where: { id: { in: normalizedIds } },
-      select: { id: true, folderId: true, title: true, fileCode: true }
+      select: { id: true, folderId: true, divisionId: true, title: true, fileCode: true }
     })
 
     if (documents.length !== normalizedIds.length) {
@@ -1676,6 +1702,12 @@ class DocumentController {
         return ResponseFormatter.error(res, 'Permission denied', 403)
       }
     }
+
+    await divisionScopeService.assertDocumentMoveWithinCompany(
+      documents,
+      destinationFolderId,
+      req.user
+    )
 
     const result = await documentService.bulkMoveDocuments(normalizedIds, destinationFolderId)
 
@@ -2185,39 +2217,6 @@ class DocumentController {
     if (!version) {
       return ResponseFormatter.notFound(res, 'Document version');
     }
-
-    // #region debug-point D:preview-document-controller
-    fetch('http://127.0.0.1:7777/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'master-record-preview-link',
-        runId: 'pre-fix',
-        hypothesisId: 'D',
-        location: 'documentController.js:previewDocument',
-        msg: '[DEBUG] Preview controller resolved document target',
-        data: {
-          userId: req.user?.id ?? null,
-          requestedDocumentId: documentId,
-          requestedVersionId: versionId ? parseInt(versionId, 10) : null,
-          resolvedDocument: {
-            id: document?.id ?? null,
-            fileCode: document?.fileCode ?? null,
-            title: document?.title ?? null,
-            projectCategoryId: document?.projectCategoryId ?? null,
-            status: document?.status ?? null,
-            folderId: document?.folderId ?? null
-          },
-          resolvedVersion: {
-            id: version?.id ?? null,
-            fileName: version?.fileName ?? null,
-            mimeType: version?.mimeType ?? null
-          }
-        },
-        ts: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
 
     // --- Smart Document handling: serve PDF preview instead of raw .txt content ---
     const previewSmartDetails = await prisma.documentVersion.findUnique({

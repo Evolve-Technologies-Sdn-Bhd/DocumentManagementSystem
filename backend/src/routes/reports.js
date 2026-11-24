@@ -4,6 +4,7 @@ const configService = require('../services/configService');
 const reportsService = require('../services/reportsService');
 const documentService = require('../services/documentService')
 const codeRegistryService = require('../services/codeRegistryService');
+const masterRecordSyncService = require('../services/masterRecordSyncService');
 const auditLogService = require('../services/auditLogService');
 const documentAssignmentService = require('../services/documentAssignmentService')
 const confidentialAccessService = require('../services/confidentialAccessService')
@@ -144,36 +145,8 @@ router.get('/master-record/new-documents', asyncHandler(async (req, res) => {
     const versionSegment = reportsService.extractVersionSegmentFromFileCode(doc.fileCode)
     return !versionSegment || versionSegment === '01'
   })
-  // #region debug-point A:new-documents-mapping
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'master-record-preview-link',
-      runId: 'pre-fix',
-      hypothesisId: 'A',
-      location: 'reports.js:/master-record/new-documents',
-      msg: '[DEBUG] Built master record document mapping',
-      data: {
-        userId: req.user?.id ?? null,
-        roleNames: req.user?.roles || [],
-        totalCandidateDocuments: allCandidateDocuments.length,
-        totalVersion01Documents: documents.length,
-        sampleMappings: documents.slice(0, 10).map((doc) => ({
-          documentId: doc.id,
-          fileCode: doc.fileCode,
-          projectCategoryId: doc.projectCategoryId ?? null,
-          title: doc.title,
-          status: doc.status,
-          fileName: doc.versions?.[0]?.fileName ?? null
-        }))
-      },
-      ts: Date.now()
-    })
-  }).catch(() => {})
-  // #endregion
-  
   // Format for frontend
+  
   let formattedRecords = documents.map(doc => ({
     id: doc.id,
     documentId: doc.id,
@@ -310,6 +283,12 @@ router.post('/master-record/consolidated/import', authorize('admin'), asyncHandl
   return ResponseFormatter.success(res, result, 'Import completed');
 }));
 
+// Reconcile the register tables with the Document table so every document is recorded
+router.post('/master-record/sync', authorize('admin'), asyncHandler(async (req, res) => {
+  const result = await masterRecordSyncService.syncAll();
+  return ResponseFormatter.success(res, result, 'Master record registers synchronized');
+}));
+
 // Analytics
 router.get('/dashboard', asyncHandler(async (req, res) => {
   const stats = await reportsService.getDashboardStats(req.user);
@@ -320,7 +299,7 @@ router.get('/dashboard', asyncHandler(async (req, res) => {
     drafts: stats.documents.draft,
     pendingReviews: stats.documents.pendingReview,
     published: stats.documents.published,
-    superseded: stats.documents.obsolete
+    superseded: stats.documents.superseded
   };
   
   return ResponseFormatter.success(res, { metrics, recentActivity });
@@ -401,6 +380,7 @@ router.get('/activity-logs/filters', asyncHandler(async (req, res) => {
 router.get('/activity-logs/export', asyncHandler(async (req, res) => {
   const { userId, user, module, action, search, dateRange, startDate, endDate, format = 'csv' } = req.query;
   const effectiveUserId = userId || user; // Support both parameter names
+  const exportRequesterId = req.user?.id ? Number(req.user.id) : null;
   
   // Calculate date range
   let calculatedStartDate = startDate;
@@ -457,7 +437,27 @@ router.get('/activity-logs/export', asyncHandler(async (req, res) => {
         `"${formatCSVDate(log.timestamp)}","${log.user}","${log.module}","${log.action}","${log.description || ''}","${log.ipAddress || ''}","${log.status}"`
       )
     ].join('\n');
-    
+
+    try {
+      const auditLogService = require('../services/auditLogService');
+      const filtersUsed = [
+        module ? `Module:${module}` : null,
+        action ? `Action:${action}` : null,
+        effectiveUserId ? `UserId:${effectiveUserId}` : null,
+        (calculatedStartDate || dateRange) ? `Period:${dateRange || 'custom'}` : null,
+        search ? `Search:"${search}"` : null
+      ].filter(Boolean).join(' | ');
+      if (exportRequesterId) {
+        auditLogService.logSystem(exportRequesterId, 'BULK_EXPORT', 'AuditLog', req, {
+          description: `Exported Activity Logs as CSV (${result.logs?.length || 0} rows)${filtersUsed ? ` — ${filtersUsed}` : ''}`,
+          filters: { module, action, search, dateRange, startDate, endDate },
+          rowsExported: result.logs?.length || 0,
+          format,
+          reportType: 'activity-logs'
+        }).catch(() => {});
+      }
+    } catch (_) { /* ignore */ }
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=activity-logs-${new Date().toISOString().split('T')[0]}.csv`);
     return res.send(csv);
@@ -563,31 +563,6 @@ router.get('/system/data/:reportType', requirePermission('logsReport.reports', '
   };
 
   const reportData = await reportsService.getReportData(reportType, config);
-  // #region debug-point B:reports-route-response
-  fetch('http://127.0.0.1:7777/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'document-request-report',
-      runId: 'pre-fix',
-      hypothesisId: 'B',
-      location: 'backend/src/routes/reports.js:519',
-      msg: '[DEBUG] Reports route returning report payload',
-      data: {
-        reportType,
-        dateFrom: config.dateFrom,
-        dateTo: config.dateTo,
-        summaryKeys: Object.keys(reportData?.summary || {}),
-        total: reportData?.summary?.total ?? null,
-        rowCount: Array.isArray(reportData?.rows) ? reportData.rows.length : null,
-        rowTypes: Array.isArray(reportData?.rows)
-          ? Array.from(new Set(reportData.rows.map((row) => row?.requestType).filter(Boolean)))
-          : []
-      },
-      ts: Date.now()
-    })
-  }).catch(() => {});
-  // #endregion
   // Return report data directly (with config merged in)
   return ResponseFormatter.success(res, { ...reportData, appliedConfig: config }, 'Report data retrieved successfully');
 }));

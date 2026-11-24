@@ -31,7 +31,7 @@ const requireAnyPermission = (actions) => {
 }
 
 router.get('/', requirePermission('view'), expiryTrackingController.listProfiles)
-router.get('/dashboard', requirePermission('view'), expiryTrackingController.getDashboard)
+router.get('/dashboard', expiryTrackingController.getDashboard)
 router.get('/export', requireAnyPermission(['view', 'export']), expiryTrackingController.exportRecords)
 router.post('/from-document/:documentId', requirePermission('edit'), expiryTrackingController.syncFromDocument)
 router.get('/:documentId', requirePermission('view'), expiryTrackingController.getProfile)

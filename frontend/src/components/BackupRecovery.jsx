@@ -174,8 +174,8 @@ export default function BackupRecovery() {
 
       {/* Header */}
       <div className="card p-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t('br_title')}</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-ink">{t('br_title')}</h2>
+        <p className="text-sm text-ink-secondary mt-1">
           {t('br_desc')}
         </p>
         <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -198,15 +198,15 @@ export default function BackupRecovery() {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{t('br_available_backups')}</h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <h3 className="text-lg font-semibold text-ink">{t('br_available_backups')}</h3>
+              <p className="text-sm text-ink-secondary mt-1">
                 {backups.length} {t('br_backups_available')}
               </p>
             </div>
             
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="rounded-xl border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -220,29 +220,29 @@ export default function BackupRecovery() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('br_backup_name')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('rp_created_on')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('size')}</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide">{t('status')}</th>
-                <th className="sticky right-0 z-30 bg-gray-50 text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wide border-l border-gray-200">{t('actions')}</th>
+              <tr className="border-b-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface-muted)]">
+                <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('br_backup_name')}</th>
+                <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('rp_created_on')}</th>
+                <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('size')}</th>
+                <th className="text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide">{t('status')}</th>
+                <th className="sticky right-0 z-30 bg-[var(--dms-color-bg-surface-muted)] text-ink-secondary text-left py-3 px-4 font-semibold text-xs uppercase tracking-wide border-l-2 border-[var(--dms-color-border-default)]">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-8 text-gray-500">
+                  <td colSpan="5" className="text-center py-10 text-ink-muted font-medium">
                     <div className="flex flex-col items-center gap-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--dms-color-brand-primary)]"></div>
                       <span>Loading backups...</span>
                     </div>
                   </td>
                 </tr>
               ) : backups.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-12 text-gray-500">
+                  <td colSpan="5" className="text-center py-10 text-ink-muted font-medium">
                     <div className="flex flex-col items-center gap-2">
-                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-12 h-12 text-ink-muted/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                       </svg>
                       <span className="font-medium">No backups found</span>
@@ -252,36 +252,36 @@ export default function BackupRecovery() {
                 </tr>
               ) : (
                 pageItems.map((backup) => (
-                  <tr key={backup.id} className="group border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={backup.id} className="group border-b border-[var(--dms-color-border-default)]/50 hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-[var(--dms-color-info-ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                         </svg>
                         <div>
-                          <div className="font-medium text-gray-900">{backup.name}</div>
+                          <div className="font-medium text-ink">{backup.name}</div>
                           {backup.description && (
-                            <div className="text-xs text-gray-500">{backup.description}</div>
+                            <div className="text-xs text-ink-muted">{backup.description}</div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-gray-700">{formatDate(backup.createdAt)}</td>
-                    <td className="py-4 px-4 text-gray-700">{formatFileSize(backup.size)}</td>
+                    <td className="py-4 px-4 text-ink-secondary">{formatDate(backup.createdAt)}</td>
+                    <td className="py-4 px-4 text-ink-secondary">{formatFileSize(backup.size)}</td>
                     <td className="py-4 px-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        backup.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        backup.status === 'failed' ? 'bg-red-100 text-red-800' :
+                        backup.status === 'completed' ? 'bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-success-ink)]' :
+                        backup.status === 'failed' ? 'bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_65%,var(--dms-color-bg-surface))] text-[var(--dms-color-danger-ink)]' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
                         {backup.status || 'completed'}
                       </span>
                     </td>
-                    <td className="sticky right-0 z-20 bg-white group-hover:bg-gray-50 py-4 px-4 border-l border-gray-200">
+                    <td className="sticky right-0 z-20 bg-[var(--dms-color-bg-surface)] group-hover:bg-[var(--dms-color-bg-surface-muted)] border-l-2 border-[var(--dms-color-border-default)] py-4 px-4">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleDownloadBackup(backup)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-2 text-[var(--dms-color-info-ink)] hover:bg-[color-mix(in_srgb,var(--dms-color-info-soft)_70%,var(--dms-color-bg-card))] rounded transition-colors"
                           title="Download Backup"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,7 +290,7 @@ export default function BackupRecovery() {
                         </button>
                         <button
                           onClick={() => handleRestoreBackup(backup)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="p-2 text-[var(--dms-color-success-ink)] hover:bg-[color-mix(in_srgb,var(--dms-color-success-soft)_65%,var(--dms-color-bg-surface))] rounded transition-colors"
                           title="Restore Backup"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,7 +299,7 @@ export default function BackupRecovery() {
                         </button>
                         <button
                           onClick={() => handleDeleteBackup(backup)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-2 text-[var(--dms-color-danger-ink)] hover:bg-[color-mix(in_srgb,var(--dms-color-danger-soft)_65%,var(--dms-color-bg-surface))] rounded transition-colors"
                           title="Delete Backup"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,44 +318,44 @@ export default function BackupRecovery() {
         {/* Mobile Cards */}
         <div className="md:hidden space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-10 text-ink-muted font-medium">
               <div className="flex flex-col items-center gap-2">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--dms-color-brand-primary)]"></div>
                 <span>Loading backups...</span>
               </div>
             </div>
           ) : backups.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-10 text-ink-muted font-medium">
               <span>No backups found</span>
             </div>
           ) : (
             pageItems.map((backup) => (
-              <div key={backup.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div key={backup.id} className="border-2 border-[var(--dms-color-border-default)] rounded-[16px] p-5 bg-[color-mix(in_srgb,var(--dms-color-bg-surface)_90%,var(--dms-color-bg-card))] space-y-3">
                 <div className="flex items-start gap-3">
-                  <svg className="w-6 h-6 text-blue-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-[var(--dms-color-info-ink)] mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                   </svg>
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{backup.name}</div>
+                    <div className="font-semibold text-ink">{backup.name}</div>
                     {backup.description && (
-                      <div className="text-xs text-gray-500 mt-1">{backup.description}</div>
+                      <div className="text-xs text-ink-muted mt-1">{backup.description}</div>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Created:</span>
-                    <div className="text-gray-900 font-medium text-xs">{formatDate(backup.createdAt)}</div>
+                    <span className="text-ink-muted">Created:</span>
+                    <div className="text-ink font-medium text-xs">{formatDate(backup.createdAt)}</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Size:</span>
-                    <div className="text-gray-900 font-medium">{formatFileSize(backup.size)}</div>
+                    <span className="text-ink-muted">Size:</span>
+                    <div className="text-ink font-medium">{formatFileSize(backup.size)}</div>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-gray-200">
+                <div className="flex gap-2 pt-2 border-t-2 border-[var(--dms-color-border-default)]">
                   <button
                     onClick={() => handleDownloadBackup(backup)}
-                    className="flex-1 px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center justify-center gap-1"
+                    className="flex-1 rounded-xl border-2 border-[var(--dms-color-info-ink)]/20 bg-[var(--dms-color-info-ink)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -364,7 +364,7 @@ export default function BackupRecovery() {
                   </button>
                   <button
                     onClick={() => handleRestoreBackup(backup)}
-                    className="flex-1 px-3 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700 flex items-center justify-center gap-1"
+                    className="flex-1 rounded-xl border-2 border-[var(--dms-color-success-ink)]/20 bg-[var(--dms-color-success-ink)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity flex items-center justify-center gap-1"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -373,7 +373,7 @@ export default function BackupRecovery() {
                   </button>
                   <button
                     onClick={() => handleDeleteBackup(backup)}
-                    className="px-3 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700"
+                    className="rounded-xl border-2 border-[var(--dms-color-danger-ink)]/20 bg-[var(--dms-color-danger-ink)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -408,7 +408,7 @@ export default function BackupRecovery() {
         >
           <ModalHeader title={t('br_create_backup')} />
           <ModalBody>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-ink-secondary mb-2">
                 {t('br_backup_name')}
               </label>
               <input
@@ -416,21 +416,21 @@ export default function BackupRecovery() {
                 value={backupName}
                 onChange={(e) => setBackupName(e.target.value)}
                 placeholder="e.g., Weekly Backup, Pre-Update Backup"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] px-4 py-3 text-ink outline-none transition-all duration-150 focus:border-[var(--dms-color-brand-primary)] focus:ring-2 focus:ring-[var(--dms-color-brand-primary)]/20 w-full"
                 autoFocus
                 disabled={isCreatingBackup}
               />
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-ink-muted">
                 Give your backup a descriptive name to help identify it later.
               </p>
           </ModalBody>
-          <ModalFooter className="bg-gray-50 border-t border-gray-200">
+          <ModalFooter className="bg-[var(--dms-color-bg-surface-muted)] border-t-2 border-[var(--dms-color-border-default)]">
               <button
                 onClick={() => {
                   setShowCreateModal(false)
                   setBackupName('')
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="rounded-xl border-2 border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-semibold px-4 py-3 hover:bg-[color-mix(in_srgb,var(--dms-color-bg-surface-muted)_60%,var(--dms-color-bg-surface))] transition-colors"
                 disabled={isCreatingBackup}
               >
                 {t('cancel')}
@@ -438,7 +438,7 @@ export default function BackupRecovery() {
               <button
                 onClick={handleCreateBackup}
                 disabled={isCreatingBackup}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="rounded-xl border-2 border-[var(--dms-color-brand-primary)] bg-[var(--dms-color-brand-primary)] text-white font-semibold px-4 py-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isCreatingBackup ? (
                   <>

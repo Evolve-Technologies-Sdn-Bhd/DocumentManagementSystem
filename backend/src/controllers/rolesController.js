@@ -158,10 +158,6 @@ class RolesController {
     const roleId = parseInt(req.params.id);
     const { permissions } = req.body;
 
-    console.log('=== Update Role Permissions ==>');
-    console.log('Role ID:', roleId);
-    console.log('Permissions received:', JSON.stringify(permissions, null, 2));
-
     if (!permissions) {
       return ResponseFormatter.error(res, 'Permissions are required', 400);
     }
@@ -175,8 +171,6 @@ class RolesController {
       return ResponseFormatter.error(res, 'Role not found', 404);
     }
 
-    console.log('Existing role found:', existingRole.displayName, 'isSystem:', existingRole.isSystem);
-
     try {
       // Update permissions only
       const role = await prisma.role.update({
@@ -185,8 +179,6 @@ class RolesController {
           permissions: JSON.stringify(permissions)
         }
       });
-
-      console.log('Permissions updated successfully');
 
       // Log permission update
       await auditLogService.logSystem(req.user.id, 'ROLE_PERMISSION_UPDATE', 'Role', req, {

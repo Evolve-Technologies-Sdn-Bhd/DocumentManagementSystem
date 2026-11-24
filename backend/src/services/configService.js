@@ -7,6 +7,7 @@ const appConfig = require('../config/app');
 
 let maintenanceSettingsCache = null;
 let maintenanceSettingsCacheAt = 0;
+let maintenanceExpiryTimer = null;
 const MAINTENANCE_SETTINGS_CACHE_TTL_MS = 5000;
 
 class ConfigService {
@@ -975,83 +976,36 @@ class ConfigService {
   }
 
   async resolveBrandingFile(pathOrUrl) {
-    // #region debug-point E:resolveBrandingFile
-    const traceId = `logo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    console.log(`[DEBUG-BRANDING:${traceId}] ===== resolveBrandingFile START =====`)
-    console.log(`[DEBUG-BRANDING:${traceId}] raw input:`, JSON.stringify(pathOrUrl), typeof pathOrUrl)
-    // #endregion
     if (!pathOrUrl || typeof pathOrUrl !== 'string') {
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] early return null (empty/invalid)`)
-      // #endregion
       return null;
     }
     const trimmed = pathOrUrl.trim();
     if (!trimmed) {
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] early return null (trimmed empty)`)
-      // #endregion
       return null;
     }
     if (trimmed.startsWith('data:')) {
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] is data: URL, return as-is (len=${trimmed.length})`)
-      // #endregion
       return trimmed;
     }
     const normalized = trimmed
       .replace(/^https?:\/\/[^/]+/i, '')
       .replace(/^\/+/, '');
-    // #region debug-point E:resolveBrandingFile
-    console.log(`[DEBUG-BRANDING:${traceId}] trimmed:`, JSON.stringify(trimmed))
-    console.log(`[DEBUG-BRANDING:${traceId}] normalized (strip domain/leading slashes):`, JSON.stringify(normalized))
-    // #endregion
     const match = normalized.match(/^uploads\/branding\/([^/?#]+)(?:[?#].*)?$/i);
-    // #region debug-point E:resolveBrandingFile
-    console.log(`[DEBUG-BRANDING:${traceId}] match (uploads/branding regex):`, match ? `OK -> fileName=${match[1]}` : 'NO MATCH')
-    // #endregion
     if (!match) {
       const legacyMatch = trimmed.match(/(?:^|\/)branding\/([^/?#]+)(?:[?#].*)?$/i);
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] legacyMatch (branding regex):`, legacyMatch ? `OK -> fileName=${legacyMatch[1]}` : 'NO MATCH')
-      // #endregion
       if (!legacyMatch) {
-        // #region debug-point E:resolveBrandingFile
-        console.log(`[DEBUG-BRANDING:${traceId}] NO MATCH either regex, returning trimmed=`, JSON.stringify(trimmed))
-        // #endregion
         return trimmed;
       }
     }
     const fileName = (match ? match[1] : null) || (trimmed.match(/(?:^|\/)([^\/?#]+)(?:[?#].*)?$/) || [])[1] || null;
     if (!fileName) {
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] fileName extraction FAILED, return null`)
-      // #endregion
       return null;
     }
-    // #region debug-point E:resolveBrandingFile
-    console.log(`[DEBUG-BRANDING:${traceId}] FINAL fileName=`, JSON.stringify(fileName))
-    // #endregion
     const baseDir = appConfig && appConfig.uploadDir ? appConfig.uploadDir : path.resolve(process.cwd(), 'uploads');
     const filePath = path.join(baseDir, 'branding', fileName);
-    // #region debug-point E:resolveBrandingFile
-    console.log(`[DEBUG-BRANDING:${traceId}] baseDir=`, JSON.stringify(baseDir), `checking filePath=`, JSON.stringify(filePath))
-    // #endregion
     try {
       await fs.access(filePath, require('fs').constants.R_OK);
-      // #region debug-point E:resolveBrandingFile
-      console.log(`%c[DEBUG-BRANDING:${traceId}] ✅ baseDir FOUND at ${JSON.stringify(filePath)} → return /api/public/branding-file/branding/${fileName} (Nginx /uploads/ static configs OFTEN miss this; /api/ always hits Node)`, 'color:#065F46;font-weight:bold')
-      // #endregion
-      // ⭐⭐⭐ FINAL FIX: Always use /api/public/branding-file/ URL for branding files.
-      // Static /uploads/branding/ served by Nginx uses its own docroot which is OFTEN
-      // (demo aaPanel, Docker on-prem with no volume share, etc.) different from Node's
-      // baseDir/altDirs causing phantom 404s regardless of where the file physically lives.
-      // /api/* is GUARANTEED by convention to be proxied to Node backend.
       return `/api/public/branding-file/branding/${fileName}`;
     } catch (err) {
-      // #region debug-point E:resolveBrandingFile
-      console.log(`[DEBUG-BRANDING:${traceId}] ❌ baseDir NOT FOUND (${err.code}), trying altDirs...`)
-      // #endregion
       let foundPath = null;
       try {
         const processCwd = process.cwd();
@@ -1063,21 +1017,18 @@ class ConfigService {
           path.resolve(processCwd, 'public', 'uploads'),
           path.resolve(processCwd, '..', 'backend', 'uploads'),
           path.resolve(processCwd, 'backend', 'uploads'),
-          // aaPanel standard paths (demo + generic)
           '/www/wwwroot/dms.demo.clbgroups.com/backend/uploads',
           '/www/wwwroot/dms.demo.clbgroups.com/uploads',
           '/www/wwwroot/dms.demo.clbgroups.com/backend/public/uploads',
           '/www/wwwroot/dms.demo.clbgroups.com/public/uploads',
           '/www/wwwroot/default/backend/uploads',
           '/www/wwwroot/default/uploads',
-          // Docker on-prem bind mount paths
           '/var/www/html/backend/uploads',
           '/var/www/html/uploads',
           '/app/backend/uploads',
           '/app/uploads',
           '/data/backend/uploads',
           '/data/uploads',
-          // Home dir fallback
           path.resolve(osHomedir, 'dms', 'uploads'),
           path.resolve(osHomedir, 'dms', 'backend', 'uploads')
         ];
@@ -1085,35 +1036,17 @@ class ConfigService {
           const altPath = path.join(dir, 'branding', fileName);
           try {
             await fs.access(altPath, require('fs').constants.R_OK);
-            // #region debug-point E:resolveBrandingFile
-            console.log(`%c[DEBUG-BRANDING:${traceId}] ✅ altDir FOUND: dir=${JSON.stringify(dir)} altPath=${JSON.stringify(altPath)} -> return /api/public/branding-file/branding/${fileName} (Nginx static INTERCEPTION AVOIDED via /api/ prefix)`, 'color:#065F46;font-weight:bold')
-            // #endregion
-            // ⭐ KEY FIX: Use /api/ URL (guaranteed to hit Node backend) instead of
-            // /uploads/ static URL which Nginx aaPanel serves from its own docroot and 404s
-            // when file is saved in backend upload dir.
             foundPath = `/api/public/branding-file/branding/${fileName}`;
             break;
           } catch (e2) {
-            // #region debug-point E:resolveBrandingFile
-            console.log(`[DEBUG-BRANDING:${traceId}] ❌ altDir MISS: dir=${JSON.stringify(dir)} (${e2.code})`)
-            // #endregion
           }
         }
       } catch (outerErr) {
-        // #region debug-point E:resolveBrandingFile
-        console.log(`[DEBUG-BRANDING:${traceId}] ❌ altDirs loop EXCEPTION:`, outerErr.message)
-        // #endregion
       }
       if (foundPath) {
         return foundPath;
       }
-      // 🌟 CRITICAL FALLBACK — ALL DIRS FAILED but fileName extracted.
-      // Return /api/public/branding-file URL (NOT /uploads/ static NOT NULL):
-      // /api/* always hits Node backend; frontend BrandLogoImage onerror will show placeholder.
       const apiReturn = `/api/public/branding-file/branding/${fileName}`;
-      // #region debug-point E:resolveBrandingFile
-      console.log(`%c[DEBUG-BRANDING:${traceId}] ❌❌ ALL DIRS FAILED — returning API FALLBACK: ${JSON.stringify(apiReturn)} (bypasses Nginx /uploads/ 404; guaranteed hits Node backend)`, 'color:#B45309;font-weight:bold');
-      // #endregion
       return apiReturn;
     }
   }
@@ -1226,21 +1159,177 @@ class ConfigService {
     return JSON.parse(config.value);
   }
 
+  scheduleMaintenanceExpiry(settings, retryDelayMs = 0) {
+    if (maintenanceExpiryTimer) {
+      clearTimeout(maintenanceExpiryTimer);
+      maintenanceExpiryTimer = null;
+    }
+
+    const schedule = settings?.schedule || {};
+    const startTime = schedule.startAt ? Date.parse(schedule.startAt) : NaN;
+    const endTime = schedule.endAt ? Date.parse(schedule.endAt) : NaN;
+
+    if (
+      !schedule.enabled ||
+      !Number.isFinite(startTime) ||
+      !Number.isFinite(endTime) ||
+      endTime <= startTime
+    ) return;
+
+    const delay = retryDelayMs > 0
+      ? retryDelayMs
+      : Math.max(0, endTime - Date.now());
+
+    maintenanceExpiryTimer = setTimeout(async () => {
+      maintenanceExpiryTimer = null;
+
+      try {
+        await this.getMaintenanceSettings({ bypassCache: true });
+
+        const config = await prisma.configuration.findUnique({
+          where: { key: 'maintenance_settings' }
+        });
+
+        let stored = null;
+        if (config?.value) {
+          try { stored = JSON.parse(config.value); } catch {}
+        }
+
+        const storedSchedule = stored?.schedule || {};
+        const storedStart = storedSchedule.startAt
+          ? Date.parse(storedSchedule.startAt) : NaN;
+        const storedEnd = storedSchedule.endAt
+          ? Date.parse(storedSchedule.endAt) : NaN;
+
+        const stillScheduled =
+          Boolean(storedSchedule.enabled) &&
+          Number.isFinite(storedStart) &&
+          Number.isFinite(storedEnd) &&
+          storedEnd > storedStart;
+
+        if (stillScheduled) {
+          this.scheduleMaintenanceExpiry(
+            { schedule: storedSchedule },
+            storedEnd <= Date.now() ? 30000 : 0
+          );
+        }
+      } catch (error) {
+        console.error('Maintenance expiry scheduler failed; retrying:', error);
+        this.scheduleMaintenanceExpiry(settings, 30000);
+      }
+    }, Math.min(delay, 2147483647));
+
+    if (typeof maintenanceExpiryTimer.unref === 'function') {
+      maintenanceExpiryTimer.unref();
+    }
+  }
+
+  async initializeMaintenanceScheduler() {
+    const settings = await this.getMaintenanceSettings({ bypassCache: true });
+    this.scheduleMaintenanceExpiry(settings);
+    return settings;
+  }
+
   normalizeMaintenanceSettings(settings) {
-    const enabled = Boolean(settings?.enabled);
+    const manualEnabled = Boolean(
+      settings?.manualEnabled ?? settings?.enabled
+    );
+
+    const manualMessageSource = settings?.manualMessage ?? settings?.message;
     const message =
-      typeof settings?.message === 'string' && settings.message.trim()
-        ? settings.message.trim()
+      typeof manualMessageSource === 'string' && manualMessageSource.trim()
+        ? manualMessageSource.trim()
         : 'System is under maintenance';
 
-    return { enabled, message };
+    const inputSchedule =
+      settings?.schedule && typeof settings.schedule === 'object'
+        ? settings.schedule
+        : {};
+
+    const startAt = typeof inputSchedule.startAt === 'string'
+      ? inputSchedule.startAt
+      : null;
+
+    const endAt = typeof inputSchedule.endAt === 'string'
+      ? inputSchedule.endAt
+      : null;
+
+    const startTime = startAt ? Date.parse(startAt) : NaN;
+    const endTime = endAt ? Date.parse(endAt) : NaN;
+
+    const scheduleMessage =
+      typeof inputSchedule.message === 'string' && inputSchedule.message.trim()
+        ? inputSchedule.message.trim()
+        : message;
+
+    const scheduleValid =
+      Number.isFinite(startTime) &&
+      Number.isFinite(endTime) &&
+      endTime > startTime;
+
+    const now = Date.now();
+    const scheduleExpired =
+      Boolean(inputSchedule.enabled) &&
+      scheduleValid &&
+      now >= endTime;
+    const scheduleEnabled =
+      Boolean(inputSchedule.enabled) && !scheduleExpired;
+
+    const scheduleActive =
+      scheduleEnabled &&
+      scheduleValid &&
+      now >= startTime &&
+      now < endTime;
+
+    let scheduleStatus = 'disabled';
+
+    if (scheduleEnabled) {
+      if (!scheduleValid) {
+        scheduleStatus = 'invalid';
+      } else if (now < startTime) {
+        scheduleStatus = 'pending';
+      } else if (now < endTime) {
+        scheduleStatus = 'active';
+      } else {
+        scheduleStatus = 'completed';
+      }
+    }
+
+    return {
+      enabled: manualEnabled || scheduleActive,
+      manualEnabled,
+      message: scheduleActive ? scheduleMessage : message,
+      manualMessage: message,
+      schedule: {
+        enabled: scheduleEnabled,
+        startAt: scheduleExpired ? null : startAt,
+        endAt: scheduleExpired ? null : endAt,
+        message: scheduleMessage
+      },
+      scheduleStatus
+    };
   }
 
   async getMaintenanceSettings(options = {}) {
     const { bypassCache = false } = options;
     const now = Date.now();
-    if (!bypassCache && maintenanceSettingsCache && (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS) {
-      return maintenanceSettingsCache;
+    const cachedSchedule = maintenanceSettingsCache?.schedule || {};
+    const cachedStart = cachedSchedule.startAt ? Date.parse(cachedSchedule.startAt) : NaN;
+    const cachedEnd = cachedSchedule.endAt ? Date.parse(cachedSchedule.endAt) : NaN;
+    const cachedScheduleExpired =
+      Boolean(cachedSchedule.enabled) &&
+      Number.isFinite(cachedStart) &&
+      Number.isFinite(cachedEnd) &&
+      cachedEnd > cachedStart &&
+      now >= cachedEnd;
+
+    if (
+      !bypassCache &&
+      maintenanceSettingsCache &&
+      (now - maintenanceSettingsCacheAt) < MAINTENANCE_SETTINGS_CACHE_TTL_MS &&
+      !cachedScheduleExpired
+    ) {
+      return this.normalizeMaintenanceSettings(maintenanceSettingsCache);
     }
 
     let config = null
@@ -1261,13 +1350,81 @@ class ConfigService {
       }
     }
 
+    const storedSchedule = parsed?.schedule || {};
+    const storedStart = storedSchedule.startAt ? Date.parse(storedSchedule.startAt) : NaN;
+    const storedEnd = storedSchedule.endAt ? Date.parse(storedSchedule.endAt) : NaN;
+    const scheduleExpired =
+      Boolean(storedSchedule.enabled) &&
+      Number.isFinite(storedStart) &&
+      Number.isFinite(storedEnd) &&
+      storedEnd > storedStart &&
+      now >= storedEnd;
+
+    if (scheduleExpired && parsed) {
+      const expiredSettings = {
+        ...parsed,
+        schedule: {
+          ...storedSchedule,
+          enabled: false,
+          startAt: null,
+          endAt: null
+        }
+      };
+
+      try {
+        const saved = await prisma.configuration.upsert({
+          where: { key: 'maintenance_settings' },
+          update: {
+            value: JSON.stringify(expiredSettings),
+            description: 'Maintenance mode settings'
+          },
+          create: {
+            key: 'maintenance_settings',
+            value: JSON.stringify(expiredSettings),
+            description: 'Maintenance mode settings'
+          }
+        });
+        parsed = JSON.parse(saved.value);
+      } catch (error) {
+        console.error('Failed to persist expired maintenance schedule:', error);
+        parsed = expiredSettings;
+        this.scheduleMaintenanceExpiry(
+          { schedule: storedSchedule },
+          30000
+        );
+      }
+    }
+
     maintenanceSettingsCache = this.normalizeMaintenanceSettings(parsed || null);
-    maintenanceSettingsCacheAt = now;
+    maintenanceSettingsCacheAt = Date.now();
     return maintenanceSettingsCache;
   }
 
   async updateMaintenanceSettings(settings) {
-    const normalized = this.normalizeMaintenanceSettings(settings || null);
+    const existing = await this.getMaintenanceSettings({ bypassCache: true });
+
+    const incoming = settings || {};
+    const merged = {
+      ...existing,
+      ...incoming,
+      manualEnabled:
+        incoming.manualEnabled !== undefined
+          ? Boolean(incoming.manualEnabled)
+          : incoming.enabled !== undefined
+            ? Boolean(incoming.enabled)
+            : existing.manualEnabled,
+      message: incoming.message ?? existing.manualMessage ?? existing.message,
+      manualMessage:
+        incoming.manualMessage ?? incoming.message ?? existing.manualMessage ?? existing.message,
+      schedule: incoming.schedule !== undefined
+        ? {
+            ...existing.schedule,
+            ...incoming.schedule
+          }
+        : existing.schedule
+    };
+
+    const normalized = this.normalizeMaintenanceSettings(merged);
     const value = JSON.stringify(normalized);
 
     const config = await prisma.configuration.upsert({
@@ -1278,6 +1435,7 @@ class ConfigService {
 
     maintenanceSettingsCache = this.normalizeMaintenanceSettings(JSON.parse(config.value));
     maintenanceSettingsCacheAt = Date.now();
+    this.scheduleMaintenanceExpiry(maintenanceSettingsCache);
     return maintenanceSettingsCache;
   }
 

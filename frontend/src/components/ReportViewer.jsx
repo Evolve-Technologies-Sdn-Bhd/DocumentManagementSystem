@@ -115,31 +115,6 @@ const ReportViewer = () => {
       const query = params.toString()
       const requestUrl = query ? `/reports/system/data/${reportType}?${query}` : `/reports/system/data/${reportType}`
       const response = await api.get(requestUrl)
-      // #region debug-point A:report-viewer-response
-      fetch('http://127.0.0.1:7777/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'document-request-report',
-          runId: 'pre-fix',
-          hypothesisId: 'A',
-          location: 'frontend/src/components/ReportViewer.jsx:84',
-          msg: '[DEBUG] Report viewer received API response',
-          data: {
-            reportType,
-            requestUrl,
-            title: response?.data?.data?.title || null,
-            summaryKeys: Object.keys(response?.data?.data?.summary || {}),
-            total: response?.data?.data?.summary?.total ?? null,
-            rowCount: Array.isArray(response?.data?.data?.rows) ? response.data.data.rows.length : null,
-            rowTypes: Array.isArray(response?.data?.data?.rows)
-              ? Array.from(new Set(response.data.data.rows.map((row) => row?.requestType).filter(Boolean)))
-              : []
-          },
-          ts: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       setReportData(normalizeReportData(response.data?.data))
       setCurrentPage(1)
     } catch (err) {

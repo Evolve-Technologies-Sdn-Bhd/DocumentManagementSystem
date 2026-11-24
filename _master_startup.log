@@ -1,0 +1,3 @@
+[2026-09-23T07:45:09.711Z] ======== MASTER STARTUP SCRIPT ========
+[2026-09-23T07:45:09.737Z] ROOT = c:\Users\USER\Desktop\DocumentManagementSystem
+[2026-09-23T07:45:09.744Z] === STEP 0: Kill mysqld/node processes ===

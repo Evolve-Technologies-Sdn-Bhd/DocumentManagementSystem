@@ -1,0 +1,105 @@
+⚠️  [AI_ROUTES] Skipping AI mount: aiRoutes missing /health or /config public endpoint (undefined callback risk)
+[PrismaClientValidationError ERROR] GET /api/calendar?from=2026-09-01&to=2026-09-30
+PrismaClientValidationError: 
+Invalid `prisma.documentShareLink.findMany()` invocation:
+
+{
+  where: {
+    expiresAt: {
+      gte: new Date("2026-09-01T00:00:00.000Z"),
+      lte: new Date("2026-09-30T00:00:00.000Z"),
++     not: DateTime
+    }
+  },
+  include: {
+    createdBy: true,
+    document: true
+  }
+}
+
+Argument `not` must not be null.
+    at wn (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async getEventsInRange (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\calendarService.js:235:20)
+    at async C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\controllers\calendarController.js:43:18
+[PrismaClientValidationError ERROR] GET /api/calendar?from=2026-08-31T16:00:00.000Z&to=2026-09-29T16:00:00.000Z
+PrismaClientValidationError: 
+Invalid `prisma.documentShareLink.findMany()` invocation:
+
+{
+  where: {
+    expiresAt: {
+      gte: new Date("2026-08-31T16:00:00.000Z"),
+      lte: new Date("2026-09-29T16:00:00.000Z"),
++     not: DateTime
+    }
+  },
+  include: {
+    createdBy: true,
+    document: true
+  }
+}
+
+Argument `not` must not be null.
+    at wn (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async getEventsInRange (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\calendarService.js:235:20)
+    at async C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\controllers\calendarController.js:43:18
+[PrismaClientValidationError ERROR] GET /api/calendar?from=2026-08-31T16:00:00.000Z&to=2026-09-29T16:00:00.000Z
+PrismaClientValidationError: 
+Invalid `prisma.documentShareLink.findMany()` invocation:
+
+{
+  where: {
+    expiresAt: {
+      gte: new Date("2026-08-31T16:00:00.000Z"),
+      lte: new Date("2026-09-29T16:00:00.000Z"),
++     not: DateTime
+    }
+  },
+  include: {
+    createdBy: true,
+    document: true
+  }
+}
+
+Argument `not` must not be null.
+    at wn (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async getEventsInRange (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\calendarService.js:235:20)
+    at async C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\controllers\calendarController.js:43:18
+[PrismaClientValidationError ERROR] GET /api/calendar?from=2026-08-31T16:00:00.000Z&to=2026-09-29T16:00:00.000Z
+PrismaClientValidationError: 
+Invalid `prisma.documentShareLink.findMany()` invocation:
+
+{
+  where: {
+    expiresAt: {
+      gte: new Date("2026-08-31T16:00:00.000Z"),
+      lte: new Date("2026-09-29T16:00:00.000Z"),
++     not: DateTime
+    }
+  },
+  include: {
+    createdBy: true,
+    document: true
+  }
+}
+
+Argument `not` must not be null.
+    at wn (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\USER\Desktop\DocumentManagementSystem\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async getEventsInRange (C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\services\calendarService.js:235:20)
+    at async C:\Users\USER\Desktop\DocumentManagementSystem\backend\src\controllers\calendarController.js:43:18

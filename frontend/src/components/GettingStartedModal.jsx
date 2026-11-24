@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import { usePreferences } from '../contexts/PreferencesContext'
 
 export default function GettingStartedModal({ open, onClose, showAdminGuide, onStartTour }) {
@@ -9,25 +9,15 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
   if (!open) return null
 
   const modal = (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-overlay">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{t('getting_started')}</h3>
-            <p className="text-sm text-gray-600 mt-1">{t('gs_subtitle')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onClose?.()}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title={t('getting_started')}
+          subtitle={t('gs_subtitle')}
+          onClose={onClose}
+        />
 
-        <div className="px-6 pt-4">
+        <ModalBody className="space-y-6">
+          <div>
           <div className="flex gap-2 border-b border-gray-200">
             <button
               type="button"
@@ -52,7 +42,7 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
           </div>
         </div>
 
-        <div className="px-6 py-6">
+          <div>
           <div className="border border-gray-200 rounded-lg p-5">
             <div className="text-sm text-gray-700">
               {activeTab === 'admin' ? t('tour_admin_intro') : t('tour_user_intro')}
@@ -72,7 +62,9 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        </ModalBody>
+
+        <ModalFooter>
           <button
             type="button"
             onClick={() => onClose?.()}
@@ -80,11 +72,7 @@ export default function GettingStartedModal({ open, onClose, showAdminGuide, onS
           >
             {t('close')}
           </button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
 }

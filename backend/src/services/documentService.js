@@ -6,6 +6,8 @@ const confidentialAccessService = require('./confidentialAccessService')
 const divisionScopeService = require('./divisionScopeService')
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
 const DocumentNumbering = require('../utils/documentNumbering');
+const integrationEventService = require('./integrationEventService');
+const { EVENT_TYPES } = require('./integrationEventService');
 const path = require('path');
 const { startTimer, getElapsedMs, roundMs } = require('../utils/timing');
 
@@ -765,6 +767,28 @@ class DocumentService {
       // Keep create flow backward compatible even if code doesn't match current format
     }
 
+    // Publish to the integration outbox (never throws, fire-and-forget semantics)
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_CREATED,
+      entityType: 'Document',
+      entityId: document.id,
+      payload: {
+        id: document.id,
+        fileCode: document.fileCode,
+        title: document.title,
+        documentTypeId: document.documentTypeId,
+        projectCategoryId: document.projectCategoryId,
+        divisionId: document.divisionId,
+        folderId: document.folderId,
+        status: document.status,
+        stage: document.stage,
+        version: document.version,
+        createdById: document.createdById,
+        ownerId: document.ownerId,
+        dateOfDocument: document.dateOfDocument
+      }
+    });
+
     return document;
   }
 
@@ -1139,6 +1163,27 @@ class DocumentService {
         sourceRefId: document.id
       })
     }
+
+    await integrationEventService.publish({
+      type: EVENT_TYPES.DOCUMENT_CREATED,
+      entityType: 'Document',
+      entityId: document.id,
+      payload: {
+        id: document.id,
+        fileCode: document.fileCode,
+        title: document.title,
+        documentTypeId: document.documentTypeId,
+        projectCategoryId: document.projectCategoryId,
+        folderId: document.folderId,
+        isClientDocument: document.isClientDocument,
+        status: document.status,
+        stage: document.stage,
+        version: document.version,
+        createdById: document.createdById,
+        ownerId: document.ownerId,
+        source: 'BULK_IMPORT'
+      }
+    })
 
     return document
   }
@@ -1910,12 +1955,34 @@ class DocumentService {
       }
     }
 
-    // Update status to ARCHIVED instead of hard delete
-    await prisma.document.update({
-      where: { id: documentId },
-      data: {
-        status: 'ARCHIVED'
-      }
+    const fileCode = document.fileCode;
+    const projectCategoryId = document.projectCategoryId || null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.document.update({
+        where: { id: documentId },
+        data: { status: 'ARCHIVED' }
+      });
+
+      const fileCodeWhere = { fileCode };
+      const fileCodeAndCategoryWhere = projectCategoryId
+        ? { fileCode, projectCategoryId }
+        : null;
+
+      const deleteRegisters = async (model) => {
+        try {
+          await tx[model].deleteMany({ where: fileCodeWhere });
+          if (fileCodeAndCategoryWhere) {
+            await tx[model].deleteMany({ where: fileCodeAndCategoryWhere });
+          }
+        } catch (_e) { /* ignore */ }
+      };
+
+      await deleteRegisters('documentRegister');
+      await deleteRegisters('codeRegistry');
+      await deleteRegisters('obsoleteRegister');
+      await deleteRegisters('archiveRegister');
+      await deleteRegisters('versionRegister');
     });
 
     return true;
@@ -2658,27 +2725,33 @@ class DocumentService {
     }
 
     // Update document register
-    await prisma.documentRegister.upsert({
-      where: { fileCode_projectCategoryId: { fileCode, projectCategoryId: updated.projectCategoryId } },
-      update: {
-        documentTitle: document.title,
-        documentType: document.documentType.name,
-        version: '1.0',
-        owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
-        department: updated.owner.department || '',
-        status: 'ACKNOWLEDGED'
-      },
-      create: {
-        fileCode,
-        projectCategoryId: updated.projectCategoryId,
-        documentTitle: document.title,
-        documentType: document.documentType.name,
-        version: '1.0',
-        owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
-        department: updated.owner.department || '',
-        status: 'ACKNOWLEDGED'
-      }
-    });
+    // projectCategoryId is nullable and Prisma cannot resolve the compound unique
+    // (fileCode, projectCategoryId) when a member is null, so resolve by findFirst instead.
+    const registerRecordData = {
+      documentTitle: document.title,
+      documentType: document.documentType.name,
+      version: '1.0',
+      owner: `${updated.owner.firstName} ${updated.owner.lastName}`,
+      department: updated.owner.department || '',
+      status: 'ACKNOWLEDGED'
+    }
+    const existingRegisterEntry = await prisma.documentRegister.findFirst({
+      where: { fileCode, projectCategoryId: updated.projectCategoryId ?? null }
+    })
+    if (existingRegisterEntry) {
+      await prisma.documentRegister.update({
+        where: { id: existingRegisterEntry.id },
+        data: registerRecordData
+      })
+    } else {
+      await prisma.documentRegister.create({
+        data: {
+          fileCode,
+          projectCategoryId: updated.projectCategoryId ?? null,
+          ...registerRecordData
+        }
+      })
+    }
 
     try {
       const settings = await DocumentNumbering.loadSettings()

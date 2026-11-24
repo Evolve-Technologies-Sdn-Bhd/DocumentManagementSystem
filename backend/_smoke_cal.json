@@ -1,0 +1,27 @@
+{
+  "mysql": {
+    "up": true,
+    "note": "Port 3306 LISTENING"
+  },
+  "backend": {
+    "up": true,
+    "pid": 11532,
+    "note": "Branding < 500 OK"
+  },
+  "frontend": {
+    "up": true,
+    "pid": 16412,
+    "note": "GET / < 500 OK"
+  },
+  "calendarSmoke": {
+    "pass": false,
+    "httpStatus": 500,
+    "bodySnippet": "{\"success\":false,\"message\":\"\\nInvalid `prisma.projectIterationDocumentItem.findMany()` invocation:\\n\\n{\\n  where: {\\n    dueDate: {\\n      gte: new Date(\\\"2026-09-01T00:00:00.000Z\\\"),\\n      lte: new Date(\\\"2026-09-30T00:00:00.000Z\\\")\\n    }\\n  },\\n  include: {\\n    documentType: true,\\n    assignedTo: true,\\n    iteration: {\\n      include: {\\n        project: true,\\n        stage: true,\\n        ~~~~~\\n?       currentStage?: true,\\n?       items?: true,\\n?       links?: true,\\n?       changeRequests?: true\\n      }\\n    }\\n  }\\n}\\n\\nUnknown field `stage` for include statement on model `Proje",
+    "errors": [
+      "HTTP 500 not in 2xx/3xx",
+      "Prisma include: Unknown field `stage` on model `projectIterationDocumentItem` iteration.include.stage"
+    ],
+    "note": "FAIL: HTTP 500 (Prisma schema mismatch). NOTE: String forbidden 'not: DateTime' = TIDAK ADA; 'Invalid prisma.documentShareLink' = TIDAK ADA"
+  },
+  "finalizedAt": "2026-09-22T06:15:00.943Z"
+}

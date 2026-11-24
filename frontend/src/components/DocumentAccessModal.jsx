@@ -1,23 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
-
-function ModalShell({ title, children, onClose }) {
-  const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-[90] modal-uniform p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">×</button>
-        </div>
-        <div className="p-6">{children}</div>
-      </div>
-    </div>
-  )
-
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
-}
 
 function DocumentStatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
@@ -140,9 +123,15 @@ export default function DocumentAccessModal({ document, onClose, onSaved, onErro
   }, [subjectResults])
 
   return (
-    <ModalShell title="Manage Confidential Access" onClose={onClose}>
+    <Modal isOpen size="lg" onClose={onClose}>
+      <ModalHeader
+        title="Manage Confidential Access"
+        subtitle="Control which users and roles can view this confidential document."
+        onClose={onClose}
+      />
+      <ModalBody className="space-y-4">
       {loading ? (
-        <div className="text-sm text-gray-500">Loading access settings...</div>
+        <div className="text-sm text-ink-secondary">Loading access settings...</div>
       ) : (
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -213,16 +202,30 @@ export default function DocumentAccessModal({ document, onClose, onSaved, onErro
             </>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
-              Cancel
-            </button>
-            <button disabled={saving} type="button" onClick={save} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save Access'}
-            </button>
-          </div>
+
         </div>
       )}
-    </ModalShell>
+      </ModalBody>
+
+      {!loading && (
+        <ModalFooter>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg h-10 px-4 border border-[var(--dms-color-border-default)] bg-[var(--dms-color-bg-surface)] text-ink-secondary font-medium hover:bg-[var(--dms-color-bg-surface-muted)] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={saving}
+            type="button"
+            onClick={save}
+            className="rounded-lg h-10 px-4 bg-[var(--dms-color-brand-primary)] text-white font-semibold hover:opacity-90 transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Access'}
+          </button>
+        </ModalFooter>
+      )}
+    </Modal>
   )
 }

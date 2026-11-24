@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import SearchableSingleSelect from '../components/ui/SearchableSingleSelect'
 import api from '../api/axios'
 import StatusBadge from './StatusBadge'
 import NewVersionRequestModal from './NewVersionRequestModal'
@@ -39,164 +40,6 @@ function DatePicker({ value, onChange, placeholder = "Select date" }) {
     </div>
   )
 }
-
-function SearchableSingleSelect({
-  value,
-  options,
-  onChange,
-  placeholder,
-  searchPlaceholder,
-  noResultsLabel,
-  disabled = false,
-  loading = false,
-  clearLabel = 'Clear',
-  loadingLabel = 'Loading...',
-  invalid = false,
-  ...rest
-}) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const containerRef = useRef(null)
-  const inputRef = useRef(null)
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.value) === String(value)) || null,
-    [options, value]
-  )
-
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
-    if (!normalizedSearch) return options
-
-    return options.filter((option) =>
-      `${option.label} ${option.searchText || ''}`.toLowerCase().includes(normalizedSearch)
-    )
-  }, [options, searchValue])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const handlePointerDown = (event) => {
-      if (!containerRef.current?.contains(event.target)) {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return undefined
-
-    const timer = window.setTimeout(() => {
-      inputRef.current?.focus()
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [open])
-
-  useEffect(() => {
-    if (disabled) {
-      setOpen(false)
-      setSearchValue('')
-    }
-  }, [disabled])
-
-  const handleSelect = (option) => {
-    onChange(option.value, option)
-    setOpen(false)
-    setSearchValue('')
-  }
-
-  return (
-    <div ref={containerRef} className="relative flex-1" {...rest}>
-      <button
-        type="button"
-        onClick={() => {
-          if (!disabled) setOpen((prev) => !prev)
-        }}
-        disabled={disabled}
-        aria-expanded={open}
-        className={`flex min-h-[40px] w-full items-center justify-between rounded-2xl border bg-surface px-3 py-2 text-left text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand/30 ${
-          invalid ? 'border-red-300 focus-visible:ring-red-200/80' : 'border-border'
-        } ${disabled ? 'cursor-not-allowed bg-surface-muted text-ink-soft' : ''} ${
-          open ? 'ring-2 ring-brand/20' : ''
-        }`}
-      >
-        <span className={selectedOption ? 'text-ink' : 'text-ink-muted'}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <span className="ml-3 text-xs text-ink-muted">{open ? '▲' : '▼'}</span>
-      </button>
-
-      {open ? (
-        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-dms-lg">
-          <div className="border-b border-border p-3">
-            <input
-              ref={inputRef}
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-10 w-full rounded-2xl border border-border bg-surface px-3 text-sm text-ink outline-none transition-shadow placeholder:text-ink-soft focus-visible:ring-2 focus-visible:ring-brand/30"
-            />
-            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-ink-muted">
-              <span>{loading ? loadingLabel : `${filteredOptions.length} result${filteredOptions.length === 1 ? '' : 's'}`}</span>
-              {searchValue ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchValue('')}
-                  className="rounded-lg px-2 py-1 font-medium transition hover:bg-surface-muted hover:text-ink"
-                >
-                  {clearLabel}
-                </button>
-              ) : (
-                <span>Type to filter</span>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-64 overflow-y-auto p-2">
-            {loading ? (
-              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{loadingLabel}</div>
-            ) : filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const isSelected = String(option.value) === String(value)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
-                      isSelected ? 'bg-[var(--dms-color-info-soft)] text-ink' : 'text-ink hover:bg-surface-muted'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium">{option.label}</div>
-                      {option.meta?.length ? (
-                        <div className="mt-1 space-y-0.5">
-                          {option.meta.map((metaLine) => (
-                            <div key={metaLine} className="text-xs text-ink-muted">
-                              {metaLine}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isSelected ? <span className="text-xs font-medium text-brand">Selected</span> : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="rounded-xl px-3 py-4 text-sm text-ink-muted">{noResultsLabel}</div>
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 
 export default function NewDocumentRequest() {
   const { t, formatDate } = usePreferences()
@@ -259,6 +102,8 @@ export default function NewDocumentRequest() {
   // Check if user has permission to acknowledge document requests
   // Uses permission-based checking instead of hardcoded roles
   const canAcknowledge = hasPermission('newDocumentRequest', 'acknowledge')
+  const canAddDocumentType = hasPermission('configuration.documentTypes', 'create')
+  const canAddProjectCategory = hasPermission('configuration.masterData', 'create')
   
   // Get current user ID to prevent self-acknowledgment
   const getCurrentUserId = () => {
@@ -348,20 +193,20 @@ export default function NewDocumentRequest() {
         requestType: 'NVR'
       }))
       
-      // Get file codes that have NVR requests
-      // If an NVR exists for a document, the NDR should be hidden
-      const nvrFileCodes = new Set(
+      // Only hide the NDR row that represents a document auto-created by an NVR
+      // (the NVR's NEW document). Never hide by the original document's file code —
+      // a pending NVR carries the original code, which would wrongly suppress NDR rows.
+      const nvrNewFileCodes = new Set(
         nvrs
-          .filter(nvr => nvr.fileCode || nvr.document?.fileCode)
-          .map(nvr => nvr.fileCode || nvr.document?.fileCode)
+          .map(nvr => nvr.newDocument?.fileCode)
+          .filter(Boolean)
       )
-      
-      // Filter out NDRs that have been superseded by NVRs (same fileCode)
+
       const filteredNdrs = ndrs.filter(ndr => {
         // Keep NDR if it doesn't have a fileCode yet (still pending)
         if (!ndr.fileCode || ndr.fileCode === '-') return true
-        // Keep NDR if no NVR exists for this fileCode
-        return !nvrFileCodes.has(ndr.fileCode)
+        // Hide only if this NDR row is the version document an NVR already created
+        return !nvrNewFileCodes.has(ndr.fileCode)
       })
       
       // Merge and sort by date (newest first)
@@ -375,69 +220,7 @@ export default function NewDocumentRequest() {
     } catch (error) {
       console.error('Failed to load requests:', error)
       console.error('Error details:', error.response?.data || error.message)
-      // Mock data for demonstration
-      setRequests([
-        {
-          id: 1,
-          title: 'Minutes of Meeting - Q1 2024',
-          documentType: 'MoM',
-          projectCategory: 'Internal',
-          dateOfDocument: '25/01/2024',
-          remarks: 'Regular quarterly meeting',
-          fileCode: 'MoM012508241001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 2,
-          title: 'Project Implementation Plan',
-          documentType: 'Project Plan',
-          projectCategory: 'External',
-          dateOfDocument: '17/09/2024',
-          remarks: 'Client project phase 2',
-          fileCode: 'PP-EXT-0917-001',
-          status: 'In Process'
-        },
-        {
-          id: 3,
-          title: 'System Requirements Specification',
-          documentType: 'Requirement Analysis',
-          projectCategory: 'R&D',
-          dateOfDocument: '22/02/2024',
-          remarks: 'New DMS module requirements',
-          fileCode: '-',
-          status: 'In Process'
-        },
-        {
-          id: 4,
-          title: 'Technical Design Document v2.0',
-          documentType: 'Design',
-          projectCategory: 'Internal',
-          dateOfDocument: '03/11/2024',
-          remarks: 'Updated architecture design',
-          fileCode: 'DD012508241001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 5,
-          title: 'Quality Assurance Procedures',
-          documentType: 'SOP',
-          projectCategory: 'Internal',
-          dateOfDocument: '15/10/2024',
-          remarks: 'Updated QA process',
-          fileCode: 'SOP-QA-1024-001',
-          status: 'Acknowledged'
-        },
-        {
-          id: 6,
-          title: 'API Integration Guide',
-          documentType: 'Manual',
-          projectCategory: 'Client',
-          dateOfDocument: '28/08/2024',
-          remarks: 'Third-party API documentation',
-          fileCode: '-',
-          status: 'In Process'
-        }
-      ])
+      setRequests([])
     } finally {
       setLoadingRequests(false)
     }
@@ -585,11 +368,6 @@ export default function NewDocumentRequest() {
         type: 'success'
       })
       loadRequests()
-      if (!isNVR) {
-        setTimeout(() => {
-          navigate('/documents/drafts?origin=ndr', { replace: false })
-        }, 1200)
-      }
     } catch (error) {
       console.error('Failed to acknowledge request:', error)
       const errorMessage = error.response?.data?.message || 'Failed to acknowledge request. Please try again.'
@@ -972,7 +750,7 @@ export default function NewDocumentRequest() {
         accessor: 'dateOfDocument',
         label: t('date_of_document'),
         sortable: true,
-        sortType: 'string',
+        sortType: 'date',
         render: (value) => value
       },
       {
@@ -981,7 +759,7 @@ export default function NewDocumentRequest() {
         accessor: 'requestDate',
         label: t('request_date'),
         sortable: true,
-        sortType: 'string',
+        sortType: 'date',
         render: (value) => value
       },
       {
@@ -1126,6 +904,18 @@ export default function NewDocumentRequest() {
     data: requests,
     columns: ndrTableColumns
   })
+
+  // Slice the (sorted) rows for the current page so the pagination controls actually work
+  const paginatedData = useMemo(
+    () => sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [sortedData, currentPage]
+  )
+
+  // Keep the current page in range when the underlying list shrinks
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(sortedData.length / itemsPerPage))
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [sortedData.length, currentPage])
 
   const handleColDragStart = (visibleIdx, e) => {
     const colId = visibleColumns[visibleIdx]?.id
@@ -1306,7 +1096,8 @@ export default function NewDocumentRequest() {
                   disabled={loadingMasterData}
                   invalid={fieldErrors.documentType}
                 />
-                <IconButton
+                {canAddDocumentType && (
+<IconButton
                   type="button"
                   onClick={handleAddDocumentType}
                   title={t('mdm_add_doc_type')}
@@ -1316,6 +1107,7 @@ export default function NewDocumentRequest() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </IconButton>
+                )}
               </div>
             </div>
 
@@ -1358,7 +1150,8 @@ export default function NewDocumentRequest() {
                   disabled={loadingMasterData}
                   invalid={fieldErrors.projectCategory}
                 />
-                <IconButton
+                {canAddProjectCategory && (
+<IconButton
                   type="button"
                   onClick={handleAddProjectCategory}
                   title={t('mdm_add_project_cat')}
@@ -1368,6 +1161,7 @@ export default function NewDocumentRequest() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </IconButton>
+                )}
               </div>
             </div>
           </div>
@@ -1529,7 +1323,7 @@ export default function NewDocumentRequest() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedData.map((req) => (
+                  {paginatedData.map((req) => (
                     <Tr key={req.id}>
                       {visibleColumns.map((col) => {
                         const cId = col.id || col.key || col.accessor
@@ -1563,7 +1357,7 @@ export default function NewDocumentRequest() {
 
             {/* Mobile Cards */}
             <div className="lg:hidden space-y-4" onClick={() => setAdminPurgeMenuRequestId(null)}>
-              {requests.map((req) => (
+              {paginatedData.map((req) => (
                 <AppSurface key={req.id} variant="muted" padding="md" className="space-y-3 transition-shadow hover:shadow-dms-soft">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex items-center gap-2 flex-1">
@@ -1694,12 +1488,12 @@ export default function NewDocumentRequest() {
             </div>
 
             {/* Pagination */}
-            {requests.length > itemsPerPage && (
+            {sortedData.length > itemsPerPage && (
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-border">
                 <p className="text-sm text-ink-muted">
                   Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, requests.length)}</span> of{' '}
-                  <span className="font-medium">{requests.length}</span> results
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedData.length)}</span> of{' '}
+                  <span className="font-medium">{sortedData.length}</span> results
                 </p>
                 <div className="flex items-center gap-2">
                   <IconButton
@@ -1711,7 +1505,7 @@ export default function NewDocumentRequest() {
                     </svg>
                   </IconButton>
                   
-                  {[...Array(Math.ceil(requests.length / itemsPerPage))].map((_, idx) => (
+                  {[...Array(Math.ceil(sortedData.length / itemsPerPage))].map((_, idx) => (
                     <Button
                       key={idx + 1}
                       onClick={() => setCurrentPage(idx + 1)}
@@ -1724,8 +1518,8 @@ export default function NewDocumentRequest() {
                   ))}
                   
                   <IconButton
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(requests.length / itemsPerPage), prev + 1))}
-                    disabled={currentPage === Math.ceil(requests.length / itemsPerPage)}
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(sortedData.length / itemsPerPage), prev + 1))}
+                    disabled={currentPage === Math.ceil(sortedData.length / itemsPerPage) || sortedData.length <= itemsPerPage}
                   >
                     <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

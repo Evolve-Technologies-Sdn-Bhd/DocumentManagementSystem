@@ -231,7 +231,7 @@ export default function RequestSupersedeModal({ onClose, onSubmit }) {
       )}
 
       <Modal onClose={loading ? undefined : onClose} closeOnBackdrop={!loading} size="md">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <ModalHeader title="Request Supersede / Obsolete Document" onClose={loading ? undefined : onClose} />
 
           <ModalBody className="space-y-4">

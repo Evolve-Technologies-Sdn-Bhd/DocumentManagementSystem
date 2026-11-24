@@ -1,0 +1,31 @@
+{
+  "error": "spawn EINVAL",
+  "stack": "Error: spawn EINVAL\n    at ChildProcess.spawn (node:internal/child_process:421:11)\n    at spawn (node:child_process:796:9)\n    at step5_startFrontend (c:\\Users\\USER\\Desktop\\DocumentManagementSystem\\backend\\_orchestrator.js:149:22)\n    at main (c:\\Users\\USER\\Desktop\\DocumentManagementSystem\\backend\\_orchestrator.js:177:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+  "summary": {
+    "startTime": "2026-09-22T05:42:25.478Z",
+    "pidFilesDeleted": [],
+    "ariaLog": {
+      "sourceExists": true,
+      "destExistsBefore": true,
+      "copied": false,
+      "destExistsAfter": true
+    },
+    "mysql": {
+      "pid": 17112,
+      "port3306": [],
+      "logTail": [
+        ""
+      ]
+    },
+    "backend": {
+      "pid": 17732,
+      "port4001": [],
+      "outTail": [
+        ""
+      ],
+      "errTail": [
+        ""
+      ]
+    }
+  }
+}

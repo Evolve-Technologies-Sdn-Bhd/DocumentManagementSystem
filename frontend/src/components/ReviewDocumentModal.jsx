@@ -6,6 +6,7 @@ import Button from './ui/Button'
 import TextInput from './ui/TextInput'
 import TextArea from './ui/TextArea'
 import SelectField from './ui/SelectField'
+import SearchableSingleSelect from './ui/SearchableSingleSelect'
 import AppSurface from './ui/AppSurface'
 import InlineSpinner from './ui/InlineSpinner'
 import AsyncActionStatus from './ui/AsyncActionStatus'
@@ -140,7 +141,6 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
           status === 404 ||
           (status === 400 && msg.toLowerCase().includes('does not contain smart document content'))
         if (!isExpected) {
-          console.debug('Smart document detection skipped:', msg)
         }
       } finally {
         setSmartContentLoading(false)
@@ -563,7 +563,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
         )}
 
         {/* Smart Form dengan diff badges */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4 max-h-[500px] overflow-y-auto pr-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
           <Suspense fallback={<div className="p-8 text-center text-sm text-gray-500 flex items-center justify-center gap-2"><InlineSpinner className="h-4 w-4 border-2"/>Loading Smart Form...</div>}>
             {smartTemplateVersion ? (
               <SmartFormLazy
@@ -590,7 +590,7 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
 
   return (
     <Modal onClose={isSubmitting ? undefined : onClose} closeOnBackdrop={!isSubmitting} size="xl">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <ModalHeader
           title={isSmartDocument ? 'Smart Document Review' : t('review_document')}
           subtitle={isSmartDocument
@@ -755,20 +755,25 @@ export default function ReviewDocumentModal({ document, onClose, onSubmit, isSub
                   {t('assign_approver_label')}
                 </label>
                 <div className="flex items-center gap-3">
-                  <SelectField
-                    value={formData.assignedApprover || ''}
-                    onChange={(e) => handleApproverSelect(e.target.value)}
+                  <SearchableSingleSelect
+                    value={formData.assignedApprover ?? ''}
+                    options={[
+                      {
+                        value: '',
+                        label: loadingApprovers ? t('loading_approvers') : t('select_approver')
+                      },
+                      ...approversList.map((approver) => ({
+                        value: String(approver.id),
+                        label: approver.name,
+                        searchText: approver.name || ''
+                      }))
+                    ]}
+                    onChange={(value) => handleApproverSelect(value)}
+                    placeholder={t('select_approver')}
+                    searchPlaceholder={t('assign_approver_label')}
                     disabled={loadingApprovers}
-                  >
-                    <option value="">
-                      {loadingApprovers ? t('loading_approvers') : t('select_approver')}
-                    </option>
-                    {approversList.map((approver) => (
-                      <option key={approver.id} value={approver.id}>
-                        {approver.name}
-                      </option>
-                    ))}
-                  </SelectField>
+                    zIndex={180}
+                  />
                   {loadingApprovers ? <InlineSpinner className="h-4 w-4 border-2" /> : null}
                 </div>
                 {approversList.length === 0 && !loadingApprovers && (

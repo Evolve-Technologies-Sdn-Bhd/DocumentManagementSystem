@@ -87,7 +87,22 @@ export const getUserPermissions = () => {
 export const hasPermission = (module, action) => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
-  return !!(permissions[module] && permissions[module][action])
+  if (module === 'profileSettings') return true
+
+  // Support both flat keys (configuration.masterData)
+  // and nested permission objects (configuration -> masterData).
+  let modulePermissions = permissions[module]
+
+  if (!modulePermissions && module.includes('.')) {
+    modulePermissions = module.split('.').reduce(
+      (current, key) => current && typeof current === 'object'
+        ? current[key]
+        : undefined,
+      permissions
+    )
+  }
+
+  return !!(modulePermissions && modulePermissions[action])
 }
 
 /**
@@ -98,6 +113,7 @@ export const hasPermission = (module, action) => {
 export const hasAnyPermission = (module) => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
+  if (module === 'profileSettings') return true
   if (!permissions[module]) return false
   
   return Object.values(permissions[module]).some(value => value === true)
@@ -159,13 +175,32 @@ export const hasRole = (roleName) => {
 }
 
 /**
- * Check if user is admin
+ * Check if user is admin / has super-admin-like override capabilities
+ * Mirrors backend isUserAdmin(): permissions.all, isSystem role, OR
+ * role name matches admin|controller|document_controller pattern
  * @returns {boolean}
  */
 export const isAdmin = () => {
   const permissions = getUserPermissions()
   if (permissions.all === true) return true
-  return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+  try {
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+    }
+    const user = JSON.parse(userStr)
+    const rolesRaw = user.roles || []
+    const adminPattern = /admin|controller|document_controller/i
+    return rolesRaw.some((roleData) => {
+      const role = roleData?.role || roleData
+      if (!role) return false
+      if (role.isSystem === true) return true
+      const roleName = role.name || role.displayName || ''
+      return adminPattern.test(roleName)
+    })
+  } catch (e) {
+    return hasRole('System Administrator') || hasRole('Administrator') || hasRole('Admin')
+  }
 }
 
 /**
@@ -237,4 +272,35 @@ export const canAccessRoute = (route) => {
   }
 
   return hasAnyPermission(module)
+}
+
+
+// Strict System Administrator check for maintenance access and system settings.
+// Intentionally does not use isSystem(), substring matching, or the broader isAdmin().
+export const isSystemAdmin = () => {
+  try {
+    const permissions = getUserPermissions()
+    if (permissions?.all === true) return true
+
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    const roles = Array.isArray(user?.roles) ? user.roles : []
+
+    const allowedNames = new Set([
+      'admin',
+      'system_admin',
+      'system administrator',
+      'system-admin'
+    ])
+
+    return roles.some((roleData) => {
+      const role = roleData?.role || roleData
+      const roleName = typeof role === 'string'
+        ? role
+        : (role?.name || role?.displayName || '')
+
+      return allowedNames.has(String(roleName).trim().toLowerCase())
+    })
+  } catch {
+    return getUserPermissions()?.all === true
+  }
 }

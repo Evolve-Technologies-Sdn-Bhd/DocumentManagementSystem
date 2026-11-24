@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import * as ReactDOM from 'react-dom'
+import Modal, { ModalHeader, ModalBody, ModalFooter } from './ui/Modal'
 import api from '../api/axios'
 
 export default function AddTemplateModal({ onClose, onSubmit, initialData, documentTypes = [] }) {
@@ -62,55 +62,46 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
     return base.trim()
   }
 
-  const handleFileSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files)
-    
-    // Validate file types
-    const allowedExtensions = ['.docx', '.dotx', '.pptx']
-    const invalidFiles = selectedFiles.filter(file => {
-      const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
-      return !allowedExtensions.includes(ext)
-    })
-    
-    if (invalidFiles.length > 0) {
-      alert(`Invalid file type. Only DOCX, DOTX, XLSX, XLTX, CSV, and PPTX files are allowed.\n\nInvalid files: ${invalidFiles.map(f => f.name).join(', ')}`)
+  const allowedTemplateExtensions = ['.docx', '.dotx', '.xlsx', '.xltx', '.csv', '.pptx']
+
+  const validateAndSetFile = (selectedFiles) => {
+    if (!selectedFiles.length) return
+
+    if (selectedFiles.length > 1) {
+      alert('Please select only one template file.')
       return
     }
-    
-    if (!templateNameTouched && selectedFiles[0]) {
-      const derived = fileNameToTemplateName(selectedFiles[0].name)
+
+    const selectedFile = selectedFiles[0]
+    const ext = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'))
+
+    if (!allowedTemplateExtensions.includes(ext)) {
+      alert('Invalid file type. Only DOCX, DOTX, XLSX, XLTX, CSV, and PPTX files are allowed.')
+      return
+    }
+
+    if (!templateNameTouched) {
+      const derived = fileNameToTemplateName(selectedFile.name)
       if (derived) {
         setFormData(prev => ({ ...prev, templateName: derived }))
       }
     }
-    setFiles(prev => [...prev, ...selectedFiles])
+
+    // Backend accepts one file; replace any previously selected file.
+    setFiles([selectedFile])
+  }
+
+  const handleFileSelect = (e) => {
+    validateAndSetFile(Array.from(e.target.files || []))
+    e.target.value = ''
   }
 
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true) }
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false) }
   const handleDrop = (e) => {
-    e.preventDefault(); setIsDragging(false)
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    
-    // Validate file types
-    const allowedExtensions = ['.docx', '.dotx', '.pptx']
-    const invalidFiles = droppedFiles.filter(file => {
-      const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
-      return !allowedExtensions.includes(ext)
-    })
-    
-    if (invalidFiles.length > 0) {
-      alert(`Invalid file type. Only DOCX, DOTX, XLSX, XLTX, CSV, and PPTX files are allowed.\n\nInvalid files: ${invalidFiles.map(f => f.name).join(', ')}`)
-      return
-    }
-    
-    if (!templateNameTouched && droppedFiles[0]) {
-      const derived = fileNameToTemplateName(droppedFiles[0].name)
-      if (derived) {
-        setFormData(prev => ({ ...prev, templateName: derived }))
-      }
-    }
-    setFiles(prev => [...prev, ...droppedFiles])
+    e.preventDefault()
+    setIsDragging(false)
+    validateAndSetFile(Array.from(e.dataTransfer.files || []))
   }
 
   const handleRemoveFile = (index) => { setFiles(prev => prev.filter((_, i) => i !== index)) }
@@ -133,25 +124,15 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
   }
 
   const modal = (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[90] modal-uniform">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900">Add / Reupload New Template</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            These templates ensure consistency in formatting and file naming when users create new documents via the NDR (New Document Request) flow.
-          </p>
-        </div>
+    <Modal isOpen size="xl" onClose={onClose}>
+        <ModalHeader
+          title="Add / Reupload New Template"
+          subtitle="These templates ensure consistency in formatting and file naming when users create new documents via the NDR (New Document Request) flow."
+          onClose={onClose}
+        />
 
         {/* Form Content */}
-        <div className="px-6 py-4 space-y-4">
+        <ModalBody className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-2">Document Type <span className="text-red-500">*</span></label>
@@ -229,7 +210,7 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
                 <p className="text-sm text-gray-500 mb-3">Supported formats: DOCX, DOTX, XLSX, XLTX, CSV, PPTX</p>
                 <div className="text-sm text-gray-500 mb-3">OR</div>
                 <button type="button" onClick={handleBrowseClick} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Browse files</button>
-                <input ref={fileInputRef} type="file" accept=".docx,.dotx,.pptx" multiple onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRef} type="file" accept=".docx,.dotx,.xlsx,.xltx,.csv,.pptx" onChange={handleFileSelect} className="hidden" />
               </div>
             </div>
 
@@ -259,17 +240,15 @@ export default function AddTemplateModal({ onClose, onSubmit, initialData, docum
               </div>
             )}
           </div>
-        </div>
+        </ModalBody>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0">
+        <ModalFooter>
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
           <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-[#003366] rounded-lg hover:bg-[#002244] transition-colors">Submit</button>
-        </div>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   )
 
-  if (typeof document === 'undefined' || !ReactDOM?.createPortal || !document.body) return modal
-  return ReactDOM.createPortal(modal, document.body)
+  return modal
 }

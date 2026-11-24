@@ -1,0 +1,666 @@
+2026-09-22 13:47:09 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 14404
+2026-09-22 13:47:10 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-22 13:47:10 0 [Note] InnoDB: Uses event mutexes
+2026-09-22 13:47:10 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-22 13:47:10 0 [Note] InnoDB: Number of pools: 1
+2026-09-22 13:47:10 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-22 13:47:10 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-22 13:47:10 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-22 13:47:10 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-22 13:47:10 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-22 13:47:10 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-22 13:47:10 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-22 13:47:10 0 [Note] InnoDB: Waiting for purge to start
+2026-09-22 13:47:10 0 [Note] InnoDB: 10.4.32 started; log sequence number 149701153; transaction id 68734
+2026-09-22 13:47:10 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-22 13:47:10 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-22 13:47:10 0 [Note] InnoDB: Buffer pool(s) load completed at 260922 13:47:10
+2026-09-22 13:47:10 0 [Note] Zerofilling moved table:  '.\mysql\plugin'
+2026-09-22 13:47:10 0 [Note] Zerofilling moved table:  '.\mysql\servers'
+2026-09-22 13:47:10 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-22 13:47:10 0 [Note] Zerofilling moved table:  '.\mysql\db'
+2026-09-22 13:47:10 0 [ERROR] (null).(null): Page 8192: Got error 176 when reading index file
+2026-09-22 13:47:10 0 [Warning] Checking table:   '.\mysql\db'
+2026-09-22 13:47:10 0 [ERROR] mysql.db: Table is from another system and must be zerofilled or repaired to be usable on this system
+2026-09-22 13:47:10 0 [Warning] Recovering table: '.\mysql\db'
+2026-09-22 13:47:10 0 [Note] Zerofilling moved table:  '.\mysql\proxies_priv'
+2026-09-22 13:47:10 0 [ERROR] (null).(null): Page 8192: Got error 176 when reading index file
+2026-09-22 13:47:10 0 [Warning] Checking table:   '.\mysql\proxies_priv'
+2026-09-22 13:47:10 0 [ERROR] mysql.proxies_priv: Table is from another system and must be zerofilled or repaired to be usable on this system
+2026-09-22 13:47:10 0 [Warning] Recovering table: '.\mysql\proxies_priv'
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 55
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 57
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 58
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 59
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 60
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 62
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 63
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 64
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 68
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 91
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 92
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 93
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 94
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 95
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 96
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 97
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 98
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 99
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 100
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 101
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 102
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 103
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 104
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 105
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 106
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 107
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 108
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 109
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 110
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 111
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 112
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 129
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 139
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 144
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 153
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 154
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 164
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 174
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 187
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 190
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 191
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 203
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 206
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 207
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 208
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 217
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 233
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 234
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 235
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 249
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 250
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 251
+2026-09-22 13:47:10 0 [Note] mysql.proxies_priv: Wrong CRC on datapage at 260
+2026-09-22 13:47:11 0 [Warning] mysql.proxies_priv: Number of rows changed from 1 to 0
+2026-09-22 13:47:11 0 [Note] Found 0 of 1 rows when repairing '.\mysql\proxies_priv'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\roles_mapping'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\global_priv'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\time_zone_leap_second'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\time_zone_name'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\time_zone'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\time_zone_transition_type'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\time_zone_transition'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\tables_priv'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\columns_priv'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\procs_priv'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\func'
+2026-09-22 13:47:11 0 [Note] Zerofilling moved table:  '.\mysql\event'
+2026-09-22 13:47:11 0 [Note] Reading of all Master_info entries succeeded
+2026-09-22 13:47:11 0 [Note] Added new Master_info '' to hash table
+2026-09-22 13:47:11 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribution
+2026-09-22 13:53:52 27 [Warning] Aborted connection 27 to db: 'unconnected' user: 'unauthenticated' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 13:53:52 27 [Warning] Aborted connection 27 to db: 'unconnected' user: 'unauthenticated' host: 'localhost' (This connection closed normally without authentication)
+2026-09-22 13:54:07 8 [Warning] Aborted connection 8 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 13:54:14 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 9464
+2026-09-22 13:54:14 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%
+Got error 127 when executing record redo_insert_row_head
+2026-09-22 13:54:14 0 [ERROR] mysqld.exe: Aria engine: Redo phase failed
+tables to flush: 2 1 0
+2026-09-22 13:54:14 0 [ERROR] mysqld.exe: Aria recovery failed. Please run aria_chk -r on all Aria tables and delete all aria_log.######## files
+2026-09-22 13:54:14 0 [ERROR] Plugin 'Aria' registration as a STORAGE ENGINE failed.
+2026-09-22 13:54:14 0 [ERROR] InnoDB: The innodb_system data file 'ibdata1' must be writable
+2026-09-22 13:54:14 0 [ERROR] InnoDB: The innodb_system data file 'ibdata1' must be writable
+2026-09-22 13:54:14 0 [ERROR] Plugin 'InnoDB' registration as a STORAGE ENGINE failed.
+2026-09-22 13:54:14 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-22 13:54:14 0 [ERROR] Could not open mysql.plugin table. Some plugins may be not loaded
+2026-09-22 13:54:14 0 [ERROR] Failed to initialize plugins.
+2026-09-22 13:54:14 0 [ERROR] Aborting
+2026-09-22 13:55:41 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 15664
+2026-09-22 13:55:42 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0%
+Table '.\mysql\proxies_priv' is crashed, skipping it. Please repair it with aria_chk -r
+ 80%2026-09-22 13:57:27 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 23664
+2026-09-22 13:57:27 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0%
+Table '.\mysql\proxies_priv' is crashed, skipping it. Please repair it with aria_chk -r
+ 80%2026-09-22 14:00:22 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 3372
+2026-09-22 14:00:22 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0%
+Table '.\mysql\proxies_priv' is crashed, skipping it. Please repair it with aria_chk -r
+ 80%2026-09-22 14:02:37 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 13000
+2026-09-22 14:02:37 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%2026-09-22 14:03:42 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 3296
+2026-09-22 14:03:42 0 [Note] Using unique option prefix 'aria-log-dir' is error-prone and can break in the future. Please use the full name 'aria-log-dir-path' instead.
+2026-09-22 14:03:42 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-22 14:03:42 0 [Note] InnoDB: Uses event mutexes
+2026-09-22 14:03:42 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-22 14:03:42 0 [Note] InnoDB: Number of pools: 1
+2026-09-22 14:03:42 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-22 14:03:42 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-22 14:03:42 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-22 14:03:42 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149703792
+2026-09-22 14:03:44 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-22 14:03:44 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-22 14:03:44 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-22 14:03:44 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-22 14:03:44 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-22 14:03:44 0 [Note] InnoDB: Waiting for purge to start
+2026-09-22 14:03:44 0 [Note] InnoDB: 10.4.32 started; log sequence number 149703801; transaction id 68813
+2026-09-22 14:03:44 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-22 14:03:44 0 [Note] InnoDB: Buffer pool(s) load completed at 260922 14:03:44
+2026-09-22 14:03:44 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-22 14:03:44 0 [Note] Zerofilling moved table:  '.\mysql\plugin'
+2026-09-22 14:03:44 0 [Note] Zerofilling moved table:  '.\mysql\servers'
+2026-09-22 14:03:44 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-22 14:33:28 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 24676
+2026-09-22 14:33:28 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%2026-09-22 14:35:43 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 9184
+2026-09-22 14:35:43 0 [Note] Using unique option prefix 'aria-log-dir' is error-prone and can break in the future. Please use the full name 'aria-log-dir-path' instead.
+2026-09-22 14:35:43 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-22 14:35:43 0 [Note] InnoDB: Uses event mutexes
+2026-09-22 14:35:43 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-22 14:35:43 0 [Note] InnoDB: Number of pools: 1
+2026-09-22 14:35:43 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-22 14:35:43 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-22 14:35:43 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-22 14:35:43 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149727654
+2026-09-22 14:35:44 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-22 14:35:44 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-22 14:35:44 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-22 14:35:44 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-22 14:35:44 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-22 14:35:44 0 [Note] InnoDB: Waiting for purge to start
+2026-09-22 14:35:44 0 [Note] InnoDB: 10.4.32 started; log sequence number 149727663; transaction id 68945
+2026-09-22 14:35:44 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-22 14:35:44 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-22 14:35:44 0 [Note] InnoDB: Buffer pool(s) load completed at 260922 14:35:44
+2026-09-22 14:35:44 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-22 14:35:44 0 [ERROR] mysqld.exe: Table '.\mysql\global_priv' is marked as crashed and should be repaired
+2026-09-22 14:35:44 0 [Warning] Checking table:   '.\mysql\global_priv'
+2026-09-22 14:35:44 0 [Warning] mysql.global_priv: 1 client is using or hasn't closed the table properly
+2026-09-22 14:35:44 0 [Note] mysql.global_priv: Table is fixed
+2026-09-22 14:35:44 0 [ERROR] mysqld.exe: Table '.\mysql\global_priv' is marked as crashed and should be repaired
+2026-09-22 14:35:44 0 [Warning] Recovering table: '.\mysql\global_priv'
+2026-09-22 14:35:44 0 [Note] Reading of all Master_info entries succeeded
+2026-09-22 14:35:44 0 [Note] Added new Master_info '' to hash table
+2026-09-22 14:35:44 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribution
+2026-09-22 14:40:21 8 [Warning] Aborted connection 8 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 14:40:21 9 [Warning] Aborted connection 9 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 14:53:41 12 [Warning] Aborted connection 12 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 14:53:41 10 [Warning] Aborted connection 10 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 14:54:40 11 [Warning] Aborted connection 11 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:01:24 14 [Warning] Aborted connection 14 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:01:24 16 [Warning] Aborted connection 16 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:01:24 13 [Warning] Aborted connection 13 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:01:27 25 [Warning] Aborted connection 25 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:01:29 24 [Warning] Aborted connection 24 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:06:34 35 [Warning] Aborted connection 35 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:07:15 31 [Warning] Aborted connection 31 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:07:15 34 [Warning] Aborted connection 34 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:12:19 38 [Warning] Aborted connection 38 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 37 [Warning] Aborted connection 37 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 36 [Warning] Aborted connection 36 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 33 [Warning] Aborted connection 33 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 32 [Warning] Aborted connection 32 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 19 [Warning] Aborted connection 19 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 20 [Warning] Aborted connection 20 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 22 [Warning] Aborted connection 22 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 29 [Warning] Aborted connection 29 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:14:58 21 [Warning] Aborted connection 21 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:15:00 28 [Warning] Aborted connection 28 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:15:00 17 [Warning] Aborted connection 17 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:15:00 18 [Warning] Aborted connection 18 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:15:00 30 [Warning] Aborted connection 30 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:15:00 23 [Warning] Aborted connection 23 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:20:04 45 [Warning] Aborted connection 45 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:25:09 54 [Warning] Aborted connection 54 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:30:14 55 [Warning] Aborted connection 55 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:35:19 56 [Warning] Aborted connection 56 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:40:24 57 [Warning] Aborted connection 57 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 15:45:29 58 [Warning] Aborted connection 58 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:44:37 59 [Warning] Aborted connection 59 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:26 15 [Warning] Aborted connection 15 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 52 [Warning] Aborted connection 52 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 51 [Warning] Aborted connection 51 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 49 [Warning] Aborted connection 49 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 50 [Warning] Aborted connection 50 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 44 [Warning] Aborted connection 44 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 41 [Warning] Aborted connection 41 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 42 [Warning] Aborted connection 42 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 43 [Warning] Aborted connection 43 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:45:29 53 [Warning] Aborted connection 53 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:49:44 60 [Warning] Aborted connection 60 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 16:55:44 71 [Warning] Aborted connection 71 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:01:36 72 [Warning] Aborted connection 72 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:20 70 [Warning] Aborted connection 70 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:20 69 [Warning] Aborted connection 69 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:20 67 [Warning] Aborted connection 67 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 65 [Warning] Aborted connection 65 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 39 [Warning] Aborted connection 39 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 63 [Warning] Aborted connection 63 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 40 [Warning] Aborted connection 40 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 46 [Warning] Aborted connection 46 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 66 [Warning] Aborted connection 66 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 64 [Warning] Aborted connection 64 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 68 [Warning] Aborted connection 68 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 62 [Warning] Aborted connection 62 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 48 [Warning] Aborted connection 48 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 27 [Warning] Aborted connection 27 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 26 [Warning] Aborted connection 26 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:03:22 47 [Warning] Aborted connection 47 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:08:27 81 [Warning] Aborted connection 81 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:09:55 83 [Warning] Aborted connection 83 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:09:55 86 [Warning] Aborted connection 86 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:15:00 92 [Warning] Aborted connection 92 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:16:26 90 [Warning] Aborted connection 90 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:20:05 93 [Warning] Aborted connection 93 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:25:10 95 [Warning] Aborted connection 95 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:30:15 96 [Warning] Aborted connection 96 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:35:20 97 [Warning] Aborted connection 97 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:40:25 98 [Warning] Aborted connection 98 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:45:30 99 [Warning] Aborted connection 99 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:13 94 [Warning] Aborted connection 94 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:27 61 [Warning] Aborted connection 61 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 91 [Warning] Aborted connection 91 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 87 [Warning] Aborted connection 87 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 82 [Warning] Aborted connection 82 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 89 [Warning] Aborted connection 89 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 79 [Warning] Aborted connection 79 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 88 [Warning] Aborted connection 88 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 84 [Warning] Aborted connection 84 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 85 [Warning] Aborted connection 85 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 77 [Warning] Aborted connection 77 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 78 [Warning] Aborted connection 78 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 73 [Warning] Aborted connection 73 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 75 [Warning] Aborted connection 75 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 76 [Warning] Aborted connection 76 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 74 [Warning] Aborted connection 74 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:50:30 80 [Warning] Aborted connection 80 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:55:35 109 [Warning] Aborted connection 109 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 17:55:35 115 [Warning] Aborted connection 115 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:00:40 119 [Warning] Aborted connection 119 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:02:08 121 [Warning] Aborted connection 121 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:02:11 122 [Warning] Aborted connection 122 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:03:16 123 [Warning] Aborted connection 123 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:03:24 124 [Warning] Aborted connection 124 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:03:45 125 [Warning] Aborted connection 125 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:03:47 126 [Warning] Aborted connection 126 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:05:20 127 [Warning] Aborted connection 127 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:05:44 120 [Warning] Aborted connection 120 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 100 [Warning] Aborted connection 100 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 116 [Warning] Aborted connection 116 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 104 [Warning] Aborted connection 104 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 103 [Warning] Aborted connection 103 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 107 [Warning] Aborted connection 107 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 102 [Warning] Aborted connection 102 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 111 [Warning] Aborted connection 111 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 105 [Warning] Aborted connection 105 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 101 [Warning] Aborted connection 101 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 110 [Warning] Aborted connection 110 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 112 [Warning] Aborted connection 112 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 108 [Warning] Aborted connection 108 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 117 [Warning] Aborted connection 117 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 128 [Warning] Aborted connection 128 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 118 [Warning] Aborted connection 118 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 113 [Warning] Aborted connection 113 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 106 [Warning] Aborted connection 106 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:08:03 114 [Warning] Aborted connection 114 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:14:07 133 [Warning] Aborted connection 133 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:15:12 134 [Warning] Aborted connection 134 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:22:28 129 [Warning] Aborted connection 129 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:22:28 130 [Warning] Aborted connection 130 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:22:29 131 [Warning] Aborted connection 131 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:22:29 132 [Warning] Aborted connection 132 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-22 18:22:44 135 [Warning] Aborted connection 135 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23  9:29:34 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 14988
+2026-09-23  9:29:34 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%2026-09-23 10:28:03 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 20444
+2026-09-23 10:28:03 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%2026-09-23 10:40:09 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 20224
+2026-09-23 10:40:09 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 80%2026-09-23 12:13:24 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 3892
+2026-09-23 12:13:24 0 [Note] Using unique option prefix 'aria-log-dir' is error-prone and can break in the future. Please use the full name 'aria-log-dir-path' instead.
+2026-09-23 12:13:24 0 [Note] mysqld.exe: Aria engine: starting recovery
+recovered pages: 0% 100% (0.0 seconds); 
+2026-09-23 12:13:24 0 [Note] mysqld.exe: Aria engine: recovery done
+2026-09-23 12:13:24 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-23 12:13:24 0 [Note] InnoDB: Uses event mutexes
+2026-09-23 12:13:24 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-23 12:13:24 0 [Note] InnoDB: Number of pools: 1
+2026-09-23 12:13:24 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-23 12:13:24 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-23 12:13:25 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-23 12:13:25 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149799547
+2026-09-23 12:13:26 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-23 12:13:26 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-23 12:13:26 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-23 12:13:26 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-23 12:13:26 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-23 12:13:26 0 [Note] InnoDB: Waiting for purge to start
+2026-09-23 12:13:26 0 [Note] InnoDB: 10.4.32 started; log sequence number 149799556; transaction id 69087
+2026-09-23 12:13:26 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-23 12:13:26 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-23 12:13:26 0 [Note] InnoDB: Buffer pool(s) load completed at 260923 12:13:26
+2026-09-23 12:13:26 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-23 12:13:26 0 [Note] Zerofilling moved table:  '.\mysql\global_priv'
+2026-09-23 12:13:26 0 [Note] Reading of all Master_info entries succeeded
+2026-09-23 12:13:26 0 [Note] Added new Master_info '' to hash table
+2026-09-23 12:13:26 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3307  mariadb.org binary distribution
+2026-09-23 12:24:23 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 19128
+2026-09-23 12:24:23 0 [Note] Using unique option prefix 'aria-log-dir' is error-prone and can break in the future. Please use the full name 'aria-log-dir-path' instead.
+2026-09-23 12:24:23 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-23 12:24:23 0 [Note] InnoDB: Uses event mutexes
+2026-09-23 12:24:23 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-23 12:24:23 0 [Note] InnoDB: Number of pools: 1
+2026-09-23 12:24:23 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-23 12:24:23 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-23 12:24:23 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-23 12:24:23 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149857879
+2026-09-23 12:24:24 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-23 12:24:24 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-23 12:24:24 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-23 12:24:24 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-23 12:24:24 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-23 12:24:24 0 [Note] InnoDB: Waiting for purge to start
+2026-09-23 12:24:24 0 [Note] InnoDB: 10.4.32 started; log sequence number 149857888; transaction id 69199
+2026-09-23 12:24:24 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-23 12:24:24 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-23 12:24:24 0 [Note] InnoDB: Buffer pool(s) load completed at 260923 12:24:24
+2026-09-23 12:24:24 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-23 12:24:24 0 [Note] Reading of all Master_info entries succeeded
+2026-09-23 12:24:24 0 [Note] Added new Master_info '' to hash table
+2026-09-23 12:24:24 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribution
+2026-09-23 12:34:14 9 [Warning] Aborted connection 9 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:34:14 10 [Warning] Aborted connection 10 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:39:21 13 [Warning] Aborted connection 13 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:41:22 12 [Warning] Aborted connection 12 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:41:22 11 [Warning] Aborted connection 11 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:46:32 21 [Warning] Aborted connection 21 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:51:36 25 [Warning] Aborted connection 25 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:53:12 23 [Warning] Aborted connection 23 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 12:58:17 27 [Warning] Aborted connection 27 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:03:21 28 [Warning] Aborted connection 28 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:08:22 29 [Warning] Aborted connection 29 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:13:22 30 [Warning] Aborted connection 30 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:28:20 31 [Warning] Aborted connection 31 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:37 32 [Warning] Aborted connection 32 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 26 [Warning] Aborted connection 26 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 18 [Warning] Aborted connection 18 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 16 [Warning] Aborted connection 16 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 22 [Warning] Aborted connection 22 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 15 [Warning] Aborted connection 15 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 14 [Warning] Aborted connection 14 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 20 [Warning] Aborted connection 20 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 17 [Warning] Aborted connection 17 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:40:38 19 [Warning] Aborted connection 19 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:45:43 40 [Warning] Aborted connection 40 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:50:48 51 [Warning] Aborted connection 51 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:59:48 50 [Warning] Aborted connection 50 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:59:48 45 [Warning] Aborted connection 45 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 13:59:48 52 [Warning] Aborted connection 52 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:00:01 24 [Warning] Aborted connection 24 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:04:52 55 [Warning] Aborted connection 55 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:21 54 [Warning] Aborted connection 54 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:21 53 [Warning] Aborted connection 53 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 48 [Warning] Aborted connection 48 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 47 [Warning] Aborted connection 47 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 37 [Warning] Aborted connection 37 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 36 [Warning] Aborted connection 36 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 35 [Warning] Aborted connection 35 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 42 [Warning] Aborted connection 42 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:24 33 [Warning] Aborted connection 33 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:26 56 [Warning] Aborted connection 56 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 44 [Warning] Aborted connection 44 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 49 [Warning] Aborted connection 49 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 39 [Warning] Aborted connection 39 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 46 [Warning] Aborted connection 46 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 41 [Warning] Aborted connection 41 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 43 [Warning] Aborted connection 43 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:05:38 38 [Warning] Aborted connection 38 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:10:41 69 [Warning] Aborted connection 69 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:11:24 73 [Warning] Aborted connection 73 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:11:24 74 [Warning] Aborted connection 74 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:15:57 75 [Warning] Aborted connection 75 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 70 [Warning] Aborted connection 70 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 62 [Warning] Aborted connection 62 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 59 [Warning] Aborted connection 59 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 63 [Warning] Aborted connection 63 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 71 [Warning] Aborted connection 71 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 72 [Warning] Aborted connection 72 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:15 68 [Warning] Aborted connection 68 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:16:16 64 [Warning] Aborted connection 64 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:21:01 78 [Warning] Aborted connection 78 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:26:06 87 [Warning] Aborted connection 87 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:27:19 86 [Warning] Aborted connection 86 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:28:58 81 [Warning] Aborted connection 81 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 89 [Warning] Aborted connection 89 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 77 [Warning] Aborted connection 77 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 88 [Warning] Aborted connection 88 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 83 [Warning] Aborted connection 83 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 80 [Warning] Aborted connection 80 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 84 [Warning] Aborted connection 84 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 82 [Warning] Aborted connection 82 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 76 [Warning] Aborted connection 76 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:29 85 [Warning] Aborted connection 85 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 79 [Warning] Aborted connection 79 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 57 [Warning] Aborted connection 57 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 61 [Warning] Aborted connection 61 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 60 [Warning] Aborted connection 60 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 58 [Warning] Aborted connection 58 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 65 [Warning] Aborted connection 65 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:33:31 66 [Warning] Aborted connection 66 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:34:49 34 [Warning] Aborted connection 34 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:34:51 90 [Warning] Aborted connection 90 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:38:36 97 [Warning] Aborted connection 97 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:42:10 95 [Warning] Aborted connection 95 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:42:10 106 [Warning] Aborted connection 106 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:20 105 [Warning] Aborted connection 105 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:20 99 [Warning] Aborted connection 99 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 96 [Warning] Aborted connection 96 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 91 [Warning] Aborted connection 91 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 100 [Warning] Aborted connection 100 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 93 [Warning] Aborted connection 93 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 108 [Warning] Aborted connection 108 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 103 [Warning] Aborted connection 103 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 94 [Warning] Aborted connection 94 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 101 [Warning] Aborted connection 101 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 102 [Warning] Aborted connection 102 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 98 [Warning] Aborted connection 98 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:21 104 [Warning] Aborted connection 104 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:43:48 67 [Warning] Aborted connection 67 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:48:25 114 [Warning] Aborted connection 114 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:48:40 116 [Warning] Aborted connection 116 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 112 [Warning] Aborted connection 112 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 120 [Warning] Aborted connection 120 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 123 [Warning] Aborted connection 123 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 121 [Warning] Aborted connection 121 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 118 [Warning] Aborted connection 118 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:35 119 [Warning] Aborted connection 119 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:36 122 [Warning] Aborted connection 122 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:36 117 [Warning] Aborted connection 117 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:43 107 [Warning] Aborted connection 107 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:49:51 124 [Warning] Aborted connection 124 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:52:10 113 [Warning] Aborted connection 113 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:52:10 111 [Warning] Aborted connection 111 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:52:10 115 [Warning] Aborted connection 115 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:52:10 109 [Warning] Aborted connection 109 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:52:10 110 [Warning] Aborted connection 110 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:53:44 128 [Warning] Aborted connection 128 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:55:42 136 [Warning] Aborted connection 136 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:55:46 133 [Warning] Aborted connection 133 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:55:46 131 [Warning] Aborted connection 131 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:55:46 134 [Warning] Aborted connection 134 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:55:46 142 [Warning] Aborted connection 142 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:57:12 143 [Warning] Aborted connection 143 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:57:12 147 [Warning] Aborted connection 147 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 14:57:12 125 [Warning] Aborted connection 125 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:02:13 154 [Warning] Aborted connection 154 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:02:33 155 [Warning] Aborted connection 155 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:04:20 137 [Warning] Aborted connection 137 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:07:34 158 [Warning] Aborted connection 158 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:07:40 157 [Warning] Aborted connection 157 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:07:40 151 [Warning] Aborted connection 151 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:14 159 [Warning] Aborted connection 159 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 149 [Warning] Aborted connection 149 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 152 [Warning] Aborted connection 152 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 150 [Warning] Aborted connection 150 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 146 [Warning] Aborted connection 146 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 153 [Warning] Aborted connection 153 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 145 [Warning] Aborted connection 145 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:15 148 [Warning] Aborted connection 148 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:16 144 [Warning] Aborted connection 144 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:10:16 135 [Warning] Aborted connection 135 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:14:54 160 [Warning] Aborted connection 160 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:14:55 156 [Warning] Aborted connection 156 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 168 [Warning] Aborted connection 168 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 165 [Warning] Aborted connection 165 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 161 [Warning] Aborted connection 161 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 164 [Warning] Aborted connection 164 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 170 [Warning] Aborted connection 170 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 162 [Warning] Aborted connection 162 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 166 [Warning] Aborted connection 166 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 167 [Warning] Aborted connection 167 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 171 [Warning] Aborted connection 171 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 172 [Warning] Aborted connection 172 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 169 [Warning] Aborted connection 169 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-23 15:15:16 132 [Warning] Aborted connection 132 to db: 'dms_dev' user: 'root' host: 'localhost' (Got an error reading communication packets)
+2026-09-24 14:18:46 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 15164
+2026-09-24 14:18:47 0 [Note] Using unique option prefix 'aria-log-dir' is error-prone and can break in the future. Please use the full name 'aria-log-dir-path' instead.
+2026-09-24 14:18:47 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:18:47 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:18:47 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:18:47 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:18:47 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:18:47 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:18:47 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:18:47 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149920092
+2026-09-24 14:18:48 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:18:48 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-24 14:18:48 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:18:48 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:18:48 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:18:48 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:18:48 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920101; transaction id 69365
+2026-09-24 14:18:48 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:18:48 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:18:48 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:18:48
+2026-09-24 14:18:48 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-24 14:22:50 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 23904
+2026-09-24 14:22:50 0 [ERROR] mysqld.exe: File 'c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-aria-log-fresh\aria_log.00000001' not found (Errcode: 2 "No such file or directory")
+2026-09-24 14:22:50 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:22:50 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:22:50 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:22:50 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:22:50 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:22:50 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:22:50 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:22:50 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149920110
+2026-09-24 14:22:51 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:22:51 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-24 14:22:51 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:22:52 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:22:52 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:22:52 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:22:52 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920119; transaction id 69365
+2026-09-24 14:22:52 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:22:52 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:22:52 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:22:52
+2026-09-24 14:22:52 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-24 14:22:52 0 [Note] Reading of all Master_info entries succeeded
+2026-09-24 14:22:52 0 [Note] Added new Master_info '' to hash table
+2026-09-24 14:22:52 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribution
+2026-09-24 14:31:52 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 19184
+2026-09-24 14:31:53 0 [ERROR] mysqld.exe: File 'c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-aria-log-fresh\aria_log.00000002' not found (Errcode: 2 "No such file or directory")
+2026-09-24 14:31:53 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:31:53 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:31:53 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:31:53 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:31:53 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:31:53 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:31:53 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:31:53 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149920128
+2026-09-24 14:31:57 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:31:57 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-24 14:31:57 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:31:57 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:31:57 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:31:57 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:31:57 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920137; transaction id 69365
+2026-09-24 14:31:57 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:31:57 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:31:57 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:31:57
+2026-09-24 14:31:57 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-24 14:31:57 0 [Note] Reading of all Master_info entries succeeded
+2026-09-24 14:31:57 0 [Note] Added new Master_info '' to hash table
+2026-09-24 14:31:57 0 [Note] C:\xampp\mysql\bin\mysqld.exe: ready for connections.
+Version: '10.4.32-MariaDB'  socket: ''  port: 3306  mariadb.org binary distribution
+2026-09-24 14:36:52 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 30232
+2026-09-24 14:36:52 0 [ERROR] mysqld.exe: File 'c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\aria_log.00000001' not found (Errcode: 2 "No such file or directory")
+2026-09-24 14:36:52 0 [ERROR] mysqld.exe: Aria engine: log initialization failed
+2026-09-24 14:36:52 0 [ERROR] Plugin 'Aria' registration as a STORAGE ENGINE failed.
+2026-09-24 14:36:52 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:36:52 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:36:52 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:36:52 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:36:52 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:36:52 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:36:52 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:36:52 0 [Note] InnoDB: Starting crash recovery from checkpoint LSN=149920164
+2026-09-24 14:36:52 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:36:52 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-24 14:36:52 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:36:52 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:36:52 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:36:52 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:36:52 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920173; transaction id 69365
+2026-09-24 14:36:52 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:36:52 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:36:52 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:36:52
+2026-09-24 14:36:52 0 [ERROR] Could not open mysql.plugin table. Some plugins may be not loaded
+2026-09-24 14:36:52 0 [ERROR] Failed to initialize plugins.
+2026-09-24 14:36:52 0 [ERROR] Aborting
+2026-09-24 14:37:48 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 18672
+2026-09-24 14:37:48 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:37:48 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:37:48 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:37:48 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:37:48 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:37:48 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:37:48 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:37:48 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:37:48 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:37:48 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:37:48 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:37:48 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:37:48 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920182; transaction id 69365
+2026-09-24 14:37:48 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:37:48 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:37:48 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:37:48
+2026-09-24 14:37:48 0 [Note] Zerofilling moved table:  '.\mysql\plugin'
+2026-09-24 14:37:48 0 [Note] Zerofilling moved table:  '.\mysql\servers'
+2026-09-24 14:37:48 0 [Note] Server socket created on IP: '127.0.0.1'.
+2026-09-24 14:40:44 0 [Note] Starting MariaDB 10.4.32-MariaDB source revision c4143f909528e3fab0677a28631d10389354c491 as process 8708
+2026-09-24 14:40:44 0 [Note] InnoDB: Mutexes and rw_locks use Windows interlocked functions
+2026-09-24 14:40:44 0 [Note] InnoDB: Uses event mutexes
+2026-09-24 14:40:44 0 [Note] InnoDB: Compressed tables use zlib 1.3
+2026-09-24 14:40:44 0 [Note] InnoDB: Number of pools: 1
+2026-09-24 14:40:44 0 [Note] InnoDB: Using SSE2 crc32 instructions
+2026-09-24 14:40:44 0 [Note] InnoDB: Initializing buffer pool, total size = 128M, instances = 1, chunk size = 128M
+2026-09-24 14:40:44 0 [Note] InnoDB: Completed initialization of buffer pool
+2026-09-24 14:40:44 0 [Note] InnoDB: 128 out of 128 rollback segments are active.
+2026-09-24 14:40:44 0 [Note] InnoDB: Removed temporary tablespace data file: "ibtmp1"
+2026-09-24 14:40:44 0 [Note] InnoDB: Creating shared tablespace for temporary tables
+2026-09-24 14:40:44 0 [Note] InnoDB: Setting file '.\ibtmp1' size to 12 MB. Physically writing the file full; Please wait ...
+2026-09-24 14:40:44 0 [Note] InnoDB: File '.\ibtmp1' size is now 12 MB.
+2026-09-24 14:40:44 0 [Note] InnoDB: Waiting for purge to start
+2026-09-24 14:40:44 0 [Note] InnoDB: 10.4.32 started; log sequence number 149920182; transaction id 69365
+2026-09-24 14:40:44 0 [Note] InnoDB: Loading buffer pool(s) from c:\Users\USER\Desktop\DocumentManagementSystem\backend\mysql-local-data\ib_buffer_pool
+2026-09-24 14:40:44 0 [Note] Plugin 'FEEDBACK' is disabled.
+2026-09-24 14:40:44 0 [Note] InnoDB: Buffer pool(s) load completed at 260924 14:40:44
+2026-09-24 14:40:44 0 [Note] Server socket created on IP: '127.0.0.1'.
